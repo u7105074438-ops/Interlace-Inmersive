@@ -1,0 +1,4660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#05010f" />
+<meta name="description" content="Roquet Redemption by Areces - Futbol arcade 2D con coches. Inspirado en Rocket League Sideswipe." />
+<title>Roquet Redemption by Areces</title>
+<style>
+/* ============================================================================
+   ROQUET REDEMPTION BY ARECES
+   ----------------------------------------------------------------------------
+   HOJA DE ESTILOS MASIVA - Variables, Glassmorphism, Neon, Animaciones,
+   Responsividad total (safe-areas), transiciones entre menus.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   1. VARIABLES GLOBALES (DESIGN TOKENS)
+   ------------------------------------------------------------------------- */
+:root {
+  /* Paleta neon principal */
+  --neon-cyan:        #00f0ff;
+  --neon-cyan-soft:   #6ff7ff;
+  --neon-magenta:     #ff2bd6;
+  --neon-magenta-soft:#ff7be8;
+  --neon-purple:      #8a2be2;
+  --neon-violet:      #b14bff;
+  --neon-blue:        #2b6bff;
+  --neon-orange:      #ff7a18;
+  --neon-yellow:      #ffe14d;
+  --neon-green:       #25ff9b;
+  --neon-red:         #ff3b5c;
+
+  /* Equipos */
+  --team-blue:        #25b9ff;
+  --team-blue-glow:   #0a6cff;
+  --team-orange:      #ff8a2b;
+  --team-orange-glow: #ff5a00;
+
+  /* Fondo / superficie */
+  --bg-0:   #05010f;
+  --bg-1:   #0a0420;
+  --bg-2:   #130833;
+  --bg-3:   #1d0a4d;
+
+  /* Cristal (glassmorphism) */
+  --glass-bg:        rgba(28, 16, 64, 0.42);
+  --glass-bg-strong: rgba(20, 10, 48, 0.66);
+  --glass-border:    rgba(150, 110, 255, 0.35);
+  --glass-hi:        rgba(255, 255, 255, 0.10);
+  --glass-shadow:    0 18px 50px rgba(0, 0, 0, 0.55);
+
+  /* Texto */
+  --txt-0: #ffffff;
+  --txt-1: #d7d0ff;
+  --txt-2: #9c92cf;
+  --txt-3: #6b6299;
+
+  /* Tipografia */
+  --font-display: "Trebuchet MS", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-ui:      "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+
+  /* Geometria */
+  --radius-s: 10px;
+  --radius-m: 18px;
+  --radius-l: 28px;
+  --radius-pill: 999px;
+
+  /* Tiempos de animacion */
+  --t-fast: 0.16s;
+  --t-med:  0.32s;
+  --t-slow: 0.6s;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Safe areas (notch) */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  /* Sombra de glow reutilizable */
+  --glow-cyan:    0 0 18px rgba(0, 240, 255, 0.65), 0 0 40px rgba(0, 240, 255, 0.30);
+  --glow-magenta: 0 0 18px rgba(255, 43, 214, 0.65), 0 0 40px rgba(255, 43, 214, 0.30);
+}
+
+/* ---------------------------------------------------------------------------
+   2. RESET Y BASE
+   ------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  background: var(--bg-0);
+  color: var(--txt-0);
+  font-family: var(--font-ui);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+body {
+  /* Fondo de aurora animado bajo el canvas */
+  background:
+    radial-gradient(1200px 700px at 15% -10%, rgba(138, 43, 226, 0.30), transparent 60%),
+    radial-gradient(1100px 800px at 110% 10%, rgba(0, 240, 255, 0.18), transparent 55%),
+    radial-gradient(900px 900px at 50% 120%, rgba(255, 43, 214, 0.18), transparent 60%),
+    linear-gradient(160deg, var(--bg-0), var(--bg-2) 60%, var(--bg-1));
+}
+
+img { -webkit-user-drag: none; user-drag: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* ---------------------------------------------------------------------------
+   3. CANVAS PRINCIPAL
+   ------------------------------------------------------------------------- */
+#gameCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 1;
+  touch-action: none;
+  background: transparent;
+}
+
+/* Vinieta superpuesta para profundidad cinematografica */
+#vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0,0,0,0.45) 100%);
+  mix-blend-mode: multiply;
+}
+
+/* Capa de escaneo CRT sutil opcional */
+#scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.06;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.0) 0px,
+    rgba(255,255,255,0.0) 2px,
+    rgba(0,0,0,0.6) 3px,
+    rgba(0,0,0,0.6) 4px
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   4. CONTENEDOR DE INTERFAZ (OVERLAYS HTML)
+   ------------------------------------------------------------------------- */
+#ui-root {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding:
+    calc(18px + var(--safe-t))
+    calc(18px + var(--safe-r))
+    calc(18px + var(--safe-b))
+    calc(18px + var(--safe-l));
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(1.03);
+  transition: opacity var(--t-med) var(--ease-out),
+              transform var(--t-med) var(--ease-out),
+              visibility var(--t-med) var(--ease-out);
+}
+
+.screen.active {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1.0);
+}
+
+.screen.behind {
+  transform: scale(0.96);
+  filter: blur(3px) brightness(0.7);
+}
+
+/* La HUD del juego nunca bloquea toques fuera de sus widgets */
+#screen-hud { pointer-events: none; justify-content: flex-start; align-items: stretch; }
+#screen-hud > * { pointer-events: auto; }
+
+/* ---------------------------------------------------------------------------
+   5. GLASSMORPHISM (PANELES DE CRISTAL)
+   ------------------------------------------------------------------------- */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-l);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--glass-shadow),
+              inset 0 1px 0 var(--glass-hi),
+              inset 0 0 40px rgba(120, 80, 255, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass::before {
+  /* Brillo diagonal de cristal */
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -30%;
+  width: 70%;
+  height: 220%;
+  background: linear-gradient(115deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%);
+  transform: rotate(8deg);
+  pointer-events: none;
+}
+
+.glass-strong { background: var(--glass-bg-strong); }
+
+/* ---------------------------------------------------------------------------
+   6. TIPOGRAFIA Y TITULOS NEON
+   ------------------------------------------------------------------------- */
+.title-neon {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  line-height: 0.95;
+  background: linear-gradient(180deg, #ffffff, var(--neon-cyan-soft) 55%, var(--neon-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 12px rgba(0,240,255,0.55))
+          drop-shadow(0 0 30px rgba(0,240,255,0.30));
+}
+
+.title-neon.magenta {
+  background: linear-gradient(180deg, #ffffff, var(--neon-magenta-soft) 55%, var(--neon-magenta));
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(255,43,214,0.55))
+          drop-shadow(0 0 30px rgba(255,43,214,0.30));
+}
+
+.subtitle {
+  color: var(--txt-2);
+  font-size: clamp(11px, 2.6vw, 15px);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------------------
+   7. LOGO PRINCIPAL (PANTALLA TITULO)
+   ------------------------------------------------------------------------- */
+.brand {
+  text-align: center;
+  margin-bottom: clamp(16px, 4vh, 40px);
+  animation: floatUp 0.9s var(--ease-out) both;
+}
+.brand .line1 { font-size: clamp(30px, 9vw, 78px); }
+.brand .line2 {
+  font-size: clamp(42px, 12vw, 110px);
+  margin-top: -0.12em;
+}
+.brand .by {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: clamp(10px, 2.8vw, 16px);
+  letter-spacing: 6px;
+  color: var(--txt-1);
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.brand .by b {
+  color: var(--neon-yellow);
+  filter: drop-shadow(0 0 10px rgba(255,225,77,0.6));
+}
+
+/* ---------------------------------------------------------------------------
+   8. BOTONES
+   ------------------------------------------------------------------------- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 26px;
+  min-height: 56px;
+  border-radius: var(--radius-pill);
+  font-weight: 800;
+  font-size: clamp(14px, 3.6vw, 18px);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--txt-0);
+  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18),
+              0 10px 26px rgba(0,0,0,0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  overflow: hidden;
+  transition: transform var(--t-fast) var(--ease-bounce),
+              box-shadow var(--t-fast) var(--ease-out),
+              filter var(--t-fast) var(--ease-out);
+  width: 100%;
+  max-width: 360px;
+}
+.btn:active { transform: scale(0.95); filter: brightness(1.15); }
+
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 120% at 50% -20%, rgba(255,255,255,0.25), transparent 50%);
+  pointer-events: none;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-blue));
+  color: #02121a;
+  border-color: rgba(255,255,255,0.4);
+  box-shadow: var(--glow-cyan), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+.btn-magenta {
+  background: linear-gradient(180deg, var(--neon-magenta), var(--neon-purple));
+  color: #1a0216;
+  box-shadow: var(--glow-magenta), inset 0 1px 0 rgba(255,255,255,0.4);
+}
+.btn-ghost {
+  background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
+}
+.btn-danger {
+  background: linear-gradient(180deg, var(--neon-red), #b3122f);
+  box-shadow: 0 0 18px rgba(255,59,92,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.btn-sm { min-height: 44px; padding: 10px 18px; font-size: 13px; max-width: 200px; }
+.btn-icon {
+  width: 52px; height: 52px; min-height: 52px; max-width: 52px;
+  border-radius: 50%; padding: 0; font-size: 22px;
+}
+
+.btn-row { display: flex; gap: 12px; width: 100%; max-width: 360px; }
+.btn-row .btn { flex: 1; }
+
+/* ---------------------------------------------------------------------------
+   9. MENU PRINCIPAL
+   ------------------------------------------------------------------------- */
+.menu-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(420px, 92vw);
+}
+
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(420px, 92vw);
+  padding: 14px 18px;
+  border-radius: var(--radius-m);
+  margin-bottom: 6px;
+}
+.rank-badge {
+  width: 54px; height: 54px;
+  flex: 0 0 54px;
+  border-radius: 14px;
+  display: grid; place-items: center;
+  font-weight: 900; font-size: 22px;
+  background: linear-gradient(180deg, var(--neon-violet), var(--neon-purple));
+  box-shadow: 0 0 18px rgba(177,75,255,0.6), inset 0 1px 0 rgba(255,255,255,0.4);
+}
+.player-meta { flex: 1; min-width: 0; }
+.player-name { font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.player-rank { font-size: 12px; color: var(--txt-2); letter-spacing: 1px; text-transform: uppercase; }
+.xp-bar {
+  margin-top: 7px;
+  height: 9px;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.35);
+  overflow: hidden;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.6);
+}
+.xp-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+  box-shadow: 0 0 12px rgba(0,240,255,0.7);
+  transition: width var(--t-slow) var(--ease-out);
+}
+.xp-text { font-size: 10px; color: var(--txt-3); margin-top: 4px; letter-spacing: 1px; }
+
+/* ---------------------------------------------------------------------------
+   10. HUD DE PARTIDA
+   ------------------------------------------------------------------------- */
+.hud-top {
+  position: absolute;
+  top: calc(10px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+}
+.score-box { display: flex; align-items: center; gap: 14px; }
+.score-team {
+  display: flex; flex-direction: column; align-items: center; min-width: 46px;
+}
+.score-num {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(26px, 7vw, 40px);
+  line-height: 1;
+}
+.score-num.blue { color: var(--team-blue); filter: drop-shadow(0 0 10px var(--team-blue-glow)); }
+.score-num.orange { color: var(--team-orange); filter: drop-shadow(0 0 10px var(--team-orange-glow)); }
+.score-label { font-size: 9px; letter-spacing: 2px; color: var(--txt-2); text-transform: uppercase; }
+.timer {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(20px, 5.5vw, 30px);
+  min-width: 78px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.timer.overtime { color: var(--neon-yellow); animation: pulseGlow 1s infinite; }
+
+.boost-meter {
+  position: absolute;
+  bottom: calc(18px + var(--safe-b));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(260px, 60vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.boost-track {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.12);
+  overflow: hidden;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.7);
+}
+.boost-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--neon-orange), var(--neon-yellow));
+  box-shadow: 0 0 14px rgba(255,225,77,0.7);
+  transition: width 0.08s linear;
+}
+.boost-label { font-size: 9px; letter-spacing: 3px; color: var(--txt-2); text-transform: uppercase; }
+
+/* ---------------------------------------------------------------------------
+   11. CONTROLES TACTILES
+   ------------------------------------------------------------------------- */
+#touch-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+#touch-controls.hidden { display: none; }
+
+.joystick-zone {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 45%;
+  height: 60%;
+  pointer-events: auto;
+  touch-action: none;
+}
+.joystick-base {
+  position: absolute;
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,240,255,0.35);
+  background: radial-gradient(circle at 50% 50%, rgba(0,240,255,0.08), rgba(0,0,0,0.25));
+  box-shadow: inset 0 0 22px rgba(0,240,255,0.18), 0 0 18px rgba(0,0,0,0.4);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity var(--t-fast) ease;
+  pointer-events: none;
+}
+.joystick-base.active { opacity: 0.95; }
+.joystick-knob {
+  position: absolute;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #ffffff, var(--neon-cyan) 60%, var(--neon-blue));
+  box-shadow: var(--glow-cyan), inset 0 2px 4px rgba(255,255,255,0.6);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity var(--t-fast) ease;
+  pointer-events: none;
+}
+.joystick-knob.active { opacity: 1; }
+
+.action-pad {
+  position: absolute;
+  right: calc(14px + var(--safe-r));
+  bottom: calc(22px + var(--safe-b));
+  width: 240px;
+  height: 220px;
+  pointer-events: none;
+}
+.action-btn {
+  position: absolute;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  pointer-events: auto;
+  touch-action: none;
+  border: 2px solid rgba(255,255,255,0.18);
+  box-shadow: inset 0 2px 6px rgba(255,255,255,0.2), 0 8px 22px rgba(0,0,0,0.5);
+  transition: transform var(--t-fast) var(--ease-bounce), filter var(--t-fast) ease, box-shadow var(--t-fast) ease;
+  user-select: none;
+}
+.action-btn .lbl { font-size: 11px; opacity: 0.95; }
+.action-btn .ico { font-size: 26px; line-height: 1; }
+.action-btn.pressed { transform: scale(0.9); filter: brightness(1.3); }
+
+.btn-jump {
+  width: 92px; height: 92px;
+  right: 0; bottom: 8px;
+  background: radial-gradient(circle at 40% 35%, #d6fff0, var(--neon-green) 65%, #07b36a);
+  color: #03241a;
+  box-shadow: 0 0 22px rgba(37,255,155,0.55), inset 0 2px 6px rgba(255,255,255,0.35);
+}
+.btn-boost {
+  width: 104px; height: 104px;
+  right: 84px; bottom: 0;
+  background: radial-gradient(circle at 40% 35%, #fff0c2, var(--neon-orange) 65%, #d63e00);
+  color: #2a1300;
+  box-shadow: 0 0 26px rgba(255,122,24,0.6), inset 0 2px 6px rgba(255,255,255,0.4);
+}
+.btn-airroll {
+  width: 78px; height: 78px;
+  right: 132px; bottom: 96px;
+  background: radial-gradient(circle at 40% 35%, #e9d6ff, var(--neon-violet) 65%, #5e16c4);
+  color: #15042a;
+  box-shadow: 0 0 22px rgba(177,75,255,0.55), inset 0 2px 6px rgba(255,255,255,0.35);
+}
+
+/* Boton de pausa flotante */
+.pause-fab {
+  position: absolute;
+  top: calc(10px + var(--safe-t));
+  right: calc(12px + var(--safe-r));
+  width: 46px; height: 46px;
+  border-radius: 14px;
+  display: grid; place-items: center;
+  font-size: 20px;
+  pointer-events: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   12. GARAJE
+   ------------------------------------------------------------------------- */
+.garage-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(520px, 94vw);
+  gap: 14px;
+}
+.garage-stage {
+  width: 100%;
+  height: clamp(180px, 34vh, 320px);
+  border-radius: var(--radius-l);
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(80% 60% at 50% 30%, rgba(0,240,255,0.12), transparent 70%),
+    linear-gradient(180deg, rgba(20,8,52,0.6), rgba(5,1,15,0.85));
+}
+#garageCanvas { width: 100%; height: 100%; display: block; }
+.garage-controls { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.car-selector { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.car-info { text-align: center; flex: 1; }
+.car-name { font-weight: 900; font-size: 20px; letter-spacing: 1px; }
+.car-lock { font-size: 11px; color: var(--neon-yellow); letter-spacing: 1px; margin-top: 3px; }
+.swatches { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.swatch {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  pointer-events: auto;
+  transition: transform var(--t-fast) var(--ease-bounce), box-shadow var(--t-fast) ease;
+}
+.swatch.active { transform: scale(1.18); box-shadow: 0 0 0 3px #fff, 0 0 16px currentColor; }
+.swatch:active { transform: scale(0.92); }
+
+/* ---------------------------------------------------------------------------
+   13. AJUSTES
+   ------------------------------------------------------------------------- */
+.settings-wrap { display: flex; flex-direction: column; gap: 10px; width: min(460px, 94vw); }
+.setting-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-radius: var(--radius-m); gap: 14px;
+}
+.setting-label { font-weight: 700; font-size: 15px; }
+.setting-desc { font-size: 11px; color: var(--txt-2); margin-top: 2px; }
+
+/* Toggle */
+.toggle {
+  width: 58px; height: 32px; border-radius: 999px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--glass-border);
+  position: relative; flex: 0 0 58px; pointer-events: auto;
+  transition: background var(--t-fast) ease;
+}
+.toggle .knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  transition: transform var(--t-fast) var(--ease-bounce), background var(--t-fast) ease;
+}
+.toggle.on { background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue)); }
+.toggle.on .knob { transform: translateX(26px); }
+
+/* Slider */
+.slider {
+  -webkit-appearance: none; appearance: none;
+  width: 160px; height: 8px; border-radius: 999px;
+  background: rgba(0,0,0,0.4);
+  outline: none; pointer-events: auto;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff, var(--neon-cyan));
+  box-shadow: var(--glow-cyan); cursor: pointer;
+}
+.slider::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%; border: none;
+  background: var(--neon-cyan); box-shadow: var(--glow-cyan); cursor: pointer;
+}
+
+/* Segmented control (dificultad) */
+.segmented {
+  display: flex; gap: 4px; padding: 4px; border-radius: var(--radius-pill);
+  background: rgba(0,0,0,0.35); pointer-events: auto;
+}
+.segmented .seg {
+  flex: 1; padding: 9px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--txt-2);
+  transition: all var(--t-fast) ease; pointer-events: auto;
+}
+.segmented .seg.active {
+  color: #04121a;
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-blue));
+  box-shadow: var(--glow-cyan);
+}
+
+/* ---------------------------------------------------------------------------
+   14. PANTALLA DE CARGA
+   ------------------------------------------------------------------------- */
+#screen-loading { z-index: 50; background: var(--bg-0); }
+.loader-core {
+  display: flex; flex-direction: column; align-items: center; gap: 26px;
+}
+.loader-ring {
+  width: 110px; height: 110px; position: relative;
+}
+.loader-ring span {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 4px solid transparent;
+}
+.loader-ring span:nth-child(1){ border-top-color: var(--neon-cyan); animation: spin 1.1s linear infinite; }
+.loader-ring span:nth-child(2){ border-right-color: var(--neon-magenta); animation: spin 1.6s linear infinite reverse; inset: 12px; }
+.loader-ring span:nth-child(3){ border-bottom-color: var(--neon-violet); animation: spin 0.9s linear infinite; inset: 24px; }
+.loader-ring .ball {
+  position: absolute; top: 50%; left: 50%;
+  width: 26px; height: 26px; border-radius: 50%;
+  transform: translate(-50%,-50%);
+  background: radial-gradient(circle at 38% 32%, #fff, var(--neon-cyan) 70%);
+  box-shadow: var(--glow-cyan);
+  animation: pulseGlow 1.2s ease-in-out infinite;
+}
+.loader-bar {
+  width: min(280px, 70vw); height: 8px; border-radius: 999px;
+  background: rgba(255,255,255,0.08); overflow: hidden;
+}
+.loader-bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+  box-shadow: var(--glow-cyan); transition: width 0.2s ease;
+}
+.loader-tip { font-size: 12px; color: var(--txt-2); letter-spacing: 1px; max-width: 80vw; text-align: center; min-height: 2.6em; }
+
+/* ---------------------------------------------------------------------------
+   15. ANUNCIO DE GOL / EVENTOS
+   ------------------------------------------------------------------------- */
+#goal-banner {
+  position: absolute; inset: 0; z-index: 40;
+  display: grid; place-items: center;
+  pointer-events: none; opacity: 0; visibility: hidden;
+}
+#goal-banner.show { opacity: 1; visibility: visible; }
+.goal-text {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(60px, 22vw, 200px);
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  background: linear-gradient(180deg, #fff, var(--neon-yellow) 50%, var(--neon-orange));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 30px rgba(255,200,40,0.8));
+  transform: scale(0.4) rotate(-6deg);
+}
+#goal-banner.show .goal-text { animation: goalPop 1.6s var(--ease-bounce) both; }
+.goal-sub {
+  position: absolute; bottom: 28%;
+  font-size: clamp(14px, 4vw, 24px); letter-spacing: 3px; color: var(--txt-1);
+  text-transform: uppercase; opacity: 0;
+}
+#goal-banner.show .goal-sub { animation: fadeInLate 1.6s ease both; }
+
+/* Toast generico (recompensa XP, desbloqueo) */
+#toast-host {
+  position: absolute; left: 50%; top: calc(72px + var(--safe-t));
+  transform: translateX(-50%);
+  z-index: 45; display: flex; flex-direction: column; gap: 8px; align-items: center;
+  pointer-events: none; width: max-content; max-width: 90vw;
+}
+.toast {
+  padding: 12px 20px; border-radius: var(--radius-pill);
+  font-weight: 800; font-size: 14px; letter-spacing: 0.5px;
+  display: flex; align-items: center; gap: 10px;
+  animation: toastIn 0.4s var(--ease-bounce) both;
+}
+.toast .ico { font-size: 18px; }
+
+/* Banner de prorroga / gol de oro */
+.ot-banner {
+  position: absolute; top: calc(64px + var(--safe-t)); left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 22px; border-radius: 999px;
+  font-weight: 900; letter-spacing: 3px; text-transform: uppercase;
+  color: #1a1400;
+  background: linear-gradient(90deg, var(--neon-yellow), var(--neon-orange));
+  box-shadow: 0 0 24px rgba(255,200,40,0.7);
+  animation: pulseGlow 1.1s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   16. FREEPLAY HUD EXTRA
+   ------------------------------------------------------------------------- */
+.freeplay-pad {
+  position: absolute;
+  left: calc(12px + var(--safe-l));
+  top: calc(64px + var(--safe-t));
+  display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.freeplay-pad .btn { pointer-events: auto; width: auto; min-width: 150px; }
+
+/* ---------------------------------------------------------------------------
+   17. RESULTADO FINAL
+   ------------------------------------------------------------------------- */
+.result-card { width: min(440px, 92vw); padding: 26px; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.result-title { font-family: var(--font-display); font-weight: 900; font-size: clamp(34px, 10vw, 64px); text-transform: uppercase; }
+.result-title.win { background: linear-gradient(180deg, #fff, var(--neon-green)); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 22px rgba(37,255,155,0.6)); }
+.result-title.lose { background: linear-gradient(180deg, #fff, var(--neon-red)); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 22px rgba(255,59,92,0.6)); }
+.result-score { font-family: var(--font-display); font-weight: 900; font-size: clamp(40px, 13vw, 80px); letter-spacing: 4px; }
+.result-rewards { display: flex; gap: 18px; justify-content: center; }
+.reward-chip { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.reward-chip b { font-size: 24px; color: var(--neon-cyan); }
+.reward-chip span { font-size: 10px; letter-spacing: 1px; color: var(--txt-2); text-transform: uppercase; }
+
+/* ---------------------------------------------------------------------------
+   18. ANIMACIONES KEYFRAME
+   ------------------------------------------------------------------------- */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulseGlow {
+  0%,100% { filter: brightness(1) drop-shadow(0 0 8px rgba(255,255,255,0.3)); transform: scale(1); }
+  50% { filter: brightness(1.4) drop-shadow(0 0 18px rgba(255,255,255,0.6)); transform: scale(1.06); }
+}
+@keyframes floatUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes goalPop {
+  0%   { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+  35%  { transform: scale(1.18) rotate(3deg); opacity: 1; }
+  55%  { transform: scale(0.98) rotate(-1deg); }
+  75%  { transform: scale(1.04) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 0; }
+}
+@keyframes fadeInLate {
+  0%, 40% { opacity: 0; transform: translateY(10px); }
+  60% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-14px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+@keyframes bgDrift {
+  0%   { background-position: 0% 0%, 0% 0%, 0% 0%; }
+  100% { background-position: 100% 50%, -100% 50%, 50% 100%; }
+}
+
+/* ---------------------------------------------------------------------------
+   19. UTILIDADES
+   ------------------------------------------------------------------------- */
+.hidden { display: none !important; }
+.center-col { display: flex; flex-direction: column; align-items: center; }
+.gap-s { gap: 8px; } .gap-m { gap: 14px; }
+.mt-s { margin-top: 8px; } .mt-m { margin-top: 16px; } .mt-l { margin-top: 28px; }
+.full { width: 100%; }
+.row { display: flex; align-items: center; }
+.spread { justify-content: space-between; }
+.dim { color: var(--txt-2); }
+.tiny { font-size: 11px; }
+.section-title {
+  font-family: var(--font-display); font-weight: 900; font-size: clamp(22px, 6vw, 34px);
+  text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; text-align: center;
+}
+.back-bar {
+  position: absolute; top: calc(12px + var(--safe-t)); left: calc(12px + var(--safe-l));
+  display: flex; gap: 10px; align-items: center;
+}
+
+/* ---------------------------------------------------------------------------
+   20. MEDIA QUERIES (RESPONSIVO)
+   ------------------------------------------------------------------------- */
+@media (max-height: 520px) {
+  .brand { margin-bottom: 8px; }
+  .brand .line1 { font-size: clamp(22px, 7vw, 44px); }
+  .brand .line2 { font-size: clamp(30px, 9vw, 60px); }
+  .btn { min-height: 46px; padding: 10px 20px; }
+  .player-card { padding: 8px 14px; }
+}
+@media (orientation: portrait) {
+  .action-pad { transform: scale(0.92); transform-origin: bottom right; }
+  .joystick-zone { height: 55%; }
+}
+@media (min-width: 900px) and (orientation: landscape) {
+  .menu-stack { width: 460px; }
+  .btn-jump { width: 104px; height: 104px; }
+  .btn-boost { width: 118px; height: 118px; }
+}
+@media (max-width: 360px) {
+  .action-btn .lbl { font-size: 9px; }
+  .btn-jump { width: 78px; height: 78px; }
+  .btn-boost { width: 90px; height: 90px; }
+  .btn-airroll { width: 66px; height: 66px; right: 116px; }
+}
+
+/* Reduce motion accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001s !important; transition-duration: 0.05s !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== LIENZO PRINCIPAL ===================== -->
+<canvas id="gameCanvas"></canvas>
+<div id="vignette"></div>
+<div id="scanlines"></div>
+
+<!-- ===================== CONTROLES TACTILES ===================== -->
+<div id="touch-controls" class="hidden">
+  <div class="joystick-zone" id="joystickZone">
+    <div class="joystick-base" id="joyBase"></div>
+    <div class="joystick-knob" id="joyKnob"></div>
+  </div>
+  <div class="action-pad">
+    <div class="action-btn btn-boost"  id="btnBoost"><span class="ico">&#9650;</span></div>
+    <div class="action-btn btn-jump"   id="btnJump"><span class="ico">&#10548;</span></div>
+    <div class="action-btn btn-airroll" id="btnAirroll"><span class="ico">&#8635;</span></div>
+  </div>
+  <div class="glass pause-fab" id="btnPause">&#10073;&#10073;</div>
+  <!-- Controles extra de Freeplay -->
+  <div class="freeplay-pad hidden" id="freeplayPad">
+    <button class="btn btn-ghost btn-sm" id="fpResetBall">&#9863; Reiniciar bola</button>
+    <button class="btn btn-ghost btn-sm" id="fpLaunch">&#9650; Lanzar bola</button>
+    <button class="btn btn-ghost btn-sm" id="fpSlowmo">&#9201; Camara lenta</button>
+  </div>
+</div>
+
+<!-- ===================== INTERFAZ (OVERLAYS) ===================== -->
+<div id="ui-root">
+
+  <!-- ---------- HUD DE PARTIDA ---------- -->
+  <section id="screen-hud" class="screen">
+    <div class="glass hud-top">
+      <div class="score-box">
+        <div class="score-team">
+          <div class="score-num blue" id="scoreBlue">0</div>
+          <div class="score-label">Tu</div>
+        </div>
+        <div class="timer" id="matchTimer">2:00</div>
+        <div class="score-team">
+          <div class="score-num orange" id="scoreOrange">0</div>
+          <div class="score-label">Rival</div>
+        </div>
+      </div>
+    </div>
+    <div class="ot-banner hidden" id="otBanner">Prorroga &middot; Gol de Oro</div>
+    <div class="boost-meter">
+      <div class="boost-track"><div class="boost-fill" id="boostFill"></div></div>
+      <div class="boost-label">Turbo</div>
+    </div>
+  </section>
+
+  <!-- ---------- PANTALLA DE CARGA ---------- -->
+  <section id="screen-loading" class="screen">
+    <div class="loader-core">
+      <div class="title-neon" style="font-size:clamp(22px,7vw,44px)">ROQUET REDEMPTION</div>
+      <div class="loader-ring">
+        <span></span><span></span><span></span>
+        <div class="ball"></div>
+      </div>
+      <div class="loader-bar"><div class="loader-bar-fill" id="loaderFill"></div></div>
+      <div class="loader-tip" id="loaderTip">Calibrando motor de fisica...</div>
+    </div>
+  </section>
+
+  <!-- ---------- MENU PRINCIPAL ---------- -->
+  <section id="screen-menu" class="screen">
+    <div class="brand">
+      <div class="title-neon line1">ROQUET</div>
+      <div class="title-neon magenta line2">REDEMPTION</div>
+      <div class="by">BY <b>ARECES</b></div>
+    </div>
+    <div class="glass player-card" id="menuPlayerCard">
+      <div class="rank-badge" id="menuRankBadge">I</div>
+      <div class="player-meta">
+        <div class="player-name" id="menuPlayerName">Piloto Areces</div>
+        <div class="player-rank" id="menuPlayerRank">Bronce I</div>
+        <div class="xp-bar"><div class="xp-fill" id="menuXpFill"></div></div>
+        <div class="xp-text" id="menuXpText">0 / 100 XP</div>
+      </div>
+    </div>
+    <div class="menu-stack">
+      <button class="btn btn-primary" id="btnPlay">&#9917; Jugar 1 v 1</button>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btnFreeplay">&#9968; Freeplay</button>
+        <button class="btn btn-ghost" id="btnGarage">&#128663; Garaje</button>
+      </div>
+      <button class="btn btn-ghost" id="btnSettings">&#9881; Ajustes</button>
+    </div>
+  </section>
+
+  <!-- ---------- SELECCION DE DIFICULTAD ---------- -->
+  <section id="screen-difficulty" class="screen">
+    <div class="glass" style="padding:24px; width:min(460px,94vw); display:flex; flex-direction:column; gap:16px;">
+      <div class="section-title">Elige Rival</div>
+      <div class="subtitle" style="text-align:center; margin-top:-8px;">La IA escala su habilidad y agresividad</div>
+      <div id="difficultyList" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <button class="btn btn-ghost btn-sm" id="btnDiffBack" style="align-self:center; margin-top:6px;">&#8592; Volver</button>
+    </div>
+  </section>
+
+  <!-- ---------- GARAJE ---------- -->
+  <section id="screen-garage" class="screen">
+    <div class="back-bar"><button class="btn btn-icon btn-ghost" id="btnGarageBack">&#8592;</button></div>
+    <div class="section-title">Garaje</div>
+    <div class="garage-wrap">
+      <div class="glass garage-stage">
+        <canvas id="garageCanvas"></canvas>
+      </div>
+      <div class="glass" style="padding:16px; width:100%;">
+        <div class="car-selector">
+          <button class="btn btn-icon btn-ghost" id="carPrev">&#8249;</button>
+          <div class="car-info">
+            <div class="car-name" id="garageCarName">Bolide</div>
+            <div class="car-lock hidden" id="garageCarLock">&#128274; Nivel 3 para desbloquear</div>
+          </div>
+          <button class="btn btn-icon btn-ghost" id="carNext">&#8250;</button>
+        </div>
+        <div class="swatches mt-m" id="colorSwatches"></div>
+        <button class="btn btn-primary mt-m" id="btnEquip">Equipar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- AJUSTES ---------- -->
+  <section id="screen-settings" class="screen">
+    <div class="back-bar"><button class="btn btn-icon btn-ghost" id="btnSettingsBack">&#8592;</button></div>
+    <div class="section-title">Ajustes</div>
+    <div class="settings-wrap">
+      <div class="glass setting-row">
+        <div><div class="setting-label">Musica</div><div class="setting-desc">Banda sonora sintetizada</div></div>
+        <input type="range" min="0" max="100" value="55" class="slider" id="setMusic" />
+      </div>
+      <div class="glass setting-row">
+        <div><div class="setting-label">Efectos de sonido</div><div class="setting-desc">Impactos, turbo, goles</div></div>
+        <input type="range" min="0" max="100" value="80" class="slider" id="setSfx" />
+      </div>
+      <div class="glass setting-row">
+        <div><div class="setting-label">Sacudida de camara</div><div class="setting-desc">Intensidad del shake</div></div>
+        <input type="range" min="0" max="100" value="70" class="slider" id="setShake" />
+      </div>
+      <div class="glass setting-row">
+        <div><div class="setting-label">Partculas</div><div class="setting-desc">Densidad de efectos visuales</div></div>
+        <input type="range" min="0" max="100" value="100" class="slider" id="setParticles" />
+      </div>
+      <div class="glass setting-row">
+        <div><div class="setting-label">Estelas (trails)</div><div class="setting-desc">Rastro de coche y bola</div></div>
+        <div class="toggle on" id="setTrails"><div class="knob"></div></div>
+      </div>
+      <div class="glass setting-row">
+        <div><div class="setting-label">Scanlines CRT</div><div class="setting-desc">Filtro retro sutil</div></div>
+        <div class="toggle on" id="setScanlines"><div class="knob"></div></div>
+      </div>
+      <div class="glass setting-row">
+        <div><div class="setting-label">Calidad grafica</div><div class="setting-desc">Resolucion de render</div></div>
+        <div class="segmented" id="setQuality">
+          <div class="seg" data-q="0.75">Bajo</div>
+          <div class="seg active" data-q="1">Medio</div>
+          <div class="seg" data-q="1.5">Alto</div>
+        </div>
+      </div>
+      <div class="glass setting-row">
+        <div><div class="setting-label">Datos guardados</div><div class="setting-desc">XP, rango y desbloqueos</div></div>
+        <button class="btn btn-danger btn-sm" id="setReset" style="max-width:120px;">Borrar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- PAUSA ---------- -->
+  <section id="screen-pause" class="screen">
+    <div class="glass glass-strong" style="padding:28px; width:min(380px,90vw); display:flex; flex-direction:column; gap:14px; align-items:center;">
+      <div class="section-title">Pausa</div>
+      <button class="btn btn-primary" id="btnResume">&#9658; Reanudar</button>
+      <button class="btn btn-ghost" id="btnRestart">&#8635; Reiniciar</button>
+      <button class="btn btn-ghost" id="btnQuit">&#8962; Menu principal</button>
+    </div>
+  </section>
+
+  <!-- ---------- RESULTADO ---------- -->
+  <section id="screen-result" class="screen">
+    <div class="glass glass-strong result-card">
+      <div class="result-title win" id="resultTitle">Victoria</div>
+      <div class="result-score" id="resultScore">3 - 1</div>
+      <div class="result-rewards">
+        <div class="reward-chip"><b id="rewardXp">+120</b><span>XP</span></div>
+        <div class="reward-chip"><b id="rewardGoals">2</b><span>Goles</span></div>
+        <div class="reward-chip"><b id="rewardSaves">4</b><span>Paradas</span></div>
+      </div>
+      <div class="full" style="display:flex; flex-direction:column; gap:10px;">
+        <button class="btn btn-primary" id="btnRematch">&#8635; Revancha</button>
+        <button class="btn btn-ghost" id="btnResultMenu">&#8962; Menu principal</button>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /ui-root -->
+
+<!-- ===================== EVENTOS FLOTANTES ===================== -->
+<div id="goal-banner">
+  <div class="goal-text" id="goalText">Gol</div>
+  <div class="goal-sub" id="goalSub"></div>
+</div>
+<div id="toast-host"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   EL MOTOR Y LA LOGICA DEL JUEGO SE INSERTAN A CONTINUACION
+   ========================================================================== */
+/* ============================================================================
+   SECCION 1 - UTILIDADES MATEMATICAS Y CONSTANTES GLOBALES
+   ----------------------------------------------------------------------------
+   Todo el juego se apoya en estas primitivas. La fisica "organica" surge de
+   estas operaciones vectoriales (producto punto, normales, reflexion, masa).
+   ========================================================================== */
+
+const TAU = Math.PI * 2;
+const PI  = Math.PI;
+const DEG2RAD = PI / 180;
+const RAD2DEG = 180 / PI;
+
+/** Limita un valor entre min y max. */
+function clamp(v, min, max) { return v < min ? min : (v > max ? max : v); }
+/** Interpolacion lineal. */
+function lerp(a, b, t) { return a + (b - a) * t; }
+/** Interpolacion inversa: devuelve t tal que lerp(a,b,t)=v. */
+function invLerp(a, b, v) { return (b - a) === 0 ? 0 : (v - a) / (b - a); }
+/** Remapea un valor de un rango a otro. */
+function remap(v, inMin, inMax, outMin, outMax) {
+  return lerp(outMin, outMax, clamp(invLerp(inMin, inMax, v), 0, 1));
+}
+/** Suavizado tipo smoothstep. */
+function smoothstep(edge0, edge1, x) {
+  const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+/** Aproxima exponencialmente a un objetivo de forma independiente del framerate. */
+function damp(current, target, lambda, dt) {
+  return lerp(current, target, 1 - Math.exp(-lambda * dt));
+}
+/** Mantiene un angulo dentro de [-PI, PI]. */
+function wrapAngle(a) {
+  while (a >  PI) a -= TAU;
+  while (a < -PI) a += TAU;
+  return a;
+}
+/** Interpola entre dos angulos por el camino mas corto. */
+function lerpAngle(a, b, t) {
+  return a + wrapAngle(b - a) * t;
+}
+/** Aproxima exponencialmente un angulo a un objetivo. */
+function dampAngle(current, target, lambda, dt) {
+  return current + wrapAngle(target - current) * (1 - Math.exp(-lambda * dt));
+}
+/** Signo robusto. */
+function sign(v) { return v < 0 ? -1 : (v > 0 ? 1 : 0); }
+/** Numero aleatorio en rango [min,max). */
+function rand(min, max) { return min + Math.random() * (max - min); }
+/** Entero aleatorio inclusivo. */
+function randInt(min, max) { return Math.floor(min + Math.random() * (max - min + 1)); }
+/** Elige un elemento aleatorio de un arreglo. */
+function pick(arr) { return arr[(Math.random() * arr.length) | 0]; }
+/** Distancia entre dos puntos (componentes sueltos). */
+function dist(ax, ay, bx, by) { const dx = bx - ax, dy = by - ay; return Math.hypot(dx, dy); }
+/** Distancia al cuadrado (evita raiz cuando solo comparamos). */
+function dist2(ax, ay, bx, by) { const dx = bx - ax, dy = by - ay; return dx * dx + dy * dy; }
+/** Aproxima dos numeros con tolerancia. */
+function approx(a, b, eps) { return Math.abs(a - b) <= (eps || 1e-4); }
+
+/**
+ * Generador pseudoaleatorio determinista (Mulberry32). Util para que las
+ * particulas y variaciones visuales sean reproducibles si se requiere.
+ */
+function makeRNG(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s |= 0; s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ----------------------------------------------------------------------------
+   VECTOR2 - Clase vectorial completa (mutable + utilidades estaticas).
+   La inmensa mayoria de la fisica se expresa con estos metodos.
+   -------------------------------------------------------------------------- */
+class Vector2 {
+  constructor(x = 0, y = 0) { this.x = x; this.y = y; }
+
+  set(x, y) { this.x = x; this.y = y; return this; }
+  copy(v) { this.x = v.x; this.y = v.y; return this; }
+  clone() { return new Vector2(this.x, this.y); }
+
+  add(v) { this.x += v.x; this.y += v.y; return this; }
+  addScaled(v, s) { this.x += v.x * s; this.y += v.y * s; return this; }
+  sub(v) { this.x -= v.x; this.y -= v.y; return this; }
+  scale(s) { this.x *= s; this.y *= s; return this; }
+  mulV(v) { this.x *= v.x; this.y *= v.y; return this; }
+  negate() { this.x = -this.x; this.y = -this.y; return this; }
+
+  dot(v) { return this.x * v.x + this.y * v.y; }
+  cross(v) { return this.x * v.y - this.y * v.x; }
+
+  lenSq() { return this.x * this.x + this.y * this.y; }
+  len() { return Math.hypot(this.x, this.y); }
+
+  normalize() {
+    const l = this.len();
+    if (l > 1e-8) { this.x /= l; this.y /= l; }
+    return this;
+  }
+  /** Limita la magnitud a un maximo. */
+  limit(max) {
+    const l2 = this.lenSq();
+    if (l2 > max * max) { const l = Math.sqrt(l2); this.x = this.x / l * max; this.y = this.y / l * max; }
+    return this;
+  }
+  /** Establece la magnitud. */
+  setLen(len) { this.normalize(); this.x *= len; this.y *= len; return this; }
+  /** Rota el vector por un angulo (radianes). */
+  rotate(a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    const x = this.x * c - this.y * s;
+    const y = this.x * s + this.y * c;
+    this.x = x; this.y = y; return this;
+  }
+  /** Vector perpendicular (giro 90 grados antihorario). */
+  perp() { const x = this.x; this.x = -this.y; this.y = x; return this; }
+  angle() { return Math.atan2(this.y, this.x); }
+  distTo(v) { return Math.hypot(this.x - v.x, this.y - v.y); }
+  distSqTo(v) { const dx = this.x - v.x, dy = this.y - v.y; return dx * dx + dy * dy; }
+  lerpTo(v, t) { this.x = lerp(this.x, v.x, t); this.y = lerp(this.y, v.y, t); return this; }
+  reflect(normal) {
+    // r = v - 2(v.n)n   (n debe estar normalizado)
+    const d = 2 * this.dot(normal);
+    this.x -= d * normal.x; this.y -= d * normal.y; return this;
+  }
+  toString() { return `(${this.x.toFixed(2)}, ${this.y.toFixed(2)})`; }
+
+  static fromAngle(a, len = 1) { return new Vector2(Math.cos(a) * len, Math.sin(a) * len); }
+  static sub(a, b) { return new Vector2(a.x - b.x, a.y - b.y); }
+  static add(a, b) { return new Vector2(a.x + b.x, a.y + b.y); }
+  static dot(a, b) { return a.x * b.x + a.y * b.y; }
+}
+
+/* ----------------------------------------------------------------------------
+   CONFIGURACION GLOBAL DEL JUEGO (CONSTANTES DE DISENO)
+   Estos valores definen el "game feel". Estan calibrados para emular la
+   sensacion de momentum conservado y mecanicas aereas extremas.
+   -------------------------------------------------------------------------- */
+const CFG = {
+  // Mundo (coordenadas internas; se escala al lienzo)
+  WORLD_W: 1280,
+  WORLD_H: 640,
+  WALL_THICK: 26,
+
+  // Fisica general
+  GRAVITY: 1750,            // px/s^2
+  SUBSTEPS_MAX: 8,          // sub-pasos maximos por frame (anti-tunneling)
+  SUBSTEP_TARGET: 1 / 240,  // tamano objetivo de sub-paso (s)
+  AIR_DRAG: 0.012,          // resistencia del aire por segundo
+  RESTITUTION_WALL: 0.62,   // rebote contra paredes
+  RESTITUTION_BALL: 0.78,   // rebote pelota-pared
+  FLOOR_FRICTION: 3.2,      // friccion en el suelo (coches)
+
+  // Coche
+  CAR_W: 78,
+  CAR_H: 34,
+  CAR_MASS: 1.6,
+  CAR_DRIVE_ACCEL: 2600,    // aceleracion en suelo
+  CAR_MAX_SPEED_GROUND: 760,
+  CAR_MAX_SPEED_BOOST: 1180,
+  CAR_TURN_TORQUE: 26,      // par de giro en suelo (orientacion sigue velocidad)
+  CAR_AIR_PITCH_SPEED: 7.2, // velocidad de rotacion aerea (rad/s) por input
+  CAR_AIR_ROLL_SPEED: 9.0,  // velocidad de air roll continuo
+  CAR_JUMP_VELOCITY: 760,   // impulso vertical del salto
+  CAR_FLIP_IMPULSE: 900,    // impulso del dash/flip
+  CAR_FLIP_TORQUE: 16,
+  CAR_DOUBLEJUMP_WINDOW: 1.4, // segundos para flip tras el primer salto
+  CAR_JUMP_HOLD: 0.18,      // tiempo extra de empuje manteniendo salto
+  CAR_AIR_CONTROL: 1.0,
+
+  // Turbo
+  BOOST_MAX: 100,
+  BOOST_CONSUMPTION: 33,    // por segundo
+  BOOST_REGEN_PAD: 30,      // recoleccion por pad
+  BOOST_AIR_THRUST: 2350,   // empuje del turbo en aire (direccion de morro)
+  BOOST_GROUND_THRUST: 1500,
+  BOOST_MIN_TO_USE: 1,
+
+  // Pelota
+  BALL_RADIUS: 26,
+  BALL_MASS: 0.85,
+  BALL_SPIN_FRICTION: 1.4,
+  BALL_AIR_DRAG: 0.05,
+  BALL_MAX_SPEED: 2200,
+  BALL_HIT_BOOST: 1.18,     // factor de "punch" al golpear con coche
+
+  // Mecanicas avanzadas
+  PINCH_AMPLIFY: 1.9,       // amplificacion de velocidad en pinch
+  PINCH_MIN_REL_SPEED: 600, // velocidad relativa minima para detectar pinch
+  FLIPRESET_DOT: 0.62,      // alineacion minima (ruedas hacia la bola)
+  MUSTY_BACK_DOT: 0.5,      // alineacion del impacto trasero
+  MUSTY_LIFT: 760,          // elevacion extra del musty flick
+  STALL_DECAY: 0.0,         // el stall lleva la velocidad a casi cero
+
+  // Porteria
+  GOAL_HEIGHT: 210,
+  GOAL_DEPTH: 70,
+
+  // Partida
+  MATCH_TIME: 120,          // 2 minutos
+  KICKOFF_FREEZE: 1.1,      // congelacion antes del saque
+  GOAL_FREEZE: 2.0,
+
+  // Camara
+  CAM_LERP: 6.5,
+  CAM_ZOOM_BASE: 1.0,
+  CAM_ZOOM_ACTION: 0.92,
+  CAM_SHAKE_DECAY: 7.5,
+};
+
+/* ----------------------------------------------------------------------------
+   PERSISTENCIA (localStorage) - Perfil del jugador y ajustes.
+   -------------------------------------------------------------------------- */
+const SAVE_KEY = "roquet_redemption_areces_v1";
+
+const DEFAULT_SAVE = {
+  xp: 0,
+  level: 1,
+  selectedCar: 0,
+  selectedColor: 0,
+  unlockedCars: [true, false, false, false],
+  stats: { matches: 0, wins: 0, goals: 0, saves: 0 },
+  settings: {
+    music: 55, sfx: 80, shake: 70, particles: 100,
+    trails: true, scanlines: true, quality: 1, difficulty: 1,
+  },
+};
+
+const Store = {
+  data: null,
+  load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        this.data = Object.assign(JSON.parse(JSON.stringify(DEFAULT_SAVE)), parsed);
+        // Fusiona ajustes anidados para no perder claves nuevas
+        this.data.settings = Object.assign({}, DEFAULT_SAVE.settings, parsed.settings || {});
+        this.data.stats = Object.assign({}, DEFAULT_SAVE.stats, parsed.stats || {});
+        if (!Array.isArray(this.data.unlockedCars) || this.data.unlockedCars.length !== 4) {
+          this.data.unlockedCars = DEFAULT_SAVE.unlockedCars.slice();
+        }
+      } else {
+        this.data = JSON.parse(JSON.stringify(DEFAULT_SAVE));
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar el guardado, usando valores por defecto.", e);
+      this.data = JSON.parse(JSON.stringify(DEFAULT_SAVE));
+    }
+    return this.data;
+  },
+  save() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); }
+    catch (e) { console.warn("No se pudo guardar.", e); }
+  },
+  reset() {
+    this.data = JSON.parse(JSON.stringify(DEFAULT_SAVE));
+    this.save();
+  },
+};
+
+/* ============================================================================
+   SECCION 2 - PROGRESION, COCHES, AUDIO Y PARTICULAS
+   ========================================================================== */
+
+/* ----------------------------------------------------------------------------
+   PROGRESION: RANGOS Y CURVA DE XP
+   -------------------------------------------------------------------------- */
+const RANKS = [
+  { name: "Bronce",    sub: ["III", "II", "I"], color: "#cd7f32", glow: "rgba(205,127,50,0.6)" },
+  { name: "Plata",     sub: ["III", "II", "I"], color: "#c0c8d8", glow: "rgba(192,200,216,0.6)" },
+  { name: "Oro",       sub: ["III", "II", "I"], color: "#ffd24d", glow: "rgba(255,210,77,0.7)" },
+  { name: "Platino",   sub: ["III", "II", "I"], color: "#5fe6d0", glow: "rgba(95,230,208,0.7)" },
+  { name: "Diamante",  sub: ["III", "II", "I"], color: "#7bb8ff", glow: "rgba(123,184,255,0.7)" },
+  { name: "Campeon",   sub: ["III", "II", "I"], color: "#c08bff", glow: "rgba(192,139,255,0.7)" },
+  { name: "Leyenda",   sub: ["I"],              color: "#ff5af0", glow: "rgba(255,90,240,0.8)" },
+];
+
+/** XP necesaria para alcanzar un nivel dado (curva cuadratica suave). */
+function xpForLevel(level) {
+  // level 1 -> 0, crece de forma agradable
+  return Math.floor(80 * (level - 1) + 18 * (level - 1) * (level - 1));
+}
+/** Devuelve el nivel a partir de la XP total. */
+function levelFromXp(xp) {
+  let lvl = 1;
+  while (xpForLevel(lvl + 1) <= xp && lvl < 99) lvl++;
+  return lvl;
+}
+/** Mapea un nivel a un rango visual (nombre + division). */
+function rankFromLevel(level) {
+  // Cada division dura 3 niveles aprox; Leyenda a partir del nivel 19.
+  if (level >= 19) return { tierIndex: 6, name: "Leyenda", division: "I", color: RANKS[6].color, glow: RANKS[6].glow };
+  const flat = level - 1;             // 0-based
+  const tierIndex = Math.min(5, Math.floor(flat / 3));
+  const division = RANKS[tierIndex].sub[Math.min(2, flat % 3)];
+  return { tierIndex, name: RANKS[tierIndex].name, division, color: RANKS[tierIndex].color, glow: RANKS[tierIndex].glow };
+}
+
+/* ----------------------------------------------------------------------------
+   DEFINICION DE COCHES (solo estetica; stats identicas como pide el diseno)
+   Cada coche tiene una "silueta" definida por parametros de carroceria que el
+   renderizador usa para dibujar formas distintas.
+   -------------------------------------------------------------------------- */
+const CARS = [
+  {
+    name: "Bolide", unlockLevel: 1,
+    body: { roof: 0.52, nose: 0.30, tail: 0.22, wedge: 0.55, fin: 0.0, height: 1.0 },
+    accent: "#ffffff",
+    desc: "Equilibrado y clasico.",
+  },
+  {
+    name: "Vortex", unlockLevel: 2,
+    body: { roof: 0.40, nose: 0.42, tail: 0.16, wedge: 0.78, fin: 0.10, height: 0.92 },
+    accent: "#9ff7ff",
+    desc: "Cuna agresiva, perfil bajo.",
+  },
+  {
+    name: "Titan", unlockLevel: 3,
+    body: { roof: 0.62, nose: 0.26, tail: 0.30, wedge: 0.40, fin: 0.0, height: 1.12 },
+    accent: "#ffd27b",
+    desc: "Robusto y dominante.",
+  },
+  {
+    name: "Phantom", unlockLevel: 4,
+    body: { roof: 0.46, nose: 0.50, tail: 0.12, wedge: 0.9, fin: 0.18, height: 0.86 },
+    accent: "#ff9ff0",
+    desc: "Aerodinamico extremo.",
+  },
+];
+
+/** Paleta de colores neon seleccionables. */
+const CAR_COLORS = [
+  { name: "Cian",     base: "#00f0ff", glow: "rgba(0,240,255,0.7)" },
+  { name: "Magenta",  base: "#ff2bd6", glow: "rgba(255,43,214,0.7)" },
+  { name: "Verde",    base: "#25ff9b", glow: "rgba(37,255,155,0.7)" },
+  { name: "Naranja",  base: "#ff7a18", glow: "rgba(255,122,24,0.7)" },
+  { name: "Violeta",  base: "#b14bff", glow: "rgba(177,75,255,0.7)" },
+  { name: "Amarillo", base: "#ffe14d", glow: "rgba(255,225,77,0.7)" },
+  { name: "Rojo",     base: "#ff3b5c", glow: "rgba(255,59,92,0.7)" },
+  { name: "Azul",     base: "#2b6bff", glow: "rgba(43,107,255,0.7)" },
+];
+
+/* ----------------------------------------------------------------------------
+   MOTOR DE AUDIO - Sintesis con WebAudio (sin assets externos).
+   Genera efectos procedurales: salto, turbo (ruido filtrado), impacto, gol,
+   y una linea de bajo/arpegio sencilla como musica.
+   -------------------------------------------------------------------------- */
+const Audio = {
+  ctx: null,
+  master: null,
+  musicGain: null,
+  sfxGain: null,
+  boostNode: null,
+  boostGain: null,
+  boostFilter: null,
+  musicTimer: null,
+  enabled: false,
+  ready: false,
+
+  init() {
+    if (this.ready) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.9;
+      this.master.connect(this.ctx.destination);
+
+      this.musicGain = this.ctx.createGain();
+      this.sfxGain = this.ctx.createGain();
+      this.musicGain.connect(this.master);
+      this.sfxGain.connect(this.master);
+
+      this.applyVolumes();
+      this.ready = true;
+    } catch (e) {
+      console.warn("Audio no disponible", e);
+    }
+  },
+
+  /** Debe llamarse tras un gesto del usuario (politica de autoplay). */
+  resume() {
+    if (!this.ready) this.init();
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+    this.enabled = true;
+    this.startMusic();
+  },
+
+  applyVolumes() {
+    if (!this.ready) return;
+    const s = Store.data.settings;
+    this.musicGain.gain.value = (s.music / 100) * 0.4;
+    this.sfxGain.gain.value = (s.sfx / 100) * 0.9;
+  },
+
+  /** Tono basico con envolvente ADSR simplificada. */
+  tone(freq, dur, type = "sine", vol = 0.4, attack = 0.005, release = 0.08, bus = null) {
+    if (!this.ready || !this.enabled) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + release);
+    osc.connect(g);
+    g.connect(bus || this.sfxGain);
+    osc.start(t);
+    osc.stop(t + dur + release + 0.02);
+  },
+
+  /** Barrido de frecuencia (para saltos y silbidos). */
+  sweep(f0, f1, dur, type = "sawtooth", vol = 0.3) {
+    if (!this.ready || !this.enabled) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(this.sfxGain);
+    osc.start(t); osc.stop(t + dur + 0.02);
+  },
+
+  /** Rafaga de ruido (impactos, explosiones). */
+  noise(dur, vol = 0.4, filterFreq = 1200, type = "lowpass") {
+    if (!this.ready || !this.enabled) return;
+    const t = this.ctx.currentTime;
+    const len = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
+    const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = type; filter.frequency.value = filterFreq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(filter); filter.connect(g); g.connect(this.sfxGain);
+    src.start(t);
+  },
+
+  // --- Efectos concretos -------------------------------------------------
+  sfxJump()     { this.sweep(280, 620, 0.18, "square", 0.18); },
+  sfxFlip()     { this.sweep(180, 90, 0.22, "sawtooth", 0.22); this.noise(0.12, 0.15, 800); },
+  sfxHit(power) { const v = clamp(0.12 + power * 0.35, 0.1, 0.6); this.noise(0.12, v, 600 + power * 1800); this.tone(120 + power * 200, 0.08, "square", v * 0.5); },
+  sfxWall()     { this.noise(0.08, 0.18, 900); },
+  sfxBoostTick(){ /* el turbo usa nodo continuo */ },
+  sfxGoal()     {
+    const seq = [523, 659, 784, 1047];
+    seq.forEach((f, i) => setTimeout(() => this.tone(f, 0.18, "square", 0.3), i * 90));
+    this.noise(0.5, 0.3, 2200);
+  },
+  sfxWhistle()  { this.tone(1800, 0.12, "sine", 0.25); setTimeout(() => this.tone(1500, 0.18, "sine", 0.25), 130); },
+  sfxUi()       { this.tone(660, 0.05, "triangle", 0.15); },
+  sfxUnlock()   { [392,523,659,880].forEach((f,i)=>setTimeout(()=>this.tone(f,0.2,"triangle",0.28),i*110)); },
+
+  /** Activa el ruido continuo del turbo. */
+  startBoost() {
+    if (!this.ready || !this.enabled || this.boostNode) return;
+    const t = this.ctx.currentTime;
+    const bufLen = this.ctx.sampleRate * 0.5;
+    const buffer = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer; src.loop = true;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "bandpass"; filter.frequency.value = 700; filter.Q.value = 0.8;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.16, t + 0.06);
+    src.connect(filter); filter.connect(g); g.connect(this.sfxGain);
+    src.start();
+    this.boostNode = src; this.boostGain = g; this.boostFilter = filter;
+  },
+  stopBoost() {
+    if (!this.boostNode) return;
+    const t = this.ctx.currentTime;
+    try {
+      this.boostGain.gain.cancelScheduledValues(t);
+      this.boostGain.gain.setValueAtTime(this.boostGain.gain.value, t);
+      this.boostGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+      this.boostNode.stop(t + 0.1);
+    } catch (e) { /* nodo ya detenido */ }
+    this.boostNode = null; this.boostGain = null; this.boostFilter = null;
+  },
+
+  /** Pequeno motor de musica: arpegio + bajo en bucle. */
+  startMusic() {
+    if (!this.ready || !this.enabled || this.musicTimer) return;
+    const scale = [220, 277, 330, 370, 440, 494, 554];
+    let step = 0;
+    const bass = [110, 110, 146, 98];
+    let bar = 0;
+    this.musicTimer = setInterval(() => {
+      if (!this.enabled) return;
+      const t = this.ctx.currentTime;
+      // Bajo
+      if (step % 4 === 0) {
+        const bo = this.ctx.createOscillator(); const bg = this.ctx.createGain();
+        bo.type = "triangle"; bo.frequency.value = bass[bar % bass.length];
+        bg.gain.setValueAtTime(0.0001, t);
+        bg.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+        bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+        bo.connect(bg); bg.connect(this.musicGain); bo.start(t); bo.stop(t + 0.55);
+        bar++;
+      }
+      // Arpegio
+      const f = scale[(step * 2) % scale.length] * (step % 8 < 4 ? 1 : 1.5);
+      const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+      o.type = "square"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.06, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      o.connect(g); g.connect(this.musicGain); o.start(t); o.stop(t + 0.2);
+      step++;
+    }, 200);
+  },
+  stopMusic() { if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = null; } },
+};
+
+/* ----------------------------------------------------------------------------
+   SISTEMA DE PARTICULAS CON OBJECT POOLING
+   Una unica reserva (pool) de objetos Particle reutilizables para evitar la
+   presion del recolector de basura aun con miles de particulas.
+   -------------------------------------------------------------------------- */
+class Particle {
+  constructor() { this.reset(); }
+  reset() {
+    this.active = false;
+    this.x = 0; this.y = 0; this.vx = 0; this.vy = 0;
+    this.life = 0; this.maxLife = 1;
+    this.size = 4; this.size0 = 4;
+    this.color = "#fff";
+    this.glow = 0;
+    this.gravity = 0;
+    this.drag = 0;
+    this.spin = 0; this.rot = 0;
+    this.shape = "circle";    // circle | spark | square | ring | smoke
+    this.fade = 1;
+    this.additive = true;
+    this.shrink = 1;
+  }
+}
+
+class ParticleSystem {
+  constructor(max = 1400) {
+    this.pool = new Array(max);
+    for (let i = 0; i < max; i++) this.pool[i] = new Particle();
+    this.cursor = 0;
+    this.max = max;
+    this.density = 1;  // factor de densidad de ajustes
+  }
+  /** Obtiene una particula libre (sobrescribe la mas antigua si hace falta). */
+  _acquire() {
+    // Busca circularmente una inactiva; si no, recicla la del cursor.
+    for (let i = 0; i < this.max; i++) {
+      const idx = (this.cursor + i) % this.max;
+      if (!this.pool[idx].active) { this.cursor = (idx + 1) % this.max; return this.pool[idx]; }
+    }
+    const p = this.pool[this.cursor];
+    this.cursor = (this.cursor + 1) % this.max;
+    return p;
+  }
+  emit(opts) {
+    const p = this._acquire();
+    p.reset();
+    p.active = true;
+    p.x = opts.x; p.y = opts.y;
+    p.vx = opts.vx || 0; p.vy = opts.vy || 0;
+    p.life = 0; p.maxLife = opts.life || 0.6;
+    p.size = p.size0 = opts.size || 4;
+    p.color = opts.color || "#fff";
+    p.glow = opts.glow || 0;
+    p.gravity = opts.gravity || 0;
+    p.drag = opts.drag || 0;
+    p.spin = opts.spin || 0;
+    p.rot = opts.rot || 0;
+    p.shape = opts.shape || "circle";
+    p.additive = opts.additive !== undefined ? opts.additive : true;
+    p.shrink = opts.shrink !== undefined ? opts.shrink : 1;
+    return p;
+  }
+  /** Estallido radial de n particulas. */
+  burst(x, y, n, opts) {
+    n = Math.max(1, Math.floor(n * this.density));
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, TAU);
+      const sp = rand(opts.speedMin || 40, opts.speedMax || 240);
+      this.emit({
+        x, y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: rand(opts.lifeMin || 0.3, opts.lifeMax || 0.8),
+        size: rand(opts.sizeMin || 2, opts.sizeMax || 6),
+        color: opts.colorFn ? opts.colorFn() : (opts.color || "#fff"),
+        glow: opts.glow || 8,
+        gravity: opts.gravity || 0,
+        drag: opts.drag || 1.2,
+        shape: opts.shape || "spark",
+        spin: rand(-10, 10),
+        additive: opts.additive !== undefined ? opts.additive : true,
+        shrink: opts.shrink !== undefined ? opts.shrink : 1,
+      });
+    }
+  }
+  update(dt) {
+    for (let i = 0; i < this.max; i++) {
+      const p = this.pool[i];
+      if (!p.active) continue;
+      p.life += dt;
+      if (p.life >= p.maxLife) { p.active = false; continue; }
+      p.vy += p.gravity * dt;
+      if (p.drag) { const f = Math.max(0, 1 - p.drag * dt); p.vx *= f; p.vy *= f; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.rot += p.spin * dt;
+      if (p.shrink !== 1) p.size = p.size0 * lerp(1, p.shrink, p.life / p.maxLife);
+    }
+  }
+  clear() { for (let i = 0; i < this.max; i++) this.pool[i].active = false; }
+  countActive() { let c = 0; for (let i = 0; i < this.max; i++) if (this.pool[i].active) c++; return c; }
+}
+
+/* ============================================================================
+   SECCION 3 - ENTRADA (TACTIL + TECLADO) Y CAMARA
+   ========================================================================== */
+
+/* ----------------------------------------------------------------------------
+   INPUT MANAGER
+   Expone un estado unificado que la clase Car consume cada frame:
+     axisX  : [-1, 1] direccion horizontal (suelo) / pitch aereo
+     axisY  : [-1, 1] (no usado en suelo, util para apuntar aereo)
+     jump   : boolean (mantener)
+     jumpPressed : boolean (flanco de subida en este frame)
+     boost  : boolean
+     airroll: boolean
+   El joystick virtual aparece donde el jugador toca la zona izquierda.
+   Soporta multitouch: cada control rastrea su propio identificador de toque.
+   -------------------------------------------------------------------------- */
+class InputManager {
+  constructor() {
+    this.axisX = 0;
+    this.axisY = 0;
+    this.jump = false;
+    this.jumpPressed = false;
+    this._jumpPrev = false;
+    this.boost = false;
+    this.airroll = false;
+
+    // Estado interno del joystick
+    this.joyTouchId = null;
+    this.joyActive = false;
+    this.joyOriginX = 0; this.joyOriginY = 0;
+    this.joyCurX = 0; this.joyCurY = 0;
+    this.joyRadius = 56;
+
+    // Teclado (debug/escritorio)
+    this.keys = {};
+
+    this._bound = false;
+  }
+
+  attach() {
+    if (this._bound) return;
+    this._bound = true;
+    this._setupJoystick();
+    this._setupButtons();
+    this._setupKeyboard();
+  }
+
+  _setupJoystick() {
+    const zone = document.getElementById("joystickZone");
+    const base = document.getElementById("joyBase");
+    const knob = document.getElementById("joyKnob");
+
+    const start = (clientX, clientY, id) => {
+      this.joyTouchId = id;
+      this.joyActive = true;
+      this.joyOriginX = clientX; this.joyOriginY = clientY;
+      this.joyCurX = clientX; this.joyCurY = clientY;
+      base.style.left = clientX + "px"; base.style.top = clientY + "px";
+      knob.style.left = clientX + "px"; knob.style.top = clientY + "px";
+      base.classList.add("active"); knob.classList.add("active");
+      this._updateJoyAxis();
+    };
+    const move = (clientX, clientY) => {
+      if (!this.joyActive) return;
+      this.joyCurX = clientX; this.joyCurY = clientY;
+      let dx = clientX - this.joyOriginX;
+      let dy = clientY - this.joyOriginY;
+      const d = Math.hypot(dx, dy);
+      if (d > this.joyRadius) { dx = dx / d * this.joyRadius; dy = dy / d * this.joyRadius; }
+      knob.style.left = (this.joyOriginX + dx) + "px";
+      knob.style.top = (this.joyOriginY + dy) + "px";
+      this._updateJoyAxis();
+    };
+    const end = () => {
+      this.joyActive = false; this.joyTouchId = null;
+      this.axisX = 0; this.axisY = 0;
+      base.classList.remove("active"); knob.classList.remove("active");
+    };
+
+    zone.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      if (this.joyTouchId !== null) return;
+      const t = e.changedTouches[0];
+      start(t.clientX, t.clientY, t.identifier);
+    }, { passive: false });
+
+    zone.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === this.joyTouchId) { move(t.clientX, t.clientY); break; }
+      }
+    }, { passive: false });
+
+    const onTouchEndJoy = (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === this.joyTouchId) { end(); break; }
+      }
+    };
+    zone.addEventListener("touchend", onTouchEndJoy, { passive: false });
+    zone.addEventListener("touchcancel", onTouchEndJoy, { passive: false });
+
+    // Raton (escritorio)
+    zone.addEventListener("mousedown", (e) => { start(e.clientX, e.clientY, "mouse"); });
+    window.addEventListener("mousemove", (e) => { if (this.joyTouchId === "mouse") move(e.clientX, e.clientY); });
+    window.addEventListener("mouseup", () => { if (this.joyTouchId === "mouse") end(); });
+  }
+
+  _updateJoyAxis() {
+    let dx = this.joyCurX - this.joyOriginX;
+    let dy = this.joyCurY - this.joyOriginY;
+    const d = Math.hypot(dx, dy);
+    if (d < 6) { this.axisX = 0; this.axisY = 0; return; }
+    const nx = dx / Math.max(d, this.joyRadius);
+    const ny = dy / Math.max(d, this.joyRadius);
+    this.axisX = clamp(nx, -1, 1);
+    this.axisY = clamp(ny, -1, 1);
+  }
+
+  _bindHold(el, setFn) {
+    const down = (e) => { e.preventDefault(); el.classList.add("pressed"); setFn(true); Audio.resume(); };
+    const up = (e) => { e.preventDefault(); el.classList.remove("pressed"); setFn(false); };
+    el.addEventListener("touchstart", down, { passive: false });
+    el.addEventListener("touchend", up, { passive: false });
+    el.addEventListener("touchcancel", up, { passive: false });
+    el.addEventListener("mousedown", down);
+    el.addEventListener("mouseup", up);
+    el.addEventListener("mouseleave", (e) => { if (el.classList.contains("pressed")) up(e); });
+  }
+
+  _setupButtons() {
+    this._bindHold(document.getElementById("btnJump"), (v) => { this.jump = v; });
+    this._bindHold(document.getElementById("btnBoost"), (v) => { this.boost = v; });
+    this._bindHold(document.getElementById("btnAirroll"), (v) => { this.airroll = v; });
+  }
+
+  _setupKeyboard() {
+    window.addEventListener("keydown", (e) => {
+      this.keys[e.code] = true;
+      if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+    });
+    window.addEventListener("keyup", (e) => { this.keys[e.code] = false; });
+  }
+
+  /** Mezcla teclado y joystick. Debe llamarse al inicio de cada frame logico. */
+  poll() {
+    // Teclado sobreescribe si esta activo
+    let kx = 0;
+    if (this.keys["ArrowLeft"] || this.keys["KeyA"]) kx -= 1;
+    if (this.keys["ArrowRight"] || this.keys["KeyD"]) kx += 1;
+    let ky = 0;
+    if (this.keys["ArrowUp"] || this.keys["KeyW"]) ky -= 1;
+    if (this.keys["ArrowDown"] || this.keys["KeyS"]) ky += 1;
+    if (kx !== 0 || ky !== 0) { this.axisX = kx; this.axisY = ky; }
+
+    const kbJump = !!(this.keys["Space"] || this.keys["KeyK"]);
+    const kbBoost = !!(this.keys["ShiftLeft"] || this.keys["ShiftRight"] || this.keys["KeyL"]);
+    const kbRoll = !!(this.keys["KeyJ"] || this.keys["AltLeft"]);
+    const jumpNow = this.jump || kbJump;
+    const boostNow = this.boost || kbBoost;
+    const rollNow = this.airroll || kbRoll;
+
+    this.jumpPressed = jumpNow && !this._jumpPrev;
+    this._jumpPrev = jumpNow;
+
+    // Exponer combinacion final
+    return {
+      axisX: this.axisX,
+      axisY: this.axisY,
+      jump: jumpNow,
+      jumpPressed: this.jumpPressed,
+      boost: boostNow,
+      airroll: rollNow,
+    };
+  }
+
+  /** Limpia el estado (al pausar). */
+  releaseAll() {
+    this.jump = this.boost = this.airroll = false;
+    this.axisX = this.axisY = 0;
+    this._jumpPrev = false;
+    document.querySelectorAll(".action-btn.pressed").forEach((el) => el.classList.remove("pressed"));
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   CAMARA - sigue la accion (punto medio coche/bola), zoom dinamico y shake.
+   Trabaja en coordenadas de mundo y produce una transformacion para el render.
+   -------------------------------------------------------------------------- */
+class Camera {
+  constructor() {
+    this.x = CFG.WORLD_W / 2;
+    this.y = CFG.WORLD_H / 2;
+    this.targetX = this.x; this.targetY = this.y;
+    this.zoom = CFG.CAM_ZOOM_BASE;
+    this.targetZoom = this.zoom;
+    this.shake = 0;
+    this.shakeX = 0; this.shakeY = 0;
+    this.viewW = 1280; this.viewH = 640;
+    this.scale = 1; // escala mundo->pantalla (fit)
+    this.offsetX = 0; this.offsetY = 0;
+  }
+
+  /** Recalcula como encaja el mundo en el lienzo (modo "contain" con leve zoom). */
+  fit(canvasW, canvasH) {
+    this.viewW = canvasW; this.viewH = canvasH;
+    const sx = canvasW / CFG.WORLD_W;
+    const sy = canvasH / CFG.WORLD_H;
+    // Usamos "cover" parcial: el mayor para llenar pantalla pero limitado.
+    this.scale = Math.max(sx, sy);
+  }
+
+  follow(focusX, focusY, intensity, dt) {
+    this.targetX = focusX;
+    this.targetY = focusY;
+    this.targetZoom = lerp(CFG.CAM_ZOOM_BASE, CFG.CAM_ZOOM_ACTION, clamp(intensity, 0, 1));
+    this.x = damp(this.x, this.targetX, CFG.CAM_LERP, dt);
+    this.y = damp(this.y, this.targetY, CFG.CAM_LERP, dt);
+    this.zoom = damp(this.zoom, this.targetZoom, 4, dt);
+
+    // Decaimiento del shake
+    if (this.shake > 0.01) {
+      const s = this.shake * (Store.data.settings.shake / 100);
+      this.shakeX = rand(-s, s);
+      this.shakeY = rand(-s, s);
+      this.shake -= this.shake * CFG.CAM_SHAKE_DECAY * dt;
+    } else {
+      this.shake = 0; this.shakeX = 0; this.shakeY = 0;
+    }
+
+    // Mantener la camara dentro de limites razonables del mundo
+    const halfW = (this.viewW / (this.scale * this.zoom)) / 2;
+    const halfH = (this.viewH / (this.scale * this.zoom)) / 2;
+    const marginX = CFG.WORLD_W * 0.12;
+    const marginY = CFG.WORLD_H * 0.12;
+    this.x = clamp(this.x, halfW - marginX, CFG.WORLD_W - halfW + marginX);
+    this.y = clamp(this.y, halfH - marginY, CFG.WORLD_H - halfH + marginY);
+  }
+
+  addShake(amount) { this.shake = Math.min(40, this.shake + amount); }
+
+  /** Aplica la transformacion al contexto (mundo -> pantalla). */
+  apply(ctx) {
+    const s = this.scale * this.zoom;
+    ctx.translate(this.viewW / 2 + this.shakeX, this.viewH / 2 + this.shakeY);
+    ctx.scale(s, s);
+    ctx.translate(-this.x, -this.y);
+  }
+
+  /** Convierte un punto de pantalla a mundo (por si se necesita). */
+  screenToWorld(px, py) {
+    const s = this.scale * this.zoom;
+    return new Vector2(
+      (px - this.viewW / 2 - this.shakeX) / s + this.x,
+      (py - this.viewH / 2 - this.shakeY) / s + this.y
+    );
+  }
+}
+
+/* ============================================================================
+   SECCION 4 - ARENA (GEOMETRIA Y COLISIONES DE CONTORNO) Y PELOTA
+   ========================================================================== */
+
+/* ----------------------------------------------------------------------------
+   ARENA
+   La arena es un rectangulo cerrado con esquinas redondeadas y dos porterias
+   (una a cada lado) abiertas en la franja inferior del muro lateral.
+   Provee resolucion de colision circulo-AABB para bola y coche, deteccion de
+   gol, y rebote en los postes.
+   -------------------------------------------------------------------------- */
+class Arena {
+  constructor() {
+    this.left = CFG.WALL_THICK;
+    this.right = CFG.WORLD_W - CFG.WALL_THICK;
+    this.top = CFG.WALL_THICK;
+    this.floor = CFG.WORLD_H - CFG.WALL_THICK;
+    this.cornerR = 60;                       // radio de esquinas redondeadas
+    this.goalH = CFG.GOAL_HEIGHT;
+    this.goalDepth = CFG.GOAL_DEPTH;
+    this.goalTop = this.floor - this.goalH;  // y del travesano (poste superior)
+    // Centro de los postes (para colision circular del poste)
+    this.postR = 9;
+  }
+
+  centerX() { return (this.left + this.right) / 2; }
+  centerY() { return (this.top + this.floor) / 2; }
+
+  /** Comprueba si una posicion vertical esta dentro del hueco de porteria. */
+  inGoalBand(y) { return y > this.goalTop && y < this.floor; }
+
+  /**
+   * Resuelve la colision de un circulo contra los muros de la arena.
+   * Modifica pos (Vector2) y vel (Vector2) en sitio.
+   * Devuelve la magnitud del impacto (para sfx/particulas) o 0.
+   * @param allowGoal si true, el circulo puede atravesar el hueco de gol.
+   */
+  collideCircle(pos, vel, radius, restitution, allowGoal) {
+    let impact = 0;
+    const r = radius;
+
+    // --- TECHO ---
+    if (pos.y - r < this.top) {
+      pos.y = this.top + r;
+      if (vel.y < 0) { impact = Math.max(impact, -vel.y); vel.y = -vel.y * restitution; }
+    }
+    // --- SUELO ---
+    if (pos.y + r > this.floor) {
+      pos.y = this.floor - r;
+      if (vel.y > 0) { impact = Math.max(impact, vel.y); vel.y = -vel.y * restitution; }
+    }
+
+    // --- MURO IZQUIERDO ---
+    const inBandL = allowGoal && this.inGoalBand(pos.y);
+    if (!inBandL) {
+      if (pos.x - r < this.left) {
+        pos.x = this.left + r;
+        if (vel.x < 0) { impact = Math.max(impact, -vel.x); vel.x = -vel.x * restitution; }
+      }
+    } else {
+      // Dentro de la boca de gol: el fondo de la red detiene
+      const back = this.left - this.goalDepth;
+      if (pos.x - r < back) { pos.x = back + r; if (vel.x < 0) vel.x = -vel.x * 0.35; }
+      // Poste superior izquierdo
+      this._collidePost(pos, vel, r, this.left, this.goalTop, restitution);
+    }
+
+    // --- MURO DERECHO ---
+    const inBandR = allowGoal && this.inGoalBand(pos.y);
+    if (!inBandR) {
+      if (pos.x + r > this.right) {
+        pos.x = this.right - r;
+        if (vel.x > 0) { impact = Math.max(impact, vel.x); vel.x = -vel.x * restitution; }
+      }
+    } else {
+      const back = this.right + this.goalDepth;
+      if (pos.x + r > back) { pos.x = back - r; if (vel.x > 0) vel.x = -vel.x * 0.35; }
+      this._collidePost(pos, vel, r, this.right, this.goalTop, restitution);
+    }
+
+    return impact;
+  }
+
+  /** Colision circulo contra un poste (tratado como circulo solido). */
+  _collidePost(pos, vel, r, px, py, restitution) {
+    const dx = pos.x - px, dy = pos.y - py;
+    const d = Math.hypot(dx, dy);
+    const minD = r + this.postR;
+    if (d < minD && d > 1e-4) {
+      const nx = dx / d, ny = dy / d;
+      pos.x = px + nx * minD; pos.y = py + ny * minD;
+      const vn = vel.x * nx + vel.y * ny;
+      if (vn < 0) { vel.x -= (1 + restitution) * vn * nx; vel.y -= (1 + restitution) * vn * ny; }
+    }
+  }
+
+  /**
+   * Comprueba si la bola entro completamente en una porteria.
+   * Devuelve 0 (sin gol), 1 (gol en porteria izquierda -> punto naranja),
+   * 2 (gol en porteria derecha -> punto azul). Convencion: el jugador (azul)
+   * ataca a la derecha; rival (naranja) ataca a la izquierda.
+   */
+  checkGoal(ball) {
+    if (!this.inGoalBand(ball.pos.y)) return 0;
+    if (ball.pos.x + ball.radius < this.left) return 1;        // entro a la izquierda
+    if (ball.pos.x - ball.radius > this.right) return 2;       // entro a la derecha
+    return 0;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   PELOTA
+   Circulo con velocidad lineal y "spin" angular. El spin afecta sutilmente la
+   friccion tangencial en impactos (efecto Magnus simplificado en rebotes).
+   -------------------------------------------------------------------------- */
+class Ball {
+  constructor(arena) {
+    this.arena = arena;
+    this.pos = new Vector2(arena.centerX(), arena.centerY());
+    this.prev = this.pos.clone();
+    this.vel = new Vector2(0, 0);
+    this.radius = CFG.BALL_RADIUS;
+    this.mass = CFG.BALL_MASS;
+    this.spin = 0;            // velocidad angular (rad/s)
+    this.rot = 0;             // rotacion acumulada (para textura)
+    this.trail = [];
+    this.maxTrail = 22;
+    this.lastImpact = 0;
+    this.touchedBy = null;    // ultimo coche que toco (para asistencias/eventos)
+    this.inGoal = false;
+  }
+
+  resetTo(x, y, vx = 0, vy = 0) {
+    this.pos.set(x, y); this.prev.set(x, y);
+    this.vel.set(vx, vy);
+    this.spin = 0; this.rot = 0;
+    this.trail.length = 0;
+    this.inGoal = false;
+  }
+
+  /** Integracion de un sub-paso de fisica. */
+  step(dt) {
+    this.prev.copy(this.pos);
+
+    // Gravedad
+    this.vel.y += CFG.GRAVITY * dt;
+
+    // Resistencia del aire
+    const drag = Math.max(0, 1 - CFG.BALL_AIR_DRAG * dt);
+    this.vel.scale(drag);
+
+    // Limite de velocidad
+    this.vel.limit(CFG.BALL_MAX_SPEED);
+
+    // Integrar posicion
+    this.pos.addScaled(this.vel, dt);
+
+    // Spin -> rotacion visual y decaimiento
+    this.rot += this.spin * dt;
+    this.spin *= Math.max(0, 1 - CFG.BALL_SPIN_FRICTION * dt);
+
+    // Colision con arena (permitiendo gol)
+    const imp = this.arena.collideCircle(this.pos, this.vel, this.radius, CFG.RESTITUTION_BALL, true);
+    if (imp > 220) {
+      this.lastImpact = imp;
+      // El spin genera un ligero arrastre tangencial tras el rebote
+      this.vel.x += clamp(this.spin, -8, 8) * 4;
+    }
+    return imp;
+  }
+
+  /** Actualiza la estela visual (llamar a ritmo de frame, no de sub-paso). */
+  updateTrail() {
+    if (!Store.data.settings.trails) { this.trail.length = 0; return; }
+    this.trail.push({ x: this.pos.x, y: this.pos.y, t: 1 });
+    if (this.trail.length > this.maxTrail) this.trail.shift();
+    for (let i = 0; i < this.trail.length; i++) this.trail[i].t = i / this.trail.length;
+  }
+
+  speed() { return this.vel.len(); }
+}
+
+/* ============================================================================
+   SECCION 5 - COCHE (FISICA, ESTADOS Y MECANICAS AVANZADAS)
+   ----------------------------------------------------------------------------
+   Toda mecanica surge de la matematica: el coche es una caja orientada (OBB)
+   con velocidad lineal y angular. El morro (nose) apunta a lo largo del eje
+   local +x; el techo es local -y; las ruedas son local +y.
+   ========================================================================== */
+class Car {
+  constructor(arena, opts) {
+    this.arena = arena;
+    this.team = opts.team;                 // "blue" | "orange"
+    this.isBot = !!opts.isBot;
+    this.modelIndex = opts.modelIndex || 0;
+    this.colorIndex = opts.colorIndex || 0;
+    this.color = CAR_COLORS[this.colorIndex];
+
+    this.pos = new Vector2(opts.x, opts.y);
+    this.prev = this.pos.clone();
+    this.vel = new Vector2(0, 0);
+    this.angle = opts.angle || 0;          // orientacion (rad)
+    this.angVel = 0;                       // velocidad angular (rad/s)
+
+    this.hw = CFG.CAR_W / 2;
+    this.hh = CFG.CAR_H / 2;
+    this.mass = CFG.CAR_MASS;
+
+    // Estado
+    this.onGround = false;
+    this.hasFlip = false;                  // puede ejecutar flip/2o salto
+    this.flipWindow = 0;                    // tiempo restante para el flip
+    this.flipping = false;
+    this.flipTimer = 0;
+    this.flipDir = new Vector2(1, 0);
+    this.jumpHold = 0;                      // tiempo de empuje variable
+    this.mustyArmed = 0;                    // ventana para musty flick
+    this.airroll = false;
+    this.boost = CFG.BOOST_MAX;
+    this.supersonic = false;
+    this.faceDir = (this.team === "blue") ? 1 : -1;
+
+    // Cooldowns / utilidades
+    this.flipResetCooldown = 0;
+    this.bumpCooldown = 0;
+    this.respawnTimer = 0;                  // si es demolido
+    this.demolished = false;
+
+    // Entrada actual (rellenada por jugador o IA)
+    this.input = { axisX: 0, axisY: 0, jump: false, jumpPressed: false, boost: false, airroll: false };
+
+    // Visual
+    this.trail = [];
+    this.maxTrail = 16;
+    this.boostFlicker = 0;
+    this.squash = 1;                        // deformacion al impactar
+    this.tilt = 0;
+
+    // Banderas de mecanica para la UI (se consumen externamente)
+    this.flags = { flipReset: false, musty: false, pinch: false, stall: false, demo: false };
+
+    // Identidad
+    this.id = opts.id || Math.random().toString(36).slice(2);
+  }
+
+  /** Vector unitario del morro. */
+  nose() { return new Vector2(Math.cos(this.angle), Math.sin(this.angle)); }
+  /** Vector "techo" (hacia arriba del coche). */
+  roof() { return new Vector2(Math.sin(this.angle), -Math.cos(this.angle)); }
+  speed() { return this.vel.len(); }
+
+  setInput(inp) { this.input = inp; }
+
+  /** Acciones discretas (una vez por frame, no por sub-paso). */
+  handleDiscrete() {
+    if (this.demolished) return;
+    const inp = this.input;
+
+    // STALL: cancelar momentum en el aire (airroll + salto simultaneos en aire)
+    if (!this.onGround && inp.airroll && inp.jumpPressed) {
+      this.vel.scale(0.06);
+      this.angVel *= 0.15;
+      this.flags.stall = true;
+      this._dust(10, "#9ff7ff");
+      Audio.sfxFlip();
+      return;
+    }
+
+    if (inp.jumpPressed) {
+      if (this.onGround) {
+        this._jump();
+      } else if (this.hasFlip && this.flipWindow > 0) {
+        this._flip();
+      }
+    }
+  }
+
+  _jump() {
+    this.vel.y = -CFG.CAR_JUMP_VELOCITY;
+    this.onGround = false;
+    this.hasFlip = true;
+    this.flipWindow = CFG.CAR_DOUBLEJUMP_WINDOW;
+    this.jumpHold = CFG.CAR_JUMP_HOLD;
+    this.squash = 1.35;
+    this._dust(8, "#ffffff");
+    Audio.sfxJump();
+  }
+
+  _flip() {
+    const inp = this.input;
+    let dir = new Vector2(inp.axisX, inp.axisY);
+    if (dir.lenSq() < 0.05) dir.set(this.faceDir, 0);  // flip frontal por defecto
+    dir.normalize();
+
+    // Determinar si es backflip (direccion opuesta al morro) para musty
+    const nose = this.nose();
+    const align = dir.dot(nose);
+    const isBack = align < -CFG.MUSTY_BACK_DOT || (dir.x * this.faceDir < -0.4);
+
+    // Impulso del flip (mayormente horizontal, algo vertical si se apunta)
+    const impulse = CFG.CAR_FLIP_IMPULSE;
+    this.vel.x += dir.x * impulse;
+    this.vel.y += dir.y * impulse * 0.85 - (Math.abs(dir.y) < 0.2 ? 60 : 0);
+
+    // Rotacion del flip
+    const spinDir = isBack ? -this.faceDir : this.faceDir;
+    this.angVel += spinDir * CFG.CAR_FLIP_TORQUE;
+
+    this.flipping = true;
+    this.flipTimer = 0.55;
+    this.flipDir.copy(dir);
+    this.hasFlip = false;
+    this.flipWindow = 0;
+
+    if (isBack) this.mustyArmed = 0.5;     // ventana para musty flick
+
+    this.squash = 1.3;
+    this._dust(10, this.color.base);
+    Audio.sfxFlip();
+  }
+
+  /** Integracion de un sub-paso. */
+  step(dt, particles) {
+    if (this.demolished) {
+      this.respawnTimer -= dt;
+      return;
+    }
+    this.prev.copy(this.pos);
+    const inp = this.input;
+
+    // Decaimiento de temporizadores
+    if (this.flipWindow > 0) this.flipWindow -= dt;
+    if (this.flipTimer > 0) { this.flipTimer -= dt; if (this.flipTimer <= 0) this.flipping = false; }
+    if (this.mustyArmed > 0) this.mustyArmed -= dt;
+    if (this.jumpHold > 0) this.jumpHold -= dt;
+    if (this.flipResetCooldown > 0) this.flipResetCooldown -= dt;
+    if (this.bumpCooldown > 0) this.bumpCooldown -= dt;
+
+    // --- Gravedad ---
+    this.vel.y += CFG.GRAVITY * dt;
+
+    // --- Empuje variable del salto (mantener) ---
+    if (inp.jump && this.jumpHold > 0 && this.vel.y < 0) {
+      this.vel.y -= CFG.CAR_JUMP_VELOCITY * 1.4 * dt;
+    }
+
+    // --- Conduccion en suelo ---
+    if (this.onGround) {
+      if (Math.abs(inp.axisX) > 0.05) {
+        this.vel.x += inp.axisX * CFG.CAR_DRIVE_ACCEL * dt;
+        this.faceDir = sign(inp.axisX);
+      } else {
+        // Friccion de frenado
+        const f = Math.max(0, 1 - CFG.FLOOR_FRICTION * dt);
+        this.vel.x *= f;
+      }
+      // Limite de velocidad en suelo (sin boost)
+      if (!inp.boost) {
+        this.vel.x = clamp(this.vel.x, -CFG.CAR_MAX_SPEED_GROUND, CFG.CAR_MAX_SPEED_GROUND);
+      }
+      // Orientacion: alinear con la direccion de avance (coche plano)
+      const targetAngle = this.faceDir >= 0 ? 0 : PI;
+      this.angle = dampAngle(this.angle, targetAngle, 12, dt);
+      this.angVel *= Math.max(0, 1 - 8 * dt);
+    } else {
+      // --- Control aereo ---
+      if (inp.airroll) {
+        // Air roll continuo (rotacion 360 mantenida); direccion segun input
+        const rollDir = Math.abs(inp.axisX) > 0.1 ? sign(inp.axisX) : this.faceDir;
+        this.angVel = lerp(this.angVel, rollDir * CFG.CAR_AIR_ROLL_SPEED, 1 - Math.exp(-14 * dt));
+      } else {
+        // Pitch aereo proporcional al joystick
+        const targetAngVel = inp.axisX * CFG.CAR_AIR_PITCH_SPEED;
+        this.angVel = lerp(this.angVel, targetAngVel, 1 - Math.exp(-10 * dt));
+      }
+    }
+
+    // --- Turbo (boost) ---
+    if (inp.boost && this.boost > CFG.BOOST_MIN_TO_USE) {
+      this.boost = Math.max(0, this.boost - CFG.BOOST_CONSUMPTION * dt);
+      const nose = this.nose();
+      const thrust = this.onGround ? CFG.BOOST_GROUND_THRUST : CFG.BOOST_AIR_THRUST;
+      this.vel.addScaled(nose, thrust * dt);
+      // Particulas de turbo desde la parte trasera
+      if (particles) {
+        const tailX = this.pos.x - nose.x * this.hw;
+        const tailY = this.pos.y - nose.y * this.hw;
+        const jitter = rand(-0.4, 0.4);
+        const dir = nose.clone().rotate(PI + jitter);
+        const sp = rand(180, 360);
+        particles.emit({
+          x: tailX + rand(-4, 4), y: tailY + rand(-4, 4),
+          vx: this.vel.x * 0.2 + dir.x * sp, vy: this.vel.y * 0.2 + dir.y * sp,
+          life: rand(0.18, 0.4), size: rand(5, 11),
+          color: Math.random() < 0.5 ? "#ffd24d" : this.color.base,
+          glow: 16, drag: 3, shrink: 0.1, shape: "circle",
+        });
+        if (Math.random() < 0.4) {
+          particles.emit({
+            x: tailX, y: tailY, vx: dir.x * sp * 1.4, vy: dir.y * sp * 1.4,
+            life: 0.16, size: rand(2, 4), color: "#ffffff", glow: 20, drag: 2, shrink: 0.1, shape: "spark",
+          });
+        }
+      }
+    }
+
+    // Regeneracion lenta de turbo (concesion arcade para movil)
+    if (!inp.boost) this.boost = Math.min(CFG.BOOST_MAX, this.boost + 7 * dt);
+
+    // --- Resistencia del aire ---
+    if (!this.onGround) {
+      const drag = Math.max(0, 1 - CFG.AIR_DRAG * dt);
+      this.vel.scale(drag);
+    }
+
+    // --- Limite de velocidad total ---
+    const maxSp = inp.boost ? CFG.CAR_MAX_SPEED_BOOST : CFG.CAR_MAX_SPEED_BOOST;
+    this.vel.limit(maxSp);
+    this.supersonic = this.speed() > CFG.CAR_MAX_SPEED_BOOST * 0.9;
+
+    // --- Integrar ---
+    this.pos.addScaled(this.vel, dt);
+    this.angle += this.angVel * dt;
+    this.angle = wrapAngle(this.angle);
+
+    // --- Colision con la arena ---
+    this._collideArena(dt);
+
+    // Recuperar el squash
+    this.squash = damp(this.squash, 1, 12, dt);
+  }
+
+  /** Colision OBB contra los muros axis-aligned (resolucion exacta por eje). */
+  _collideArena(dt) {
+    const A = this.arena;
+    // Cuatro esquinas en mundo
+    const c = Math.cos(this.angle), s = Math.sin(this.angle);
+    const ex = this.hw, ey = this.hh;
+    const corners = [
+      { x: this.pos.x + ( ex) * c - (-ey) * s, y: this.pos.y + ( ex) * s + (-ey) * c },
+      { x: this.pos.x + ( ex) * c - ( ey) * s, y: this.pos.y + ( ex) * s + ( ey) * c },
+      { x: this.pos.x + (-ex) * c - ( ey) * s, y: this.pos.y + (-ex) * s + ( ey) * c },
+      { x: this.pos.x + (-ex) * c - (-ey) * s, y: this.pos.y + (-ex) * s + (-ey) * c },
+    ];
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of corners) {
+      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+    }
+
+    let landed = false;
+
+    // SUELO
+    const floorPen = maxY - A.floor;
+    if (floorPen > 0) {
+      this.pos.y -= floorPen;
+      if (this.vel.y > 0) {
+        const impactV = this.vel.y;
+        this.vel.y = -this.vel.y * 0.18;        // poco rebote
+        if (impactV > 250) { this._dust(Math.min(14, impactV / 60), "#ffffff"); }
+        this.squash = clamp(1 + impactV / 2600, 1, 1.4);
+      }
+      landed = true;
+    }
+    // TECHO
+    const ceilPen = A.top - minY;
+    if (ceilPen > 0) {
+      this.pos.y += ceilPen;
+      if (this.vel.y < 0) this.vel.y = -this.vel.y * 0.2;
+      // En el techo el coche puede "conducir" invertido: lo dejamos resbalar
+    }
+    // MURO IZQUIERDO (salvo boca de gol)
+    if (!A.inGoalBand(this.pos.y)) {
+      const leftPen = A.left - minX;
+      if (leftPen > 0) {
+        this.pos.x += leftPen;
+        if (this.vel.x < 0) this.vel.x = -this.vel.x * 0.3;
+        this.angVel *= 0.6;
+      }
+    } else {
+      const back = A.left - A.goalDepth + this.hh;
+      if (minX < back) { this.pos.x += (back - minX); if (this.vel.x < 0) this.vel.x *= -0.2; }
+    }
+    // MURO DERECHO (salvo boca de gol)
+    if (!A.inGoalBand(this.pos.y)) {
+      const rightPen = maxX - A.right;
+      if (rightPen > 0) {
+        this.pos.x -= rightPen;
+        if (this.vel.x > 0) this.vel.x = -this.vel.x * 0.3;
+        this.angVel *= 0.6;
+      }
+    } else {
+      const back = A.right + A.goalDepth - this.hh;
+      if (maxX > back) { this.pos.x -= (maxX - back); if (this.vel.x > 0) this.vel.x *= -0.2; }
+    }
+
+    // Estado de suelo: solo si esta apoyado y casi plano o cayendo lento
+    if (landed && this.vel.y >= -20) {
+      if (!this.onGround) {
+        // Aterrizaje: recuperar recursos del salto
+        this.onGround = true;
+        this.hasFlip = false;
+        this.flipping = false;
+        this.angVel *= 0.4;
+      }
+    } else {
+      this.onGround = false;
+    }
+  }
+
+  /* ------------------------------------------------------------------------
+     COLISION COCHE <-> PELOTA  (circulo contra OBB)
+     Devuelve null o un objeto con datos del impacto. Aqui nacen las mecanicas
+     de pinch, flip reset y musty flick, todas a partir de geometria/vectores.
+     ---------------------------------------------------------------------- */
+  collideBall(ball) {
+    if (this.demolished) return null;
+
+    // 1) Transformar el centro de la bola al espacio local del coche
+    const dx = ball.pos.x - this.pos.x;
+    const dy = ball.pos.y - this.pos.y;
+    const c = Math.cos(-this.angle), s = Math.sin(-this.angle);
+    const lx = dx * c - dy * s;
+    const ly = dx * s + dy * c;
+
+    // 2) Punto mas cercano del rectangulo (en local)
+    const cxp = clamp(lx, -this.hw, this.hw);
+    const cyp = clamp(ly, -this.hh, this.hh);
+    let nlx = lx - cxp, nly = ly - cyp;
+    let distLocal = Math.hypot(nlx, nly);
+
+    let insideBox = false;
+    if (distLocal < 1e-5) {
+      // El centro de la bola esta dentro: empujar por el eje de menor penetracion
+      insideBox = true;
+      const penX = this.hw - Math.abs(lx);
+      const penY = this.hh - Math.abs(ly);
+      if (penX < penY) { nlx = sign(lx) || 1; nly = 0; distLocal = penX; }
+      else { nlx = 0; nly = sign(ly) || 1; distLocal = penY; }
+    } else {
+      nlx /= distLocal; nly /= distLocal;
+    }
+
+    const penetration = ball.radius - distLocal;
+    if (penetration <= 0 && !insideBox) return null;   // sin contacto
+
+    // 3) Normal en mundo (rotar la normal local por +angle)
+    const cc = Math.cos(this.angle), ss = Math.sin(this.angle);
+    const nx = nlx * cc - nly * ss;
+    const ny = nlx * ss + nly * cc;
+
+    // 4) Separar la bola
+    const pushOut = insideBox ? (distLocal + ball.radius) : penetration;
+    ball.pos.x += nx * pushOut;
+    ball.pos.y += ny * pushOut;
+
+    // 5) Velocidad relativa incluyendo contribucion angular del coche
+    //    Vector del centro del coche al punto de contacto:
+    const contactX = ball.pos.x - nx * ball.radius;
+    const contactY = ball.pos.y - ny * ball.radius;
+    const rx = contactX - this.pos.x;
+    const ry = contactY - this.pos.y;
+    // Velocidad del punto del coche = vel + angVel x r  (en 2D: w*(-ry, rx))
+    const carPointVx = this.vel.x + (-this.angVel * ry);
+    const carPointVy = this.vel.y + ( this.angVel * rx);
+
+    const relVx = ball.vel.x - carPointVx;
+    const relVy = ball.vel.y - carPointVy;
+    const vn = relVx * nx + relVy * ny;   // velocidad relativa normal
+
+    let impactSpeed = Math.abs(vn);
+
+    if (vn < 0) {
+      // Impulso de colision (la bola recibe la mayor parte; el coche es pesado)
+      const e = CFG.RESTITUTION_BALL;
+      const invMassBall = 1 / ball.mass;
+      const invMassCar = 1 / (this.mass * 6); // coche "ancla" parcial
+      const j = -(1 + e) * vn / (invMassBall + invMassCar);
+
+      ball.vel.x += (j * invMassBall) * nx;
+      ball.vel.y += (j * invMassBall) * ny;
+      // Reaccion sobre el coche (mas leve)
+      this.vel.x -= (j * invMassCar) * nx;
+      this.vel.y -= (j * invMassCar) * ny;
+
+      // "Punch": empuje extra hacia la cara del coche para sensacion arcade
+      ball.vel.x += nx * impactSpeed * (CFG.BALL_HIT_BOOST - 1);
+      ball.vel.y += ny * impactSpeed * (CFG.BALL_HIT_BOOST - 1);
+
+      // Componente tangencial -> spin de la bola
+      const tx = -ny, ty = nx;
+      const vt = relVx * tx + relVy * ty;
+      ball.spin += -vt * 0.02;
+      ball.vel.x += tx * vt * 0.18;
+      ball.vel.y += ty * vt * 0.18;
+
+      ball.touchedBy = this;
+      ball.lastImpact = impactSpeed;
+      this.squash = clamp(1 + impactSpeed / 2200, 1, 1.5);
+    }
+
+    // 6) MECANICAS AVANZADAS -------------------------------------------------
+    this.flags.flipReset = false; this.flags.musty = false; this.flags.pinch = false;
+
+    // (a) FLIP RESET: contacto por la cara de las RUEDAS (local +y) estando en
+    //     el aire restaura el flip. nly ~ +1 significa que la bola toca abajo.
+    if (!this.onGround && nly > CFG.FLIPRESET_DOT && this.flipResetCooldown <= 0) {
+      this.hasFlip = true;
+      this.flipWindow = CFG.CAR_DOUBLEJUMP_WINDOW;
+      this.flipResetCooldown = 0.8;
+      this.flags.flipReset = true;
+    }
+
+    // (b) MUSTY FLICK: si el coche venia en backflip (mustyArmed) y golpea la
+    //     bola con el techo/parte trasera, anadir elevacion extra.
+    if (this.mustyArmed > 0 && nly < -0.3) {
+      ball.vel.y -= CFG.MUSTY_LIFT;
+      ball.vel.x += this.faceDir * 120;
+      this.flags.musty = true;
+      this.mustyArmed = 0;
+    }
+
+    // (c) PINCH: si el golpe es fuerte y la bola queda atrapada cerca de una
+    //     superficie, amplificar drasticamente la velocidad de escape.
+    if (impactSpeed > CFG.PINCH_MIN_REL_SPEED) {
+      const A = this.arena;
+      const nearWall =
+        (A.right - ball.pos.x) < ball.radius * 2.3 ||
+        (ball.pos.x - A.left) < ball.radius * 2.3 ||
+        (A.floor - ball.pos.y) < ball.radius * 2.3 ||
+        (ball.pos.y - A.top) < ball.radius * 2.3;
+      if (nearWall) {
+        ball.vel.scale(CFG.PINCH_AMPLIFY);
+        ball.vel.limit(CFG.BALL_MAX_SPEED);
+        this.flags.pinch = true;
+      }
+    }
+
+    return { impactSpeed, nx, ny, x: contactX, y: contactY };
+  }
+
+  /** Colision simple coche-coche (empuje tipo bumper). */
+  collideCar(other) {
+    if (this.demolished || other.demolished) return null;
+    const dx = other.pos.x - this.pos.x;
+    const dy = other.pos.y - this.pos.y;
+    const d = Math.hypot(dx, dy);
+    const minD = this.hw + other.hw * 0.6;
+    if (d > minD || d < 1e-4) return null;
+    const nx = dx / d, ny = dy / d;
+    const overlap = minD - d;
+    this.pos.x -= nx * overlap * 0.5; this.pos.y -= ny * overlap * 0.5;
+    other.pos.x += nx * overlap * 0.5; other.pos.y += ny * overlap * 0.5;
+    const rvx = other.vel.x - this.vel.x, rvy = other.vel.y - this.vel.y;
+    const vn = rvx * nx + rvy * ny;
+    if (vn < 0) {
+      const j = -(1.2) * vn / 2;
+      this.vel.x -= j * nx; this.vel.y -= j * ny;
+      other.vel.x += j * nx; other.vel.y += j * ny;
+    }
+    // Demolicion: si uno es supersonico y embiste al otro
+    let demoInfo = null;
+    if (this.supersonic && this.bumpCooldown <= 0 && vn < -200) {
+      other.demolish(); this.bumpCooldown = 1.5; demoInfo = { by: this, target: other };
+    } else if (other.supersonic && other.bumpCooldown <= 0 && vn < -200) {
+      this.demolish(); other.bumpCooldown = 1.5; demoInfo = { by: other, target: this };
+    }
+    return demoInfo;
+  }
+
+  demolish() {
+    if (this.demolished) return;
+    this.demolished = true;
+    this.respawnTimer = 2.2;
+    this.flags.demo = true;
+    this.vel.set(0, 0); this.angVel = 0;
+  }
+
+  respawn(x, y, angle) {
+    this.demolished = false;
+    this.pos.set(x, y); this.prev.set(x, y);
+    this.vel.set(0, 0); this.angVel = 0;
+    this.angle = angle;
+    this.onGround = false; this.hasFlip = false;
+    this.boost = Math.max(this.boost, 34);
+  }
+
+  addBoost(a) { this.boost = clamp(this.boost + a, 0, CFG.BOOST_MAX); }
+
+  _dust(n, color) {
+    if (!window.GAME || !GAME.particles) return;
+    GAME.particles.burst(this.pos.x, this.pos.y + this.hh, n, {
+      speedMin: 30, speedMax: 160, lifeMin: 0.2, lifeMax: 0.5,
+      sizeMin: 2, sizeMax: 6, color, glow: 6, gravity: 200, drag: 2, shape: "circle", shrink: 0.2,
+    });
+  }
+
+  updateTrail() {
+    if (!Store.data.settings.trails || this.demolished) { this.trail.length = 0; return; }
+    this.trail.push({ x: this.pos.x, y: this.pos.y, a: this.angle });
+    if (this.trail.length > this.maxTrail) this.trail.shift();
+  }
+}
+
+/* ============================================================================
+   SECCION 6 - INTELIGENCIA ARTIFICIAL ESCALABLE
+   ----------------------------------------------------------------------------
+   La IA predice la trayectoria de la bola (simulacion con rebotes), decide un
+   estado (saque/ataque/defensa/recuperacion/boost) y genera un input analogico
+   suave (sin teletransporte). Escala de Bronce (torpe) a Leyenda (aereos,
+   air roll, flip resets, ataque desde el techo).
+   ========================================================================== */
+
+const DIFFICULTIES = [
+  {
+    key: "bronce", name: "Bronce", desc: "Torpe. No vuela. Falla mucho.", color: "#cd7f32",
+    p: { reaction: 0.42, aim: 150, aggression: 0.50, aerial: 0.00, airRoll: false, flipReset: false,
+         ceiling: false, boostMin: 6, speed: 0.60, jumpSkill: 0.20, predict: 0.8, errorJitter: 60, recover: 0.4 },
+  },
+  {
+    key: "oro", name: "Oro", desc: "Solido en suelo. Salta a la bola.", color: "#ffd24d",
+    p: { reaction: 0.26, aim: 80, aggression: 0.70, aerial: 0.22, airRoll: false, flipReset: false,
+         ceiling: false, boostMin: 10, speed: 0.80, jumpSkill: 0.55, predict: 1.2, errorJitter: 30, recover: 0.65 },
+  },
+  {
+    key: "platino", name: "Platino", desc: "Vuela y controla el aire.", color: "#5fe6d0",
+    p: { reaction: 0.18, aim: 48, aggression: 0.82, aerial: 0.50, airRoll: true, flipReset: false,
+         ceiling: false, boostMin: 14, speed: 0.90, jumpSkill: 0.78, predict: 1.45, errorJitter: 16, recover: 0.8 },
+  },
+  {
+    key: "campeon", name: "Campeon", desc: "Aereos precisos. Hace demos.", color: "#c08bff",
+    p: { reaction: 0.12, aim: 26, aggression: 0.92, aerial: 0.80, airRoll: true, flipReset: false,
+         ceiling: true, boostMin: 18, speed: 0.97, jumpSkill: 0.9, predict: 1.7, errorJitter: 8, recover: 0.9 },
+  },
+  {
+    key: "leyenda", name: "Leyenda", desc: "Air roll, flip resets, ataque desde el techo.", color: "#ff5af0",
+    p: { reaction: 0.06, aim: 12, aggression: 1.0, aerial: 1.0, airRoll: true, flipReset: true,
+         ceiling: true, boostMin: 20, speed: 1.0, jumpSkill: 1.0, predict: 2.0, errorJitter: 3, recover: 1.0 },
+  },
+];
+
+class BotAI {
+  constructor(car, game, difficultyIndex) {
+    this.car = car;
+    this.game = game;
+    this.setDifficulty(difficultyIndex);
+
+    this.state = "KICKOFF";
+    this.reactionTimer = 0;
+    this.decision = { tx: 0, ty: 0, wantJump: false, wantBoost: false, wantRoll: false, aerial: false };
+    this.target = new Vector2(car.pos.x, car.pos.y);
+    this.smoothAxis = 0;
+    this.jumpEdge = false;
+    this.jumpQueued = false;
+    this.jumpCooldown = 0;
+    this.aimWobble = rand(0, TAU);
+    this.thinkClock = 0;
+    this.predictedPath = [];
+  }
+
+  setDifficulty(i) {
+    this.diffIndex = clamp(i, 0, DIFFICULTIES.length - 1);
+    this.D = DIFFICULTIES[this.diffIndex];
+    this.P = this.D.p;
+  }
+
+  /** Porteria que defiende (orange defiende la derecha). */
+  ownGoalX() { return this.game.arena.right; }
+  /** Porteria a la que ataca (orange ataca la izquierda). */
+  oppGoalPoint() {
+    const A = this.game.arena;
+    return new Vector2(A.left - 6, A.floor - A.goalH * 0.5);
+  }
+
+  /**
+   * Simula la trayectoria de la bola hacia el futuro (con rebotes en muros y
+   * suelo). Devuelve muestras {x,y,t}.
+   */
+  predictBall(horizon) {
+    const A = this.game.arena;
+    const b = this.game.ball;
+    const px = new Vector2(b.pos.x, b.pos.y);
+    const pv = new Vector2(b.vel.x, b.vel.y);
+    const dt = 0.03;
+    const steps = Math.floor(horizon / dt);
+    const out = [];
+    for (let i = 0; i < steps; i++) {
+      pv.y += CFG.GRAVITY * dt;
+      pv.scale(Math.max(0, 1 - CFG.BALL_AIR_DRAG * dt));
+      px.addScaled(pv, dt);
+      A.collideCircle(px, pv, b.radius, CFG.RESTITUTION_BALL, true);
+      out.push({ x: px.x, y: px.y, t: (i + 1) * dt });
+    }
+    return out;
+  }
+
+  /**
+   * Encuentra el primer punto de la trayectoria que el coche puede alcanzar a
+   * tiempo, dado su alcance estimado.
+   */
+  findInterception(path) {
+    const car = this.car;
+    const reach = CFG.CAR_MAX_SPEED_BOOST * this.P.speed * 0.92;
+    for (let i = 0; i < path.length; i++) {
+      const s = path[i];
+      const travel = reach * s.t + 80;            // distancia alcanzable + margen
+      const need = dist(car.pos.x, car.pos.y, s.x, s.y);
+      // Si el bot no vuela, ignora puntos altos
+      const tooHigh = s.y < this.game.arena.floor - 130;
+      if (tooHigh && this.P.aerial < 0.15) continue;
+      if (need <= travel) return { point: new Vector2(s.x, s.y), t: s.t, index: i };
+    }
+    // Si nada es alcanzable, perseguir el punto final
+    const last = path[path.length - 1] || { x: this.game.ball.pos.x, y: this.game.ball.pos.y, t: 1 };
+    return { point: new Vector2(last.x, last.y), t: last.t, index: path.length - 1 };
+  }
+
+  /** Decide el estado de alto nivel (arbol de comportamiento simplificado). */
+  decideState() {
+    const A = this.game.arena;
+    const b = this.game.ball;
+    const car = this.car;
+    const own = this.ownGoalX();
+
+    if (this.game.phase === "kickoff") { this.state = "KICKOFF"; return; }
+    if (car.demolished) { this.state = "RECOVER"; return; }
+
+    const ballToOwn = Math.abs(b.pos.x - own);
+    const ballOnOwnHalf = (b.pos.x > A.centerX());      // mitad derecha = lado del bot
+    const ballHeadingOwn = b.vel.x > 120;               // bola va hacia la derecha (su porteria)
+    const carAirborneBad = !car.onGround && car.pos.y < A.floor - 220 && b.pos.y > A.floor - 160;
+
+    if (carAirborneBad && this.P.aerial < 0.5) { this.state = "RECOVER"; return; }
+
+    // Amenaza de gol: bola cerca de su porteria yendo hacia ella
+    if (ballOnOwnHalf && ballHeadingOwn && ballToOwn < A.WORLD_W * 0.42) {
+      this.state = "DEFEND"; return;
+    }
+    // Sin boost y bola lejos -> recolectar
+    if (car.boost < 18 && !ballOnOwnHalf && this.P.aggression < 0.9) {
+      this.state = "BOOST"; return;
+    }
+    this.state = "ATTACK";
+  }
+
+  /** Genera la decision de movimiento concreta segun el estado. */
+  think(dt) {
+    const A = this.game.arena;
+    const b = this.game.ball;
+    const car = this.car;
+    this.aimWobble += dt * 3;
+
+    this.decision.wantJump = false;
+    this.decision.wantBoost = false;
+    this.decision.wantRoll = false;
+    this.decision.aerial = false;
+
+    this.predictedPath = this.predictBall(1.2 * this.P.predict);
+    const inter = this.findInterception(this.predictedPath);
+
+    if (this.state === "KICKOFF") {
+      // Ir directo al centro con boost
+      this.target.set(A.centerX(), A.floor - car.hh);
+      this.decision.wantBoost = car.boost > 4;
+      if (dist(car.pos.x, car.pos.y, b.pos.x, b.pos.y) < 90) {
+        this.decision.wantJump = Math.random() < this.P.jumpSkill * 0.6;
+      }
+    }
+    else if (this.state === "DEFEND") {
+      // Colocarse entre la bola y la porteria propia
+      const own = this.oppDefendPoint();
+      const interceptY = clamp(inter.point.y, A.top + 40, A.floor - car.hh);
+      this.target.set(
+        lerp(inter.point.x, own.x, 0.35),
+        interceptY
+      );
+      this.decision.wantBoost = Math.abs(car.pos.x - this.target.x) > 120 && car.boost > this.P.boostMin;
+      this._maybeAerial(inter, b);
+      this._maybeChallenge(b);
+    }
+    else if (this.state === "BOOST") {
+      const pad = this.game.nearestBoostPad(car.pos);
+      if (pad) this.target.copy(pad.pos);
+      else { this.target.copy(b.pos); }
+      this.decision.wantBoost = false;
+    }
+    else if (this.state === "RECOVER") {
+      // Orientar ruedas hacia el suelo y caer controladamente
+      this.target.set(car.pos.x, A.floor - car.hh);
+      // Enderezar: girar para que el techo apunte arriba (angle -> 0 o PI)
+      const desired = car.faceDir >= 0 ? 0 : PI;
+      const da = wrapAngle(desired - car.angle);
+      this.decision.tiltCmd = clamp(da * 1.5, -1, 1);
+      if (car.boost > 30 && car.vel.y > 250) this.decision.wantBoost = true; // frenar caida
+      this.decision.wantRoll = this.P.airRoll && Math.abs(da) > 0.5;
+    }
+    else { // ATTACK
+      // Aproximarse a la bola por detras respecto a la porteria rival
+      const goal = this.oppGoalPoint();
+      const aim = this._aimPoint(inter.point, goal);
+      this.target.copy(aim);
+      const distBall = dist(car.pos.x, car.pos.y, b.pos.x, b.pos.y);
+      this.decision.wantBoost = distBall > 150 && car.boost > this.P.boostMin;
+      this._maybeChallenge(b);
+      this._maybeAerial(inter, b);
+    }
+
+    // Recolectar boost de paso si esta sobre un pad (gestionado en Game)
+  }
+
+  oppDefendPoint() {
+    const A = this.game.arena;
+    return new Vector2(A.right - 70, A.floor - this.car.hh);
+  }
+
+  /** Punto de aproximacion detras de la bola hacia la porteria objetivo. */
+  _aimPoint(ballPoint, goal) {
+    const dir = Vector2.sub(ballPoint, goal).normalize();   // de la porteria a la bola
+    const off = this.car.hw + this.game.ball.radius + 6;
+    const wob = (this.P.aim) * Math.sin(this.aimWobble) * 0.5 + rand(-this.P.errorJitter, this.P.errorJitter);
+    return new Vector2(
+      ballPoint.x + dir.x * off,
+      clamp(ballPoint.y + dir.y * off + wob * 0.3, this.game.arena.top + 30, this.game.arena.floor - this.car.hh)
+    );
+  }
+
+  /** Decide si lanzar un challenge (salto/flip) al estar cerca de la bola. */
+  _maybeChallenge(b) {
+    const car = this.car;
+    const d = dist(car.pos.x, car.pos.y, b.pos.x, b.pos.y);
+    const closing = (b.pos.x - car.pos.x) * car.vel.x + (b.pos.y - car.pos.y) * car.vel.y;
+    if (d < 95 && car.onGround && Math.random() < this.P.jumpSkill) {
+      if (b.pos.y < car.pos.y - 20) { this.decision.wantJump = true; }      // saltar a bola alta
+      else if (Math.abs(b.pos.x - car.pos.x) < 70) { this.decision.wantJump = true; this.decision.flipForward = true; }
+    }
+  }
+
+  /** Decide y arma un aereo (despegue + boost en el aire hacia la bola). */
+  _maybeAerial(inter, b) {
+    if (this.P.aerial < 0.15) return;
+    const car = this.car;
+    const targetHigh = inter.point.y < this.game.arena.floor - 150;
+    if (!targetHigh) return;
+    const horizClose = Math.abs(inter.point.x - car.pos.x) < 220 * this.P.aerial + 60;
+    const enoughBoost = car.boost > this.P.boostMin + 8;
+    if (targetHigh && horizClose && enoughBoost && Math.random() < this.P.aerial) {
+      this.decision.aerial = true;
+      if (car.onGround) this.decision.wantJump = true;     // despegue
+      this.decision.wantBoost = true;
+      // Apuntar el morro hacia la bola para que el boost empuje hacia ella
+      const toBall = Vector2.sub(b.pos, car.pos);
+      this.decision.aimAngle = toBall.angle();
+      if (this.P.airRoll && Math.random() < 0.4) this.decision.wantRoll = true;
+    }
+  }
+
+  /** Produce el objeto input que consume Car (con reaccion y suavizado). */
+  produceInput(dt) {
+    const car = this.car;
+    this.jumpCooldown -= dt;
+    this.thinkClock -= dt;
+
+    // Reaccion: solo re-decidir cada cierto tiempo (simula tiempo humano)
+    if (this.thinkClock <= 0) {
+      this.decideState();
+      this.think(dt);
+      this.thinkClock = this.P.reaction;
+    }
+
+    // --- Steering horizontal ---
+    let ax = 0;
+    if (this.state === "RECOVER" && !car.onGround && this.decision.tiltCmd !== undefined) {
+      ax = this.decision.tiltCmd;     // usar input para enderezar el coche
+    } else if (this.decision.aerial && !car.onGround && this.decision.aimAngle !== undefined) {
+      // Orientar el morro hacia el angulo objetivo via control aereo
+      const da = wrapAngle(this.decision.aimAngle - car.angle);
+      ax = clamp(da * 1.4, -1, 1);
+    } else {
+      const dx = this.target.x - car.pos.x;
+      ax = clamp(dx / 110, -1, 1) * this.P.speed;
+    }
+    // Suavizado para movimiento humano (sin saltos bruscos)
+    this.smoothAxis = damp(this.smoothAxis, ax, 14, dt);
+
+    // --- Salto (flanco) ---
+    let jumpPressed = false;
+    if (this.decision.wantJump && this.jumpCooldown <= 0) {
+      jumpPressed = true;
+      this.jumpCooldown = 0.35;
+      this.decision.wantJump = false;
+    }
+
+    // Flip reset de Leyenda: si esta en el aire bajo la bola, intentar tocarla
+    // con las ruedas (lo resuelve la colision); aqui solo ajusta orientacion.
+    if (this.P.flipReset && !car.onGround && car.hasFlip === false) {
+      const b = this.game.ball;
+      if (Math.abs(b.pos.x - car.pos.x) < 60 && b.pos.y > car.pos.y) {
+        // girar para presentar las ruedas hacia arriba (hacia la bola)
+        const desired = PI;        // ruedas arriba = coche invertido
+        const da = wrapAngle(desired - car.angle);
+        this.smoothAxis = clamp(da, -1, 1);
+        this.decision.wantRoll = this.P.airRoll;
+      }
+    }
+
+    return {
+      axisX: this.smoothAxis,
+      axisY: 0,
+      jump: this.decision.wantJump,
+      jumpPressed,
+      boost: !!this.decision.wantBoost,
+      airroll: !!this.decision.wantRoll,
+    };
+  }
+}
+
+/* ============================================================================
+   SECCION 7 - RENDERIZADO (CANVAS 2D LLEVADO AL LIMITE)
+   ----------------------------------------------------------------------------
+   Capas de fondo con parallax, arena neon, sombras proyectadas, estelas,
+   bloom via shadowBlur, sistema de particulas y siluetas de coche complejas.
+   ========================================================================== */
+
+/**
+ * Dibuja una silueta de coche detallada en el espacio LOCAL (morro hacia +x).
+ * Reutilizable por el juego y por el garaje.
+ */
+function drawCarShape(ctx, model, colorObj, w, h, opts) {
+  opts = opts || {};
+  const hw = w / 2, hh = h / 2;
+  const body = model.body;
+  const base = colorObj.base;
+  const glow = colorObj.glow;
+  const wheelSpin = opts.wheelSpin || 0;
+  const boostOn = opts.boost || false;
+  const flicker = opts.flicker || 0;
+  const detail = opts.detail !== undefined ? opts.detail : 1;
+
+  // ---- Llamas del turbo (detras, en -x) ----
+  if (boostOn) {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const flameLen = (hw * 1.4) * (0.7 + flicker * 0.5);
+    const grd = ctx.createLinearGradient(-hw, 0, -hw - flameLen, 0);
+    grd.addColorStop(0, "rgba(255,255,255,0.95)");
+    grd.addColorStop(0.3, "rgba(255,210,77,0.85)");
+    grd.addColorStop(0.7, "rgba(255,122,24,0.5)");
+    grd.addColorStop(1, "rgba(255,43,40,0)");
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.moveTo(-hw + 4, -hh * 0.5);
+    ctx.lineTo(-hw - flameLen, 0);
+    ctx.lineTo(-hw + 4, hh * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- Sombra propia / volumen inferior ----
+  ctx.save();
+
+  // ---- Ruedas ----
+  const wheelR = hh * (0.92 + body.height * 0.05);
+  const wheelFX = hw * 0.62, wheelBX = -hw * 0.62, wheelY = hh * 0.55;
+  for (const wx of [wheelBX, wheelFX]) {
+    ctx.save();
+    ctx.translate(wx, wheelY);
+    // Neumatico
+    ctx.beginPath();
+    ctx.arc(0, 0, wheelR, 0, TAU);
+    ctx.fillStyle = "#0c0c16";
+    ctx.shadowColor = "rgba(0,0,0,0.6)";
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Llanta neon
+    ctx.rotate(wheelSpin);
+    ctx.strokeStyle = base;
+    ctx.lineWidth = Math.max(1.5, wheelR * 0.18);
+    ctx.shadowColor = glow; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(0, 0, wheelR * 0.55, 0, TAU); ctx.stroke();
+    // Radios
+    if (detail > 0.5) {
+      ctx.lineWidth = 1.4;
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * TAU;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a) * wheelR * 0.52, Math.sin(a) * wheelR * 0.52);
+        ctx.stroke();
+      }
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // ---- Carroceria (chasis + cabina) ----
+  const noseX = hw;
+  const tailX = -hw;
+  const chassisTop = -hh * (0.1 + body.height * 0.15);
+  const chassisBot = hh * 0.5;
+
+  // Cuerpo principal (forma de cuna)
+  ctx.beginPath();
+  ctx.moveTo(tailX, chassisBot);
+  ctx.lineTo(noseX, chassisBot);
+  // Morro inclinado
+  ctx.lineTo(noseX, chassisTop + (1 - body.nose) * (chassisBot - chassisTop) * 0.4);
+  // Capo hacia la cabina
+  const cabinFront = lerp(noseX, tailX, 0.32 + body.wedge * 0.18);
+  const cabinBack = lerp(noseX, tailX, 0.72);
+  const roofY = -hh * (0.9 + body.roof * 0.9);
+  ctx.lineTo(cabinFront, chassisTop);
+  ctx.lineTo(lerp(cabinFront, cabinBack, 0.4), roofY);          // techo
+  ctx.lineTo(cabinBack, roofY * 0.92);
+  ctx.lineTo(tailX, chassisTop + (1 - body.tail) * 6);
+  ctx.closePath();
+
+  // Relleno con gradiente metalico tintado
+  const bodyGrad = ctx.createLinearGradient(0, roofY, 0, chassisBot);
+  bodyGrad.addColorStop(0, shade(base, 1.25));
+  bodyGrad.addColorStop(0.45, base);
+  bodyGrad.addColorStop(1, shade(base, 0.45));
+  ctx.fillStyle = bodyGrad;
+  ctx.shadowColor = glow; ctx.shadowBlur = 18 * detail;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Contorno neon
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = shade(base, 1.5);
+  ctx.shadowColor = glow; ctx.shadowBlur = 12 * detail;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Ventana / cabina (cristal oscuro)
+  ctx.beginPath();
+  ctx.moveTo(cabinFront + 4, chassisTop - 2);
+  ctx.lineTo(lerp(cabinFront, cabinBack, 0.42), roofY + 4);
+  ctx.lineTo(cabinBack - 3, roofY * 0.92 + 3);
+  ctx.lineTo(cabinBack - 3, chassisTop - 2);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(8,12,28,0.85)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(160,200,255,0.35)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Aleron / fin trasero
+  if (body.fin > 0) {
+    ctx.beginPath();
+    ctx.moveTo(tailX, chassisTop);
+    ctx.lineTo(tailX - hh * 0.5, chassisTop - hh * body.fin * 4);
+    ctx.lineTo(tailX + hw * 0.18, chassisTop - hh * body.fin * 2.4);
+    ctx.closePath();
+    ctx.fillStyle = shade(base, 0.7);
+    ctx.shadowColor = glow; ctx.shadowBlur = 8;
+    ctx.fill(); ctx.shadowBlur = 0;
+  }
+
+  // Franja de acento
+  ctx.beginPath();
+  ctx.moveTo(tailX + 4, chassisTop + 3);
+  ctx.lineTo(noseX - 6, chassisTop + 3);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = model.accent;
+  ctx.globalAlpha = 0.8;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Faro delantero (glow)
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const hl = ctx.createRadialGradient(noseX - 2, chassisTop + 6, 0, noseX - 2, chassisTop + 6, 14);
+  hl.addColorStop(0, "rgba(255,255,255,0.9)");
+  hl.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = hl;
+  ctx.beginPath(); ctx.arc(noseX - 2, chassisTop + 6, 14, 0, TAU); ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+/** Aclara u oscurece un color hex por un factor. */
+function shade(hex, factor) {
+  const c = hexToRgb(hex);
+  const r = clamp(Math.round(c.r * factor), 0, 255);
+  const g = clamp(Math.round(c.g * factor), 0, 255);
+  const b = clamp(Math.round(c.b * factor), 0, 255);
+  return `rgb(${r},${g},${b})`;
+}
+function hexToRgb(hex) {
+  hex = hex.replace("#", "");
+  if (hex.length === 3) hex = hex.split("").map((x) => x + x).join("");
+  const n = parseInt(hex, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function rgba(hex, a) { const c = hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
+
+/* ----------------------------------------------------------------------------
+   RENDERER
+   -------------------------------------------------------------------------- */
+class Renderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d", { alpha: false });
+    this.dpr = 1;
+    this.W = 0; this.H = 0;
+    this.gridPhase = 0;
+  }
+
+  resize() {
+    const quality = Store.data.settings.quality || 1;
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2) * quality;
+    const w = window.innerWidth, h = window.innerHeight;
+    this.canvas.width = Math.floor(w * this.dpr);
+    this.canvas.height = Math.floor(h * this.dpr);
+    this.canvas.style.width = w + "px";
+    this.canvas.style.height = h + "px";
+    this.W = this.canvas.width; this.H = this.canvas.height;
+  }
+
+  render(game, dt) {
+    const ctx = this.ctx;
+    this.gridPhase += dt * 14;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    // Fondo (en espacio de pantalla)
+    this.drawBackground(ctx, game);
+
+    // Mundo (camara)
+    ctx.save();
+    ctx.scale(this.dpr, this.dpr);
+    game.camera.viewW = this.W / this.dpr;
+    game.camera.viewH = this.H / this.dpr;
+    game.camera.apply(ctx);
+
+    this.drawArena(ctx, game);
+    this.drawBoostPads(ctx, game);
+    this.drawShadows(ctx, game);
+    this.drawTrails(ctx, game);
+    this.drawBall(ctx, game);
+    for (const car of game.cars) this.drawCar(ctx, car, game);
+    this.drawParticles(ctx, game);
+    this.drawSupersonic(ctx, game);
+
+    ctx.restore();
+  }
+
+  drawBackground(ctx, game) {
+    const W = this.W, H = this.H;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#0a0420");
+    g.addColorStop(0.6, "#0d0530");
+    g.addColorStop(1, "#05010f");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // Halos de color animados (parallax suave con la camara)
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const camx = game.camera.x / CFG.WORLD_W;
+    const blobs = [
+      { x: 0.2 - camx * 0.05, y: 0.15, r: 0.5, c: "rgba(138,43,226,0.18)" },
+      { x: 0.85 - camx * 0.05, y: 0.2, r: 0.45, c: "rgba(0,240,255,0.12)" },
+      { x: 0.5 - camx * 0.03, y: 1.0, r: 0.6, c: "rgba(255,43,214,0.12)" },
+    ];
+    for (const b of blobs) {
+      const grd = ctx.createRadialGradient(b.x * W, b.y * H, 0, b.x * W, b.y * H, b.r * W);
+      grd.addColorStop(0, b.c);
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
+  }
+
+  drawArena(ctx, game) {
+    const A = game.arena;
+    ctx.save();
+
+    // Suelo de la cancha con gradiente y rejilla en perspectiva falsa
+    const floorGrad = ctx.createLinearGradient(0, A.top, 0, A.floor);
+    floorGrad.addColorStop(0, "rgba(20,10,52,0.4)");
+    floorGrad.addColorStop(1, "rgba(40,18,90,0.5)");
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(A.left, A.top, A.right - A.left, A.floor - A.top);
+
+    // Rejilla neon
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(A.left, A.top, A.right - A.left, A.floor - A.top);
+    ctx.clip();
+    ctx.strokeStyle = "rgba(120,90,255,0.10)";
+    ctx.lineWidth = 1;
+    const gridSize = 64;
+    const off = (this.gridPhase % gridSize);
+    for (let x = A.left - off; x < A.right; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, A.top); ctx.lineTo(x, A.floor); ctx.stroke();
+    }
+    for (let y = A.top; y < A.floor; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(A.left, y); ctx.lineTo(A.right, y); ctx.stroke();
+    }
+    ctx.restore();
+
+    // Linea central + circulo de saque
+    ctx.strokeStyle = "rgba(180,150,255,0.35)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(A.centerX(), A.top); ctx.lineTo(A.centerX(), A.floor); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(A.centerX(), A.floor - 1, 120, PI, TAU); ctx.stroke();
+
+    // Muros neon (contorno)
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(0,240,255,0.85)";
+    ctx.shadowColor = "rgba(0,240,255,0.7)"; ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.moveTo(A.left, A.goalTop);
+    ctx.lineTo(A.left, A.top + A.cornerR);
+    ctx.quadraticCurveTo(A.left, A.top, A.left + A.cornerR, A.top);
+    ctx.lineTo(A.right - A.cornerR, A.top);
+    ctx.quadraticCurveTo(A.right, A.top, A.right, A.top + A.cornerR);
+    ctx.lineTo(A.right, A.goalTop);
+    ctx.stroke();
+    // Suelo (segmentos a los lados de cada porteria)
+    ctx.beginPath();
+    ctx.moveTo(A.left, A.floor); ctx.lineTo(A.right, A.floor);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Porterias
+    this.drawGoal(ctx, A, "left", "#ff8a2b", "rgba(255,90,0,0.7)");   // porteria izquierda (defiende naranja? la ataca azul? la izquierda es del naranja)
+    this.drawGoal(ctx, A, "right", "#25b9ff", "rgba(10,108,255,0.7)");
+
+    ctx.restore();
+  }
+
+  drawGoal(ctx, A, side, color, glow) {
+    const x = side === "left" ? A.left : A.right;
+    const dir = side === "left" ? -1 : 1;
+    const depth = A.goalDepth;
+    ctx.save();
+
+    // Recinto de la red
+    ctx.fillStyle = rgba(color, 0.10);
+    ctx.fillRect(Math.min(x, x + dir * depth), A.goalTop, depth, A.goalH);
+
+    // Red (lineas)
+    ctx.strokeStyle = rgba(color, 0.3);
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= depth; i += 10) {
+      ctx.beginPath(); ctx.moveTo(x + dir * i, A.goalTop); ctx.lineTo(x + dir * i, A.floor); ctx.stroke();
+    }
+    for (let j = A.goalTop; j <= A.floor; j += 12) {
+      ctx.beginPath(); ctx.moveTo(x, j); ctx.lineTo(x + dir * depth, j); ctx.stroke();
+    }
+
+    // Marco neon (postes + travesano)
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 5;
+    ctx.shadowColor = glow; ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.moveTo(x, A.goalTop);
+    ctx.lineTo(x + dir * depth, A.goalTop);
+    ctx.lineTo(x + dir * depth, A.floor);
+    ctx.stroke();
+    // Pilares verticales en la boca
+    ctx.beginPath(); ctx.moveTo(x, A.goalTop); ctx.lineTo(x, A.floor); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Postes (bolas en las esquinas superiores)
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = glow; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(x, A.goalTop, A.postR, 0, TAU); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  drawBoostPads(ctx, game) {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const pad of game.boostPads) {
+      const pulse = 0.5 + 0.5 * Math.sin(game.time * 4 + pad.phase);
+      const a = pad.active ? (0.5 + pulse * 0.5) : 0.12;
+      const r = pad.r * (pad.active ? 1 : 0.7);
+      const grd = ctx.createRadialGradient(pad.pos.x, pad.pos.y, 0, pad.pos.x, pad.pos.y, r * 1.6);
+      grd.addColorStop(0, rgba("#ffd24d", a));
+      grd.addColorStop(0.5, rgba("#ff7a18", a * 0.5));
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(pad.pos.x, pad.pos.y, r * 1.6, 0, TAU); ctx.fill();
+      if (pad.active) {
+        ctx.strokeStyle = rgba("#ffe14d", 0.8);
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(pad.pos.x, pad.pos.y, r, 0, TAU); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  drawShadows(ctx, game) {
+    const A = game.arena;
+    ctx.save();
+    ctx.globalCompositeOperation = "multiply";
+    const drawShadow = (x, y, w, height) => {
+      const h = clamp(invLerp(A.floor, A.top, y), 0, 1);
+      const alpha = (1 - h) * 0.5 + 0.06;
+      const scale = lerp(1, 0.45, h);
+      ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(x, A.floor - 3, (w * 0.6) * scale, 8 * scale, 0, 0, TAU);
+      ctx.fill();
+    };
+    for (const car of game.cars) if (!car.demolished) drawShadow(car.pos.x, car.pos.y, car.hw * 2, car.hh);
+    drawShadow(game.ball.pos.x, game.ball.pos.y, game.ball.radius * 2.2, game.ball.radius);
+    ctx.restore();
+  }
+
+  drawTrails(ctx, game) {
+    if (!Store.data.settings.trails) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+
+    // Estela de la bola
+    const bt = game.ball.trail;
+    for (let i = 1; i < bt.length; i++) {
+      const p = bt[i], q = bt[i - 1];
+      const a = p.t * 0.5;
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = p.t * game.ball.radius * 1.4;
+      ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    }
+
+    // Estela de cada coche
+    for (const car of game.cars) {
+      const t = car.trail;
+      for (let i = 1; i < t.length; i++) {
+        const p = t[i];
+        const a = (i / t.length) * 0.4;
+        ctx.fillStyle = rgba(car.color.base, a);
+        const rad = (i / t.length) * car.hh * 1.2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, TAU); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  drawBall(ctx, game) {
+    const b = game.ball;
+    ctx.save();
+    ctx.translate(b.pos.x, b.pos.y);
+
+    // Glow exterior
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const speedGlow = clamp(b.speed() / CFG.BALL_MAX_SPEED, 0, 1);
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, b.radius * (1.8 + speedGlow));
+    gr.addColorStop(0, "rgba(255,255,255,0.5)");
+    gr.addColorStop(0.5, `rgba(0,240,255,${0.25 + speedGlow * 0.4})`);
+    gr.addColorStop(1, "rgba(0,240,255,0)");
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(0, 0, b.radius * (1.8 + speedGlow), 0, TAU); ctx.fill();
+    ctx.restore();
+
+    // Esfera con sombreado
+    ctx.rotate(b.rot);
+    const sphere = ctx.createRadialGradient(-b.radius * 0.35, -b.radius * 0.35, b.radius * 0.1, 0, 0, b.radius);
+    sphere.addColorStop(0, "#ffffff");
+    sphere.addColorStop(0.6, "#dfe9ff");
+    sphere.addColorStop(1, "#7f8fb5");
+    ctx.fillStyle = sphere;
+    ctx.beginPath(); ctx.arc(0, 0, b.radius, 0, TAU); ctx.fill();
+
+    // Patron hexagonal (panel) para ver el spin
+    ctx.strokeStyle = "rgba(40,60,110,0.5)";
+    ctx.lineWidth = 1.4;
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * TAU;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * b.radius * 0.45, Math.sin(a) * b.radius * 0.45, b.radius * 0.28, 0, TAU);
+      ctx.stroke();
+    }
+    // Aro neon
+    ctx.strokeStyle = "rgba(0,240,255,0.8)";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "rgba(0,240,255,0.8)"; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(0, 0, b.radius - 1, 0, TAU); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+  }
+
+  drawCar(ctx, car, game) {
+    if (car.demolished) {
+      // Marcador de reaparicion (humo + chispa)
+      return;
+    }
+    ctx.save();
+    ctx.translate(car.pos.x, car.pos.y);
+    ctx.rotate(car.angle);
+    // Squash & stretch segun impacto
+    ctx.scale(car.squash, 2 - car.squash);
+
+    car.boostFlicker = Math.random();
+    drawCarShape(ctx, CARS[car.modelIndex], car.color, CFG.CAR_W, CFG.CAR_H, {
+      wheelSpin: car.rot || (car.pos.x * 0.02),
+      boost: car.input.boost && car.boost > 0,
+      flicker: car.boostFlicker,
+      detail: Store.data.settings.quality >= 1 ? 1 : 0.5,
+    });
+
+    ctx.restore();
+
+    // Indicador de equipo (flecha de jugador)
+    if (!car.isBot) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = rgba(car.color.base, 0.9);
+      ctx.beginPath();
+      const ay = car.pos.y - car.hh - 26;
+      ctx.moveTo(car.pos.x, ay + 10);
+      ctx.lineTo(car.pos.x - 7, ay);
+      ctx.lineTo(car.pos.x + 7, ay);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Aura de flip disponible / flip reset
+    if (!car.onGround && car.hasFlip) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = rgba("#25ff9b", 0.4 + 0.3 * Math.sin(game.time * 12));
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(car.pos.x, car.pos.y, car.hw * 1.3, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  drawParticles(ctx, game) {
+    const ps = game.particles;
+    ctx.save();
+    for (let i = 0; i < ps.max; i++) {
+      const p = ps.pool[i];
+      if (!p.active) continue;
+      const lifeT = p.life / p.maxLife;
+      const alpha = (1 - lifeT);
+      ctx.globalCompositeOperation = p.additive ? "lighter" : "source-over";
+      ctx.globalAlpha = alpha;
+      if (p.glow > 0) { ctx.shadowColor = p.color; ctx.shadowBlur = p.glow; }
+      ctx.fillStyle = p.color;
+      if (p.shape === "spark") {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillRect(-p.size, -p.size * 0.25, p.size * 2, p.size * 0.5);
+        ctx.restore();
+      } else if (p.shape === "square") {
+        ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2);
+      } else if (p.shape === "ring") {
+        ctx.strokeStyle = p.color; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
+
+  drawSupersonic(ctx, game) {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const car of game.cars) {
+      if (!car.supersonic || car.demolished) continue;
+      const nose = car.nose();
+      ctx.strokeStyle = rgba(car.color.base, 0.4);
+      ctx.lineWidth = 2;
+      for (let k = 0; k < 4; k++) {
+        const off = (k - 1.5) * 10;
+        const ox = -nose.y * off, oy = nose.x * off;
+        ctx.beginPath();
+        ctx.moveTo(car.pos.x - nose.x * car.hw + ox, car.pos.y - nose.y * car.hw + oy);
+        ctx.lineTo(car.pos.x - nose.x * (car.hw + rand(20, 50)) + ox, car.pos.y - nose.y * (car.hw + rand(20, 50)) + oy);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+/* ============================================================================
+   SECCION 8 - NUCLEO DEL JUEGO (ESTADO DE PARTIDA Y BUCLE DE FISICA)
+   ========================================================================== */
+class Game {
+  constructor(renderer, input, camera) {
+    this.renderer = renderer;
+    this.input = input;
+    this.camera = camera;
+    this.arena = new Arena();
+    this.particles = new ParticleSystem(1500);
+    this.ball = new Ball(this.arena);
+
+    this.cars = [];
+    this.playerCar = null;
+    this.botCar = null;
+    this.botAI = null;
+
+    this.boostPads = [];
+    this.mode = "match";        // match | freeplay
+    this.phase = "idle";        // idle | kickoff | play | goal | ended
+    this.scoreBlue = 0;
+    this.scoreOrange = 0;
+    this.timeLeft = CFG.MATCH_TIME;
+    this.overtime = false;
+    this.freezeTimer = 0;
+    this.time = 0;
+    this.timeScale = 1;
+    this.running = false;
+
+    this.matchStats = { goals: 0, saves: 0, touches: 0, demos: 0 };
+    this.autoLaunchTimer = 0;
+    this.lastScorer = null;
+  }
+
+  setupBoostPads() {
+    const A = this.arena;
+    this.boostPads = [];
+    const cy = A.floor - 16;
+    const positions = [
+      { x: A.centerX(), y: cy, r: 16 },
+      { x: A.left + 150, y: cy, r: 16 },
+      { x: A.right - 150, y: cy, r: 16 },
+      { x: A.centerX() - 260, y: A.floor - 200, r: 13 },
+      { x: A.centerX() + 260, y: A.floor - 200, r: 13 },
+      { x: A.centerX(), y: A.top + 90, r: 13 },
+    ];
+    for (let i = 0; i < positions.length; i++) {
+      this.boostPads.push({
+        pos: new Vector2(positions[i].x, positions[i].y),
+        r: positions[i].r, active: true, cooldown: 0, phase: i * 1.3,
+        amount: positions[i].r > 14 ? 100 : CFG.BOOST_REGEN_PAD,
+      });
+    }
+  }
+
+  startMatch(mode, difficultyIndex) {
+    this.mode = mode;
+    this.scoreBlue = 0; this.scoreOrange = 0;
+    this.timeLeft = CFG.MATCH_TIME;
+    this.overtime = false;
+    this.time = 0; this.timeScale = 1;
+    this.matchStats = { goals: 0, saves: 0, touches: 0, demos: 0 };
+    this.particles.clear();
+    this.particles.density = Store.data.settings.particles / 100;
+
+    const sel = Store.data;
+    const A = this.arena;
+
+    // Coche del jugador (azul)
+    this.playerCar = new Car(A, {
+      team: "blue", isBot: false,
+      modelIndex: sel.selectedCar, colorIndex: sel.selectedColor,
+      x: A.centerX() - 240, y: A.floor - CFG.CAR_H / 2, angle: 0, id: "player",
+    });
+
+    this.cars = [this.playerCar];
+
+    if (mode === "match") {
+      this.botCar = new Car(A, {
+        team: "orange", isBot: true,
+        modelIndex: randInt(0, CARS.length - 1), colorIndex: randInt(0, CAR_COLORS.length - 1),
+        x: A.centerX() + 240, y: A.floor - CFG.CAR_H / 2, angle: PI, id: "bot",
+      });
+      this.botAI = new BotAI(this.botCar, this, difficultyIndex);
+      this.cars.push(this.botCar);
+    } else {
+      this.botCar = null; this.botAI = null;
+    }
+
+    this.setupBoostPads();
+    this.running = true;
+    this.kickoff(mode === "match");
+  }
+
+  kickoff(freeze) {
+    const A = this.arena;
+    this.ball.resetTo(A.centerX(), A.floor - 160, 0, 0);
+    this.playerCar.respawn(A.centerX() - 240, A.floor - CFG.CAR_H / 2, 0);
+    this.playerCar.boost = CFG.BOOST_MAX * 0.55;
+    if (this.botCar) {
+      this.botCar.respawn(A.centerX() + 240, A.floor - CFG.CAR_H / 2, PI);
+      this.botCar.boost = CFG.BOOST_MAX * 0.55;
+    }
+    for (const p of this.boostPads) { p.active = true; p.cooldown = 0; }
+    this.phase = freeze ? "kickoff" : "play";
+    this.freezeTimer = freeze ? CFG.KICKOFF_FREEZE : 0;
+    this.camera.x = A.centerX(); this.camera.y = A.centerY();
+    if (this.botAI) this.botAI.state = "KICKOFF";
+  }
+
+  scoreGoal(side) {
+    // side 1 -> entro en porteria izquierda (gol del naranja)
+    // side 2 -> entro en porteria derecha (gol del azul)
+    if (this.phase !== "play") return;
+    const blueScored = (side === 2);
+    if (blueScored) { this.scoreBlue++; this.lastScorer = "blue"; }
+    else { this.scoreOrange++; this.lastScorer = "orange"; }
+
+    if (this.ball.touchedBy === this.playerCar && blueScored) this.matchStats.goals++;
+
+    this.phase = "goal";
+    this.freezeTimer = CFG.GOAL_FREEZE;
+
+    // Explosion de gol
+    const gx = this.ball.pos.x, gy = this.ball.pos.y;
+    const col = blueScored ? "#25b9ff" : "#ff8a2b";
+    this.particles.burst(gx, gy, 90, {
+      speedMin: 120, speedMax: 720, lifeMin: 0.5, lifeMax: 1.3,
+      sizeMin: 2, sizeMax: 8, glow: 18, drag: 1.0, shape: "spark",
+      colorFn: () => Math.random() < 0.5 ? col : "#ffffff",
+    });
+    this.particles.burst(gx, gy, 40, {
+      speedMin: 40, speedMax: 260, lifeMin: 0.6, lifeMax: 1.6,
+      sizeMin: 4, sizeMax: 12, glow: 14, drag: 1.6, shape: "circle",
+      colorFn: () => Math.random() < 0.5 ? "#ffd24d" : col, shrink: 0.1,
+    });
+    this.camera.addShake(26);
+    Audio.sfxGoal();
+
+    if (this.mode === "match") {
+      UI.showGoalBanner(blueScored ? "GOOOL" : "ENCAJADO", blueScored ? "Marcaste!" : "Te marcaron");
+    } else {
+      UI.showGoalBanner("GOOOL", "");
+    }
+
+    // Prorroga: gol de oro termina la partida
+    if (this.overtime && this.mode === "match") {
+      this._endTimer = 1.8;
+    }
+  }
+
+  nearestBoostPad(pos) {
+    let best = null, bestD = Infinity;
+    for (const p of this.boostPads) {
+      if (!p.active) continue;
+      const d = pos.distSqTo(p.pos);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best;
+  }
+
+  checkBoostPads() {
+    for (const pad of this.boostPads) {
+      if (pad.cooldown > 0) { pad.cooldown -= 1 / 60; if (pad.cooldown <= 0) pad.active = true; }
+      if (!pad.active) continue;
+      for (const car of this.cars) {
+        if (car.demolished) continue;
+        if (car.pos.distSqTo(pad.pos) < (pad.r + car.hw) * (pad.r + car.hw)) {
+          car.addBoost(pad.amount);
+          pad.active = false; pad.cooldown = 4;
+          this.particles.burst(pad.pos.x, pad.pos.y, 10, {
+            speedMin: 40, speedMax: 160, lifeMin: 0.2, lifeMax: 0.5, sizeMin: 2, sizeMax: 5,
+            color: "#ffe14d", glow: 12, drag: 2, shrink: 0.1,
+          });
+          Audio.tone(900, 0.06, "triangle", 0.12);
+          break;
+        }
+      }
+    }
+  }
+
+  /** Bucle de actualizacion principal con sub-stepping. */
+  update(rawDt) {
+    if (!this.running) return;
+    let dt = Math.min(rawDt, 1 / 30) * this.timeScale;  // clamp anti-saltos
+    this.time += dt;
+
+    // Congelacion (saque/gol)
+    if (this.freezeTimer > 0) {
+      this.freezeTimer -= rawDt;
+      // Durante el gol, dejar volar las particulas y la camara
+      this.particles.update(rawDt);
+      if (this.phase === "goal" && this.freezeTimer <= 0) {
+        if (this._endTimer) { this.endMatch(); this._endTimer = 0; return; }
+        if (this.timeLeft <= 0 && this.mode === "match" && !this.overtime) { this.startOvertime(); }
+        else if (this.timeLeft <= 0 && this.mode === "match" && this.overtime) { /* gol de oro ya gestionado */ }
+        else { this.kickoff(true); }
+      }
+      if (this.phase === "kickoff" && this.freezeTimer <= 0) { this.phase = "play"; Audio.sfxWhistle(); }
+      this._updateCamera(rawDt);
+      return;
+    }
+
+    // Cronometro de partida
+    if (this.phase === "play" && this.mode === "match") {
+      this.timeLeft -= dt;
+      if (this.timeLeft <= 0) {
+        this.timeLeft = 0;
+        // Fin del tiempo: si hay empate -> prorroga; si no -> fin
+        if (this.scoreBlue === this.scoreOrange) {
+          if (!this.overtime) { this.startOvertime(); return; }
+        } else {
+          this.endMatch(); return;
+        }
+      }
+    }
+
+    // Auto-lanzamiento en freeplay / attract
+    if (this.mode !== "match") {
+      if (this.ball.speed() < 30 && Math.abs(this.ball.pos.y - (this.arena.floor - this.ball.radius)) < 6) {
+        this.autoLaunchTimer += dt;
+        if (this.autoLaunchTimer > 4) { this.launchBall(); this.autoLaunchTimer = 0; }
+      } else { this.autoLaunchTimer = 0; }
+    }
+
+    // --- ENTRADA (una vez por frame) ---
+    if (this.mode === "attract") {
+      // La IA juega sola como fondo de menu
+      if (this.botAI) {
+        const bin = this.botAI.produceInput(dt);
+        this.playerCar.setInput(bin);
+        this.playerCar.handleDiscrete();
+      }
+    } else if (this.phase === "play" || this.mode === "freeplay") {
+      const pin = this.input.poll();
+      this.playerCar.setInput(pin);
+      this.playerCar.handleDiscrete();
+
+      if (this.botAI) {
+        const bin = this.botAI.produceInput(dt);
+        this.botCar.setInput(bin);
+        this.botCar.handleDiscrete();
+      }
+
+      // Audio del turbo
+      if (pin.boost && this.playerCar.boost > 0) Audio.startBoost(); else Audio.stopBoost();
+    }
+
+    // --- SUB-STEPPING DE FISICA ---
+    const subSteps = clamp(Math.ceil(dt / CFG.SUBSTEP_TARGET), 1, CFG.SUBSTEPS_MAX);
+    const sdt = dt / subSteps;
+    for (let s = 0; s < subSteps; s++) this.physicsStep(sdt);
+
+    // Estelas (ritmo de frame)
+    this.ball.updateTrail();
+    for (const car of this.cars) car.updateTrail();
+
+    // Recoger boost pads
+    this.checkBoostPads();
+
+    // Reaparicion de demolidos
+    for (const car of this.cars) {
+      if (car.demolished && car.respawnTimer <= 0) {
+        const A = this.arena;
+        const x = car.team === "blue" ? A.left + 120 : A.right - 120;
+        car.respawn(x, A.floor - CFG.CAR_H / 2, car.team === "blue" ? 0 : PI);
+        this.particles.burst(x, A.floor - CFG.CAR_H / 2, 20, {
+          speedMin: 60, speedMax: 240, lifeMin: 0.3, lifeMax: 0.7, sizeMin: 2, sizeMax: 6,
+          color: car.color.base, glow: 12, drag: 2, shrink: 0.1,
+        });
+      }
+    }
+
+    // Particulas
+    this.particles.update(dt);
+
+    // Camara
+    this._updateCamera(rawDt);
+
+    // HUD
+    UI.updateHud(this);
+  }
+
+  physicsStep(sdt) {
+    const playing = (this.phase === "play" || this.mode === "freeplay");
+
+    // Coches
+    for (const car of this.cars) car.step(sdt, this.particles);
+
+    // Pelota
+    const wallImp = this.ball.step(sdt);
+    if (wallImp > 360) {
+      this.camera.addShake(clamp(wallImp / 180, 0, 6));
+      Audio.sfxWall();
+      this.particles.burst(this.ball.pos.x, this.ball.pos.y, 4, {
+        speedMin: 30, speedMax: 120, lifeMin: 0.15, lifeMax: 0.35, sizeMin: 1.5, sizeMax: 3.5,
+        color: "#ffffff", glow: 8, drag: 2, shrink: 0.1,
+      });
+    }
+
+    // Colisiones coche-pelota
+    for (const car of this.cars) {
+      const hit = car.collideBall(this.ball);
+      if (hit) {
+        this.matchStats.touches++;
+        const power = clamp(hit.impactSpeed / 1400, 0, 1);
+        if (hit.impactSpeed > 120) {
+          this.camera.addShake(power * 8);
+          Audio.sfxHit(power);
+          this.particles.burst(hit.x, hit.y, 6 + power * 14, {
+            speedMin: 40, speedMax: 80 + power * 400, lifeMin: 0.15, lifeMax: 0.5,
+            sizeMin: 1.5, sizeMax: 4 + power * 4, glow: 12, drag: 2.4, shape: "spark",
+            colorFn: () => Math.random() < 0.5 ? "#ffffff" : car.color.base,
+          });
+        }
+        // Estadistica de parada (jugador despeja en su tercio)
+        if (car === this.playerCar && this.ball.pos.x < this.arena.centerX() - 200 && this.ball.vel.x > 60) {
+          this.matchStats.saves++;
+        }
+        // Feedback de mecanicas
+        this._mechanicFeedback(car, hit);
+      }
+    }
+
+    // Colision coche-coche
+    if (this.cars.length > 1) {
+      const demo = this.cars[0].collideCar(this.cars[1]);
+      if (demo) {
+        this.matchStats.demos++;
+        this.camera.addShake(18);
+        Audio.noise(0.25, 0.4, 1600);
+        const t = demo.target;
+        this.particles.burst(t.pos.x, t.pos.y, 40, {
+          speedMin: 100, speedMax: 520, lifeMin: 0.3, lifeMax: 0.9, sizeMin: 2, sizeMax: 7,
+          glow: 16, drag: 1.4, shape: "spark",
+          colorFn: () => pick(["#ffd24d", "#ff7a18", "#ffffff", t.color.base]),
+        });
+        UI.toast("Demolicion!", "&#128165;");
+      }
+    }
+
+    // Gol
+    if (this.mode === "match") {
+      if (playing) {
+        const g = this.arena.checkGoal(this.ball);
+        if (g) this.scoreGoal(g);
+      }
+    } else {
+      const g = this.arena.checkGoal(this.ball);
+      if (g) {
+        if (this.mode === "freeplay") { UI.showGoalBanner("GOOOL", ""); Audio.sfxGoal(); }
+        this.camera.addShake(14);
+        this.resetBall();
+      }
+    }
+  }
+
+  /** Modo atraccion: la IA juega sola de fondo en los menus. */
+  startAttract() {
+    this.mode = "attract";
+    this.phase = "play";
+    this.timeScale = 1;
+    this.time = 0;
+    this.particles.clear();
+    this.particles.density = Store.data.settings.particles / 100;
+    const A = this.arena;
+    this.playerCar = new Car(A, {
+      team: "blue", isBot: true,
+      modelIndex: randInt(0, CARS.length - 1), colorIndex: randInt(0, CAR_COLORS.length - 1),
+      x: A.centerX(), y: A.floor - CFG.CAR_H / 2, angle: 0, id: "demo",
+    });
+    this.cars = [this.playerCar];
+    this.botCar = null;
+    this.botAI = new BotAI(this.playerCar, this, 3);   // Campeon: vistoso
+    this.setupBoostPads();
+    this.resetBall();
+    this.launchBall();
+    this.running = true;
+  }
+
+  _mechanicFeedback(car, hit) {
+    const f = car.flags;
+    if (f.flipReset) {
+      f.flipReset = false;
+      if (car === this.playerCar) UI.toast("FLIP RESET", "&#128260;");
+      this.particles.burst(car.pos.x, car.pos.y, 16, {
+        speedMin: 60, speedMax: 260, lifeMin: 0.3, lifeMax: 0.6, sizeMin: 2, sizeMax: 5,
+        color: "#25ff9b", glow: 16, drag: 2, shape: "spark",
+      });
+    }
+    if (f.musty) {
+      f.musty = false;
+      if (car === this.playerCar) UI.toast("MUSTY FLICK", "&#10024;");
+      this.camera.addShake(10);
+    }
+    if (f.pinch) {
+      f.pinch = false;
+      if (car === this.playerCar) UI.toast("PINCH!", "&#9889;");
+      this.camera.addShake(14);
+      this.particles.burst(hit.x, hit.y, 24, {
+        speedMin: 120, speedMax: 600, lifeMin: 0.2, lifeMax: 0.5, sizeMin: 2, sizeMax: 5,
+        color: "#ffe14d", glow: 18, drag: 2, shape: "spark",
+      });
+    }
+    if (f.stall) { f.stall = false; }
+  }
+
+  _updateCamera(dt) {
+    // Foco: punto medio ponderado entre la bola y el coche del jugador
+    const b = this.ball, p = this.playerCar;
+    const fx = b.pos.x * 0.55 + p.pos.x * 0.45;
+    const fy = b.pos.y * 0.5 + p.pos.y * 0.5;
+    const action = clamp((b.speed() + p.speed()) / 2400, 0, 1);
+    this.camera.follow(fx, fy, action, dt);
+  }
+
+  startOvertime() {
+    this.overtime = true;
+    this.timeLeft = 0;
+    UI.showOvertime();
+    UI.toast("PRORROGA - Gol de Oro", "&#127942;");
+    this.kickoff(true);
+  }
+
+  endMatch() {
+    this.phase = "ended";
+    this.running = false;
+    Audio.stopBoost();
+    const win = this.scoreBlue > this.scoreOrange;
+
+    // Recompensa de XP
+    let xp = 25 + this.matchStats.goals * 35 + this.matchStats.saves * 12 + this.matchStats.touches;
+    if (win) xp = Math.floor(xp * 1.6) + 40;
+    Progression.addXp(xp);
+
+    Store.data.stats.matches++;
+    if (win) Store.data.stats.wins++;
+    Store.data.stats.goals += this.matchStats.goals;
+    Store.data.stats.saves += this.matchStats.saves;
+    Store.save();
+
+    UI.showResult(this, win, xp);
+  }
+
+  // ---- Freeplay ----
+  resetBall() {
+    const A = this.arena;
+    this.ball.resetTo(A.centerX(), A.floor - 180, 0, 0);
+    this.autoLaunchTimer = 0;
+  }
+  launchBall() {
+    const A = this.arena;
+    const toPlayer = Vector2.sub(this.playerCar.pos, this.ball.pos).normalize();
+    const ang = toPlayer.angle() + rand(-0.6, 0.6);
+    const sp = rand(500, 1100);
+    this.ball.vel.set(Math.cos(ang) * sp, Math.sin(ang) * sp - rand(200, 600));
+    this.ball.spin = rand(-6, 6);
+    Audio.sfxWhistle();
+  }
+  toggleSlowmo() {
+    this.timeScale = this.timeScale < 1 ? 1 : 0.4;
+    UI.toast(this.timeScale < 1 ? "Camara lenta ON" : "Velocidad normal", "&#9201;");
+  }
+
+  stop() {
+    this.running = false;
+    Audio.stopBoost();
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   PROGRESION (controlador de XP/nivel/desbloqueos con efectos de UI)
+   -------------------------------------------------------------------------- */
+const Progression = {
+  addXp(amount) {
+    const before = Store.data.level;
+    Store.data.xp += amount;
+    const after = levelFromXp(Store.data.xp);
+    if (after > before) {
+      Store.data.level = after;
+      this.onLevelUp(before, after);
+    }
+    Store.save();
+  },
+  onLevelUp(from, to) {
+    for (let lvl = from + 1; lvl <= to; lvl++) {
+      // Desbloqueo de coches por nivel
+      for (let ci = 0; ci < CARS.length; ci++) {
+        if (CARS[ci].unlockLevel === lvl && !Store.data.unlockedCars[ci]) {
+          Store.data.unlockedCars[ci] = true;
+          UI.toast(`Desbloqueado: ${CARS[ci].name}`, "&#128663;");
+          Audio.sfxUnlock();
+        }
+      }
+    }
+    const r = rankFromLevel(to);
+    UI.toast(`Subiste a nivel ${to} - ${r.name} ${r.division}`, "&#11088;");
+    Audio.sfxUnlock();
+  },
+};
+
+/* ============================================================================
+   SECCION 9 - GESTOR DE INTERFAZ (PANTALLAS, HUD, GARAJE, AJUSTES)
+   ========================================================================== */
+function $(id) { return document.getElementById(id); }
+function formatTime(sec) {
+  sec = Math.max(0, Math.ceil(sec));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m + ":" + (s < 10 ? "0" + s : s);
+}
+
+const UI = {
+  current: "loading",
+  garageActive: false,
+  garageSpin: 0,
+  garageIndex: 0,
+  garageColor: 0,
+  garageCtx: null,
+  _goalTimer: null,
+  _otTimer: null,
+
+  init() {
+    this.garageCtx = $("garageCanvas").getContext("2d");
+
+    // --- Menu principal ---
+    this._click("btnPlay", () => { Audio.resume(); Audio.sfxUi(); this.show("difficulty"); });
+    this._click("btnFreeplay", () => { Audio.resume(); Audio.sfxUi(); this.startFreeplay(); });
+    this._click("btnGarage", () => { Audio.sfxUi(); this.openGarage(); });
+    this._click("btnSettings", () => { Audio.sfxUi(); this.show("settings"); });
+
+    // --- Dificultad ---
+    this.buildDifficultyList();
+    this._click("btnDiffBack", () => { Audio.sfxUi(); this.show("menu"); });
+
+    // --- Garaje ---
+    this._click("btnGarageBack", () => { Audio.sfxUi(); this.closeGarage(); });
+    this._click("carPrev", () => { Audio.sfxUi(); this.cycleCar(-1); });
+    this._click("carNext", () => { Audio.sfxUi(); this.cycleCar(1); });
+    this._click("btnEquip", () => { this.equipCar(); });
+    this.buildSwatches();
+
+    // --- Ajustes ---
+    this._click("btnSettingsBack", () => { Audio.sfxUi(); this.show("menu"); });
+    this.wireSettings();
+
+    // --- Pausa ---
+    this._click("btnPause", () => { this.pause(); });
+    this._click("btnResume", () => { this.resume(); });
+    this._click("btnRestart", () => { this.restart(); });
+    this._click("btnQuit", () => { this.quitToMenu(); });
+
+    // --- Resultado ---
+    this._click("btnRematch", () => { Audio.sfxUi(); this.restart(); });
+    this._click("btnResultMenu", () => { Audio.sfxUi(); this.quitToMenu(); });
+
+    // --- Freeplay HUD ---
+    this._click("fpResetBall", () => { GAME.resetBall(); Audio.sfxUi(); });
+    this._click("fpLaunch", () => { GAME.launchBall(); });
+    this._click("fpSlowmo", () => { GAME.toggleSlowmo(); });
+
+    this.updatePlayerCard();
+  },
+
+  _click(id, fn) {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener("click", (e) => { e.preventDefault(); fn(); });
+  },
+
+  /* ---------------- Transiciones de pantalla ---------------- */
+  show(id, keepControls) {
+    const target = $("screen-" + id);
+    document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active", "behind"));
+    if (target) { target.classList.add("active"); }
+    this.current = id;
+
+    // Controles tactiles solo en HUD
+    const tc = $("touch-controls");
+    if (id === "hud") tc.classList.remove("hidden");
+    else if (!keepControls) tc.classList.add("hidden");
+
+    // Pad de freeplay
+    const fp = $("freeplayPad");
+    if (id === "hud" && GAME && GAME.mode === "freeplay") fp.classList.remove("hidden");
+    else fp.classList.add("hidden");
+
+    this.garageActive = (id === "garage");
+  },
+
+  /* ---------------- HUD ---------------- */
+  updateHud(game) {
+    if (this.current !== "hud") return;
+    $("scoreBlue").textContent = game.scoreBlue;
+    $("scoreOrange").textContent = game.scoreOrange;
+    if (game.mode === "match") {
+      $("matchTimer").textContent = game.overtime ? "OT" : formatTime(game.timeLeft);
+      $("matchTimer").classList.toggle("overtime", game.overtime || game.timeLeft < 20);
+    } else {
+      $("matchTimer").textContent = game.mode === "freeplay" ? "&#8734;" : "";
+      $("matchTimer").innerHTML = game.mode === "freeplay" ? "&infin;" : "";
+    }
+    const boost = clamp(game.playerCar.boost, 0, CFG.BOOST_MAX);
+    $("boostFill").style.width = boost + "%";
+  },
+
+  showGoalBanner(text, sub) {
+    $("goalText").textContent = text;
+    $("goalSub").textContent = sub || "";
+    const b = $("goal-banner");
+    b.classList.remove("show");
+    void b.offsetWidth;          // reiniciar animacion
+    b.classList.add("show");
+    clearTimeout(this._goalTimer);
+    this._goalTimer = setTimeout(() => b.classList.remove("show"), 1700);
+  },
+
+  showOvertime() {
+    const ot = $("otBanner");
+    ot.classList.remove("hidden");
+  },
+  hideOvertime() { $("otBanner").classList.add("hidden"); },
+
+  toast(msg, icon) {
+    const host = $("toast-host");
+    const el = document.createElement("div");
+    el.className = "toast glass";
+    el.innerHTML = `<span class="ico">${icon || "&#11088;"}</span><span>${msg}</span>`;
+    host.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = "opacity .4s, transform .4s";
+      el.style.opacity = "0";
+      el.style.transform = "translateY(-12px) scale(0.9)";
+      setTimeout(() => el.remove(), 420);
+    }, 1500);
+  },
+
+  /* ---------------- Tarjeta de jugador ---------------- */
+  updatePlayerCard() {
+    const d = Store.data;
+    d.level = levelFromXp(d.xp);
+    const r = rankFromLevel(d.level);
+    $("menuRankBadge").textContent = r.division;
+    $("menuRankBadge").style.background = `linear-gradient(180deg, ${shade(r.color,1.3)}, ${r.color})`;
+    $("menuRankBadge").style.boxShadow = `0 0 18px ${r.glow}, inset 0 1px 0 rgba(255,255,255,0.4)`;
+    $("menuPlayerRank").textContent = `${r.name} ${r.division}`;
+    $("menuPlayerName").textContent = "Piloto Areces";
+
+    const curLvlXp = xpForLevel(d.level);
+    const nextLvlXp = xpForLevel(d.level + 1);
+    const pct = clamp(invLerp(curLvlXp, nextLvlXp, d.xp) * 100, 0, 100);
+    $("menuXpFill").style.width = pct + "%";
+    $("menuXpText").textContent = `${d.xp - curLvlXp} / ${nextLvlXp - curLvlXp} XP - Nivel ${d.level}`;
+  },
+
+  /* ---------------- Dificultad ---------------- */
+  buildDifficultyList() {
+    const host = $("difficultyList");
+    host.innerHTML = "";
+    DIFFICULTIES.forEach((d, i) => {
+      const btn = document.createElement("button");
+      btn.className = "btn btn-ghost";
+      btn.style.justifyContent = "space-between";
+      btn.innerHTML =
+        `<span style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;">
+           <b style="color:${d.color};font-size:16px;letter-spacing:1px;">${d.name}</b>
+           <span class="tiny dim" style="text-transform:none;letter-spacing:0;font-weight:400;">${d.desc}</span>
+         </span>
+         <span style="font-size:22px;color:${d.color};">&#9658;</span>`;
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        Store.data.settings.difficulty = i; Store.save();
+        Audio.resume(); Audio.sfxUi();
+        this.startMatch(i);
+      });
+      host.appendChild(btn);
+    });
+  },
+
+  /* ---------------- Inicio de modos ---------------- */
+  startMatch(difficultyIndex) {
+    this.hideOvertime();
+    this.transitionInto(() => {
+      GAME.startMatch("match", difficultyIndex);
+      this.show("hud");
+    });
+  },
+  startFreeplay() {
+    this.hideOvertime();
+    this.transitionInto(() => {
+      GAME.startMatch("freeplay", 0);
+      this.show("hud");
+      $("freeplayPad").classList.remove("hidden");
+    });
+  },
+
+  /** Pequena transicion con fundido a negro entre menu y partida. */
+  transitionInto(fn) {
+    const fade = document.createElement("div");
+    Object.assign(fade.style, {
+      position: "absolute", inset: "0", zIndex: "60", background: "#05010f",
+      opacity: "0", transition: "opacity .28s ease", pointerEvents: "none",
+    });
+    document.body.appendChild(fade);
+    requestAnimationFrame(() => { fade.style.opacity = "1"; });
+    setTimeout(() => {
+      fn();
+      fade.style.opacity = "0";
+      setTimeout(() => fade.remove(), 320);
+    }, 290);
+  },
+
+  /* ---------------- Pausa / fin ---------------- */
+  pause() {
+    if (GAME.mode === "attract" || !GAME.running) return;
+    GAME.paused = true;
+    INPUT.releaseAll();
+    Audio.stopBoost();
+    Audio.sfxUi();
+    this.show("pause", true);
+    $("touch-controls").classList.add("hidden");
+  },
+  resume() {
+    Audio.sfxUi();
+    GAME.paused = false;
+    this.show("hud");
+  },
+  restart() {
+    GAME.paused = false;
+    this.hideOvertime();
+    this.transitionInto(() => {
+      if (GAME.mode === "freeplay") GAME.startMatch("freeplay", 0);
+      else GAME.startMatch("match", Store.data.settings.difficulty);
+      this.show("hud");
+    });
+  },
+  quitToMenu() {
+    GAME.paused = false;
+    Audio.stopBoost();
+    this.updatePlayerCard();
+    this.transitionInto(() => {
+      GAME.startAttract();
+      this.show("menu");
+      this.hideOvertime();
+    });
+  },
+
+  showResult(game, win, xp) {
+    Audio.stopBoost();
+    $("resultTitle").textContent = win ? "Victoria" : "Derrota";
+    $("resultTitle").className = "result-title " + (win ? "win" : "lose");
+    $("resultScore").textContent = `${game.scoreBlue} - ${game.scoreOrange}`;
+    $("rewardXp").textContent = "+" + xp;
+    $("rewardGoals").textContent = game.matchStats.goals;
+    $("rewardSaves").textContent = game.matchStats.saves;
+    if (win) { setTimeout(() => Audio.sfxGoal(), 200); }
+    this.updatePlayerCard();
+    setTimeout(() => this.show("result", true), 600);
+  },
+
+  /* ---------------- Garaje ---------------- */
+  openGarage() {
+    this.garageIndex = Store.data.selectedCar;
+    this.garageColor = Store.data.selectedColor;
+    this.resizeGarage();
+    this.refreshGarage();
+    this.show("garage");
+  },
+  closeGarage() { this.show("menu"); },
+  resizeGarage() {
+    const cv = $("garageCanvas");
+    const rect = cv.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.max(1, Math.floor(rect.width * dpr));
+    cv.height = Math.max(1, Math.floor(rect.height * dpr));
+    this._garageDpr = dpr;
+  },
+  cycleCar(dir) {
+    this.garageIndex = (this.garageIndex + dir + CARS.length) % CARS.length;
+    this.refreshGarage();
+  },
+  refreshGarage() {
+    const car = CARS[this.garageIndex];
+    $("garageCarName").textContent = car.name;
+    const unlocked = Store.data.unlockedCars[this.garageIndex];
+    const lockEl = $("garageCarLock");
+    if (unlocked) { lockEl.classList.add("hidden"); $("btnEquip").classList.remove("hidden"); }
+    else {
+      lockEl.classList.remove("hidden");
+      lockEl.innerHTML = `&#128274; Nivel ${car.unlockLevel} para desbloquear`;
+      $("btnEquip").classList.add("hidden");
+    }
+    // marcar swatch activo
+    document.querySelectorAll(".swatch").forEach((s, i) => s.classList.toggle("active", i === this.garageColor));
+  },
+  buildSwatches() {
+    const host = $("colorSwatches");
+    host.innerHTML = "";
+    CAR_COLORS.forEach((c, i) => {
+      const sw = document.createElement("div");
+      sw.className = "swatch";
+      sw.style.background = `radial-gradient(circle at 38% 32%, #fff, ${c.base} 70%)`;
+      sw.style.color = c.base;
+      sw.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.garageColor = i; this.refreshGarage(); Audio.sfxUi();
+      });
+      host.appendChild(sw);
+    });
+  },
+  equipCar() {
+    if (!Store.data.unlockedCars[this.garageIndex]) { Audio.tone(160, 0.12, "square", 0.2); return; }
+    Store.data.selectedCar = this.garageIndex;
+    Store.data.selectedColor = this.garageColor;
+    Store.save();
+    Audio.sfxUnlock();
+    this.toast("Equipado: " + CARS[this.garageIndex].name, "&#9989;");
+  },
+  renderGarage(dt) {
+    const ctx = this.garageCtx;
+    const cv = $("garageCanvas");
+    if (!cv.width) return;
+    this.garageSpin += dt * 1.1;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const dpr = this._garageDpr || 1;
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    const W = cv.width / dpr, H = cv.height / dpr;
+
+    // Plataforma con glow
+    const cx = W / 2, cy = H * 0.62;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const col = CAR_COLORS[this.garageColor];
+    const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.4);
+    grd.addColorStop(0, rgba(col.base, 0.25));
+    grd.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+
+    // Anillo de plataforma
+    ctx.strokeStyle = rgba(col.base, 0.5);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 28, W * 0.28, 14, 0, 0, TAU);
+    ctx.stroke();
+
+    // Coche girando (efecto 3D falso con escala horizontal)
+    const scaleX = Math.cos(this.garageSpin);
+    const carScale = Math.min(W, H) / 150;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(carScale, carScale);
+    // sombra
+    ctx.save();
+    ctx.globalCompositeOperation = "multiply";
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.beginPath(); ctx.ellipse(0, 26, 60, 9, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+
+    ctx.scale(scaleX >= 0 ? Math.max(0.08, scaleX) : Math.min(-0.08, scaleX), 1);
+    const locked = !Store.data.unlockedCars[this.garageIndex];
+    if (locked) ctx.globalAlpha = 0.45;
+    drawCarShape(ctx, CARS[this.garageIndex], col, CFG.CAR_W, CFG.CAR_H, {
+      wheelSpin: this.garageSpin * 2, boost: false, detail: 1,
+    });
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    if (locked) {
+      ctx.fillStyle = "rgba(255,225,77,0.9)";
+      ctx.font = "bold 28px " + getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = "center";
+      ctx.fillText("🔒", cx, cy - 6);
+    }
+    ctx.restore();
+  },
+
+  /* ---------------- Ajustes ---------------- */
+  wireSettings() {
+    const s = Store.data.settings;
+    const bind = (id, key, apply) => {
+      const el = $(id);
+      el.value = s[key];
+      el.addEventListener("input", () => {
+        s[key] = parseInt(el.value, 10);
+        Store.save();
+        if (apply) apply();
+      });
+    };
+    bind("setMusic", "music", () => Audio.applyVolumes());
+    bind("setSfx", "sfx", () => Audio.applyVolumes());
+    bind("setShake", "shake");
+    bind("setParticles", "particles", () => { GAME.particles.density = s.particles / 100; });
+
+    const toggle = (id, key, apply) => {
+      const el = $(id);
+      el.classList.toggle("on", !!s[key]);
+      el.addEventListener("click", () => {
+        s[key] = !s[key];
+        el.classList.toggle("on", s[key]);
+        Store.save(); Audio.sfxUi();
+        if (apply) apply();
+      });
+    };
+    toggle("setTrails", "trails");
+    toggle("setScanlines", "scanlines", () => {
+      $("scanlines").style.display = s.scanlines ? "block" : "none";
+    });
+    $("scanlines").style.display = s.scanlines ? "block" : "none";
+
+    // Calidad (segmented)
+    const segHost = $("setQuality");
+    segHost.querySelectorAll(".seg").forEach((seg) => {
+      const q = parseFloat(seg.dataset.q);
+      seg.classList.toggle("active", Math.abs(q - s.quality) < 0.01);
+      seg.addEventListener("click", () => {
+        s.quality = q; Store.save(); Audio.sfxUi();
+        segHost.querySelectorAll(".seg").forEach((x) => x.classList.remove("active"));
+        seg.classList.add("active");
+        RENDERER.resize();
+      });
+    });
+
+    $("setReset").addEventListener("click", () => {
+      Store.reset();
+      this.wireSettings();
+      this.updatePlayerCard();
+      this.toast("Datos borrados", "&#128465;");
+    });
+  },
+};
+
+/* ============================================================================
+   SECCION 10 - ARRANQUE, REDIMENSION Y BUCLE PRINCIPAL
+   ========================================================================== */
+let RENDERER, INPUT, CAMERA, GAME;
+
+const LOADING_TIPS = [
+  "Manten TURBO en el aire y apunta el morro hacia la bola para volar.",
+  "Doble toque de salto = FLIP. Dirige el joystick para flips diagonales.",
+  "FLIP RESET: toca la bola con las ruedas en el aire para recuperar el flip.",
+  "MUSTY FLICK: gira hacia atras y golpea la bola con el techo para elevarla.",
+  "PINCH: aprisiona la bola contra un muro a alta velocidad para tiros letales.",
+  "STALL: pulsa salto + air roll en el aire para cancelar tu momentum.",
+  "Recoge las celdas de turbo amarillas repartidas por la cancha.",
+  "A maxima velocidad eres supersonico: puedes demoler al rival.",
+];
+
+function bootstrap() {
+  Store.load();
+  Audio.init();
+
+  const canvas = $("gameCanvas");
+  RENDERER = new Renderer(canvas);
+  INPUT = new InputManager();
+  CAMERA = new Camera();
+  GAME = new Game(RENDERER, INPUT, CAMERA);
+  GAME.paused = false;
+  window.GAME = GAME;
+  window.RENDERER = RENDERER;
+  window.INPUT = INPUT;
+
+  RENDERER.resize();
+  CAMERA.fit(window.innerWidth, window.innerHeight);
+  INPUT.attach();
+  UI.init();
+  UI.show("loading");
+
+  // Scanlines segun ajuste
+  $("scanlines").style.display = Store.data.settings.scanlines ? "block" : "none";
+
+  // Fondo de menu (la IA juega sola)
+  GAME.startAttract();
+
+  // Redimension
+  const onResize = () => {
+    RENDERER.resize();
+    CAMERA.fit(window.innerWidth, window.innerHeight);
+    if (UI.garageActive) UI.resizeGarage();
+  };
+  window.addEventListener("resize", onResize);
+  window.addEventListener("orientationchange", () => setTimeout(onResize, 200));
+
+  // Evitar scroll/zoom por gestos
+  document.addEventListener("gesturestart", (e) => e.preventDefault());
+  document.addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  document.addEventListener("dblclick", (e) => e.preventDefault());
+
+  // Pausa automatica al perder foco
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && GAME.mode === "match" && GAME.running && !GAME.paused) UI.pause();
+  });
+
+  // Secuencia de carga
+  runLoadingSequence(() => {
+    UI.show("menu");
+    UI.updatePlayerCard();
+  });
+
+  // Bucle principal
+  let last = performance.now();
+  function frame(now) {
+    let dt = (now - last) / 1000;
+    last = now;
+    if (!isFinite(dt) || dt < 0) dt = 0;
+    dt = Math.min(dt, 0.05);     // clamp del delta
+
+    if (GAME.running && !GAME.paused) GAME.update(dt);
+
+    RENDERER.render(GAME, dt);
+    if (UI.garageActive) UI.renderGarage(dt);
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function runLoadingSequence(done) {
+  const fill = $("loaderFill");
+  const tip = $("loaderTip");
+  let prog = 0;
+  let tipIndex = randInt(0, LOADING_TIPS.length - 1);
+  tip.textContent = LOADING_TIPS[tipIndex];
+  const tipTimer = setInterval(() => {
+    tipIndex = (tipIndex + 1) % LOADING_TIPS.length;
+    tip.style.opacity = "0";
+    setTimeout(() => { tip.textContent = LOADING_TIPS[tipIndex]; tip.style.opacity = "1"; }, 250);
+  }, 1600);
+  tip.style.transition = "opacity .25s";
+
+  const tick = setInterval(() => {
+    prog += rand(6, 18);
+    if (prog >= 100) {
+      prog = 100;
+      fill.style.width = "100%";
+      clearInterval(tick);
+      clearInterval(tipTimer);
+      setTimeout(done, 350);
+    } else {
+      fill.style.width = prog + "%";
+    }
+  }, 180);
+}
+
+// Arrancar cuando el DOM este listo
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootstrap);
+} else {
+  bootstrap();
+}
+</script>
+</body>
+</html>
