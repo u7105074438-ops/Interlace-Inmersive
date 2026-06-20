@@ -1503,6 +1503,36 @@ input, select { font-family: inherit; }
 .pad-16 { padding: 16px; } .pad-20 { padding: 20px; }
 .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(150,110,255,0.4), transparent); margin: 8px 0; width: 100%; }
 
+/* ---------------------------------------------------------------------------
+   TUTORIAL
+   ------------------------------------------------------------------------- */
+#tutorialOverlay {
+  position: absolute; inset: 0; z-index: 80;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(4,1,12,0.72);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  padding: calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b));
+}
+#tutorialOverlay.show { display: flex; }
+.tut-card {
+  width: min(440px, 94vw);
+  padding: 24px 22px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  text-align: center;
+}
+.tut-step { font-size: 11px; letter-spacing: 2px; color: var(--neon-cyan-soft); text-transform: uppercase; }
+.tut-icon {
+  font-size: 56px; line-height: 1;
+  filter: drop-shadow(0 0 16px rgba(0,240,255,0.4));
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.tut-title { font-family: var(--font-display); font-weight: 900; font-size: 24px; text-transform: uppercase; }
+.tut-text { font-size: 14px; line-height: 1.6; color: var(--txt-1); min-height: 4.5em; }
+.tut-text b { color: var(--neon-yellow); }
+.tut-dots { display: flex; gap: 6px; margin: 2px 0; }
+.tut-dots .d { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+.tut-dots .d.on { background: var(--neon-cyan); box-shadow: 0 0 8px var(--neon-cyan); }
+
 /* Modo zurdo: intercambia joystick (a la derecha) y cluster (a la izquierda) */
 body.lefty .joystick {
   left: auto;
@@ -1646,6 +1676,7 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
         <span class="coin-pill"><span class="ico">&#9679;</span><span id="menuCoins">0</span></span>
       </div>
       <div class="right">
+        <button class="btn btn-icon btn-ghost" id="btnHelpTop" aria-label="Tutorial">&#63;</button>
         <button class="btn btn-icon btn-ghost" id="btnSettingsTop" aria-label="Ajustes">&#9881;</button>
       </div>
     </div>
@@ -1917,6 +1948,22 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
       <div class="popup-name" id="popupName"></div>
       <div class="popup-desc" id="popupDesc"></div>
       <button class="btn btn-primary btn-sm" id="popupOk">Genial</button>
+    </div>
+  </div>
+
+  <!-- ----------------------- TUTORIAL --------------------------------- -->
+  <div id="tutorialOverlay">
+    <div class="glass tut-card">
+      <div class="tut-step" id="tutStepLabel">1 / 9</div>
+      <div class="tut-icon" id="tutIcon">🎮</div>
+      <div class="tut-title" id="tutTitle">Bienvenido</div>
+      <div class="tut-text" id="tutText"></div>
+      <div class="tut-dots" id="tutDots"></div>
+      <div class="btn-row" style="max-width:340px;">
+        <button class="btn btn-ghost btn-sm" id="tutSkip">Saltar</button>
+        <button class="btn btn-ghost btn-sm" id="tutPrev">Atras</button>
+        <button class="btn btn-primary btn-sm" id="tutNext">Siguiente</button>
+      </div>
     </div>
   </div>
 
@@ -2915,6 +2962,106 @@ var ARENAS = [
 COSMETIC_LISTS.arena = ARENAS;
 indexCosmetics();
 DEFAULT_SAVE.equipped.arena = 'arena_neon';
+/* ============================================================================
+   EXPANSION DE CONTENIDO 2 - mas opciones de personalizacion
+   ----------------------------------------------------------------------------
+   Segundo lote de cosmeticos: reutiliza estilos de render existentes para que
+   no falte ningun caso. Desbloqueos repartidos entre monedas, rango y misiones.
+   ========================================================================== */
+
+[].push.apply(BODIES, [
+  { id: 'body_flecha',   name: 'Flecha',    rarity: 'common', unlock: { type: 'coins', cost: 200 },
+    shape: { len: 1.08, height: 0.8, wedge: 0.72, cabin: 0.36, spoiler: 0.58, nose: 0.66, style: 'dominus' } },
+  { id: 'body_cubo',     name: 'Cubo',      rarity: 'common', unlock: { type: 'coins', cost: 200 },
+    shape: { len: 0.9, height: 1.1, wedge: 0.4, cabin: 0.64, spoiler: 0.3, nose: 0.4, style: 'octane' } },
+  { id: 'body_lince',    name: 'Lince',     rarity: 'rare',   unlock: { type: 'coins', cost: 450 },
+    shape: { len: 1.05, height: 0.86, wedge: 0.64, cabin: 0.42, spoiler: 0.6, nose: 0.6, style: 'spectre' } },
+  { id: 'body_vortex',   name: 'Vortex',    rarity: 'rare',   unlock: { type: 'rank', rank: 4 },
+    shape: { len: 1.1, height: 0.82, wedge: 0.7, cabin: 0.38, spoiler: 0.66, nose: 0.64, style: 'batmobile' } },
+  { id: 'body_goliat',   name: 'Goliat',    rarity: 'epic',   unlock: { type: 'rank', rank: 6 },
+    shape: { len: 1.14, height: 1.04, wedge: 0.5, cabin: 0.58, spoiler: 0.52, nose: 0.5, style: 'levi' } },
+  { id: 'body_neon_x',   name: 'Neon-X',    rarity: 'epic',   unlock: { type: 'mission', mission: 'score_100' },
+    shape: { len: 1.06, height: 0.88, wedge: 0.66, cabin: 0.4, spoiler: 0.64, nose: 0.62, style: 'spectre' } },
+  { id: 'body_aguila',   name: 'Aguila',    rarity: 'legend', unlock: { type: 'rank', rank: 9 },
+    shape: { len: 1.16, height: 0.9, wedge: 0.74, cabin: 0.42, spoiler: 0.78, nose: 0.7, style: 'batmobile' } }
+]);
+
+[].push.apply(COLORS, [
+  { id: 'col_jade2',    name: 'Jade',       rarity: 'common', hex: '#1fd6a0', unlock: { type: 'coins', cost: 130 } },
+  { id: 'col_rosa2',    name: 'Fucsia',     rarity: 'common', hex: '#ff4fb0', unlock: { type: 'coins', cost: 130 } },
+  { id: 'col_azulm',    name: 'Marino',     rarity: 'common', hex: '#1a3a8a', unlock: { type: 'coins', cost: 130 } },
+  { id: 'col_naranja2', name: 'Mandarina',  rarity: 'rare',   hex: '#ff9a3c', unlock: { type: 'rank', rank: 2 } },
+  { id: 'col_lila',     name: 'Lila',       rarity: 'rare',   hex: '#c89bff', unlock: { type: 'coins', cost: 320 } },
+  { id: 'col_turq2',    name: 'Laguna',     rarity: 'rare',   hex: '#2fd8d8', unlock: { type: 'rank', rank: 3 } },
+  { id: 'col_carmin',   name: 'Carmin',     rarity: 'epic',   hex: '#e01e5a', unlock: { type: 'rank', rank: 5 } },
+  { id: 'col_oliva',    name: 'Oliva Neon', rarity: 'epic',   hex: '#a6e022', unlock: { type: 'coins', cost: 650 } },
+  { id: 'col_acero',    name: 'Acero',      rarity: 'epic',   hex: '#9fb0c4', unlock: { type: 'mission', mission: 'play_50' } },
+  { id: 'col_negro',    name: 'Azabache',   rarity: 'legend', hex: '#0a0a12', unlock: { type: 'rank', rank: 7 } },
+  { id: 'col_perla',    name: 'Perla',      rarity: 'legend', hex: '#f5f0ff', unlock: { type: 'rank', rank: 9 } },
+  { id: 'col_iris',     name: 'Iris',       rarity: 'mythic', hex: '#ff2bd6', prism: true, unlock: { type: 'mission', mission: 'win_50' } }
+]);
+
+[].push.apply(FLAMES, [
+  { id: 'flame_ascua',  name: 'Ascua',     rarity: 'common', colors: ['#ffcf8a', '#ff9a3c', '#c4400a'], style: 'fire', unlock: { type: 'coins', cost: 160 } },
+  { id: 'flame_menta',  name: 'Menta',     rarity: 'rare',   colors: ['#d9fff0', '#8affc8', '#1fd6a0'], style: 'fire', unlock: { type: 'coins', cost: 360 } },
+  { id: 'flame_rubi',   name: 'Rubi',      rarity: 'rare',   colors: ['#ffd4dc', '#ff3b5c', '#a00a24'], style: 'fire', unlock: { type: 'rank', rank: 3 } },
+  { id: 'flame_aqua',   name: 'Aqua',      rarity: 'epic',   colors: ['#d4faff', '#2fd8d8', '#0a7a8a'], style: 'plasma', unlock: { type: 'rank', rank: 5 } },
+  { id: 'flame_sombra', name: 'Sombra',    rarity: 'epic',   colors: ['#9b8bff', '#5a3bff', '#150a3a'], style: 'void', unlock: { type: 'mission', mission: 'save_30' } },
+  { id: 'flame_prisma', name: 'Prisma',    rarity: 'legend', colors: ['#ff3b5c', '#ffe14d', '#25ff9b', '#00f0ff', '#b14bff'], style: 'rainbow', unlock: { type: 'rank', rank: 8 } },
+  { id: 'flame_oro2',   name: 'Aureo',     rarity: 'mythic', colors: ['#fff7c0', '#ffcb3d', '#ff9a3c'], style: 'stellar', unlock: { type: 'mission', mission: 'win_50' } }
+]);
+
+[].push.apply(GOALFX, [
+  { id: 'goal_destellos', name: 'Destellos', rarity: 'common', style: 'firework', colors: ['#00f0ff', '#fff'], unlock: { type: 'coins', cost: 160 } },
+  { id: 'goal_lluvia',    name: 'Lluvia Neon', rarity: 'rare', style: 'snow', colors: ['#b14bff', '#00f0ff', '#ff2bd6'], unlock: { type: 'coins', cost: 320 } },
+  { id: 'goal_cometa',    name: 'Cometa',    rarity: 'rare', style: 'storm', colors: ['#ffe14d', '#fff', '#ff7a18'], unlock: { type: 'rank', rank: 4 } },
+  { id: 'goal_jardin',    name: 'Jardin',    rarity: 'epic', style: 'hearts', colors: ['#8affc8', '#25ff9b', '#c6ff3d'], unlock: { type: 'mission', mission: 'save_30' } },
+  { id: 'goal_cosmos2',   name: 'Cosmos',    rarity: 'epic', style: 'galaxy', colors: ['#5a3bff', '#b14bff', '#00f0ff'], unlock: { type: 'rank', rank: 6 } },
+  { id: 'goal_eclipse',   name: 'Eclipse',   rarity: 'legend', style: 'supernova', colors: ['#ffcb3d', '#ff7a18', '#150a3a'], unlock: { type: 'rank', rank: 8 } }
+]);
+
+[].push.apply(WHEELS, [
+  { id: 'wheel_acero',   name: 'Acero',    rarity: 'common', rim: '#5a6070', glow: '#9fb0c4', unlock: { type: 'coins', cost: 130 } },
+  { id: 'wheel_lima',    name: 'Lima',     rarity: 'rare',   rim: '#1a3a0a', glow: '#c6ff3d', unlock: { type: 'rank', rank: 2 } },
+  { id: 'wheel_coral',   name: 'Coral',    rarity: 'rare',   rim: '#3a1410', glow: '#ff7a6b', unlock: { type: 'coins', cost: 320 } },
+  { id: 'wheel_violeta', name: 'Violeta',  rarity: 'epic',   rim: '#2a0a4a', glow: '#b14bff', unlock: { type: 'rank', rank: 6 } },
+  { id: 'wheel_aurea',   name: 'Aurea',    rarity: 'legend', rim: '#3a2a0a', glow: '#ffcb3d', unlock: { type: 'mission', mission: 'win_50' } }
+]);
+
+[].push.apply(TOPPERS, [
+  { id: 'top_aleta2',   name: 'Aleta Doble', rarity: 'common', style: 'fin',    color: '#ff7a18', unlock: { type: 'coins', cost: 120 } },
+  { id: 'top_estrella2',name: 'Estrella Azul', rarity: 'rare', style: 'star',   color: '#00f0ff', unlock: { type: 'coins', cost: 280 } },
+  { id: 'top_antena2',  name: 'Antena Roja', rarity: 'common', style: 'antenna', color: '#ffe14d', unlock: { type: 'coins', cost: 120 } },
+  { id: 'top_cuernos2', name: 'Astas',      rarity: 'epic',    style: 'horns',   color: '#25ff9b', unlock: { type: 'rank', rank: 6 } },
+  { id: 'top_corona2',  name: 'Diadema',    rarity: 'legend',  style: 'crown',   color: '#b14bff', unlock: { type: 'mission', mission: 'play_50' } }
+]);
+
+[].push.apply(DECALS, [
+  { id: 'dec_franjas2', name: 'Franjas X',  rarity: 'common', style: 'stripes', unlock: { type: 'coins', cost: 120 } },
+  { id: 'dec_puntos2',  name: 'Lunares',    rarity: 'rare',   style: 'dots',    unlock: { type: 'rank', rank: 3 } },
+  { id: 'dec_camo2',    name: 'Camo Neon',  rarity: 'epic',   style: 'camo',    unlock: { type: 'rank', rank: 5 } },
+  { id: 'dec_circuito2',name: 'Circuito V2',rarity: 'legend', style: 'circuit', unlock: { type: 'mission', mission: 'win_50' } }
+]);
+
+[].push.apply(TRAILS, [
+  { id: 'tr_lima',    name: 'Lima',     rarity: 'common', color: '#c6ff3d', width: 0.4, unlock: { type: 'coins', cost: 120 } },
+  { id: 'tr_coral',   name: 'Coral',    rarity: 'rare',   color: '#ff7a6b', width: 0.45, unlock: { type: 'coins', cost: 300 } },
+  { id: 'tr_hielo',   name: 'Hielo',    rarity: 'rare',   color: '#bff4ff', width: 0.45, unlock: { type: 'rank', rank: 3 } },
+  { id: 'tr_plasma',  name: 'Plasma',   rarity: 'epic',   color: '#ff2bd6', width: 0.55, unlock: { type: 'rank', rank: 6 } },
+  { id: 'tr_oro2',    name: 'Oro Vivo', rarity: 'legend', color: '#ffcb3d', width: 0.6, unlock: { type: 'mission', mission: 'win_50' } }
+]);
+
+[].push.apply(ARENAS, [
+  { id: 'arena_retro', name: 'Retro Wave', rarity: 'rare', unlock: { type: 'coins', cost: 700 },
+    sky: ['#1a0533', '#3a0a5a', '#ff2bd6'], field: ['#1a0a33', '#2a0a4a', '#3a0a5a'],
+    grid: 'rgba(255,43,214,0.14)', line: 'rgba(0,240,255,0.3)', border: '#ff2bd6', stars: '#00f0ff' },
+  { id: 'arena_gold', name: 'Coliseo Dorado', rarity: 'legend', unlock: { type: 'rank', rank: 9 },
+    sky: ['#1a1404', '#3a2c08', '#5a4410'], field: ['#201804', '#3a2c08', '#5a4410'],
+    grid: 'rgba(255,203,61,0.12)', line: 'rgba(255,225,120,0.3)', border: '#ffcb3d', stars: '#fff0c0' }
+]);
+
+/* Reindexar con todo el contenido nuevo */
+indexCosmetics();
 /* ============================================================================
    6.  MOTOR DE AUDIO SINTETIZADO (WebAudio)
    ----------------------------------------------------------------------------
@@ -5878,6 +6025,18 @@ function formatTime(sec) {
   return m + ':' + (s < 10 ? '0' + s : s);
 }
 
+var TUTORIAL_STEPS = [
+  { icon: '🚗', title: 'Bienvenido', text: 'Esto es <b>Roquet Redemption</b>: futbol con coches cohete. Mete la bola en la <b>porteria naranja</b> (derecha) para marcar.' },
+  { icon: '🕹', title: 'Moverse', text: 'Usa el <b>joystick</b> (abajo izquierda) para conducir y, en el aire, para inclinar el morro. En horizontal todo cabe en pantalla.' },
+  { icon: '⬆', title: 'Saltar y Flip', text: 'Boton verde para <b>saltar</b>. Pulsa otra vez con direccion para hacer un <b>flip</b> (diagonal, hacia delante o backflip).' },
+  { icon: '🔥', title: 'Turbo y vuelo', text: 'Boton naranja = <b>Turbo</b>. En el aire, apunta el morro a la bola y mantenlo para <b>volar</b> y hacer aereos.' },
+  { icon: '🔄', title: 'Air Roll y mecanicas', text: 'Boton violeta = <b>Air Roll</b> (giro continuo). Toca la bola con las <b>ruedas</b> en el aire = <b>Flip Reset</b>. Comprime contra el muro = <b>Pinch</b>.' },
+  { icon: '⚡', title: 'Habilidades', text: 'Equipa una <b>habilidad</b> en el Garaje (Sobrecarga, Escudo, Iman...). En partida, el boton magenta la activa con cooldown.' },
+  { icon: '🏆', title: 'Rangos', text: 'Hay <b>10 divisiones</b> (Bronce → Leyenda). Ganas subes, pierdes bajas. Siempre juegas contra <b>bots de tu division</b>.' },
+  { icon: '🎁', title: 'Desbloqueos', text: 'Sube de rango y completa <b>misiones</b> para desbloquear chasis, llamas, festejos, arenas y habilidades. Los <b>miticos</b> son para los mejores.' },
+  { icon: '🎮', title: 'Modos', text: 'Prueba <b>Entrenamiento</b> (drills), <b>Modos Extra</b> (baja gravedad, supervivencia...) y la <b>Clasificatoria</b>. ¡A rodar!' }
+];
+
 var UI = {
   current: 'loading',
   garage: { tab: 'body', previewAngle: 0, selected: null },
@@ -5970,6 +6129,10 @@ var UI = {
     B('btnModesBack', function () { UI.show('menu'); });
     B('btnCareer', function () { UI.show('career'); });
     B('btnSettingsTop', function () { UI.show('settings'); });
+    B('btnHelpTop', function () { UI.openTutorial(); });
+    B('tutNext', function () { UI.tutNav(1); });
+    B('tutPrev', function () { UI.tutNav(-1); });
+    B('tutSkip', function () { UI.closeTutorial(); });
     B('playerCard', function () { UI.show('career'); });
 
     // Back buttons
@@ -6591,6 +6754,27 @@ var UI = {
   _cosmeticEmoji: function (item) { return ({ body: '🚗', color: '🎨', flame: '🔥', goal: '🎉', wheel: '⚙' })[item.type] || '🎁'; },
   popupUnlock: function (item) { this._popupQueue = this._popupQueue || []; this._popupQueue.push({ type: 'unlock', item: item }); if (!$('popupLayer').classList.contains('show')) this._popupQueueNext(); },
 
+  /* ---------------- Tutorial ---------------- */
+  tutStep: 0,
+  openTutorial: function () { this.tutStep = 0; $('tutorialOverlay').classList.add('show'); this._renderTut(); Audio2.uiClick(); },
+  closeTutorial: function () { $('tutorialOverlay').classList.remove('show'); Save.get().tutorialSeen = true; Save.save(); Audio2.uiClick(); },
+  tutNav: function (dir) {
+    this.tutStep += dir;
+    if (this.tutStep >= TUTORIAL_STEPS.length) { this.closeTutorial(); return; }
+    if (this.tutStep < 0) this.tutStep = 0;
+    this._renderTut(); Audio2.uiClick();
+  },
+  _renderTut: function () {
+    var s = TUTORIAL_STEPS[this.tutStep];
+    $('tutIcon').textContent = s.icon; $('tutTitle').textContent = s.title; $('tutText').innerHTML = s.text;
+    $('tutStepLabel').textContent = (this.tutStep + 1) + ' / ' + TUTORIAL_STEPS.length;
+    var dots = '';
+    for (var i = 0; i < TUTORIAL_STEPS.length; i++) dots += '<span class="d ' + (i === this.tutStep ? 'on' : '') + '"></span>';
+    $('tutDots').innerHTML = dots;
+    $('tutPrev').style.visibility = this.tutStep === 0 ? 'hidden' : 'visible';
+    $('tutNext').textContent = this.tutStep === TUTORIAL_STEPS.length - 1 ? '¡A jugar!' : 'Siguiente';
+  },
+
   /* ---------------- Ajustes ---------------- */
   _buildSettings: function () {
     var s = Save.get().settings;
@@ -6620,6 +6804,7 @@ var UI = {
       }
       html += '</div>';
     });
+    html += '<div class="set-row"><div><div class="set-label">Ver tutorial</div><div class="set-sub">Repite la guia de inicio</div></div><button class="btn btn-sm btn-ghost" id="setTutorial">Ver</button></div>';
     html += '<div class="set-row"><div><div class="set-label">Cambiar nombre</div><div class="set-sub">Tu alias de piloto</div></div><button class="btn btn-sm btn-ghost" id="setName">Editar</button></div>';
     html += '<div class="set-row"><div><div class="set-label" style="color:var(--neon-red)">Reiniciar progreso</div><div class="set-sub">Borra rango, monedas y desbloqueos</div></div><button class="btn btn-sm btn-danger" id="setReset">Borrar</button></div>';
     html += '<div class="center muted txt-xs" style="margin-top:10px">Roquet Redemption by Areces · v2.0</div>';
@@ -6649,6 +6834,7 @@ var UI = {
         });
       });
     });
+    var tut = $('setTutorial'); if (tut) tut.addEventListener('click', function () { UI.show('menu'); setTimeout(function () { UI.openTutorial(); }, 200); });
     var nm = $('setName'); if (nm) nm.addEventListener('click', function () {
       var v = prompt('Nombre de piloto:', Save.get().name);
       if (v) { Save.get().name = v.slice(0, 14); Save.save(); UI.toast('Nombre actualizado', v, '✏'); }
@@ -6906,6 +7092,7 @@ function boot() {
     UI.screens.loading.classList.remove('active');
     UI.showHud(false);
     UI.show('menu', { silent: true });
+    if (!Save.get().tutorialSeen) UI.openTutorial();
   });
 }
 
