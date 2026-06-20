@@ -1674,7 +1674,23 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
         <button class="btn btn-green" id="btnTraining">Entrenamiento</button>
         <button class="btn btn-ghost" id="btnGarage"><span class="ico">&#128663;</span> Garaje</button>
         <button class="btn btn-ghost" id="btnMissions"><span class="ico">&#127919;</span> Misiones</button>
+        <button class="btn btn-gold full" id="btnModes"><span class="ico">&#127918;</span> Modos Extra</button>
         <button class="btn btn-ghost full" id="btnCareer"><span class="ico">&#127942;</span> Carrera / Rangos</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ----------------------- MODOS EXTRA ------------------------------ -->
+  <section class="screen" id="screen-modes">
+    <div class="top-bar">
+      <button class="btn btn-icon btn-ghost" id="btnModesBack">&#8592;</button>
+      <div class="panel-title">MODOS EXTRA</div>
+      <div style="width:50px;"></div>
+    </div>
+    <div class="panel-wrap">
+      <div class="txt-xs muted center mb-2">Modos casuales (no afectan a tu rango). Rival de tu division.</div>
+      <div class="glass-soft scroll-y" style="border-radius:18px; padding:8px; flex:1 1 auto;">
+        <div class="mission-list" id="modesList"></div>
       </div>
     </div>
   </section>
@@ -2843,6 +2859,29 @@ function checkAchievements() {
 }
 DEFAULT_SAVE.achievements = {};
 DEFAULT_SAVE.stats.flipResets = 0;
+DEFAULT_SAVE.stats.bestSurvival = 0;
+
+/* ============================================================================
+   MODOS CASUALES CON MUTADORES (mas formas de juego, sin afectar al MMR)
+   ----------------------------------------------------------------------------
+   Reutilizan el 1v1 estandar (rival de tu division) pero alteran la fisica.
+   ========================================================================== */
+var CASUAL_MODES = [
+  { id: 'lowgrav', name: 'Baja Gravedad', icon: '🌙', color: '#8affc8',
+    desc: 'Gravedad reducida. Aereos interminables.', mut: { gravScale: 0.45 }, time: 120 },
+  { id: 'bigball', name: 'Bola Gigante', icon: '🪐', color: '#b14bff',
+    desc: 'Una bola enorme. Caos asegurado.', mut: { ballRScale: 1.75 }, time: 120 },
+  { id: 'ice', name: 'Pista de Hielo', icon: '❄', color: '#bff4ff',
+    desc: 'La bola apenas frena. Todo resbala.', mut: { ice: true, bounce: 0.78 }, time: 120 },
+  { id: 'frenzy', name: 'Frenesi', icon: '⚡', color: '#ffe14d',
+    desc: 'Bola pequena y saltarina. 90 segundos.', mut: { ballRScale: 0.7, bounce: 0.85 }, time: 90 },
+  { id: 'beach', name: 'Voley Cohete', icon: '🏖', color: '#ff8a2b',
+    desc: 'Gravedad media y bola flotante.', mut: { gravScale: 0.68, bounce: 0.7 }, time: 120 },
+  { id: 'survival', name: 'Supervivencia', icon: '💀', color: '#ff3b5c',
+    desc: 'Sin tiempo. El rival se endurece con cada gol tuyo. Si te marca, fin.', survival: true }
+];
+var CASUAL_MODE_INDEX = {};
+CASUAL_MODES.forEach(function (m) { CASUAL_MODE_INDEX[m.id] = m; });
 /* ============================================================================
    6.  MOTOR DE AUDIO SINTETIZADO (WebAudio)
    ----------------------------------------------------------------------------
@@ -4993,7 +5032,16 @@ Game.prototype._blankStats = function () {
 /* ---- Inicio de partida ---- */
 Game.prototype.startMatch = function (mode, opts) {
   opts = opts || {};
-  this.mode = mode;
+  this._restoreMutators();                  // limpiar mutadores de una partida previa
+  // 'casual' usa opts.modeId para identificar el mutador concreto
+  var casual = (mode === 'casual') ? CASUAL_MODE_INDEX[opts.modeId] : null;
+  this.casualMode = casual;
+  this.modeId = casual ? casual.id : mode;
+  this.ranked = (mode === 'ranked');
+  this.survival = !!(casual && casual.survival);
+  this.survivalScore = 0; this.survivalLevel = 0;
+
+  this.mode = (mode === 'casual') ? 'ranked' : mode;  // reutiliza el flujo 1v1
   this.score = [0, 0];
   this.matchStats = this._blankStats();
   this.eventTags.length = 0;
@@ -5009,7 +5057,18 @@ Game.prototype.startMatch = function (mode, opts) {
   // El bot usa un loadout aleatorio acorde a su rango
   this._applyBotLoadout(this.cars[1], this.rankIdx);
 
-  if (mode === 'ranked') {
+  if (casual) {
+    this.cars[1].isBot = true;
+    if (this.survival) {
+      this.matchDuration = 0; this.timeLeft = 0;
+      this.bot.setSkill(clamp01(RANKS[this.rankIdx].botSkill * 0.6));
+    } else {
+      this.matchDuration = casual.time || 120;
+      this.timeLeft = this.matchDuration;
+      this.bot.setSkill(RANKS[this.rankIdx].botSkill);
+    }
+    this._applyMutators(casual.mut || {});
+  } else if (mode === 'ranked') {
     this.matchDuration = 120;
     this.timeLeft = 120;
     this.bot.setSkill(RANKS[this.rankIdx].botSkill);
@@ -5034,6 +5093,23 @@ Game.prototype.startMatch = function (mode, opts) {
 
   this.running = true;
   this.startKickoff(-1);
+};
+
+/* ---- Mutadores de modos casuales ---- */
+Game.prototype._applyMutators = function (mut) {
+  this._mutBackup = { grav: PHYS.GRAV, ballR: PHYS.BALL_RADIUS, gf: PHYS.BALL_GROUND_FRICTION, rest: PHYS.BALL_REST };
+  if (mut.gravScale) PHYS.GRAV = this._mutBackup.grav * mut.gravScale;
+  if (mut.ballRScale) { PHYS.BALL_RADIUS = Math.round(this._mutBackup.ballR * mut.ballRScale); this.ball.radius = PHYS.BALL_RADIUS; }
+  if (mut.ice) PHYS.BALL_GROUND_FRICTION = 0.015;
+  if (mut.bounce) { PHYS.BALL_REST = mut.bounce; this.ball.rest = mut.bounce; }
+};
+Game.prototype._restoreMutators = function () {
+  if (!this._mutBackup) return;
+  PHYS.GRAV = this._mutBackup.grav;
+  PHYS.BALL_RADIUS = this._mutBackup.ballR; this.ball.radius = PHYS.BALL_RADIUS;
+  PHYS.BALL_GROUND_FRICTION = this._mutBackup.gf;
+  PHYS.BALL_REST = this._mutBackup.rest; this.ball.rest = this._mutBackup.rest;
+  this._mutBackup = null;
 };
 
 Game.prototype._applyLoadout = function (car, eq, team) {
@@ -5121,8 +5197,8 @@ Game.prototype.update = function (realDt) {
       else this.startKickoff(this.lastScorer);
     }
   } else if (this.phase === 'play' || this.phase === 'overtime') {
-    // Timer de partida (solo ranked)
-    if (this.mode === 'ranked' && this.phase === 'play') {
+    // Timer de partida (ranked y casuales con tiempo; no en supervivencia)
+    if (this.mode === 'ranked' && this.phase === 'play' && this.matchDuration > 0) {
       this.timeLeft -= realDt;
       if (this.timeLeft <= 0) {
         this.timeLeft = 0;
@@ -5424,6 +5500,18 @@ Game.prototype._onGoal = function (gside) {
   }
   Save.save();
 
+  // Supervivencia: cada gol propio sube la dificultad; el del rival termina
+  if (this.survival) {
+    if (scorer === 0) {
+      this.survivalScore++;
+      this.survivalLevel = Math.min(11, this.survivalLevel + 1);
+      this.bot.setSkill(clamp01(0.3 + this.survivalLevel * 0.07));
+      this._addEventTag('NIVEL ' + (this.survivalLevel + 1) + '!', this.arena.w / 2, this.arena.h * 0.3, '#ff3b5c');
+    } else {
+      this.survivalDead = true;
+    }
+  }
+
   // FX de gol con el festejo equipado del que anota
   var fxOwner = scorer === 0 ? this.cars[0] : this.cars[1];
   this._spawnGoalCelebration(scorer, this.ball.pos.x, this.ball.pos.y, fxOwner.goalFx);
@@ -5485,59 +5573,84 @@ Game.prototype._enterOvertime = function () {
 };
 
 Game.prototype._checkMatchEnd = function () {
+  if (this.survival && this.survivalDead) { this._finishMatch(); return true; }
   if (this.mode !== 'ranked') return false;
-  if (this.timeLeft <= 0 && this.goldenGoal) { this._finishMatch(); return true; }
+  if (this.matchDuration > 0 && this.timeLeft <= 0 && this.goldenGoal) { this._finishMatch(); return true; }
   return false;
 };
 
 Game.prototype._finishMatch = function () {
   this.phase = 'ended';
   this.running = false;
-  var won = this.score[0] > this.score[1];
-  var draw = this.score[0] === this.score[1];
+  this._restoreMutators();
 
-  // Estadisticas globales
   var st = Save.get().stats;
   st.matches++;
-  st.goals += 0;
   if (this.matchStats.goalsP > st.maxGoalsMatch) st.maxGoalsMatch = this.matchStats.goalsP;
-  if (won) { st.wins++; st.curStreak++; if (st.curStreak > st.bestStreak) st.bestStreak = st.curStreak; }
-  else { st.losses++; st.curStreak = 0; }
   st.demos += this.matchStats.demos;
   st.saves += this.matchStats.saves;
 
-  // Misiones de partida
+  // ---- Supervivencia: resultado por racha ----
+  if (this.survival) {
+    var sScore = this.survivalScore;
+    var sXp = 40 + sScore * 55;
+    var sCoins = 20 + sScore * 28;
+    var sLevels = addXp(sXp);
+    Save.get().coins += sCoins;
+    if (sScore > (st.bestSurvival || 0)) st.bestSurvival = sScore;
+    var sUnlocks = grantRankUnlocks();
+    var sAch = checkAchievements();
+    Save.save();
+    if (typeof UI !== 'undefined' && UI.showResult) UI.showResult({
+      survival: true, survivalScore: sScore, won: sScore > 0, draw: false, score: [sScore, 0],
+      mmrDelta: 0, oldRank: this.rankIdx, newRank: this.rankIdx, rankChanged: false,
+      xpGain: sXp, coinGain: sCoins, levelsGained: sLevels,
+      stats: this.matchStats, newlyUnlocked: sUnlocks, achievements: sAch, rankIdx: this.rankIdx, casual: true
+    });
+    return;
+  }
+
+  var won = this.score[0] > this.score[1];
+  var draw = this.score[0] === this.score[1];
+  if (won) { st.wins++; st.curStreak++; if (st.curStreak > st.bestStreak) st.bestStreak = st.curStreak; }
+  else { st.losses++; st.curStreak = 0; }
+
+  // Misiones de partida (las de victoria/leyenda solo en clasificatoria)
   MissionTracker.event('matchPlayed', 1, { rankIdx: this.rankIdx });
-  if (won) {
+  if (won && this.ranked) {
     MissionTracker.event('win', 1, { rankIdx: this.rankIdx });
     MissionTracker.event('winStreak', st.curStreak, { rankIdx: this.rankIdx });
     if (this.rankIdx >= 9) MissionTracker.event('legendWin', 1, { rankIdx: this.rankIdx });
     if (this.rankIdx >= 9 && this.matchStats.goalsO === 0) MissionTracker.event('legendShutout', 1, { rankIdx: this.rankIdx });
   }
 
-  // MMR + XP + monedas
-  var mmrDelta = computeMmrDelta(won, this.score[0], this.score[1], this.rankIdx);
+  // MMR solo en clasificatoria (los casuales no afectan al rango)
+  var mmrDelta = 0;
   var oldRank = rankIndexFromMmr(Save.get().mmr);
-  Save.get().mmr = Math.max(0, Save.get().mmr + mmrDelta);
+  if (this.ranked) {
+    mmrDelta = computeMmrDelta(won, this.score[0], this.score[1], this.rankIdx);
+    Save.get().mmr = Math.max(0, Save.get().mmr + mmrDelta);
+  }
   var newRank = rankIndexFromMmr(Save.get().mmr);
 
-  var xpGain = 60 + this.matchStats.goalsP * 30 + (won ? 120 : 30) + this.matchStats.saves * 15 + this.matchStats.demos * 20;
-  var coinGain = 30 + this.matchStats.goalsP * 12 + (won ? 60 : 15);
+  var mul = this.ranked ? 1 : 0.6;
+  var xpGain = Math.round((60 + this.matchStats.goalsP * 30 + (won ? 120 : 30) + this.matchStats.saves * 15 + this.matchStats.demos * 20) * mul);
+  var coinGain = Math.round((30 + this.matchStats.goalsP * 12 + (won ? 60 : 15)) * mul);
   var levelsGained = addXp(xpGain);
   Save.get().coins += coinGain;
 
   // Desbloqueos por rango + logros
-  var newlyUnlocked = grantRankUnlocks();
+  var newlyUnlocked = this.ranked ? grantRankUnlocks() : [];
   var newAchievements = checkAchievements();
   Save.save();
 
-  var summary = {
+  if (typeof UI !== 'undefined' && UI.showResult) UI.showResult({
     won: won, draw: draw, score: this.score.slice(),
-    mmrDelta: mmrDelta, oldRank: oldRank, newRank: newRank, rankChanged: newRank !== oldRank,
+    mmrDelta: mmrDelta, oldRank: oldRank, newRank: newRank, rankChanged: this.ranked && (newRank !== oldRank),
     xpGain: xpGain, coinGain: coinGain, levelsGained: levelsGained,
-    stats: this.matchStats, newlyUnlocked: newlyUnlocked, achievements: newAchievements, rankIdx: this.rankIdx
-  };
-  if (typeof UI !== 'undefined' && UI.showResult) UI.showResult(summary);
+    stats: this.matchStats, newlyUnlocked: newlyUnlocked, achievements: newAchievements,
+    rankIdx: this.rankIdx, casual: !this.ranked
+  });
 };
 
 /* ---- Camara dinamica ---- */
@@ -5718,7 +5831,7 @@ var UI = {
 
   _cache: function () {
     this.screens = {};
-    ['loading', 'menu', 'intro', 'hud', 'pause', 'result', 'garage', 'missions', 'career', 'settings']
+    ['loading', 'menu', 'intro', 'hud', 'pause', 'result', 'garage', 'missions', 'career', 'settings', 'modes']
       .forEach(function (n) { UI.screens[n] = $('screen-' + n); });
     this.boostCanvas = $('boostCanvas');
     this.boostCtx = this.boostCanvas.getContext('2d');
@@ -5736,7 +5849,7 @@ var UI = {
     }
     // El HUD permanece debajo de pausa/resultado
     if (name !== 'hud') {
-      if (this.screens.hud && (name === 'menu' || name === 'garage' || name === 'missions' || name === 'career' || name === 'settings' || name === 'loading'))
+      if (this.screens.hud && (name === 'menu' || name === 'garage' || name === 'missions' || name === 'career' || name === 'settings' || name === 'modes' || name === 'loading'))
         this.screens.hud.classList.remove('active');
     }
     if (this.screens[name]) this.screens[name].classList.add('active');
@@ -5748,6 +5861,33 @@ var UI = {
     else if (name === 'missions') this.openMissions();
     else if (name === 'career') this.openCareer();
     else if (name === 'settings') this.refreshSettings();
+    else if (name === 'modes') this.openModes();
+  },
+
+  /* ---------------- Modos extra ---------------- */
+  openModes: function () {
+    var list = $('modesList');
+    list.innerHTML = '';
+    CASUAL_MODES.forEach(function (m) {
+      var div = document.createElement('div');
+      div.className = 'mission glass-soft';
+      div.style.cursor = 'pointer';
+      var extra = m.survival ? ('Mejor racha: ' + (Save.get().stats.bestSurvival || 0)) : ((m.time || 120) + 's');
+      div.innerHTML =
+        '<div class="m-ico" style="color:' + m.color + '">' + m.icon + '</div>' +
+        '<div class="m-body"><div class="m-title">' + m.name + '</div><div class="m-desc">' + m.desc + '</div></div>' +
+        '<span class="m-reward" style="color:' + m.color + '">' + extra + '<br>▶</span>';
+      div.addEventListener('click', function () { UI.startCasual(m.id); });
+      list.appendChild(div);
+    });
+  },
+  startCasual: function (modeId) {
+    this._lastMode = 'casual'; this._lastModeId = modeId;
+    Audio2.uiClick();
+    UI.showHud(true);
+    UI.show('hud', { silent: true });
+    UI._setModeChrome('casual', modeId);
+    GAME.startMatch('casual', { modeId: modeId });
   },
 
   showHud: function (show) {
@@ -5765,6 +5905,8 @@ var UI = {
     B('btnTraining', function () { UI.startGame('training'); });
     B('btnGarage', function () { UI.show('garage'); });
     B('btnMissions', function () { UI.show('missions'); });
+    B('btnModes', function () { UI.show('modes'); });
+    B('btnModesBack', function () { UI.show('menu'); });
     B('btnCareer', function () { UI.show('career'); });
     B('btnSettingsTop', function () { UI.show('settings'); });
     B('playerCard', function () { UI.show('career'); });
@@ -5778,12 +5920,12 @@ var UI = {
     // Pause
     B('btnPause', function () { UI.pause(); });
     B('btnResume', function () { UI.resume(); });
-    B('btnPauseRestart', function () { UI.resume(); GAME.startMatch(GAME.mode, { drill: GAME.training.drillIndex }); });
+    B('btnPauseRestart', function () { UI.screens.pause.classList.remove('active'); UI.current = 'hud'; UI.replayLast(); });
     B('btnQuitMatch', function () { UI.quitMatch(); });
 
     // Result
     B('btnResultMenu', function () { UI.showHud(false); UI.show('menu'); });
-    B('btnResultAgain', function () { UI.startGame(GAME.mode); });
+    B('btnResultAgain', function () { UI.replayLast(); });
 
     // Freeplay/training panel
     B('fpReset', function () { GAME.resetBall(); Audio2.uiClick(); });
@@ -5831,7 +5973,14 @@ var UI = {
     };
   },
 
+  _lastMode: 'ranked', _lastModeId: null,
+  replayLast: function () {
+    if (this._lastMode === 'casual') this.startCasual(this._lastModeId);
+    else this.startGame(this._lastMode);
+  },
+
   startGame: function (mode) {
+    this._lastMode = mode; this._lastModeId = null;
     Audio2.uiClick();
     Audio2.startMusic && Audio2.stopMusic();
     var s = Save.get();
@@ -5853,8 +6002,8 @@ var UI = {
     }
   },
 
-  _setModeChrome: function (mode) {
-    $('fpPanel').classList.toggle('hidden', mode === 'ranked');
+  _setModeChrome: function (mode, modeId) {
+    $('fpPanel').classList.toggle('hidden', !(mode === 'freeplay' || mode === 'training'));
     $('trainBanner').classList.toggle('hidden', mode !== 'training');
     // Boton de habilidad: visible si hay una habilidad activa equipada (no pasiva)
     var eqAb = Save.get().equipped.ability;
@@ -5862,7 +6011,11 @@ var UI = {
     var hasAb = abObj && abObj.effect !== 'none' && !abObj.passive;
     var abBtn = $('btnAbility');
     if (abBtn) { abBtn.classList.toggle('hidden', !hasAb); if (hasAb) $('abilityIco').textContent = abObj.icon; }
-    $('scoreMode').textContent = mode === 'ranked' ? 'CLASIFICATORIA' : (mode === 'training' ? 'ENTRENO' : 'LIBRE');
+    var label = 'LIBRE';
+    if (mode === 'ranked') label = 'CLASIFICATORIA';
+    else if (mode === 'training') label = 'ENTRENO';
+    else if (mode === 'casual' && CASUAL_MODE_INDEX[modeId]) label = CASUAL_MODE_INDEX[modeId].name.toUpperCase();
+    $('scoreMode').textContent = label;
     var sb = document.querySelector('.scorebug');
     if (sb && sb.style) sb.style.opacity = mode === 'ranked' ? 1 : 0.85;
     if (mode === 'training') this._updateTrainBanner();
@@ -5902,7 +6055,10 @@ var UI = {
     if (this.current !== 'hud') return;
     $('scoreBlue').textContent = game.score[0];
     $('scoreOrange').textContent = game.score[1];
-    if (game.mode === 'ranked') {
+    if (game.survival) {
+      $('scoreTimer').textContent = '💀 ' + game.survivalScore;
+      $('scoreTimer').classList.remove('low');
+    } else if (game.mode === 'ranked') {
       var t = game.phase === 'overtime' || (game.timeLeft <= 0 && game.phase !== 'play') ? 'PRORROGA' : formatTime(game.timeLeft);
       var tEl = $('scoreTimer');
       tEl.textContent = game.timeLeft <= 0 && game.phase !== 'play' ? '+' : formatTime(game.timeLeft);
@@ -6003,6 +6159,7 @@ var UI = {
   },
   quitMatch: function () {
     GAME.running = false; GAME._paused = false; GAME.phase = 'idle';
+    GAME._restoreMutators();
     Audio2.stopEngine && Audio2.setBoost(false, 0);
     this.screens.pause.classList.remove('active');
     this.showHud(false);
@@ -6012,15 +6169,25 @@ var UI = {
   /* ---------------- Resultado ---------------- */
   showResult: function (sum) {
     var hl = $('resultHeadline');
-    hl.className = 'result-headline ' + (sum.won ? 'win' : (sum.draw ? 'draw' : 'loss'));
-    hl.textContent = sum.won ? 'VICTORIA' : (sum.draw ? 'EMPATE' : 'DERROTA');
+    if (sum.survival) {
+      hl.className = 'result-headline ' + (sum.survivalScore > 0 ? 'win' : 'loss');
+      hl.textContent = 'RACHA ' + sum.survivalScore;
+    } else {
+      hl.className = 'result-headline ' + (sum.won ? 'win' : (sum.draw ? 'draw' : 'loss'));
+      hl.textContent = sum.won ? 'VICTORIA' : (sum.draw ? 'EMPATE' : 'DERROTA');
+    }
     $('resultBlue').textContent = sum.score[0];
     $('resultOrange').textContent = sum.score[1];
 
     var mc = $('mmrChange');
-    mc.className = 'mmr-change ' + (sum.mmrDelta >= 0 ? 'up' : 'down');
-    mc.innerHTML = (sum.mmrDelta >= 0 ? '▲ +' : '▼ ') + sum.mmrDelta + ' MMR' +
-      (sum.rankChanged ? '  <span style="color:var(--neon-gold)">' + (sum.newRank > sum.oldRank ? '¡ASCENSO!' : 'descenso') + '</span>' : '');
+    if (sum.casual || sum.survival) {
+      mc.className = 'mmr-change';
+      mc.innerHTML = '<span class="muted">Modo casual · no afecta al rango</span>';
+    } else {
+      mc.className = 'mmr-change ' + (sum.mmrDelta >= 0 ? 'up' : 'down');
+      mc.innerHTML = (sum.mmrDelta >= 0 ? '▲ +' : '▼ ') + sum.mmrDelta + ' MMR' +
+        (sum.rankChanged ? '  <span style="color:var(--neon-gold)">' + (sum.newRank > sum.oldRank ? '¡ASCENSO!' : 'descenso') + '</span>' : '');
+    }
 
     var st = sum.stats;
     $('resultStats').innerHTML =
