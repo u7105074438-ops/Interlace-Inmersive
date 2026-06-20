@@ -2952,6 +2952,8 @@ var CASUAL_MODES = [
     desc: 'Bola pequena y saltarina. 90 segundos.', mut: { ballRScale: 0.7, bounce: 0.85 }, time: 90 },
   { id: 'beach', name: 'Voley Cohete', icon: '🏖', color: '#ff8a2b',
     desc: 'Gravedad media y bola flotante.', mut: { gravScale: 0.68, bounce: 0.7 }, time: 120 },
+  { id: 'duos', name: 'Duos 2v2', icon: '👥', color: '#25b9ff',
+    desc: 'Tu y un companero IA contra dos rivales. Caos a cuatro coches.', duos: true, time: 150 },
   { id: 'survival', name: 'Supervivencia', icon: '💀', color: '#ff3b5c',
     desc: 'Sin tiempo. El rival se endurece con cada gol tuyo. Si te marca, fin.', survival: true }
 ];
@@ -4577,6 +4579,12 @@ BotAI.prototype._decide = function (kickoff) {
     this.targetX = inter.x - gdx * off;
     this.targetY = inter.y - gdy * off;
   }
+  // Rol de equipo (2v2): el defensor se mantiene mas atras
+  if (this.role === 'defend' && this.state === 'ATTACK') {
+    this.targetX = lerp(this.targetX, ownX, 0.4);
+  } else if (this.role === 'support' && this.state === 'ATTACK' && distToBall > 360) {
+    this.targetY = lerp(this.targetY, A.h - 120, 0.25);   // el apoyo no se precipita
+  }
   // Mantener dentro de la arena
   this.targetX = clamp(this.targetX, 60, A.w - 60);
   this.targetY = clamp(this.targetY, 60, A.h - 20);
@@ -5228,10 +5236,20 @@ function Game(renderer, input, camera, particles) {
   this.arena = renderer.arena;
 
   this.ball = new Ball(this.arena);
-  this.cars = [new Car(this.arena, 0, false), new Car(this.arena, 1, true)];
-  this.bot = new BotAI(this.cars[1], this.arena);
-  this.bot.setContext(this.ball, this.cars[0]);
-  this.bot2 = null;                 // segundo bot opcional (modos especiales)
+  // Plantilla maxima 2v2: roster[0] = jugador (azul). El resto pueden ser bots.
+  this.roster = [
+    new Car(this.arena, 0, false),  // jugador
+    new Car(this.arena, 0, true),   // companero (solo 2v2)
+    new Car(this.arena, 1, true),   // rival 1
+    new Car(this.arena, 1, true)    // rival 2 (solo 2v2)
+  ];
+  this.bots = [null, new BotAI(this.roster[1], this.arena), new BotAI(this.roster[2], this.arena), new BotAI(this.roster[3], this.arena)];
+  for (var _bi = 1; _bi < this.bots.length; _bi++) this.bots[_bi].setContext(this.ball, this.roster[0]);
+  // Por defecto 1v1: jugador + rival 1
+  this.cars = [this.roster[0], this.roster[2]];
+  this.carBots = [null, this.bots[2]];
+  this.bot = this.bots[2];          // compat: bot rival principal
+  this.teamSize = 1;
 
   this.mode = 'ranked';
   this.phase = 'idle';              // idle|countdown|play|goal|overtime|ended
@@ -5263,6 +5281,34 @@ Game.prototype._blankStats = function () {
   };
 };
 
+/* Configura la plantilla activa (1 = 1v1, 2 = 2v2) */
+Game.prototype._setupRoster = function (teamSize) {
+  this.teamSize = teamSize;
+  if (teamSize === 2) {
+    this.cars = [this.roster[0], this.roster[1], this.roster[2], this.roster[3]];
+    this.carBots = [null, this.bots[1], this.bots[2], this.bots[3]];
+  } else {
+    this.cars = [this.roster[0], this.roster[2]];
+    this.carBots = [null, this.bots[2]];
+  }
+  this.bot = this.bots[2];
+  for (var i = 0; i < this.cars.length; i++) {
+    if (this.carBots[i]) this.carBots[i].setContext(this.ball, this.cars[0]);
+  }
+};
+
+/* Rival mas cercano de equipo contrario (para habilidades) */
+Game.prototype.nearestOpponent = function (car) {
+  var best = null, bd = Infinity;
+  for (var i = 0; i < this.cars.length; i++) {
+    var o = this.cars[i];
+    if (o.team === car.team || o.demoed) continue;
+    var d = dist(car.pos.x, car.pos.y, o.pos.x, o.pos.y);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+};
+
 /* ---- Inicio de partida ---- */
 Game.prototype.startMatch = function (mode, opts) {
   opts = opts || {};
@@ -5286,37 +5332,48 @@ Game.prototype.startMatch = function (mode, opts) {
   var s = Save.get();
   this.rankIdx = rankIndexFromMmr(s.mmr);
 
-  // Equipar cosmeticos del jugador
+  // Plantilla: 2v2 solo en el modo casual 'duos'
+  this.is2v2 = !!(casual && casual.duos);
+  this._setupRoster(this.is2v2 ? 2 : 1);
+
+  // Equipar cosmeticos: jugador + bots (companero azul, rivales naranjas)
   this._applyLoadout(this.cars[0], s.equipped, 0);
-  // El bot usa un loadout aleatorio acorde a su rango
-  this._applyBotLoadout(this.cars[1], this.rankIdx);
+  for (var li = 1; li < this.cars.length; li++) this._applyBotLoadout(this.cars[li], this.rankIdx, li);
   // Tema de arena equipado
   this.renderer.theme = getCosmetic(s.equipped.arena) || ARENAS[0];
 
+  var skill = RANKS[this.rankIdx].botSkill;
   if (casual) {
-    this.cars[1].isBot = true;
+    for (var ci = 1; ci < this.cars.length; ci++) this.cars[ci].isBot = true;
     if (this.survival) {
       this.matchDuration = 0; this.timeLeft = 0;
-      this.bot.setSkill(clamp01(RANKS[this.rankIdx].botSkill * 0.6));
+      this.bots[2].setSkill(clamp01(skill * 0.6));
     } else {
       this.matchDuration = casual.time || 120;
       this.timeLeft = this.matchDuration;
-      this.bot.setSkill(RANKS[this.rankIdx].botSkill);
+      // En 2v2: companero un poco mas flojo, rivales al nivel del rango
+      if (this.is2v2) {
+        this.bots[1].setSkill(clamp01(skill * 0.85)); this.bots[1].role = 'support';
+        this.bots[2].setSkill(skill); this.bots[2].role = 'attack';
+        this.bots[3].setSkill(clamp01(skill * 0.92)); this.bots[3].role = 'defend';
+      } else {
+        this.bots[2].setSkill(skill);
+      }
     }
     this._applyMutators(casual.mut || {});
   } else if (mode === 'ranked') {
     this.matchDuration = 120;
     this.timeLeft = 120;
-    this.bot.setSkill(RANKS[this.rankIdx].botSkill);
+    this.bots[2].setSkill(skill);
     this.cars[1].isBot = true;
   } else if (mode === 'freeplay') {
     this.matchDuration = 0; this.timeLeft = 0;
     this.cars[1].isBot = true;
-    this.bot.setSkill(0);            // pasivo: no estorba en freeplay
+    this.bots[2].setSkill(0);        // pasivo: no estorba en freeplay
   } else if (mode === 'training') {
     this.matchDuration = 0; this.timeLeft = 0;
     this.cars[1].isBot = true;
-    this.bot.setSkill(0);
+    this.bots[2].setSkill(0);
     this.training.drillIndex = opts.drill || 0;
     this.training.score = 0; this.training.attempts = 0;
     this._setupDrill();
@@ -5362,9 +5419,9 @@ Game.prototype._applyLoadout = function (car, eq, team) {
   car.abilityCd = 0; car.abilityActive = 0; car.shieldActive = false; car._overdrive = false;
 };
 
-Game.prototype._applyBotLoadout = function (car, rankIdx) {
+Game.prototype._applyBotLoadout = function (car, rankIdx, seedOffset) {
   // El bot luce cosmeticos coherentes con su nivel (mas vistosos a mayor rango)
-  var rng = makeRNG(1000 + rankIdx * 7);
+  var rng = makeRNG(1000 + rankIdx * 7 + (seedOffset || 0) * 131);
   var pickUnlockable = function (list) {
     var avail = list.filter(function (it) {
       return it.unlock.type === 'default' || (it.unlock.type === 'rank' && it.unlock.rank <= rankIdx);
@@ -5372,8 +5429,10 @@ Game.prototype._applyBotLoadout = function (car, rankIdx) {
     return avail[(rng() * avail.length) | 0] || list[0];
   };
   car.body = pickUnlockable(BODIES);
-  car.colorObj = { hex: '#ff8a2b' };          // siempre naranja (equipo)
-  car.color = '#ff8a2b';
+  // Color por equipo: companero azul, rivales naranjas
+  var teamHex = car.team === 0 ? '#3aa0ff' : '#ff8a2b';
+  car.colorObj = { hex: teamHex };
+  car.color = teamHex;
   car.flame = pickUnlockable(FLAMES);
   car.goalFx = pickUnlockable(GOALFX);
   car.wheel = pickUnlockable(WHEELS);
@@ -5398,8 +5457,13 @@ Game.prototype._computeBaseZoom = function () {
 Game.prototype.startKickoff = function (concededTeam) {
   var A = this.arena;
   var groundY = A.h - PHYS.CAR.H * 0.5 - 2;
-  this.cars[0].spawn(A.w * 0.30, groundY, 1);
-  this.cars[1].spawn(A.w * 0.70, groundY, -1);
+  // Posiciona por equipo: equipo 0 a la izquierda (mira derecha), equipo 1 derecha
+  var idx0 = 0, idx1 = 0;
+  for (var i = 0; i < this.cars.length; i++) {
+    var c = this.cars[i];
+    if (c.team === 0) { c.spawn(A.w * (0.22 + idx0 * 0.14), groundY, 1); idx0++; }
+    else { c.spawn(A.w * (0.78 - idx1 * 0.14), groundY, -1); idx1++; }
+  }
   this.ball.reset(A.w / 2, A.h * 0.42, 0, 0);
   this.phase = 'countdown';
   this.countdown = 3.0;
@@ -5473,16 +5537,19 @@ Game.prototype.stepPhysics = function (dt) {
   var sub = PHYS.SUBSTEPS;
   var sdt = dt / sub;
 
-  // Latch de input una vez por paso fijo
+  // Latch de input una vez por paso fijo (jugador + cada bot de la plantilla)
   this.cars[0].beginFrame(this.input.state);
   this.cars[0].processJumpInput();
-  if (this.cars[1].isBot) {
-    this.bot.update(dt, this.kickoffActive);
-    this.cars[1].beginFrame(this.bot.getInput());
-    this.cars[1].processJumpInput();
-  } else {
-    this.cars[1].beginFrame(this.input.state);
-    this.cars[1].processJumpInput();
+  for (var pi = 1; pi < this.cars.length; pi++) {
+    var bot = this.carBots[pi];
+    if (bot) {
+      bot.update(dt, this.kickoffActive);
+      this.cars[pi].beginFrame(bot.getInput());
+      this.cars[pi].processJumpInput();
+    } else {
+      this.cars[pi].beginFrame(this.input.state);
+      this.cars[pi].processJumpInput();
+    }
   }
 
   for (var step = 0; step < sub; step++) {
@@ -5499,13 +5566,17 @@ Game.prototype.stepPhysics = function (dt) {
       var hit = resolveBallCar(this.ball, this.cars[k]);
       if (hit.hit) this._onBallHit(this.cars[k], hit);
     }
-    // Colision coche-coche (solo ranked)
+    // Colision coche-coche (todos los pares; demoliciones solo cruzadas)
     if (this.mode === 'ranked') {
-      var cc = resolveCarCar(this.cars[0], this.cars[1]);
-      if (cc.hit && cc.demo) this._onDemolition(cc);
-      else if (cc.hit && cc.speed > 700) {
-        this.particles.burst(cc.px, cc.py, 4, { colors: ['#ffffff', '#9fd8ff'], speedMax: 160, lifeMax: 0.3, sizeMax: 4 });
-        Audio2.hit(clamp01(cc.speed / 2200));
+      for (var ai = 0; ai < this.cars.length; ai++) {
+        for (var aj = ai + 1; aj < this.cars.length; aj++) {
+          var cc = resolveCarCar(this.cars[ai], this.cars[aj]);
+          if (cc.hit && cc.demo) this._onDemolition(cc);
+          else if (cc.hit && cc.speed > 700) {
+            this.particles.burst(cc.px, cc.py, 4, { colors: ['#ffffff', '#9fd8ff'], speedMax: 160, lifeMax: 0.3, sizeMax: 4 });
+            Audio2.hit(clamp01(cc.speed / 2200));
+          }
+        }
       }
     }
   }
@@ -5632,7 +5703,7 @@ Game.prototype._onDemolition = function (cc) {
   var who = cc.demo, by = cc.demolisher;
   this.matchStats.demos += (by.team === 0) ? 1 : 0;
   this.matchStats.demosTaken += (who.team === 0) ? 1 : 0;
-  if (by.team === 0) MissionTracker.event('demo', 1, { rankIdx: this.rankIdx });
+  if (by === this.cars[0]) MissionTracker.event('demo', 1, { rankIdx: this.rankIdx });
   Audio2.demolish();
   this.camera.addTrauma(0.6);
   this._screenShakeFlash();
@@ -5645,8 +5716,9 @@ Game.prototype._onDemolition = function (cc) {
 Game.prototype._respawnCar = function (car) {
   var A = this.arena;
   var groundY = A.h - PHYS.CAR.H * 0.5 - 2;
-  if (car.team === 0) car.spawn(A.w * 0.18, groundY, 1);
-  else car.spawn(A.w * 0.82, groundY, -1);
+  var off = (this.cars.indexOf(car) % 2) * 0.1;
+  if (car.team === 0) car.spawn(A.w * (0.14 + off), groundY, 1);
+  else car.spawn(A.w * (0.86 - off), groundY, -1);
   car.demoed = false;
   this.particles.burst(car.pos.x, car.pos.y, 14, { colors: [car.colorObj.hex, '#fff'], speedMax: 240, lifeMax: 0.5, sizeMax: 6 });
 };
@@ -5666,7 +5738,7 @@ Game.prototype.activateAbility = function (car) {
     var dx = this.ball.pos.x - car.pos.x, dy = this.ball.pos.y - car.pos.y, d = Math.hypot(dx, dy) || 1;
     if (d < R) { var f = 1500 * (1 - d / R); this.ball.vel.x += dx / d * f; this.ball.vel.y += dy / d * f; }
     if (this.mode === 'ranked') {
-      var o = this.cars[1 - car.team];
+      var o = this.nearestOpponent(car);
       if (o) { var ox = o.pos.x - car.pos.x, oy = o.pos.y - car.pos.y, od = Math.hypot(ox, oy) || 1; if (od < R) { var of2 = 1300 * (1 - od / R); o.vel.x += ox / od * of2; o.vel.y += oy / od * of2; } }
     }
     this.particles.spawn({ x: car.pos.x, y: car.pos.y, vx: 0, vy: 0, life: 0.5, size: 20, sizeEnd: R, color: '#00f0ff', shape: 'ring' });
@@ -5682,7 +5754,7 @@ Game.prototype.activateAbility = function (car) {
     this.camera.addTrauma(0.4); Audio2.hit(1);
     this._addEventTag('METEORO!', car.pos.x, car.pos.y - 40, '#ffcb3d');
   } else if (eff === 'freeze') {
-    if (this.mode === 'ranked') { var op = this.cars[1 - car.team]; if (op) { op.freezeTimer = ab.dur; this._addEventTag('CONGELADO!', op.pos.x, op.pos.y, '#bff4ff'); } }
+    if (this.mode === 'ranked') { var op = this.nearestOpponent(car); if (op) { op.freezeTimer = ab.dur; this._addEventTag('CONGELADO!', op.pos.x, op.pos.y, '#bff4ff'); } }
     Audio2.save2();
   } else if (eff === 'overdrive') { Audio2.flip(); this._addEventTag('SOBRECARGA!', car.pos.x, car.pos.y - 40, '#ffe14d'); }
   else if (eff === 'shield') { Audio2.save2(); this._addEventTag('ESCUDO!', car.pos.x, car.pos.y - 40, '#00f0ff'); }
@@ -5722,14 +5794,17 @@ Game.prototype._onGoal = function (gside) {
   // Estadisticas / misiones (perspectiva del jugador = team 0)
   var wasAerial = this.ball.lastTouchAir && this.ball.lastTouchTeam === scorer;
   var wasMusty = this.ball.lastHitMusty && this.ball.lastTouchTeam === scorer;
+  // En 2v2 los logros personales solo cuentan si el ultimo toque fue del jugador
+  var personal = (this.teamSize === 1) || (this.ball.lastTouchCar === this.cars[0]);
   if (scorer === 0) {
     this.matchStats.goalsP++;
-    Save.get().stats.goals++;
-    MissionTracker.event('goal', 1, { rankIdx: this.rankIdx });
-    if (wasAerial) { this.matchStats.aerialGoals++; Save.get().stats.aerialGoals++; MissionTracker.event('aerialGoal', 1, { rankIdx: this.rankIdx }); if (this.rankIdx >= 8) MissionTracker.event('legendAerial', 1, { rankIdx: this.rankIdx }); }
-    if (wasMusty) { this.matchStats.mustyGoals++; MissionTracker.event('mustyGoal', 1, { rankIdx: this.rankIdx }); }
-    // mision perMatch: goles en una sola partida (leyenda)
-    MissionTracker.recordPerMatchMax('goal', this.matchStats.goalsP, { rankIdx: this.rankIdx });
+    if (personal) {
+      Save.get().stats.goals++;
+      MissionTracker.event('goal', 1, { rankIdx: this.rankIdx });
+      if (wasAerial) { this.matchStats.aerialGoals++; Save.get().stats.aerialGoals++; MissionTracker.event('aerialGoal', 1, { rankIdx: this.rankIdx }); if (this.rankIdx >= 8) MissionTracker.event('legendAerial', 1, { rankIdx: this.rankIdx }); }
+      if (wasMusty) { this.matchStats.mustyGoals++; MissionTracker.event('mustyGoal', 1, { rankIdx: this.rankIdx }); }
+      MissionTracker.recordPerMatchMax('goal', this.matchStats.goalsP, { rankIdx: this.rankIdx });
+    }
   } else {
     this.matchStats.goalsO++;
     Save.get().stats.conceded++;
@@ -5748,9 +5823,10 @@ Game.prototype._onGoal = function (gside) {
     }
   }
 
-  // FX de gol con el festejo equipado del que anota
-  var fxOwner = scorer === 0 ? this.cars[0] : this.cars[1];
-  this._spawnGoalCelebration(scorer, this.ball.pos.x, this.ball.pos.y, fxOwner.goalFx);
+  // FX de gol con el festejo del que marco (ultimo toque del equipo que anota)
+  var fxOwner = (this.ball.lastTouchCar && this.ball.lastTouchCar.team === scorer) ? this.ball.lastTouchCar : null;
+  if (!fxOwner) { for (var fi = 0; fi < this.cars.length; fi++) { if (this.cars[fi].team === scorer) { fxOwner = this.cars[fi]; break; } } }
+  this._spawnGoalCelebration(scorer, this.ball.pos.x, this.ball.pos.y, (fxOwner || this.cars[0]).goalFx);
   this.camera.addTrauma(0.7);
   this.camera.slowmo(0.35);
   setTimeout((function (self) { return function () { self.camera.slowmo(1); }; })(this), 700);
@@ -6395,12 +6471,14 @@ var UI = {
     // bola
     ctx.fillStyle = '#cfe6ff';
     ctx.beginPath(); ctx.arc(game.ball.pos.x * sx, game.ball.pos.y * sy, 2.5, 0, TAU); ctx.fill();
-    // coches
-    ctx.fillStyle = game.cars[0].colorObj.hex;
-    ctx.fillRect(game.cars[0].pos.x * sx - 2, game.cars[0].pos.y * sy - 2, 4, 4);
-    if (game.mode === 'ranked') {
-      ctx.fillStyle = '#ff8a2b';
-      ctx.fillRect(game.cars[1].pos.x * sx - 2, game.cars[1].pos.y * sy - 2, 4, 4);
+    // coches (todos los activos; el jugador con punto blanco)
+    for (var i = 0; i < game.cars.length; i++) {
+      if (game.mode !== 'ranked' && i === 1) continue;
+      var car = game.cars[i];
+      if (car.demoed) continue;
+      ctx.fillStyle = car.team === 0 ? '#25b9ff' : '#ff8a2b';
+      ctx.fillRect(car.pos.x * sx - 2, car.pos.y * sy - 2, 4, 4);
+      if (i === 0) { ctx.fillStyle = '#fff'; ctx.fillRect(car.pos.x * sx - 1, car.pos.y * sy - 1, 2, 2); }
     }
   },
 
