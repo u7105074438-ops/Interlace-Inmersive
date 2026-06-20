@@ -625,6 +625,7 @@ input, select { font-family: inherit; }
    ------------------------------------------------------------------------- */
 .btn {
   position: relative;
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1512,6 +1513,7 @@ input, select { font-family: inherit; }
   background: rgba(4,1,12,0.72);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   padding: calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b));
+  pointer-events: auto;   /* el overlay vive dentro de #ui-root (pointer-events:none) */
 }
 #tutorialOverlay.show { display: flex; }
 .tut-card {
@@ -5335,6 +5337,7 @@ Game.prototype.startMatch = function (mode, opts) {
   // Plantilla: 2v2 solo en el modo casual 'duos'
   this.is2v2 = !!(casual && casual.duos);
   this._setupRoster(this.is2v2 ? 2 : 1);
+  this._initPads();
 
   // Equipar cosmeticos: jugador + bots (companero azul, rivales naranjas)
   this._applyLoadout(this.cars[0], s.equipped, 0);
@@ -5453,6 +5456,71 @@ Game.prototype._computeBaseZoom = function () {
   this.camera.baseZoom = z;
 };
 
+/* ---- Pads de boost (recogidas de turbo en la pista) ---- */
+Game.prototype._initPads = function () {
+  var A = this.arena;
+  var L = [
+    [0.5, 0.5, true],
+    [0.16, 0.84, false], [0.84, 0.84, false],
+    [0.16, 0.4, false], [0.84, 0.4, false],
+    [0.5, 0.22, false]
+  ];
+  this.pads = L.map(function (p) {
+    return { x: A.w * p[0], y: A.h * p[1], big: p[2], r: p[2] ? 40 : 26, active: true, cd: 0, pulse: Math.random() * TAU };
+  });
+};
+Game.prototype._resetPads = function () {
+  if (!this.pads) return;
+  for (var i = 0; i < this.pads.length; i++) { this.pads[i].active = true; this.pads[i].cd = 0; }
+};
+Game.prototype._updatePads = function (dt) {
+  if (!this.pads) return;
+  for (var i = 0; i < this.pads.length; i++) {
+    var pad = this.pads[i];
+    pad.pulse += dt * 3;
+    if (!pad.active) { pad.cd -= dt; if (pad.cd <= 0) pad.active = true; continue; }
+    for (var c = 0; c < this.cars.length; c++) {
+      if (this.mode !== 'ranked' && c === 1) continue;
+      var car = this.cars[c];
+      if (car.demoed) continue;
+      if (dist(car.pos.x, car.pos.y, pad.x, pad.y) < pad.r + car.radius * 0.7) {
+        if (car.boost < PHYS.CAR.BOOST_MAX) {
+          car.boost = Math.min(PHYS.CAR.BOOST_MAX, car.boost + (pad.big ? 100 : 30));
+          pad.active = false; pad.cd = pad.big ? 10 : 4;
+          this.particles.burst(pad.x, pad.y, pad.big ? 16 : 8, { colors: pad.big ? ['#ffe14d', '#ffcb3d', '#fff'] : ['#00f0ff', '#fff'], speedMax: 280, lifeMax: 0.5, sizeMax: 6, glow: 8 });
+          if (car === this.cars[0]) Audio2.coin();
+        }
+        break;
+      }
+    }
+  }
+};
+Game.prototype._renderPads = function (ctx) {
+  if (!this.pads) return;
+  for (var i = 0; i < this.pads.length; i++) {
+    var pad = this.pads[i];
+    var col = pad.big ? '#ffcb3d' : '#00f0ff';
+    ctx.save();
+    ctx.translate(pad.x, pad.y);
+    if (pad.active) {
+      var sc = 1 + Math.sin(pad.pulse) * 0.08;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = col; ctx.lineWidth = 3;
+      if (this.renderer.glow) { ctx.shadowColor = col; ctx.shadowBlur = 12; }
+      var r = pad.r * sc;
+      ctx.beginPath();
+      ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = rgba(col, 0.16); ctx.fill();
+    } else {
+      ctx.strokeStyle = rgba(col, 0.16); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, pad.r * 0.55, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+};
+
 /* ---- Saque (kickoff) ---- */
 Game.prototype.startKickoff = function (concededTeam) {
   var A = this.arena;
@@ -5465,6 +5533,7 @@ Game.prototype.startKickoff = function (concededTeam) {
     else { c.spawn(A.w * (0.78 - idx1 * 0.14), groundY, -1); idx1++; }
   }
   this.ball.reset(A.w / 2, A.h * 0.42, 0, 0);
+  this._resetPads();
   this.phase = 'countdown';
   this.countdown = 3.0;
   this.kickoffActive = true;
@@ -5583,6 +5652,8 @@ Game.prototype.stepPhysics = function (dt) {
 
   // Habilidades especiales (timers + efectos continuos)
   this._updateAbilities(dt);
+  // Pads de boost
+  this._updatePads(dt);
 
   // Boost FX + consumo
   for (var b = 0; b < this.cars.length; b++) {
@@ -6085,6 +6156,7 @@ Game.prototype.render = function () {
   this.camera.applyTransform(ctx);
 
   R.renderArenaToWorld(ctx);
+  this._renderPads(ctx);
 
   // entidades
   for (var i = 0; i < this.cars.length; i++) {
@@ -6271,6 +6343,8 @@ var UI = {
     B('tutNext', function () { UI.tutNav(1); });
     B('tutPrev', function () { UI.tutNav(-1); });
     B('tutSkip', function () { UI.closeTutorial(); });
+    var tutOv = $('tutorialOverlay');
+    if (tutOv) tutOv.addEventListener('click', function (e) { if (e.target === tutOv) UI.tutNav(1); });
     B('playerCard', function () { UI.show('profile'); });
     B('btnProfileBack', function () { UI.show('menu'); });
     B('btnProfileCareer', function () { UI.show('career'); });
@@ -6383,6 +6457,14 @@ var UI = {
     var sb = document.querySelector('.scorebug');
     if (sb && sb.style) sb.style.opacity = mode === 'ranked' ? 1 : 0.85;
     if (mode === 'training') this._updateTrainBanner();
+    this.flashControlsHint();
+  },
+
+  flashControlsHint: function () {
+    var h = $('ctrlHint'); if (!h) return;
+    h.classList.add('show');
+    clearTimeout(this._hintT);
+    this._hintT = setTimeout(function () { h.classList.remove('show'); }, 4500);
   },
 
   _showIntro: function (rankIdx, done) {
