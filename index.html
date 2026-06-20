@@ -1839,6 +1839,7 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
         <button class="gtab" data-tab="goal">Festejo</button>
         <button class="gtab" data-tab="wheel">Ruedas</button>
         <button class="gtab" data-tab="topper">Adorno</button>
+        <button class="gtab" data-tab="arena">Arena</button>
         <button class="gtab" data-tab="ability">Habilidad</button>
       </div>
       <div class="glass-soft scroll-y" style="border-radius:18px; padding:8px; flex:0 0 auto;">
@@ -2882,6 +2883,38 @@ var CASUAL_MODES = [
 ];
 var CASUAL_MODE_INDEX = {};
 CASUAL_MODES.forEach(function (m) { CASUAL_MODE_INDEX[m.id] = m; });
+
+/* ============================================================================
+   ARENAS (temas visuales del estadio) - categoria de cosmetico desbloqueable
+   ----------------------------------------------------------------------------
+   Cada tema cambia el cielo, el campo, la rejilla, el borde y los acentos.
+   ========================================================================== */
+var ARENAS = [
+  { id: 'arena_neon', name: 'Neon Nocturno', rarity: 'common', unlock: { type: 'default' },
+    sky: ['#04010c', '#0c0628', '#06021a'], field: ['#0a0726', '#120a3a', '#1c0f4e'],
+    grid: 'rgba(120,90,220,0.10)', line: 'rgba(150,120,255,0.25)', border: '#00f0ff', stars: '#6f7bff' },
+  { id: 'arena_sunset', name: 'Ocaso', rarity: 'rare', unlock: { type: 'rank', rank: 2 },
+    sky: ['#2a0a3a', '#5a1a4a', '#ff7a3a'], field: ['#2a1030', '#3a1840', '#5a2050'],
+    grid: 'rgba(255,160,120,0.10)', line: 'rgba(255,180,120,0.28)', border: '#ff7a18', stars: '#ffb061' },
+  { id: 'arena_cyber', name: 'Cibernetica', rarity: 'rare', unlock: { type: 'coins', cost: 600 },
+    sky: ['#020a14', '#06202a', '#021018'], field: ['#04141a', '#062028', '#083038'],
+    grid: 'rgba(0,255,200,0.12)', line: 'rgba(0,255,200,0.3)', border: '#25ffcf', stars: '#25ffcf' },
+  { id: 'arena_ice', name: 'Glaciar', rarity: 'epic', unlock: { type: 'rank', rank: 5 },
+    sky: ['#0a1a2a', '#16364a', '#2a5a7a'], field: ['#0e2230', '#163a4a', '#20566a'],
+    grid: 'rgba(180,230,255,0.12)', line: 'rgba(200,240,255,0.3)', border: '#bff4ff', stars: '#bff4ff' },
+  { id: 'arena_lava', name: 'Volcanica', rarity: 'epic', unlock: { type: 'mission', mission: 'demolish_25' },
+    sky: ['#160202', '#3a0a06', '#7a1a0a'], field: ['#200404', '#3a0a08', '#5a1408'],
+    grid: 'rgba(255,120,40,0.12)', line: 'rgba(255,140,60,0.3)', border: '#ff5a00', stars: '#ff7a18' },
+  { id: 'arena_void', name: 'Vacio Cosmico', rarity: 'legend', unlock: { type: 'rank', rank: 8 },
+    sky: ['#05000f', '#10042a', '#1a0840'], field: ['#0a0420', '#140832', '#1e0a4a'],
+    grid: 'rgba(177,75,255,0.12)', line: 'rgba(200,120,255,0.3)', border: '#b14bff', stars: '#ffffff' },
+  { id: 'arena_aurora', name: 'Aurora Real', rarity: 'mythic', unlock: { type: 'mission', mission: 'legend_champion' },
+    sky: ['#02100a', '#06301f', '#0a4a30'], field: ['#04180f', '#063020', '#0a4a30'],
+    grid: 'rgba(37,255,155,0.12)', line: 'rgba(120,255,200,0.32)', border: '#25ff9b', stars: '#8affc8' }
+];
+COSMETIC_LISTS.arena = ARENAS;
+indexCosmetics();
+DEFAULT_SAVE.equipped.arena = 'arena_neon';
 /* ============================================================================
    6.  MOTOR DE AUDIO SINTETIZADO (WebAudio)
    ----------------------------------------------------------------------------
@@ -4607,11 +4640,12 @@ Renderer.prototype.setQuality = function (q) {
 /* Fondo de arena cacheado en coordenadas de MUNDO (se transforma con la camara) */
 Renderer.prototype.renderArenaToWorld = function (ctx) {
   var A = this.arena;
+  var th = this.theme || { field: ['#0a0726', '#120a3a', '#1c0f4e'], grid: 'rgba(120,90,220,0.10)', line: 'rgba(150,120,255,0.25)', border: '#00f0ff' };
   // Suelo / fondo del campo
   var fg = ctx.createLinearGradient(0, 0, 0, A.h);
-  fg.addColorStop(0, '#0a0726');
-  fg.addColorStop(0.55, '#120a3a');
-  fg.addColorStop(1, '#1c0f4e');
+  fg.addColorStop(0, th.field[0]);
+  fg.addColorStop(0.55, th.field[1]);
+  fg.addColorStop(1, th.field[2]);
   ctx.fillStyle = fg;
   this._roundRectPath(ctx, -A.goalDepth, 0, A.w + A.goalDepth * 2, A.h, A.cornerR);
   ctx.fill();
@@ -4620,7 +4654,7 @@ Renderer.prototype.renderArenaToWorld = function (ctx) {
   ctx.save();
   this._roundRectPath(ctx, 0, 0, A.w, A.h, A.cornerR);
   ctx.clip();
-  ctx.strokeStyle = 'rgba(120,90,220,0.10)';
+  ctx.strokeStyle = th.grid;
   ctx.lineWidth = 2;
   for (var gx = 0; gx <= A.w; gx += 120) {
     ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, A.h); ctx.stroke();
@@ -4629,11 +4663,11 @@ Renderer.prototype.renderArenaToWorld = function (ctx) {
     ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(A.w, gy); ctx.stroke();
   }
   // Linea central + circulo
-  ctx.strokeStyle = 'rgba(150,120,255,0.25)';
+  ctx.strokeStyle = th.line;
   ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(A.w / 2, 0); ctx.lineTo(A.w / 2, A.h); ctx.stroke();
   ctx.beginPath(); ctx.arc(A.w / 2, A.h / 2, 150, 0, TAU); ctx.stroke();
-  ctx.beginPath(); ctx.arc(A.w / 2, A.h / 2, 8, 0, TAU); ctx.fillStyle = 'rgba(150,120,255,0.4)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(A.w / 2, A.h / 2, 8, 0, TAU); ctx.fillStyle = th.line; ctx.fill();
   ctx.restore();
 
   // Suelo brillante (linea base)
@@ -4647,11 +4681,37 @@ Renderer.prototype.renderArenaToWorld = function (ctx) {
 
   // Borde neon de la arena
   ctx.lineWidth = 6;
-  ctx.strokeStyle = 'rgba(0,240,255,0.5)';
-  if (this.glow) { ctx.shadowColor = 'rgba(0,240,255,0.6)'; ctx.shadowBlur = 18; }
+  ctx.strokeStyle = rgba(th.border, 0.55);
+  if (this.glow) { ctx.shadowColor = rgba(th.border, 0.6); ctx.shadowBlur = 18; }
   this._roundRectPath(ctx, 0, 0, A.w, A.h, A.cornerR);
   ctx.stroke();
   ctx.shadowBlur = 0;
+};
+
+/* Fondo de pantalla (cielo del tema + estrellas), en espacio de PANTALLA */
+Renderer.prototype.drawBackdrop = function (ctx) {
+  var th = this.theme || { sky: ['#04010c', '#0c0628', '#06021a'], stars: '#6f7bff' };
+  var g = ctx.createLinearGradient(0, 0, 0, this.h);
+  g.addColorStop(0, th.sky[0]);
+  g.addColorStop(0.5, th.sky[1]);
+  g.addColorStop(1, th.sky[2]);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, this.w, this.h);
+  // estrellas (deterministas, baratas)
+  if (this.glow) {
+    if (!this._stars) {
+      this._stars = [];
+      var rng = makeRNG(1234);
+      for (var i = 0; i < 60; i++) this._stars.push({ x: rng(), y: rng() * 0.7, s: rng() * 1.6 + 0.4, a: rng() * 0.6 + 0.2 });
+    }
+    ctx.fillStyle = th.stars;
+    for (var k = 0; k < this._stars.length; k++) {
+      var st = this._stars[k];
+      ctx.globalAlpha = st.a * (0.6 + 0.4 * Math.sin(performance.now() * 0.001 + k));
+      ctx.beginPath(); ctx.arc(st.x * this.w, st.y * this.h, st.s, 0, TAU); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
 };
 
 Renderer.prototype._drawGoal = function (ctx, wallX, color, side) {
@@ -5056,6 +5116,8 @@ Game.prototype.startMatch = function (mode, opts) {
   this._applyLoadout(this.cars[0], s.equipped, 0);
   // El bot usa un loadout aleatorio acorde a su rango
   this._applyBotLoadout(this.cars[1], this.rankIdx);
+  // Tema de arena equipado
+  this.renderer.theme = getCosmetic(s.equipped.arena) || ARENAS[0];
 
   if (casual) {
     this.cars[1].isBot = true;
@@ -5766,9 +5828,8 @@ Game.prototype.render = function () {
   var ctx = this.renderer.ctx;
   var R = this.renderer;
   ctx.setTransform(R.dpr, 0, 0, R.dpr, 0, 0);
-  // limpiar
-  ctx.fillStyle = '#05010f';
-  ctx.fillRect(0, 0, R.w, R.h);
+  // fondo del tema de arena (cielo + estrellas)
+  R.drawBackdrop(ctx);
 
   ctx.save();
   this.camera.applyTransform(ctx);
@@ -6260,6 +6321,9 @@ var UI = {
         inner = '<div style="width:74%;height:10px;border-radius:99px;background:' + tc + ';box-shadow:0 0 10px ' + (item.rainbow ? '#b14bff' : item.color) + '"></div>';
       } else if (UI.garage.tab === 'ability') {
         inner = '<div style="font-size:26px">' + (item.icon || '✨') + '</div>';
+      } else if (UI.garage.tab === 'arena') {
+        var grad = 'linear-gradient(160deg,' + item.sky[0] + ',' + item.sky[1] + ' 60%,' + item.field[2] + ')';
+        inner = '<div style="width:78%;height:78%;border-radius:10px;background:' + grad + ';border:1px solid ' + item.border + ';box-shadow:inset 0 0 12px ' + rgba(item.border, 0.4) + '"></div>';
       } else {
         var icon = ({ body: '🚗', flame: '🔥', goal: '🎉', wheel: '⚙', topper: '🎩', decal: '🎴' })[UI.garage.tab];
         inner = '<div style="font-size:26px">' + icon + '</div>';
@@ -6338,6 +6402,13 @@ var UI = {
     ctx.clearRect(0, 0, w, h);
     this.garage.previewAngle += dt * 0.6;
     var eq = Save.get().equipped;
+    // fondo con el tema de arena equipado (o el seleccionado si estamos en esa pestana)
+    var arenaTheme = (this.garage.tab === 'arena' && this.garage.selected && this.garage.selected.sky) ? this.garage.selected : (getCosmetic(eq.arena) || ARENAS[0]);
+    if (arenaTheme && arenaTheme.sky) {
+      var bgg = ctx.createLinearGradient(0, 0, 0, h);
+      bgg.addColorStop(0, arenaTheme.sky[0]); bgg.addColorStop(0.6, arenaTheme.sky[1]); bgg.addColorStop(1, arenaTheme.field[2]);
+      ctx.globalAlpha = 0.55; ctx.fillStyle = bgg; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+    }
     // construir un coche temporal de preview
     var pc = this._previewCar || (this._previewCar = new Car(GAME.arena, 0, false));
     pc.body = getCosmetic(eq.body); pc.colorObj = getCosmetic(eq.color); pc.color = pc.colorObj.hex;
