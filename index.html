@@ -1925,6 +1925,33 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
     </div>
   </section>
 
+  <!-- ----------------------- PERFIL ----------------------------------- -->
+  <section class="screen" id="screen-profile">
+    <div class="top-bar">
+      <button class="btn btn-icon btn-ghost" id="btnProfileBack">&#8592;</button>
+      <div class="panel-title">PERFIL</div>
+      <button class="btn btn-icon btn-ghost" id="btnProfileCareer">&#127942;</button>
+    </div>
+    <div class="panel-wrap">
+      <div class="glass pad-16 col gap-8" style="flex:0 0 auto;">
+        <div class="row gap-12" style="align-items:center;">
+          <div class="rank-badge" id="profBadge" style="width:60px;height:60px;flex-basis:60px;"><span class="rb-icon" id="profIcon">&#9670;</span></div>
+          <div style="flex:1; min-width:0;">
+            <div class="player-name" id="profName">Piloto</div>
+            <div class="player-rank-name" id="profRank">Bronce I</div>
+            <div class="xp-meta" id="profLevel" style="margin-top:4px;">Nivel 1</div>
+          </div>
+        </div>
+      </div>
+      <div class="glass-soft scroll-y" style="border-radius:18px; padding:12px; flex:1 1 auto;">
+        <div class="result-stats" id="profStats" style="grid-template-columns:1fr 1fr;"></div>
+        <div class="divider"></div>
+        <div class="txt-xs muted uppercase mb-2">Coleccion</div>
+        <div class="result-stats" id="profCollection" style="grid-template-columns:1fr 1fr;"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ----------------------- AJUSTES ---------------------------------- -->
   <section class="screen" id="screen-settings">
     <div class="top-bar">
@@ -6051,7 +6078,7 @@ var UI = {
 
   _cache: function () {
     this.screens = {};
-    ['loading', 'menu', 'intro', 'hud', 'pause', 'result', 'garage', 'missions', 'career', 'settings', 'modes']
+    ['loading', 'menu', 'intro', 'hud', 'pause', 'result', 'garage', 'missions', 'career', 'settings', 'modes', 'profile']
       .forEach(function (n) { UI.screens[n] = $('screen-' + n); });
     this.boostCanvas = $('boostCanvas');
     this.boostCtx = this.boostCanvas.getContext('2d');
@@ -6069,7 +6096,7 @@ var UI = {
     }
     // El HUD permanece debajo de pausa/resultado
     if (name !== 'hud') {
-      if (this.screens.hud && (name === 'menu' || name === 'garage' || name === 'missions' || name === 'career' || name === 'settings' || name === 'modes' || name === 'loading'))
+      if (this.screens.hud && (name === 'menu' || name === 'garage' || name === 'missions' || name === 'career' || name === 'settings' || name === 'modes' || name === 'profile' || name === 'loading'))
         this.screens.hud.classList.remove('active');
     }
     if (this.screens[name]) this.screens[name].classList.add('active');
@@ -6082,6 +6109,41 @@ var UI = {
     else if (name === 'career') this.openCareer();
     else if (name === 'settings') this.refreshSettings();
     else if (name === 'modes') this.openModes();
+    else if (name === 'profile') this.openProfile();
+  },
+
+  /* ---------------- Perfil / estadisticas ---------------- */
+  openProfile: function () {
+    var s = Save.get();
+    var rankIdx = rankIndexFromMmr(s.mmr);
+    var rank = RANKS[rankIdx];
+    var lv = levelFromXp(s.xp);
+    var st = s.stats;
+    $('profName').textContent = s.name;
+    $('profRank').textContent = rank.name + ' · ' + s.mmr + ' MMR';
+    $('profIcon').textContent = rank.icon;
+    $('profBadge').style.background = 'linear-gradient(180deg,' + shade(rank.color, 0.3) + ',' + shade(rank.color, -0.3) + ')';
+    $('profLevel').textContent = 'Nivel ' + lv.level + ' · ' + s.coins + ' ◉';
+    var winrate = st.matches > 0 ? Math.round(st.wins / st.matches * 100) : 0;
+    $('profStats').innerHTML =
+      this._rstat('Partidas', st.matches) + this._rstat('Victorias', st.wins) +
+      this._rstat('Derrotas', st.losses) + this._rstat('% Victorias', winrate + '%') +
+      this._rstat('Goles', st.goals) + this._rstat('Encajados', st.conceded) +
+      this._rstat('Goles aereos', st.aerialGoals) + this._rstat('Demoliciones', st.demos) +
+      this._rstat('Paradas', st.saves) + this._rstat('Flip resets', st.flipResets || 0) +
+      this._rstat('Pinches', st.pinches || 0) + this._rstat('Mejor racha', st.bestStreak) +
+      this._rstat('Max goles/part.', st.maxGoalsMatch) + this._rstat('Mejor superviv.', st.bestSurvival || 0);
+    // Coleccion: desbloqueados por categoria
+    var cats = [['body', 'Chasis'], ['color', 'Colores'], ['flame', 'Llamas'], ['goal', 'Festejos'], ['wheel', 'Ruedas'], ['topper', 'Adornos'], ['decal', 'Calcas'], ['trail', 'Estelas'], ['arena', 'Arenas'], ['ability', 'Habilidades']];
+    var ch = '';
+    cats.forEach(function (c) {
+      var list = cosmeticListByType(c[0]);
+      var have = list.filter(function (it) { return isCosmeticUnlocked(it); }).length;
+      ch += UI._rstat(c[1], have + ' / ' + list.length);
+    });
+    var doneAch = 0; (Save.get().achievements && ACHIEVEMENTS.forEach(function (a) { if (Save.get().achievements[a.id] || isAchievementDone(a)) doneAch++; }));
+    ch += this._rstat('Logros', doneAch + ' / ' + ACHIEVEMENTS.length);
+    $('profCollection').innerHTML = ch;
   },
 
   /* ---------------- Modos extra ---------------- */
@@ -6133,7 +6195,9 @@ var UI = {
     B('tutNext', function () { UI.tutNav(1); });
     B('tutPrev', function () { UI.tutNav(-1); });
     B('tutSkip', function () { UI.closeTutorial(); });
-    B('playerCard', function () { UI.show('career'); });
+    B('playerCard', function () { UI.show('profile'); });
+    B('btnProfileBack', function () { UI.show('menu'); });
+    B('btnProfileCareer', function () { UI.show('career'); });
 
     // Back buttons
     B('btnGarageBack', function () { UI.show('menu'); });
