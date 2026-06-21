@@ -146,12 +146,12 @@
   -webkit-touch-callout: none;
 }
 
-html, body {
+html {
   width: 100%;
   height: 100%;
+}
+html, body {
   overflow: hidden;
-  position: fixed;
-  inset: 0;
   background: var(--bg-0);
   color: var(--txt-0);
   font-family: var(--font-ui);
@@ -163,6 +163,15 @@ html, body {
 }
 
 body {
+  /* Altura = viewport REALMENTE visible (no el layout viewport, que en movil
+     incluye la zona tras la barra del navegador). dvh/svh + override por JS. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;                 /* fallback navegadores antiguos */
+  height: 100svh;                /* area visible con barras mostradas */
+  height: var(--app-h, 100svh);  /* override exacto desde JS (innerHeight) */
   /* Fondo de aurora animado bajo el canvas */
   background:
     radial-gradient(1200px 700px at 15% -10%, rgba(138, 43, 226, 0.30), transparent 60%),
@@ -7200,8 +7209,19 @@ function applyLefty(on) {
   if (typeof INPUT !== 'undefined' && INPUT) INPUT.lefty = !!on;
 }
 
+/* Tamano del viewport REALMENTE visible (descontando barras del navegador) */
+function viewportSize() {
+  var vv = window.visualViewport;
+  var w = Math.round(vv && vv.width ? vv.width : window.innerWidth);
+  var h = Math.round(vv && vv.height ? vv.height : window.innerHeight);
+  return { w: w, h: h };
+}
+
 function resize() {
-  var w = window.innerWidth, h = window.innerHeight;
+  var vp = viewportSize();
+  var w = vp.w, h = vp.h;
+  // Fija la altura exacta del area visible para que nada quede tras la barra del navegador
+  document.documentElement.style.setProperty('--app-h', h + 'px');
   var s = Save.get().settings;
   var q = s.quality === 'auto' ? QUALITY_AUTO : s.quality;
   var dpr = dprForQuality(q);
@@ -7389,7 +7409,14 @@ function boot() {
 
   resize();
   window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange', function () { setTimeout(resize, 250); });
+  window.addEventListener('orientationchange', function () { resize(); setTimeout(resize, 250); setTimeout(resize, 600); });
+  // La barra del navegador movil cambia la altura: re-medir con visualViewport
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resize);
+    window.visualViewport.addEventListener('scroll', resize);
+  }
+  // Re-medidas tras la carga (la barra de direcciones se asienta unos ms despues)
+  [120, 350, 700, 1200, 2000].forEach(function (d) { setTimeout(resize, d); });
 
   lastTime = performance.now();
   requestAnimationFrame(mainLoop);
