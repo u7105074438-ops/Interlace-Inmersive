@@ -1,0 +1,4 @@
+# Despliegue estatico de Roquet Redemption by Areces (un solo index.html).
+[build]
+  publish = "public"
+  command = ""
