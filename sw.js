@@ -1,8 +1,8 @@
 /* Service worker de Roquet Redemption by Areces.
    Cache-first para que el juego cargue al instante y funcione sin conexion
    (requisito para instalarlo como app / PWA y empaquetarlo en tiendas). */
-var CACHE = 'roquet-redemption-v1';
-var ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
+var CACHE = 'roquet-redemption-v2';
+var ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-512-maskable.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
