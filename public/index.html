@@ -190,6 +190,7 @@ input, select { font-family: inherit; }
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+  min-height: 0;   /* imprescindible para que una zona scroll se encoja dentro de un flex column */
   scrollbar-width: thin;
   scrollbar-color: rgba(150,110,255,0.5) transparent;
 }
@@ -1153,8 +1154,9 @@ input, select { font-family: inherit; }
 }
 .garage-stage {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 120px;
+  flex: 0 0 auto;                 /* visor acotado: no se come el resto */
+  height: clamp(104px, 26vh, 240px);
+  min-height: 0;
   border-radius: var(--radius-l);
   overflow: hidden;
   display: grid; place-items: center;
@@ -1171,10 +1173,21 @@ input, select { font-family: inherit; }
   text-align: center; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
 }
 .garage-tabs {
-  display: flex; gap: 6px; justify-content: center;
-  flex-wrap: wrap;
+  display: flex; gap: 6px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;              /* una sola fila deslizable horizontalmente */
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  padding: 2px 2px 4px;
+  scrollbar-width: none;
 }
+.garage-tabs::-webkit-scrollbar { display: none; }
 .gtab {
+  flex: 0 0 auto;
+  white-space: nowrap;
   padding: 8px 14px; border-radius: 99px;
   font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
   background: var(--glass-bg-soft); border: 1px solid var(--glass-border);
@@ -1183,10 +1196,9 @@ input, select { font-family: inherit; }
 .gtab.active { background: linear-gradient(180deg, var(--neon-cyan), var(--neon-blue)); color: #02121a; border-color: transparent; box-shadow: var(--glow-cyan); }
 .garage-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
   gap: 8px;
   padding: 4px;
-  max-height: 30vh;
 }
 .swatch {
   position: relative;
@@ -1659,6 +1671,14 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
   .rank-badge { width: 42px; height: 42px; flex: 0 0 42px; }
   .player-name { font-size: 15px; }
   .xp-line { margin-top: 4px; }
+  /* garaje + paneles */
+  .garage-wrap, .panel-wrap { padding-top: calc(46px + var(--safe-t)); }
+  .garage-stage { height: clamp(78px, 20vh, 150px); }
+  .gtab { padding: 6px 11px; font-size: 11px; }
+  .mission { padding: 9px 11px; }
+  .mission .m-ico { width: 34px; height: 34px; flex: 0 0 34px; font-size: 18px; }
+  .panel-title { font-size: 18px; }
+  .ladder-badge { width: 34px; height: 34px; flex: 0 0 34px; }
 }
 @media (orientation: landscape) and (max-height: 430px) {
   .brand { margin-bottom: 3px; }
@@ -1668,6 +1688,16 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
   .btn { min-height: 40px; padding: 7px 12px; font-size: 12px; }
   .player-card { padding: 6px 10px; }
   .rank-badge { width: 34px; height: 34px; flex: 0 0 34px; }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .load-content { gap: 10px; width: min(640px, 92vw); }
+  .load-emblem { width: clamp(54px, 13vw, 86px); height: clamp(54px, 13vw, 86px); margin-bottom: 0; }
+  .load-logo .lw1 { font-size: clamp(22px, 6.5vw, 48px); }
+  .load-logo .lw2 { font-size: clamp(28px, 8.5vw, 62px); }
+  .load-logo .by { font-size: 10px; letter-spacing: 5px; }
+  .load-bar-wrap { gap: 5px; }
+  .load-tip { min-height: 2em; }
 }
 
 /* Portrait: mostrar aviso de rotacion (el juego es horizontal) */
@@ -1932,10 +1962,10 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
         <button class="gtab" data-tab="arena">Arena</button>
         <button class="gtab" data-tab="ability">Habilidad</button>
       </div>
-      <div class="glass-soft scroll-y" style="border-radius:18px; padding:8px; flex:0 0 auto;">
+      <div class="glass-soft scroll-y" style="border-radius:18px; padding:8px; flex:1 1 auto; min-height:0;">
         <div class="garage-grid" id="garageGrid"></div>
       </div>
-      <button class="btn btn-primary" id="btnEquip" style="max-width:none;">Equipado</button>
+      <button class="btn btn-primary" id="btnEquip" style="max-width:none; flex:0 0 auto;">Equipado</button>
     </div>
   </section>
 
