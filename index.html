@@ -934,6 +934,8 @@ input, select { font-family: inherit; }
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: grid; place-items: center;
+  opacity: 0.5;                       /* en reposo translucido; al tocar se hace opaco (joystick flotante) */
+  transition: opacity 0.18s var(--ease-out);
 }
 .joystick .ring-deco {
   position: absolute; inset: 14%;
@@ -1798,7 +1800,7 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
         <button class="act-btn boost" id="btnBoost"><span class="ico">&#128293;</span><span class="lbl">TURBO</span></button>
         <button class="act-btn jump" id="btnJump"><span class="ico">&#9650;</span><span class="lbl">SALTO</span></button>
       </div>
-      <div class="ctrl-hint" id="ctrlHint">Joystick: mover &middot; Doble salto = flip</div>
+      <div class="ctrl-hint" id="ctrlHint">Toca la zona izquierda para conducir &middot; Doble salto = flip</div>
     </div>
 
     <!-- Boost HUD -->
@@ -3424,15 +3426,35 @@ InputManager.prototype.attach = function () {
   var nub = document.getElementById('joyNub');
   this.joyEl = joy; this.nubEl = nub;
 
-  function joyStart(e) {
-    var rect = joy.getBoundingClientRect();
-    self.joyCx = rect.left + rect.width / 2;
-    self.joyCy = rect.top + rect.height / 2;
-    self.joyR = rect.width * 0.42;
+  var hudEl = document.getElementById('screen-hud');
+
+  // Joystick FLOTANTE: aparece donde tocas en la zona del joystick (mas comodo).
+  function startJoyAt(e) {
+    var size = joy.offsetWidth || 132;
+    var half = size / 2;
+    var cx = clamp(e.clientX, half + 6, window.innerWidth - half - 6);
+    var cy = clamp(e.clientY, half + 6, window.innerHeight - half - 6);
+    joy.style.left = (cx - half) + 'px';
+    joy.style.top = (cy - half) + 'px';
+    joy.style.right = 'auto';
+    joy.style.bottom = 'auto';
+    joy.style.opacity = '1';
+    self.joyCx = cx; self.joyCy = cy;
+    self.joyR = size * 0.42;
     self.joyActive = true;
     self.joyId = e.pointerId;
     joyMove(e);
     e.preventDefault();
+  }
+  function onDown(e) {
+    if (self.joyActive) return;                                  // ya hay un joystick activo
+    if (!hudEl || !hudEl.classList.contains('active')) return;   // solo durante la partida
+    if (e.target && e.target.closest && e.target.closest('button, .act-btn, .pause-btn, .fp-btn')) return;
+    if (e.clientY < 64) return;                                  // no robar la barra superior
+    var W = window.innerWidth;
+    var onJoySide = self.lefty ? (e.clientX > W * 0.42) : (e.clientX < W * 0.62);
+    if (!onJoySide) return;
+    startJoyAt(e);
   }
   function joyMove(e) {
     if (!self.joyActive || e.pointerId !== self.joyId) return;
@@ -3457,8 +3479,10 @@ InputManager.prototype.attach = function () {
     self.joyActive = false; self.joyId = -1;
     nub.style.transform = 'translate(0,0)';
     self.state.ax = self.state.ay = self.state.aimX = self.state.aimY = self.state.mag = 0;
+    // volver al rincon por defecto (estilos CSS)
+    joy.style.left = ''; joy.style.top = ''; joy.style.right = ''; joy.style.bottom = ''; joy.style.opacity = '';
   }
-  joy.addEventListener('pointerdown', joyStart);
+  window.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', joyMove);
   window.addEventListener('pointerup', joyEnd);
   window.addEventListener('pointercancel', joyEnd);
@@ -3621,7 +3645,8 @@ var PHYS = {
   GRAV: 2750,               // gravedad (u/s^2)
   BALL_RADIUS: 46,
   BALL_REST: 0.62,          // restitucion de la bola con muros
-  BALL_GROUND_FRICTION: 0.86,
+  BALL_GROUND_FRICTION: 0.0, // (sin friccion por-contacto: compondria cada substep)
+  BALL_ROLL_FRIC: 0.5,      // resistencia a la rodadura (por segundo), dependiente de dt
   BALL_AIR_DRAG: 0.06,
   BALL_MAX_SPEED: 4200,
   CAR_REST: 0.28,
@@ -3807,16 +3832,20 @@ Ball.prototype.integrate = function (dt) {
   this.pos.addScaled(this.vel, dt);
   var c = this.arena.collide(this.pos, this.vel, this.radius, this.rest, PHYS.BALL_GROUND_FRICTION, true);
   this.onGround = (c.hit && c.surface === 'ground');
+  // Resistencia a la rodadura: la bola conserva su velocidad y va frenando suave
+  if (this.onGround) this.vel.x *= Math.exp(-PHYS.BALL_ROLL_FRIC * dt);
   if (c.hit) {
     // El giro reacciona a la friccion contra la superficie
-    if (c.surface === 'ground') this.spin = lerp(this.spin, -this.vel.x * 0.01, 0.5);
+    if (c.surface === 'ground') this.spin = lerp(this.spin, this.vel.x / this.radius, 0.4);
     return c;
   }
   return null;
 };
 Ball.prototype.updateVisual = function (dt) {
-  this.spin = lerp(this.spin, this.vel.x * 0.004, 0.04);
-  this.rot += this.spin * dt + this.vel.x * 0.00004;
+  // Rodadura sin deslizamiento: omega = v / r. En el aire, giro mas suave.
+  var omega = this.onGround ? (this.vel.x / this.radius)
+                            : (this.vel.x / this.radius * 0.5 + this.spin * 0.3);
+  this.rot += omega * dt;
   this.glowPulse += dt * 4;
 };
 Ball.prototype.speed = function () { return this.vel.len(); };
@@ -4670,86 +4699,142 @@ BotAI.prototype.getInput = function () { return this.out; };
 function drawCarShape(ctx, body, colorObj, w, h, opts) {
   opts = opts || {};
   var s = body.shape;
+  var style = s.style || 'classic';
   var hex = colorObj.hex;
   // Prisma: color animado
   if (colorObj.prism) { hex = hslToHex((performance.now() * 0.06) % 360, 0.9, 0.6); }
-  var hw = w / 2, hh = h / 2;
-  var top = shade(hex, 0.35);
+  // Cada chasis escala su silueta segun len/height (siluetas bien distintas)
+  var ww = w * (s.len || 1);
+  var hht = h * (s.height || 1);
+  var hw = ww / 2, hh = hht / 2;
+  var top = shade(hex, 0.4);
   var mid = hex;
-  var dark = shade(hex, -0.45);
+  var dark = shade(hex, -0.5);
   var accent = opts.accent || shade(hex, 0.6);
 
-  // Cuerpo principal (cuna/wedge)
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  // ---- Spoiler/aleron trasero (se dibuja antes del cuerpo para que quede detras) ----
+  var bigWing = (style === 'batmobile' || style === 'dominus' || style === 'levi' || s.spoiler > 0.6);
+  if (bigWing) {
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(-hw - ww * 0.05, -hh * 0.62);
+    ctx.lineTo(-hw + ww * 0.12, -hh * 0.62);
+    ctx.lineTo(-hw + ww * 0.1, -hh * 0.2);
+    ctx.lineTo(-hw - ww * 0.05, -hh * 0.2);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = rgba(accent, 0.9);
+    ctx.fillRect(-hw - ww * 0.07, -hh * 0.66, ww * 0.2, hh * 0.1);
+  }
+
+  // ---- Silueta del cuerpo segun el estilo ----
   ctx.beginPath();
-  var noseY = -hh * s.wedge;
-  // perfil: morro bajo delante, parte trasera mas alta
-  ctx.moveTo(-hw, hh);                          // trasera inferior
-  ctx.lineTo(-hw, -hh * 0.5 - hh * s.spoiler * 0.5); // trasera superior (spoiler)
-  ctx.lineTo(-hw * 0.2, -hh);                   // techo
-  ctx.lineTo(hw * 0.5, noseY);                  // capo
-  ctx.lineTo(hw, hh * (0.2 - s.nose * 0.2));    // morro
-  ctx.lineTo(hw, hh);                           // morro inferior
-  ctx.closePath();
+  if (style === 'dominus' || style === 'batmobile') {
+    // largo, bajo y agresivo, morro puntiagudo
+    ctx.moveTo(-hw, hh);
+    ctx.lineTo(-hw, -hh * 0.08);
+    ctx.lineTo(-hw * 0.55, -hh * 0.5);
+    ctx.quadraticCurveTo(-hw * 0.1, -hh * 0.72, hw * 0.22, -hh * 0.62);
+    ctx.quadraticCurveTo(hw * 0.66, -hh * 0.46, hw * 0.92, -hh * 0.08);
+    ctx.lineTo(hw, hh * 0.18);
+    ctx.lineTo(hw, hh);
+    ctx.closePath();
+  } else if (style === 'octane') {
+    // alto, corto y robusto (bloque)
+    ctx.moveTo(-hw, hh);
+    ctx.lineTo(-hw, -hh * 0.4);
+    ctx.quadraticCurveTo(-hw * 0.95, -hh * 0.98, -hw * 0.35, -hh);
+    ctx.lineTo(hw * 0.32, -hh);
+    ctx.quadraticCurveTo(hw * 0.92, -hh * 0.95, hw * 0.98, -hh * 0.3);
+    ctx.lineTo(hw, hh * 0.3);
+    ctx.lineTo(hw, hh);
+    ctx.closePath();
+  } else if (style === 'levi') {
+    // grande, ancho y pesado
+    ctx.moveTo(-hw, hh);
+    ctx.lineTo(-hw, -hh * 0.32);
+    ctx.lineTo(-hw * 0.55, -hh * 0.82);
+    ctx.lineTo(hw * 0.05, -hh * 0.95);
+    ctx.quadraticCurveTo(hw * 0.7, -hh * 0.86, hw, -hh * 0.22);
+    ctx.lineTo(hw, hh);
+    ctx.closePath();
+  } else if (style === 'spectre' || style === 'aureo') {
+    // curvo y elegante
+    ctx.moveTo(-hw, hh);
+    ctx.quadraticCurveTo(-hw, -hh * 0.32, -hw * 0.55, -hh * 0.6);
+    ctx.quadraticCurveTo(-hw * 0.05, -hh * 0.92, hw * 0.4, -hh * 0.66);
+    ctx.quadraticCurveTo(hw * 0.82, -hh * 0.44, hw, -hh * 0.02);
+    ctx.lineTo(hw, hh);
+    ctx.closePath();
+  } else {
+    // classic (Cohete): muscle car equilibrado y con buena pinta
+    ctx.moveTo(-hw, hh);
+    ctx.lineTo(-hw, -hh * 0.22);
+    ctx.quadraticCurveTo(-hw * 0.82, -hh * 0.86, -hw * 0.32, -hh * 0.88);
+    ctx.lineTo(hw * 0.04, -hh * 0.92);
+    ctx.quadraticCurveTo(hw * 0.46, -hh * 0.58, hw * 0.72, -hh * 0.16);
+    ctx.lineTo(hw, -hh * 0.02);
+    ctx.lineTo(hw, hh);
+    ctx.closePath();
+  }
   var grad = ctx.createLinearGradient(0, -hh, 0, hh);
   grad.addColorStop(0, top);
-  grad.addColorStop(0.5, mid);
+  grad.addColorStop(0.45, mid);
   grad.addColorStop(1, dark);
   ctx.fillStyle = grad;
   ctx.fill();
+  // brillo superior
+  ctx.save();
+  ctx.clip();
+  var sheen = ctx.createLinearGradient(0, -hh, 0, 0);
+  sheen.addColorStop(0, 'rgba(255,255,255,0.22)');
+  sheen.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(-hw, -hh, ww, hh);
+  // Calca / decal (recortada al cuerpo)
+  if (opts.decal && opts.decal.style !== 'none') drawDecal(ctx, opts.decal, hw, hh, ww, hht, hex);
+  ctx.restore();
 
-  // Borde neon
-  ctx.lineWidth = Math.max(1.5, w * 0.02);
-  ctx.strokeStyle = shade(hex, 0.5);
+  // Borde neon del chasis
+  ctx.lineWidth = Math.max(1.5, ww * 0.02);
+  ctx.strokeStyle = shade(hex, 0.55);
   ctx.stroke();
 
-  // Cabina / parabrisas
+  // ---- Cabina / parabrisas (posicion segun estilo) ----
+  var roofY = (style === 'octane') ? -hh * 0.86
+            : (style === 'dominus' || style === 'batmobile') ? -hh * 0.6
+            : -hh * 0.74;
   ctx.beginPath();
-  var cw = hw * s.cabin;
-  ctx.moveTo(-hw * 0.1, -hh * 0.96);
-  ctx.lineTo(cw * 0.7, noseY * 0.7 - hh * 0.05);
-  ctx.lineTo(cw * 0.7, -hh * 0.1);
-  ctx.lineTo(-hw * 0.1, -hh * 0.1);
+  ctx.moveTo(-hw * 0.18, roofY * 0.92);
+  ctx.quadraticCurveTo(hw * 0.18, roofY, hw * 0.42, roofY * 0.5);
+  ctx.lineTo(hw * 0.4, -hh * 0.06);
+  ctx.lineTo(-hw * 0.22, -hh * 0.06);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(10,18,34,0.85)';
+  var glass = ctx.createLinearGradient(0, roofY, 0, 0);
+  glass.addColorStop(0, 'rgba(120,200,255,0.5)');
+  glass.addColorStop(1, 'rgba(8,16,34,0.92)');
+  ctx.fillStyle = glass;
   ctx.fill();
-  ctx.strokeStyle = rgba(accent, 0.5);
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
+  ctx.strokeStyle = rgba(accent, 0.55); ctx.lineWidth = 1.2; ctx.stroke();
 
-  // Franja de acento (segun estilo)
-  ctx.fillStyle = rgba(accent, 0.9);
-  if (s.style === 'dominus' || s.style === 'levi') {
-    ctx.fillRect(-hw * 0.9, hh * 0.1, w * 0.85, hh * 0.18);
-  } else if (s.style === 'octane') {
-    ctx.beginPath(); ctx.arc(hw * 0.25, 0, hh * 0.4, 0, TAU); ctx.fill();
-  } else if (s.style === 'batmobile' || s.style === 'spectre') {
-    ctx.beginPath();
-    ctx.moveTo(-hw * 0.2, hh * 0.2); ctx.lineTo(hw * 0.8, -hh * 0.1); ctx.lineTo(hw * 0.8, hh * 0.25);
-    ctx.closePath(); ctx.fill();
-  } else if (s.style === 'aureo') {
-    ctx.fillStyle = rgba('#ffcb3d', 0.85);
-    ctx.fillRect(-hw * 0.9, -hh * 0.05, w * 0.9, hh * 0.16);
-    ctx.fillRect(-hw * 0.9, hh * 0.35, w * 0.9, hh * 0.1);
-  } else {
-    ctx.fillRect(-hw * 0.7, hh * 0.15, w * 0.7, hh * 0.16);
-  }
+  // ---- Franja/acento lateral ----
+  ctx.fillStyle = (style === 'aureo') ? rgba('#ffcb3d', 0.9) : rgba(accent, 0.85);
+  ctx.fillRect(-hw * 0.86, hh * 0.16, ww * 0.78, Math.max(2, hh * 0.14));
+  if (style === 'aureo') { ctx.fillStyle = rgba('#fff0c0', 0.7); ctx.fillRect(-hw * 0.86, -hh * 0.02, ww * 0.78, hh * 0.06); }
 
-  // Calca / decal
-  if (opts.decal && opts.decal.style !== 'none') drawDecal(ctx, opts.decal, hw, hh, w, h, hex);
-
-  // Spoiler trasero
-  if (s.spoiler > 0.45) {
-    ctx.fillStyle = dark;
-    ctx.fillRect(-hw - w * 0.04, -hh * 0.5 - hh * s.spoiler * 0.5, w * 0.12, hh * s.spoiler * 0.7);
-    ctx.fillStyle = rgba(accent, 0.8);
-    ctx.fillRect(-hw - w * 0.06, -hh * 0.5 - hh * s.spoiler * 0.5, w * 0.16, hh * 0.08);
-  }
-
-  // Faro / luz del morro
+  // ---- Faro del morro ----
   ctx.beginPath();
-  ctx.arc(hw * 0.86, hh * 0.05, Math.max(2, w * 0.03), 0, TAU);
+  ctx.arc(hw * 0.88, hh * 0.04, Math.max(2, ww * 0.028), 0, TAU);
   ctx.fillStyle = '#fff7d6';
-  ctx.shadowColor = '#fff7d6'; ctx.shadowBlur = opts.glow ? 8 : 0;
+  if (opts.glow) { ctx.shadowColor = '#fff7d6'; ctx.shadowBlur = 8; }
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  // piloto trasero
+  ctx.beginPath();
+  ctx.arc(-hw * 0.92, hh * 0.05, Math.max(1.5, ww * 0.02), 0, TAU);
+  ctx.fillStyle = '#ff5a4a';
+  if (opts.glow) { ctx.shadowColor = '#ff5a4a'; ctx.shadowBlur = 6; }
   ctx.fill();
   ctx.shadowBlur = 0;
 }
@@ -5067,10 +5152,13 @@ Renderer.prototype.drawCar = function (ctx, car) {
 };
 
 Renderer.prototype._drawWheels = function (ctx, car) {
-  var hw = car.w / 2, hh = car.h / 2;
-  var rimR = car.h * 0.32;
+  var s = car.body.shape;
+  var ww = car.w * (s.len || 1);
+  var hht = car.h * (s.height || 1);
+  var hw = ww / 2, hh = hht / 2;
+  var rimR = car.h * 0.34;          // las ruedas conservan tamano coherente
   var wcfg = car.wheel;
-  var positions = [[-hw * 0.6, hh * 0.7], [hw * 0.6, hh * 0.7]];
+  var positions = [[-hw * 0.58, hh * 0.82], [hw * 0.58, hh * 0.82]];
   for (var i = 0; i < positions.length; i++) {
     var px = positions[i][0], py = positions[i][1];
     ctx.save();
@@ -6202,7 +6290,7 @@ function formatTime(sec) {
 
 var TUTORIAL_STEPS = [
   { icon: '🚗', title: 'Bienvenido', text: 'Esto es <b>Roquet Redemption</b>: futbol con coches cohete. Mete la bola en la <b>porteria naranja</b> (derecha) para marcar.' },
-  { icon: '🕹', title: 'Moverse', text: 'Usa el <b>joystick</b> (abajo izquierda) para conducir y, en el aire, para inclinar el morro. En horizontal todo cabe en pantalla.' },
+  { icon: '🕹', title: 'Moverse', text: 'El <b>joystick es flotante</b>: toca en cualquier punto de la zona izquierda y arrastra para conducir (y, en el aire, inclinar el morro). Mucho mas comodo.' },
   { icon: '⬆', title: 'Saltar y Flip', text: 'Boton verde para <b>saltar</b>. Pulsa otra vez con direccion para hacer un <b>flip</b> (diagonal, hacia delante o backflip).' },
   { icon: '🔥', title: 'Turbo y vuelo', text: 'Boton naranja = <b>Turbo</b>. En el aire, apunta el morro a la bola y mantenlo para <b>volar</b> y hacer aereos.' },
   { icon: '🔄', title: 'Air Roll y mecanicas', text: 'Boton violeta = <b>Air Roll</b> (giro continuo). Toca la bola con las <b>ruedas</b> en el aire = <b>Flip Reset</b>. Comprime contra el muro = <b>Pinch</b>.' },
@@ -7109,6 +7197,7 @@ function applyControlScale(v) {
 }
 function applyLefty(on) {
   document.body.classList.toggle('lefty', on);
+  if (typeof INPUT !== 'undefined' && INPUT) INPUT.lefty = !!on;
 }
 
 function resize() {
