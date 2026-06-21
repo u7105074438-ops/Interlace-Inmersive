@@ -715,14 +715,25 @@ input, select { font-family: inherit; }
 /* ---------------------------------------------------------------------------
    10. MENU PRINCIPAL
    ------------------------------------------------------------------------- */
+/* El menu se desplaza si su contenido no cabe (p.ej. en horizontal de movil) */
+#screen-menu {
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding-top: 0;
+  padding-bottom: 0;
+}
 .menu-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  height: 100%;
+  min-height: 100%;            /* centra si cabe; crece y permite scroll si no */
   justify-content: center;
   gap: 10px;
+  padding: calc(48px + var(--safe-t)) 0 calc(14px + var(--safe-b));  /* deja sitio a la barra superior */
 }
 .menu-stack {
   display: flex;
@@ -1594,6 +1605,17 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
 }
 #fpsMeter.show { display: block; }
 
+/* Pantallas centradas que pueden desbordar en horizontal: permitir scroll */
+#screen-result, #screen-pause {
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+#screen-result > .result-wrap,
+#screen-pause > .glass { margin: auto; }
+
 /* ---------------------------------------------------------------------------
    25. MEDIA QUERIES (RESPONSIVO)
    ------------------------------------------------------------------------- */
@@ -1622,6 +1644,30 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
   .menu-grid { gap: 8px; }
   .btn { min-height: 50px; padding: 13px 18px; }
   .player-card { padding: 11px 13px; }
+}
+
+/* Movil en horizontal con poca altura: compacta el menu para que quepa/scrollee mejor */
+@media (orientation: landscape) and (max-height: 560px) {
+  .brand { margin-bottom: 6px; animation: none; }
+  .brand .line1 { font-size: clamp(18px, 5vw, 36px); }
+  .brand .line2 { font-size: clamp(24px, 7vw, 50px); }
+  .brand .by { font-size: 9px; letter-spacing: 4px; margin-top: 2px; }
+  .menu-wrap { gap: 6px; padding-top: calc(44px + var(--safe-t)); }
+  .menu-grid { gap: 7px; }
+  .btn { min-height: 44px; padding: 9px 14px; font-size: 13px; }
+  .player-card { padding: 8px 12px; margin-bottom: 2px; gap: 10px; }
+  .rank-badge { width: 42px; height: 42px; flex: 0 0 42px; }
+  .player-name { font-size: 15px; }
+  .xp-line { margin-top: 4px; }
+}
+@media (orientation: landscape) and (max-height: 430px) {
+  .brand { margin-bottom: 3px; }
+  .brand .line1 { font-size: clamp(15px, 4.4vw, 28px); }
+  .brand .line2 { font-size: clamp(20px, 6vw, 40px); }
+  .menu-wrap { gap: 5px; padding-top: calc(40px + var(--safe-t)); }
+  .btn { min-height: 40px; padding: 7px 12px; font-size: 12px; }
+  .player-card { padding: 6px 10px; }
+  .rank-badge { width: 34px; height: 34px; flex: 0 0 34px; }
 }
 
 /* Portrait: mostrar aviso de rotacion (el juego es horizontal) */
