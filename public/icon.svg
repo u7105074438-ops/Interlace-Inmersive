@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#1a0a4d"/>
+      <stop offset="55%" stop-color="#0a0420"/>
+      <stop offset="100%" stop-color="#05010f"/>
+    </radialGradient>
+    <linearGradient id="car" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bff9ff"/>
+      <stop offset="55%" stop-color="#00f0ff"/>
+      <stop offset="100%" stop-color="#0a6cff"/>
+    </linearGradient>
+    <linearGradient id="ball" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#7fa8e0"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Fondo a sangre completa (maskable) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- Anillos neon -->
+  <g fill="none" filter="url(#glow)">
+    <circle cx="256" cy="248" r="172" stroke="#00f0ff" stroke-opacity="0.85" stroke-width="10" stroke-dasharray="430 1080" stroke-linecap="round" transform="rotate(-40 256 248)"/>
+    <circle cx="256" cy="248" r="150" stroke="#ff2bd6" stroke-opacity="0.85" stroke-width="9" stroke-dasharray="360 1080" stroke-linecap="round" transform="rotate(150 256 248)"/>
+    <circle cx="256" cy="248" r="128" stroke="#ffe14d" stroke-opacity="0.7" stroke-width="6" stroke-dasharray="150 1080" stroke-linecap="round" transform="rotate(20 256 248)"/>
+  </g>
+
+  <!-- Pelota -->
+  <circle cx="332" cy="206" r="34" fill="url(#ball)" filter="url(#glow)"/>
+  <circle cx="332" cy="206" r="34" fill="none" stroke="#3a5a90" stroke-opacity="0.5" stroke-width="3"/>
+
+  <!-- Coche cohete (cuna) con llama -->
+  <g filter="url(#glow)">
+    <path d="M150 300 L150 268 Q168 246 206 246 L262 250 Q300 256 322 296 L322 300 Z" fill="url(#car)" stroke="#bff9ff" stroke-width="3" stroke-linejoin="round"/>
+    <!-- cabina -->
+    <path d="M198 258 Q236 250 262 270 L260 290 L206 290 Z" fill="#0a1424" fill-opacity="0.9"/>
+    <!-- llama trasera -->
+    <path d="M150 284 L96 270 L150 256 Z" fill="#ffd24a" opacity="0.95"/>
+    <path d="M150 284 L116 274 L150 264 Z" fill="#ff7a18"/>
+    <!-- ruedas -->
+    <circle cx="196" cy="304" r="20" fill="#0a0a12"/>
+    <circle cx="196" cy="304" r="11" fill="#00f0ff" fill-opacity="0.8"/>
+    <circle cx="290" cy="304" r="20" fill="#0a0a12"/>
+    <circle cx="290" cy="304" r="11" fill="#00f0ff" fill-opacity="0.8"/>
+  </g>
+
+  <!-- Texto -->
+  <text x="256" y="408" text-anchor="middle" font-family="Trebuchet MS, Arial, sans-serif" font-weight="900" font-size="58" letter-spacing="2" fill="#00f0ff" filter="url(#glow)">ROQUET</text>
+  <text x="256" y="452" text-anchor="middle" font-family="Trebuchet MS, Arial, sans-serif" font-weight="900" font-size="30" letter-spacing="8" fill="#ff2bd6">REDEMPTION</text>
+</svg>
