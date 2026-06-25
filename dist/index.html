@@ -943,6 +943,48 @@ input, select { font-family: inherit; }
 }
 #touch-controls.hidden { display: none; }
 
+/* ---- Modo escritorio (teclado/raton): oculta joystick y botones de movimiento;
+   conserva el boton de habilidad (clicable, muestra cooldown) y muestra la
+   leyenda de teclado. ---- */
+body.desktop .joystick,
+body.desktop .ctrl-hint,
+body.desktop .act-btn.jump,
+body.desktop .act-btn.boost,
+body.desktop .act-btn.airroll,
+body.desktop .act-btn.drift { display: none; }
+
+.kbd-legend {
+  position: absolute;
+  left: calc(14px + var(--safe-l));
+  bottom: calc(14px + var(--safe-b));
+  z-index: 8;
+  display: none;                     /* visible solo en escritorio durante la partida */
+  padding: 10px 13px;
+  border-radius: 14px;
+  background: rgba(10,6,28,0.42);
+  border: 1px solid rgba(150,110,255,0.32);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), inset 0 0 24px rgba(120,80,255,0.08);
+  font-size: 12px; line-height: 1.75; color: rgba(255,255,255,0.86);
+  pointer-events: none; user-select: none;
+  max-width: 320px;
+}
+body.desktop #screen-hud.active .kbd-legend { display: block; }
+.kbd-legend .kl-title {
+  font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase;
+  font-size: 10px; color: var(--neon-cyan); opacity: 0.95; margin-bottom: 5px;
+}
+.kbd-legend .kl-row { white-space: nowrap; }
+.kbd-legend.min .kl-rows { display: none; }
+.kbd-legend.min { padding: 7px 12px; opacity: 0.7; }
+.kbd-legend kbd {
+  display: inline-block; min-width: 14px; padding: 1px 6px; margin: 0 1px;
+  border-radius: 6px; text-align: center;
+  background: rgba(255,255,255,0.13);
+  border: 1px solid rgba(255,255,255,0.28); border-bottom-width: 2px;
+  font-family: inherit; font-weight: 700; font-size: 11px; color: #fff;
+}
+
 /* Joystick virtual (izquierda) */
 .joystick {
   position: absolute;
@@ -1890,6 +1932,18 @@ body.lefty .ctrl-hint { left: auto; right: calc(14px + var(--safe-l)); }
         <button class="act-btn jump" id="btnJump"><span class="ico">&#9650;</span><span class="lbl">SALTO</span></button>
       </div>
       <div class="ctrl-hint" id="ctrlHint">Toca la zona izquierda para conducir &middot; Doble salto = flip</div>
+    </div>
+
+    <!-- Leyenda de controles (solo escritorio) -->
+    <div class="kbd-legend" id="kbdLegend">
+      <div class="kl-title">Controles &middot; <kbd>H</kbd></div>
+      <div class="kl-rows">
+        <div class="kl-row"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd>&nbsp; Conducir</div>
+        <div class="kl-row"><kbd>Espacio</kbd>&nbsp; Saltar / Flip</div>
+        <div class="kl-row"><kbd>Shift</kbd>&nbsp; Turbo &nbsp;&middot;&nbsp; <kbd>J</kbd>&nbsp; Air&nbsp;Roll</div>
+        <div class="kl-row"><kbd>Z</kbd>&nbsp; Drift &nbsp;&middot;&nbsp; <kbd>E</kbd>&nbsp; Habilidad</div>
+        <div class="kl-row"><kbd>Esc</kbd>&nbsp; Pausa</div>
+      </div>
     </div>
 
     <!-- Boost HUD -->
@@ -3532,6 +3586,8 @@ function InputManager() {
   this.bound = false;
   this.lefty = false;
   this.onPauseToggle = null;
+  this.onAbility = null;        // tecla de habilidad (escritorio)
+  this.onLegendToggle = null;   // tecla H: mostrar/ocultar leyenda de controles
 }
 
 InputManager.prototype.attach = function () {
@@ -3564,6 +3620,7 @@ InputManager.prototype.attach = function () {
     e.preventDefault();
   }
   function onDown(e) {
+    if (document.body.classList.contains('desktop')) return;     // en PC se juega con teclado
     if (self.joyActive) return;                                  // ya hay un joystick activo
     if (!hudEl || !hudEl.classList.contains('active')) return;   // solo durante la partida
     if (e.target && e.target.closest && e.target.closest('button, .act-btn, .pause-btn, .fp-btn')) return;
@@ -3669,7 +3726,11 @@ InputManager.prototype._applyKeys = function (e, down) {
   if (code === 'ShiftLeft' || code === 'ShiftRight' || code === 'KeyL') s.boostHeld = down;
   if (code === 'KeyJ' || code === 'AltLeft' || code === 'AltRight') { s.airRollHeld = down; if (down) s.airRollPressed = true; }
   if (code === 'KeyZ' || code === 'ControlLeft') s.driftHeld = down;
+  if ((code === 'KeyE' || code === 'KeyQ') && down && this.onAbility) this.onAbility();
+  if (code === 'KeyH' && down && this.onLegendToggle) this.onLegendToggle();
   if (code === 'Escape' && down && this.onPauseToggle) this.onPauseToggle();
+  // Evita que las flechas/espacio hagan scroll de la pagina durante el juego
+  if (down && (code.indexOf('Arrow') === 0 || code === 'Space')) e.preventDefault();
   s.active = true;
 };
 
@@ -6614,6 +6675,17 @@ var UI = {
       if (UI.current === 'hud' && GAME.running) UI.pause();
       else if (UI.current === 'pause') UI.resume();
     };
+    // Tecla de habilidad (E / Q) en escritorio
+    INPUT.onAbility = function () {
+      if (GAME.running && GAME.activatePlayerAbility()) {
+        var ab = $('btnAbility');
+        if (ab) { ab.classList.add('pressed'); setTimeout(function () { ab.classList.remove('pressed'); }, 120); }
+      }
+    };
+    // Tecla H: contraer/expandir la leyenda de controles
+    INPUT.onLegendToggle = function () {
+      var el = $('kbdLegend'); if (el) el.classList.toggle('min');
+    };
   },
 
   _lastMode: 'ranked', _lastModeId: null,
@@ -7490,6 +7562,40 @@ function mainLoop(now) {
 }
 
 /* ---- Inicializacion ---- */
+/* ============================================================================
+   DETECCION DE ESCRITORIO
+   ----------------------------------------------------------------------------
+   En PC (puntero fino + hover, sin pantalla tactil) ocultamos el joystick y el
+   cluster de botones y mostramos la leyenda de teclado. En hibridos, el primer
+   uso de una tecla activa el modo teclado; el primer toque vuelve al tactil.
+   ========================================================================== */
+function setDesktopMode(on) {
+  document.body.classList.toggle('desktop', !!on);
+  if (on && TUTORIAL_STEPS && !TUTORIAL_STEPS._desktopApplied) {
+    TUTORIAL_STEPS._desktopApplied = true;
+    TUTORIAL_STEPS[1].icon = '⌨';
+    TUTORIAL_STEPS[1].text = 'En ordenador usa <b>WASD</b> o las <b>flechas</b> para conducir (y, en el aire, inclinar el morro). Pulsa <b>H</b> para ver/ocultar los controles.';
+    TUTORIAL_STEPS[2].text = '<b>Espacio</b> para <b>saltar</b>. Pulsa otra vez con direccion para hacer un <b>flip</b> (diagonal, delante o backflip).';
+    TUTORIAL_STEPS[3].text = '<b>Shift</b> = <b>Turbo</b>. En el aire, apunta el morro a la bola y manten Shift para <b>volar</b> y hacer aereos.';
+    TUTORIAL_STEPS[4].text = '<b>J</b> = <b>Air Roll</b> (giro continuo). <b>Z</b> = Drift/Roll. Tocar la bola con las ruedas en el aire = <b>Flip Reset</b>.';
+    TUTORIAL_STEPS[5].text = 'Equipa una <b>habilidad</b> en el Garaje y activala con <b>E</b> en partida (tiene cooldown).';
+  }
+}
+function detectDesktop() {
+  var fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  var hasTouch = (navigator.maxTouchPoints || 0) > 0 || ('ontouchstart' in window);
+  setDesktopMode(fine && !hasTouch);
+  // Hibridos: el primer uso del teclado cambia a modo PC
+  var gameKeys = { Space: 1, KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, ShiftLeft: 1, ShiftRight: 1, KeyJ: 1, KeyZ: 1, KeyE: 1, KeyQ: 1, KeyK: 1, KeyL: 1 };
+  window.addEventListener('keydown', function (e) {
+    if (gameKeys[e.code] || e.code.indexOf('Arrow') === 0) setDesktopMode(true);
+  }, true);
+  // ...y el primer toque real vuelve a modo tactil
+  window.addEventListener('touchstart', function () {
+    if ((navigator.maxTouchPoints || 0) > 0) setDesktopMode(false);
+  }, { passive: true });
+}
+
 function boot() {
   Save.load();
   refreshDailies();
@@ -7514,6 +7620,9 @@ function boot() {
   applyControlScale(st.joySize);
   applyLefty(!!st.lefty);
   $('fpsMeter').classList.toggle('show', !!st.showFps);
+
+  // ---- Modo escritorio: teclado/raton en vez de controles tactiles ----
+  detectDesktop();
 
   resize();
   window.addEventListener('resize', resize);
