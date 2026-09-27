@@ -1,12 +1,21 @@
-# promotion_case.gd — Cuerpo de test_promotion: regla de la silla libre (§6.2), reposición en cadena con favor y agravio (§6.3), rechazo, laterales, descensos (§6.1), mérito con caducidad y guardado.
+# promotion_case.gd — Cuerpo de test_promotion: regla de la silla libre (§6.2), reposición en cadena con favor y agravio (§6.3), saltos, sucesores, rechazo, laterales, descensos (§6.1), mérito con caducidad y guardado.
 # PROPIETARIO DE: nada.
-# ESCUCHA: seat_vacated, seat_filled, occupation_changed, promotion_available, promotion_declined, merit_gained, game_over (solo para comprobarlas).
+# ESCUCHA: seat_vacated, seat_filled, occupation_changed, promotion_available, promotion_declined, merit_gained, game_over, grievance_added, notebook_entry_added (solo para comprobarlas).
 extends TestCase
 
 const START := "email_worker_3b"
 const TARGET := "order_filer"
 const LATERAL := "copy_operator"
 const MID_SEAT := "mail_courier"
+## email_worker_3b.can_jump_to: R1 → R4 de un salto.
+const JUMP := "mail_courier"
+const HR_DIRECTOR := "hr_director"
+const HR_ASSISTANT := "hr_assistant"
+const AMELIA := "npc_amelia_cole"
+## Deber de tipo "delivery" (éxito visible) y uno rutinario de volumen (no lo es).
+const DELIVERY_DUTY := "duty_campaign_pieces_r11"
+const ROUTINE_DUTY := "duty_emails_r1"
+const NOTE_OFFER := "NOTE_PROMOTION_AVAILABLE"
 const AUDITOR := "chief_auditor"
 const ROSE := "npc_rose_miller"
 const ROSE_DAY := 31
@@ -20,7 +29,7 @@ const OFFICE_HOUR := 12
 const MIN_CANDIDATE_RANK := 1
 const SIGNALS: Array[String] = [
 	"seat_vacated", "seat_filled", "occupation_changed", "promotion_available",
-	"promotion_declined", "merit_gained", "game_over",
+	"promotion_declined", "merit_gained", "game_over", "grievance_added", "notebook_entry_added",
 ]
 
 var _log: Dictionary = {}
@@ -35,9 +44,11 @@ func run_case() -> void:
 	_test_three_conditions()
 	_test_promotion_flow()
 	_test_auto_fill_chain()
+	_test_jump_promotion()
 	await _test_vacancy_window()
 	_test_npc_removed()
 	await _test_designated_successor()
+	_test_successor_on_vacancy()
 	_test_decline_and_offer()
 	_test_lateral_moves()
 	_test_created_post_and_demotions()
@@ -82,6 +93,8 @@ func _test_three_conditions() -> void:
 					"promote_player refuses without %s" % str(expected))
 	check(Array(Company.can_player_promote_to("ceo")["missing"]).has("path"),
 			"a post that is not reachable from 3B reports 'path'")
+	check_eq(Company.get_merit_threshold(), 1,
+			"§6.2: one recent merit event is enough (threshold 1 point)")
 
 
 func _test_promotion_flow() -> void:
@@ -107,7 +120,8 @@ func _test_promotion_flow() -> void:
 	check(_has_ledger_entry(passed_over, "grievances", "promotion_stolen"),
 			"§6.3 grievance: the colleague who expected the chair (NPCDirector ledger)")
 	check(_has_ledger_entry(expelled, "grievances", "seat_lost"),
-			"§6.3 grievance: the expelled holder lost the chair")
+			"§6.3 grievance: the holder expelled through NPCDirector.remove_npc lost the chair")
+	check(not NPCDirector.is_active(expelled), "the expelled holder is off staff (realistic path)")
 
 
 ## §6.3: mail_courier (R4) se repone desde R3 → R2 → R1 → Rookie contratado en la base.
@@ -115,7 +129,7 @@ func _test_auto_fill_chain() -> void:
 	_fresh()
 	var snapshot: Array[Dictionary] = _seats_snapshot()
 	var riser: String = _expected_best(MID_SEAT, snapshot)
-	Company.vacate_seat(MID_SEAT, EXPELLED)
+	_expel_holder(MID_SEAT)
 	_clear()
 	Company.auto_fill_vacancies()
 	check(Company.get_vacant_seats().is_empty(), "the chain leaves no vacancy behind")
@@ -133,6 +147,24 @@ func _test_auto_fill_chain() -> void:
 	check_eq([hires[0]["occupation_id"], _contexts[3]["kind"]], [START, "hire"],
 			"the Rookie takes an email_worker_3b chair")
 	check(Company.is_hire(str(hires[0]["npc_id"])), "is_hire() recognises the Rookie id")
+
+
+## §6.1: saltos múltiples (can_jump_to) con las mismas tres condiciones.
+func _test_jump_promotion() -> void:
+	_fresh()
+	var jump: OccupationData = Database.get_occupation(JUMP)
+	check(Database.get_occupation(START).can_jump_to.has(JUMP), "data: 3B can jump to mail courier")
+	PlayerState.modify_reputation(jump.min_reputation + REP_MARGIN, "test")
+	Company.register_merit("test", Company.get_merit_threshold())
+	check_eq(Array(Company.can_player_promote_to(JUMP)["missing"]), ["vacancy"],
+			"a jump needs the same three conditions (here only the vacancy is missing)")
+	_expel_holder(JUMP)
+	check(Company.get_available_promotions().has(JUMP), "the jump is offered once the chair is free")
+	_clear()
+	check(Company.promote_player(JUMP), "multi-rank jump accepted")
+	check_eq(_player_occupation(), JUMP, "the player jumped to mail courier")
+	check_eq(jump.rank - Database.get_occupation(START).rank, 3, "three ranks in one move (R1 → R4)")
+	check(_calls("occupation_changed").has([START, JUMP, "promotion"]), "reason 'promotion'")
 
 
 ## La vacante espera empresa.jornadas_vacante_abierta jornadas antes de reponerse sola.
@@ -156,6 +188,9 @@ func _test_npc_removed() -> void:
 	check(_calls("seat_vacated").has(["senior_accountant", holder, EXPELLED]),
 			"npc_removed → seat_vacated(occupation, npc, cause)")
 	check(Company.get_npc_seat(holder).is_empty(), "the removed NPC no longer holds a seat")
+	Company.fill_seat("senior_accountant", holder)
+	check(Company.get_npc_seat(holder).is_empty() and Company.is_seat_vacant("senior_accountant"),
+			"fill_seat refuses an NPC who is no longer on staff")
 
 
 ## Rose Miller (§7.13): en la jornada 31 el Auditor Jefe generado se jubila y ella asciende.
@@ -173,16 +208,41 @@ func _test_designated_successor() -> void:
 			"future_occupation takes precedence over §6.3 scoring")
 
 
+## Sucesora designada sin jornada (Amelia Cole, future_occupation hr_director): toda vacante de
+## Dirección de RR. HH. es suya aunque venga de R9 (§6.3 cede ante el perfil).
+func _test_successor_on_vacancy() -> void:
+	_fresh()
+	check_eq(str(NPCDirector.get_profile(AMELIA).get("future_occupation", "")), HR_DIRECTOR,
+			"data: Amelia Cole is the designated HR director")
+	check_eq(Company.get_npc_seat(AMELIA).get("occupation_id"), HR_ASSISTANT,
+			"Amelia starts as HR assistant (R9)")
+	_expel_holder(HR_DIRECTOR)
+	_clear()
+	Company.auto_fill_vacancies()
+	check_eq(Company.get_seat_holder(HR_DIRECTOR), AMELIA,
+			"an HR director vacancy goes straight to Amelia Cole (R9 → R23)")
+	check(_contexts.size() > 0 and _contexts[0]["kind"] == "successor"
+			and _contexts[0]["from_occupation"] == HR_ASSISTANT, "successor fill, from hr_assistant")
+	check(Company.get_vacant_seats().is_empty(), "her old chair is refilled down the chain")
+
+
 func _test_decline_and_offer() -> void:
 	_prepare(true, true, true)
 	check(_offered(TARGET), "promotion_available lists order_filer once the conditions hold")
+	check_eq(_notes(NOTE_OFFER), 1, "the notebook records the new offer once")
 	_clear()
 	GameClock.advance_to_next_day()
 	check(_offered(TARGET), "the offer is repeated at the start of the next day")
+	check_eq(_notes(NOTE_OFFER), 0, "an unchanged offer does not write a new notebook entry")
+	_clear()
+	Company.decline_promotion("cfo")
+	check(_calls("promotion_declined").is_empty(), "declining a post that is not on offer does nothing")
 	Company.decline_promotion(TARGET)
 	check(_calls("promotion_declined").has([TARGET]), "promotion_declined(order_filer)")
 	check(not Company.is_seat_vacant(TARGET), "a declined chair is refilled at once")
 	check_eq(_player_occupation(), START, "the player keeps the old post")
+	Company.decline_promotion(TARGET)
+	check_eq(_calls("promotion_declined").size(), 1, "a refilled chair cannot be declined twice")
 
 
 func _test_lateral_moves() -> void:
@@ -191,9 +251,11 @@ func _test_lateral_moves() -> void:
 	check_eq(Company.get_player_seat().get("occupation_id"), TARGET,
 			"an external occupation change moves the player's seat silently")
 	check_eq(Company.get_seat_count(TARGET), 5, "no vacancy → a temporary extra seat")
-	PlayerState.modify_reputation(Database.get_occupation(LATERAL).min_reputation + REP_MARGIN,
-			"test")
-	Company.vacate_seat(LATERAL, EXPELLED)
+	PlayerState.modify_reputation(Database.get_occupation(LATERAL).min_reputation + REP_MARGIN
+			+ Database.get_balance_float("empresa.margen_reputacion_crear_puesto"), "test")
+	check_eq(Array(Company.can_player_promote_to(LATERAL)["missing"]), ["vacancy"],
+			"exceptional reputation creates posts only for promotions, never for laterals")
+	_expel_holder(LATERAL)
 	var result: Dictionary = Company.can_player_promote_to(LATERAL)
 	check(bool(result["allowed"]), "a lateral move needs no merit, only reputation and vacancy")
 	check(Company.get_available_promotions().has(LATERAL), "laterals are listed as available")
@@ -213,12 +275,15 @@ func _test_created_post_and_demotions() -> void:
 	var target: OccupationData = Database.get_occupation(TARGET)
 	PlayerState.modify_reputation(target.min_reputation
 			+ Database.get_balance_float("empresa.margen_reputacion_crear_puesto"), "test")
-	Company.register_merit("test", Company.get_merit_threshold(target.tier))
+	Company.register_merit("test", Company.get_merit_threshold())
 	check(bool(Company.can_player_promote_to(TARGET)["allowed"]),
 			"exceptional reputation: management creates the post (no vacancy needed)")
 	check(Company.promote_player(TARGET), "promotion into a created post")
 	check_eq(Company.get_seat_count(TARGET), 5, "the created post is an extra seat")
 	check(_calls("occupation_changed").has([START, TARGET, "created_post"]), "reason created_post")
+	check_eq(Company.get_last_fill_context()["grievance_to"], "",
+			"a created post takes nobody's chair: no one is passed over")
+	check(not _grievance_of_type("promotion_stolen"), "no promotion_stolen grievance is recorded")
 	_clear()
 	Company.demote_player("test_failure")
 	check_eq(_player_occupation(), "eternal_intern", "§6.1 descent: order_filer → eternal intern")
@@ -244,21 +309,32 @@ func _test_merit_sources_and_expiry() -> void:
 	_fresh()
 	var day: int = GameClock.get_day()
 	var expiry: int = Database.get_balance_int("empresa.jornadas_caducidad_merito")
+	var duty_merit: int = Database.get_balance_int("empresa.merito_deber_exitoso")
+	EventBus.duty_completed.emit(ROUTINE_DUTY, 1.0, "honest")
+	check_eq(Company.get_recent_merit(), 0, "a routine duty (emails, volume) is not a visible success")
+	EventBus.duty_completed.emit(DELIVERY_DUTY, 1.0, "assist")
+	check_eq(Company.get_recent_merit(), 0, "an A.S.S.I.S.T. delivery is not a visible success")
+	EventBus.duty_completed.emit(DELIVERY_DUTY, 1.0, "honest")
+	check_eq(Company.get_recent_merit(), duty_merit, "an honest delivery is a visible success")
+	check(not Array(Company.can_player_promote_to(TARGET)["missing"]).has("merit"),
+			"a single visible success satisfies the merit condition")
 	Company.register_merit("idea", 3)
 	check(_calls("merit_gained").has(["idea", 3]), "register_merit emits merit_gained")
-	EventBus.duty_completed.emit("duty_emails_r1", 1.0, "honest")
-	EventBus.duty_completed.emit("duty_emails_r1", 1.0, "assist")
-	var npc: String = Company.get_seat_holder(START)
-	EventBus.bribe_offered.emit(npc, 500, "praise_to_superior")
-	EventBus.bribe_result.emit(npc, true, "accepted")
-	var expected: int = 3 + Database.get_balance_int("empresa.merito_deber_exitoso") \
-			+ Database.get_balance_int("empresa.merito_recomendacion")
+	_bribe_recommendation(Company.get_seat_holder(START))
+	var expected: int = 3 + duty_merit + Database.get_balance_int("empresa.merito_recomendacion")
 	check_eq(Company.get_recent_merit(), expected,
-			"idea + visible success (honest duty) + bought recommendation; assist gives none here")
+			"idea + visible success + bought recommendation")
 	GameClock.set_time(day + expiry - 1, OFFICE_HOUR, 0)
 	check_eq(Company.get_recent_merit(), expected, "merit is still recent on its last day")
 	GameClock.set_time(day + expiry, OFFICE_HOUR, 0)
 	check_eq(Company.get_recent_merit(), 0, "merit expires after %d days" % expiry)
+	_fresh()
+	PlayerState.set_occupation("deputy_cfo", "test")
+	check(Array(Company.can_player_promote_to("cfo")["missing"]).has("merit"),
+			"no merit yet for the CFO chair")
+	_bribe_recommendation(Company.get_seat_holder("cfo"))
+	check(not Array(Company.can_player_promote_to("cfo")["missing"]).has("merit"),
+			"one bought recommendation satisfies the merit condition even for a tier-7 post")
 
 
 func _test_save_load() -> void:
@@ -274,6 +350,8 @@ func _test_save_load() -> void:
 	check(_same_seats(Company.get_all_seats(), seats), "seats survive a JSON save/load")
 	check_eq(Company.get_hires().size(), hires.size(), "hires survive")
 	check_eq(Company.get_recent_merit(), merit, "recent merit survives")
+	check_eq(typeof(Company.get_last_fill_context()["day"]), TYPE_INT,
+			"the last fill context keeps an int day after a JSON round trip")
 
 
 # ─── Utilidades ────────────────────────────────────────────────
@@ -290,9 +368,25 @@ func _prepare(reputation: bool, merit: bool, vacancy: bool) -> void:
 	if reputation:
 		PlayerState.modify_reputation(target.min_reputation + REP_MARGIN, "test")
 	if merit:
-		Company.register_merit("test", Company.get_merit_threshold(target.tier))
+		Company.register_merit("test", Company.get_merit_threshold())
 	if vacancy:
-		Company.vacate_seat(TARGET, EXPELLED)
+		_expel_holder(TARGET)
+
+
+## Expulsa por la vía real (NPCDirector.remove_npc → npc_removed → Company libera la silla) al
+## primer personaje titular de la ocupación. Devuelve su id.
+func _expel_holder(occupation_id: String) -> String:
+	for holder: String in Company.get_seat_holders(occupation_id):
+		if not holder.is_empty() and holder != "player":
+			NPCDirector.remove_npc(holder, EXPELLED)
+			return holder
+	return ""
+
+
+## Soborno aceptado del favor «recomendación» (empresa.favor_recomendacion).
+func _bribe_recommendation(npc_id: String) -> void:
+	EventBus.bribe_offered.emit(npc_id, 500, str(Database.get_balance("empresa.favor_recomendacion")))
+	EventBus.bribe_result.emit(npc_id, true, "accepted")
 
 
 func _player_occupation() -> String:
@@ -349,6 +443,21 @@ func _chain_goes_down() -> bool:
 func _has_ledger_entry(npc_id: String, list: String, entry_type: String) -> bool:
 	for entry: Variant in NPCDirector.get_ledger(npc_id).get(list, []):
 		if entry is Dictionary and str(entry.get("type", "")) == entry_type:
+			return true
+	return false
+
+
+func _notes(text_key: String) -> int:
+	var count: int = 0
+	for call: Array in _calls("notebook_entry_added"):
+		if call[1] == text_key:
+			count += 1
+	return count
+
+
+func _grievance_of_type(grievance_type: String) -> bool:
+	for call: Array in _calls("grievance_added"):
+		if call[1] == grievance_type:
 			return true
 	return false
 

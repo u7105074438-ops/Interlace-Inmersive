@@ -17,7 +17,8 @@ extends Node
 ##    lod.intervalo_estadistico_segundos) mientras el reloj corre, SALVO a los personajes que un nodo
 ##    del mundo sitúa con set_current_location(): esa sala manda hasta release_current_location()
 ##    o hasta que el personaje baja a LOD 2 (sin nodo, §20.1: posición inferida del horario).
-##  · override_routine(npc, franja, sala) vale hasta el cambio de jornada; sala "" la anula.
+##  · override_routine(npc, franja, sala) vale hasta el cambio de jornada; sala "" la anula. En la
+##    franja en curso sitúa ya al personaje (también si lo situaba un nodo).
 ##  · Utilidad (§7.5) SOLO por eventos: belief_created (portador = personaje, sujeto = jugador,
 ##    hecho negativo según BeliefNet.is_negative_fact), time_band_changed (personajes presentes en
 ##    LOD 0/1) y bribe_offered (consultivo: el resultado real es de Bribery, §8.2). El término de
@@ -137,8 +138,6 @@ const REASON_SHORTLIST := "shortlist"
 const STATE_ABSENT := "absent"
 const STATE_SLACKING := "slacking"
 const STATE_REMOVED := "removed"
-## Claves de la última decisión (get_last_decision).
-const DECISION_INT_KEYS: Array[String] = ["day", "minute"]
 ## Rangos del manual (no ajustes): afecto −100..100, temor 0-100 (§7.9), ánimo −1..1,
 ## reputación de personaje 0-100 (BUILD_NOTES §13).
 const AFFECTION_LIMIT := 100
@@ -628,7 +627,9 @@ func get_scheduled_location(npc_id: String, band: String) -> String:
 	return str(_location_at(npc, _planner.representative_minute(band), false)["room"])
 
 
-## Sustituye la sala de una franja hasta el cambio de jornada ("" anula la sustitución).
+## Sustituye la sala de una franja hasta el cambio de jornada ("" anula la sustitución). Si es la
+## franja en curso, sitúa ya al personaje (orden de una escena, p. ej. sentar a los asistentes de
+## Aurora) aunque un nodo lo estuviera situando.
 func override_routine(npc_id: String, band: String, location: String) -> void:
 	var npc: NPCRuntime = get_npc(npc_id)
 	if npc == null:
@@ -637,8 +638,8 @@ func override_routine(npc_id: String, band: String, location: String) -> void:
 		npc.schedule_override.erase(band)
 	else:
 		npc.schedule_override[band] = location
-	if _planner != null and _planner.band_of_minute(_clock_minute()) == band \
-			and not _world_located.has(npc_id):
+	if _planner != null and _planner.band_of_minute(_clock_minute()) == band:
+		_world_located.erase(npc_id)
 		var loc: Dictionary = _location_at(npc, _clock_minute(), true)
 		_place(npc, str(loc["room"]), str(loc["activity"]))
 

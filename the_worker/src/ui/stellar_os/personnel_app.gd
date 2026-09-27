@@ -1238,8 +1238,9 @@ func _level_card(file: Dictionary) -> Control:
 	card.max_level = max_level()
 	card.level_name = tr("PERS_LEVEL_NAME_%d" % card.level)
 	var reason: String = str(file.get("full_reason", ""))
-	card.note = tr("PERS_REASON_" + reason.to_upper()) if not reason.is_empty() else ""
-	card.custom_minimum_size = Vector2(OsKit.px(11.0), OsKit.px(7.0))
+	card.note = tr("PERS_FULL_FILE_FMT") % tr("PERS_REASON_" + reason.to_upper()) if not reason.is_empty() else ""
+	card.hint = tr("PERS_LEVEL_HINT")
+	card.custom_minimum_size = Vector2(OsKit.px(12.0), OsKit.px(7.0))
 	return card
 
 
@@ -1373,7 +1374,7 @@ func _add_bribe(box: VBoxContainer, data: Dictionary) -> void:
 		box.add_child(chip)
 	for row: Dictionary in data["prices"]:
 		box.add_child(OsKit.field_row(str(row["name"]), UITheme.format_money(int(row["price"])),
-				OsKit.V_MONO))
+				OsKit.V_STRONG))
 
 
 func _add_home(box: VBoxContainer, data: Dictionary) -> void:
@@ -1501,7 +1502,8 @@ class OsKit extends RefCounted:
 	const SIDEBAR_EM := 21.0
 	const DESKTOP_MARGIN := 1.4
 	const BAND := 2
-	const BEVEL := 12
+	## Textura 9-patch grande: el centro liso evita el degradado del filtrado lineal al estirarla.
+	const BEVEL := 96
 
 	static var _themes: Dictionary = {}
 	static var _textures: Dictionary = {}
@@ -1683,6 +1685,15 @@ class OsKit extends RefCounted:
 				img.set_pixel(i, n - 1 - offset - w, bottom_right)
 				img.set_pixel(n - 1 - offset - w, i, bottom_right)
 
+	## Textura transparente de `side` px (reserva el hueco del glifo en los botones).
+	static func blank_texture(side: int) -> ImageTexture:
+		var key: String = "blank_%d" % side
+		if not _textures.has(key):
+			var img: Image = Image.create(maxi(side, 1), maxi(side, 1), false, Image.FORMAT_RGBA8)
+			img.fill(Color(0, 0, 0, 0))
+			_textures[key] = ImageTexture.create_from_image(img)
+		return _textures[key]
+
 	static func arrow_texture() -> ImageTexture:
 		if _textures.has("arrow"):
 			return _textures["arrow"]
@@ -1816,9 +1827,7 @@ class GlyphButton extends Button:
 		if glyph.is_empty():
 			icon = null
 			return
-		var hole: PlaceholderTexture2D = PlaceholderTexture2D.new()
-		hole.size = Vector2(OsKit.px(0.95), OsKit.px(0.95))
-		icon = hole
+		icon = OsKit.blank_texture(OsKit.px(0.95))
 
 	func _draw() -> void:
 		if glyph.is_empty():
@@ -1887,14 +1896,16 @@ class OsTitleBar extends Control:
 		icon_name = glyph
 		custom_minimum_size.y = OsKit.px(1.9)
 		_close = OsKit.button("", "cross")
-		_close.custom_minimum_size = Vector2(OsKit.px(1.7), OsKit.px(1.4))
+		for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
+			_close.add_theme_stylebox_override(state, OsKit.bevel_box(OsKit.FACE if state != "pressed"
+					else OsKit.FACE_MID, state == "pressed", 0.18, 0.12))
 		_close.tooltip_text = TranslationServer.translate("OS_CLOSE")
 		_close.pressed.connect(func() -> void: close_pressed.emit())
 		add_child(_close)
 
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_RESIZED and _close != null:
-			var s: Vector2 = _close.custom_minimum_size
+			var s: Vector2 = _close.get_combined_minimum_size()
 			_close.size = s
 			_close.position = Vector2(size.x - s.x - OsKit.px(0.25), (size.y - s.y) * 0.5)
 
@@ -1911,8 +1922,9 @@ class OsTitleBar extends Control:
 		OsKit.text(self, Vector2(box.end.x + pad * 2.0, baseline), title, OsKit.font_black(), fsize,
 				OsKit.TITLE_INK, size.x - box.end.x - OsKit.px(8.0))
 		var deco: float = size.y - pad * 2.0
+		var close_w: float = _close.get_combined_minimum_size().x + OsKit.px(0.5)
 		for i: int in 2:
-			var x: float = size.x - OsKit.px(1.95) - (deco + pad) * float(2 - i)
+			var x: float = size.x - close_w - (deco * 1.2 + pad) * float(2 - i)
 			var btn: Rect2 = Rect2(x, pad, deco * 1.2, deco)
 			OsKit.draw_bevel(self, btn, OsKit.FACE, false)
 			var glyph: Rect2 = btn.grow(-deco * 0.3)
@@ -2107,19 +2119,19 @@ class LinkRow extends Control:
 		draw_circle(Vector2(OsKit.px(0.4), size.y * 0.5), OsKit.px(0.3), color)
 		draw_arc(Vector2(OsKit.px(0.4), size.y * 0.5), OsKit.px(0.3), 0, TAU, 16, OsKit.INK, 1.5)
 		var x: float = float(OsKit.px(1.0))
-		var bar_w: float = float(OsKit.px(3.2))
+		var bar_w: float = float(OsKit.px(4.6))
 		var name_w: float = (size.x - x - bar_w - OsKit.px(0.6)) * 0.55
 		var label: String = (arrow + " " if show_arrow else "") + who
 		OsKit.text(self, Vector2(x, mid), label, OsKit.font_bold(), fsize, OsKit.INK, name_w)
 		var kind_text: String = kind + ("  · " + TranslationServer.translate("PERS_SECRET_TAG") if secret else "")
 		OsKit.text(self, Vector2(x + name_w + OsKit.px(0.3), mid), kind_text, OsKit.font_regular(),
 				OsKit.px(0.8), OsKit.RED if secret else OsKit.soft(), size.x - x - name_w - bar_w - OsKit.px(0.6))
-		var bar: Rect2 = Rect2(size.x - bar_w, size.y * 0.3, bar_w * (0.62 if exact else 1.0), size.y * 0.4)
+		var bar: Rect2 = Rect2(size.x - bar_w, size.y * 0.3, bar_w - (OsKit.px(2.1) if exact else 0.0), size.y * 0.4)
 		OsKit.draw_bevel(self, bar, OsKit.FIELD, true)
 		draw_rect(Rect2(bar.position + Vector2(2, 2), Vector2((bar.size.x - 4) * strength, bar.size.y - 4)), color)
 		if exact:
 			OsKit.text(self, Vector2(bar.end.x + OsKit.px(0.25), mid), "%.2f" % strength, OsKit.font_mono(),
-					OsKit.px(0.78), OsKit.INK, bar_w * 0.38)
+					OsKit.px(0.78), OsKit.INK, OsKit.px(1.9))
 
 
 ## Etiqueta de color («PROBABLE», «INSOBORNABLE»).
@@ -2184,6 +2196,7 @@ class LevelCard extends Control:
 	var max_level: int = 7
 	var level_name: String = ""
 	var note: String = ""
+	var hint: String = ""
 
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
@@ -2206,6 +2219,192 @@ class LevelCard extends Control:
 		var y: float = inner.position.y + pad + small + big * 1.35
 		OsKit.text(self, Vector2(inner.position.x + pad, y), level_name, OsKit.font_bold(), OsKit.px(0.85),
 				OsKit.INK, inner.size.x - pad * 2.0)
+		y += OsKit.px(1.1)
 		if not note.is_empty():
-			OsKit.text(self, Vector2(inner.position.x + pad, y + OsKit.px(1.1)), note, OsKit.font_bold(),
-					small, OsKit.RED, inner.size.x - pad * 2.0)
+			OsKit.text(self, Vector2(inner.position.x + pad, y), note, OsKit.font_bold(), small, OsKit.RED,
+					inner.size.x - pad * 2.0)
+			y += OsKit.px(1.0)
+		draw_multiline_string(OsKit.font_regular(), Vector2(inner.position.x + pad, y), hint,
+				HORIZONTAL_ALIGNMENT_LEFT, inner.size.x - pad * 2.0, small, maxi(floori((inner.end.y - y) / (small * 1.25)), 0),
+				OsKit.soft())
+
+
+## Comparación de dos expedientes: cabeceras enfrentadas, rasgos en espejo y filas de datos.
+## Lo que un expediente no muestra a su nivel aparece tachado («clasificado»).
+class CompareView extends Control:
+	const HEADER_EM := 9.0
+	const ROW_EM := 1.85
+	const LABEL_EM := 8.0
+	const GAP_EM := 0.6
+
+	var _a: Dictionary = {}
+	var _b: Dictionary = {}
+	var _link_type: String = ""
+	var _link_strength: float = 0.0
+	var _rows: Array[Array] = []
+
+	func set_files(a: Dictionary, b: Dictionary, link_type: String, strength: float) -> void:
+		_a = a
+		_b = b
+		_link_type = link_type
+		_link_strength = strength
+		_rows = [
+			["PERS_CMP_TYPE", _value(a, S_CHARACTER_KEY, "archetype_name"), _value(b, S_CHARACTER_KEY, "archetype_name")],
+			["PERS_CMP_ATTITUDE", _value(a, S_HISTORY_KEY, "mood_word"), _value(b, S_HISTORY_KEY, "mood_word")],
+			["PERS_CMP_DEBT", _value(a, S_HISTORY_KEY, "debt_word"), _value(b, S_HISTORY_KEY, "debt_word")],
+			["PERS_CMP_BRIBE", _bribe(a), _bribe(b)],
+			["PERS_CMP_WEAKNESS", _plain(a, S_WEAKNESS_KEY), _plain(b, S_WEAKNESS_KEY)],
+			["PERS_CMP_HOME", _value(a, S_HOME_KEY, "address"), _value(b, S_HOME_KEY, "address")],
+		]
+		var rows: int = Validate.TRAIT_NAMES.size() + _rows.size() + 2
+		custom_minimum_size.y = OsKit.px(HEADER_EM + 1.5) + OsKit.px(ROW_EM) * rows
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		queue_redraw()
+
+	const S_CHARACTER_KEY := "character"
+	const S_HISTORY_KEY := "history"
+	const S_WEAKNESS_KEY := "weakness"
+	const S_HOME_KEY := "home"
+	const S_TRAITS_KEY := "traits"
+	const S_LINKS_KEY := "links"
+	const S_BRIBE_KEY := "bribe_price"
+
+	static func _value(file: Dictionary, section: String, field: String) -> String:
+		var data: Variant = file.get("sections", {}).get(section)
+		return str(data.get(field, "")) if data is Dictionary else ""
+
+	static func _plain(file: Dictionary, section: String) -> String:
+		var data: Variant = file.get("sections", {}).get(section)
+		return str(data) if data is String else ""
+
+	static func _bribe(file: Dictionary) -> String:
+		var data: Variant = file.get("sections", {}).get(S_BRIBE_KEY)
+		if not data is Dictionary:
+			return ""
+		if bool(data.get("unbribable", false)):
+			return TranslationServer.translate("PERS_BRIBE_UNBRIBABLE")
+		var prices: Array = data.get("prices", [])
+		return UITheme.format_money(int(prices[0]["price"])) if not prices.is_empty() else ""
+
+	func _draw() -> void:
+		var mid: float = size.x * 0.5
+		var head_h: float = float(OsKit.px(HEADER_EM))
+		var gap: float = float(OsKit.px(2.8))
+		_draw_head(_a, Rect2(0, 0, mid - gap, head_h), false)
+		_draw_head(_b, Rect2(mid + gap, 0, mid - gap, head_h), true)
+		_draw_vs(Vector2(mid, head_h * 0.42))
+		var y: float = head_h + OsKit.px(0.8)
+		_draw_caption(TranslationServer.translate("PERS_SEC_TRAITS"), y)
+		y += OsKit.px(ROW_EM)
+		for i: int in Validate.TRAIT_NAMES.size():
+			_draw_trait_row(i, y)
+			y += OsKit.px(ROW_EM)
+		_draw_caption(TranslationServer.translate("PERS_CMP_FACTS"), y)
+		y += OsKit.px(ROW_EM)
+		for row: Array in _rows:
+			_draw_text_row(row, y)
+			y += OsKit.px(ROW_EM)
+
+	func _draw_head(file: Dictionary, rect: Rect2, mirrored: bool) -> void:
+		var identity: Dictionary = file["sections"]["identity"]
+		var photo_w: float = rect.size.y * 0.86
+		var photo: Rect2 = Rect2(rect.end.x - photo_w if mirrored else rect.position.x, rect.position.y,
+				photo_w, photo_w)
+		draw_rect(Rect2(photo.position + Vector2(4, 5), photo.size), Color(0, 0, 0, 0.18))
+		draw_rect(photo, Color.WHITE)
+		CharacterPainter.draw_portrait(self, identity["photo"], photo.grow(-photo_w * 0.06))
+		draw_rect(photo, OsKit.INK, false, 2.0)
+		var pad: float = float(OsKit.px(0.8))
+		var text_w: float = rect.size.x - photo_w - pad
+		var x: float = rect.position.x if mirrored else photo.end.x + pad
+		var align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_RIGHT if mirrored else HORIZONTAL_ALIGNMENT_LEFT
+		if mirrored:
+			text_w = photo.position.x - pad - rect.position.x
+		var y: float = rect.position.y + OsKit.px(1.6)
+		OsKit.text(self, Vector2(x, y), str(identity["name"]), OsKit.font_black(), OsKit.px(1.3), OsKit.INK,
+				text_w, align)
+		y += OsKit.px(1.5)
+		for field: String in ["post", "floor", "wing"]:
+			OsKit.text(self, Vector2(x, y), str(identity[field]), OsKit.font_regular(), OsKit.px(0.88),
+					OsKit.soft(), text_w, align)
+			y += OsKit.px(1.2)
+		var level_text: String = TranslationServer.translate("PERS_CMP_LEVEL") % int(file["level"])
+		OsKit.text(self, Vector2(x, y + OsKit.px(0.4)), level_text, OsKit.font_black(), OsKit.px(0.8),
+				OsKit.TEAL, text_w, align)
+
+	func _draw_vs(center: Vector2) -> void:
+		var r: float = float(OsKit.px(1.7))
+		draw_circle(center + Vector2(3, 4), r, Color(0, 0, 0, 0.2))
+		draw_circle(center, r, OsKit.TEAL)
+		draw_arc(center, r, 0, TAU, 32, OsKit.INK, 2.5)
+		var fsize: int = OsKit.px(1.1)
+		OsKit.text(self, Vector2(center.x - r, center.y + fsize * 0.36), "VS", OsKit.font_black(), fsize,
+				OsKit.TITLE_INK, r * 2.0, HORIZONTAL_ALIGNMENT_CENTER)
+		var link: String = TranslationServer.translate("PERS_CMP_NO_LINK")
+		if not _link_type.is_empty() and (_a["sections"].has(S_LINKS_KEY) or _b["sections"].has(S_LINKS_KEY)):
+			link = TranslationServer.translate("LINK_" + _link_type.to_upper())
+		elif not _a["sections"].has(S_LINKS_KEY) and not _b["sections"].has(S_LINKS_KEY):
+			link = TranslationServer.translate("PERS_CLASSIFIED")
+		var w: float = float(OsKit.px(9.0))
+		OsKit.text(self, Vector2(center.x - w * 0.5, center.y + r + OsKit.px(1.1)), link, OsKit.font_bold(),
+				OsKit.px(0.8), OsKit.INK, w, HORIZONTAL_ALIGNMENT_CENTER)
+
+	func _draw_caption(text: String, y: float) -> void:
+		OsKit.text(self, Vector2(0, y + OsKit.px(1.1)), text.to_upper(), OsKit.font_black(), OsKit.px(0.8),
+				OsKit.TEAL, size.x, HORIZONTAL_ALIGNMENT_CENTER)
+		draw_line(Vector2(0, y + OsKit.px(1.5)), Vector2(size.x, y + OsKit.px(1.5)), Color(OsKit.TEAL, 0.5), 1.5)
+
+	func _draw_trait_row(i: int, y: float) -> void:
+		var label_w: float = float(OsKit.px(LABEL_EM))
+		var mid: float = size.x * 0.5
+		var name: String = TranslationServer.translate("PERS_TRAIT_" + Validate.TRAIT_NAMES[i].to_upper())
+		var fsize: int = OsKit.px(0.88)
+		var base: float = y + OsKit.px(ROW_EM) * 0.5 + fsize * 0.36
+		OsKit.text(self, Vector2(mid - label_w * 0.5, base), name, OsKit.font_bold(), fsize, OsKit.INK, label_w,
+				HORIZONTAL_ALIGNMENT_CENTER)
+		var bar_w: float = mid - label_w * 0.5 - OsKit.px(3.2)
+		var h: float = OsKit.px(ROW_EM) * 0.5
+		var top: float = y + (OsKit.px(ROW_EM) - h) * 0.5
+		_draw_side_bar(_a, i, Rect2(mid - label_w * 0.5 - bar_w, top, bar_w, h), true)
+		_draw_side_bar(_b, i, Rect2(mid + label_w * 0.5, top, bar_w, h), false)
+
+	func _draw_side_bar(file: Dictionary, i: int, track: Rect2, grows_left: bool) -> void:
+		OsKit.draw_bevel(self, track, OsKit.FIELD, true)
+		var traits: Variant = file["sections"].get(S_TRAITS_KEY)
+		var inner: Rect2 = track.grow(-OsKit.BAND)
+		if not traits is Array:
+			OsKit.draw_hatch(self, inner, Color(OsKit.INK, 0.55), 7.0, 2.0)
+			return
+		var row: Dictionary = traits[i]
+		var fill_w: float = inner.size.x * clampf(int(row["value"]) / 100.0, 0.0, 1.0)
+		var fill_x: float = inner.end.x - fill_w if grows_left else inner.position.x
+		draw_rect(Rect2(fill_x, inner.position.y, fill_w, inner.size.y),
+				OsKit.RED.lerp(OsKit.AMBER, 0.2) if grows_left else OsKit.BLUE)
+		var tail: String = str(row["value"]) if bool(row["exact"]) else "~"
+		var fsize: int = OsKit.px(0.82)
+		var tx: float = track.position.x - OsKit.px(2.6) if grows_left else track.end.x + OsKit.px(0.3)
+		OsKit.text(self, Vector2(tx, track.get_center().y + fsize * 0.36), tail, OsKit.font_mono(), fsize,
+				OsKit.INK, OsKit.px(2.3), HORIZONTAL_ALIGNMENT_RIGHT if grows_left else HORIZONTAL_ALIGNMENT_LEFT)
+
+	func _draw_text_row(row: Array, y: float) -> void:
+		var label_w: float = float(OsKit.px(LABEL_EM))
+		var mid: float = size.x * 0.5
+		var fsize: int = OsKit.px(0.88)
+		var base: float = y + OsKit.px(ROW_EM) * 0.5 + fsize * 0.36
+		OsKit.text(self, Vector2(mid - label_w * 0.5, base), TranslationServer.translate(str(row[0])),
+				OsKit.font_bold(), fsize, OsKit.INK, label_w, HORIZONTAL_ALIGNMENT_CENTER)
+		var side_w: float = mid - label_w * 0.5 - OsKit.px(GAP_EM)
+		_draw_side_text(str(row[1]), Rect2(0, y, side_w, OsKit.px(ROW_EM)), true, base)
+		_draw_side_text(str(row[2]), Rect2(mid + label_w * 0.5 + OsKit.px(GAP_EM), y, side_w, OsKit.px(ROW_EM)),
+				false, base)
+		draw_line(Vector2(0, y + OsKit.px(ROW_EM) - 1), Vector2(size.x, y + OsKit.px(ROW_EM) - 1),
+				Color(OsKit.FACE_MID, 0.3), 1.0)
+
+	func _draw_side_text(value: String, rect: Rect2, right_align: bool, base: float) -> void:
+		if value.is_empty():
+			var w: float = rect.size.x * 0.45
+			var x: float = rect.end.x - w if right_align else rect.position.x
+			draw_rect(Rect2(x, rect.position.y + rect.size.y * 0.3, w, rect.size.y * 0.4), OsKit.INK)
+			return
+		OsKit.text(self, Vector2(rect.position.x, base), value, OsKit.font_regular(), OsKit.px(0.88), OsKit.INK,
+				rect.size.x, HORIZONTAL_ALIGNMENT_RIGHT if right_align else HORIZONTAL_ALIGNMENT_LEFT)

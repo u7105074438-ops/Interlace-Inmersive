@@ -58,7 +58,8 @@ const C_SHADOW := Color(0.02, 0.02, 0.05, 0.28)
 ## Mesa de juntas y sillas de Aurora (maquetación de diseño; 14 sillas como rooms/p12.json).
 const AURORA_WALL_Y := 300.0
 const AURORA_TABLE := Rect2(470, 596, 980, 132)
-const AURORA_PODIUM := Vector2(292, 452)
+const AURORA_PODIUM := Vector2(356, 492)
+const AURORA_RUG := Rect2(372, 520, 1176, 400)
 const AURORA_SCREEN := Rect2(700, 30, 520, 236)
 const INTERROGATION_WALL_Y := 336.0
 const INTERROGATION_TABLE := Rect2(690, 590, 540, 132)
@@ -78,6 +79,7 @@ var _bubbles: Dictionary = {}
 var _badges: Dictionary = {}
 var _furniture: FurniturePainter
 var _vignette: GradientTexture2D
+var _moves: Dictionary = {}
 var _shake_left: float = 0.0
 var _shake_total: float = 0.0
 var _shake_px: float = 0.0
@@ -224,6 +226,7 @@ func _process(delta: float) -> void:
 	_time += delta
 	for id: String in _actors:
 		_advance_actor(_actors[id], delta)
+	_advance_moves(delta)
 	_update_shake(delta)
 	_expire_bubbles(delta)
 	_place_overlays()
@@ -277,9 +280,9 @@ static func aurora_seats() -> Array[Dictionary]:
 	return out
 
 
-## Punto de pie del orador en el atril (detrás del atril, mirando a la sala).
+## Punto de pie del orador junto al atril (a su izquierda y un paso atrás, mirando a la sala).
 static func aurora_podium_spot() -> Vector2:
-	return AURORA_PODIUM + Vector2(0, -26)
+	return AURORA_PODIUM + Vector2(-86, -20)
 
 
 static func interrogation_spots() -> Dictionary:
@@ -380,21 +383,74 @@ func look_at_actor(actor_id: String, target_id: String) -> void:
 	_actors[actor_id]["look"] = look
 
 
-## De pie junto a su silla (seated = false) o de vuelta a ella.
+## De pie junto a su silla (seated = false) o de vuelta a ella (mirando como la silla).
 func set_seated(actor_id: String, seated: bool) -> void:
 	var a: Dictionary = _actors.get(actor_id, {})
 	if a.is_empty() or str(a["seat"]).is_empty():
 		return
+	_moves.erase(actor_id)
 	var chair: Dictionary = _chairs[a["seat"]]
 	a["seated"] = seated
 	a["pos"] = chair["center"] if seated else chair["center"] - chair["facing"] * 14.0 * char_scale
-	set_anim(actor_id, "sit" if seated else "idle")
+	set_anim(actor_id, "sit" if seated else "idle", chair["facing"])
+
+
+## Punto de pie delante de la silla del actor (para volver andando a sentarse).
+func seat_point(actor_id: String) -> Vector2:
+	var a: Dictionary = _actors.get(actor_id, {})
+	if a.is_empty() or str(a["seat"]).is_empty():
+		return actor_feet(actor_id)
+	var chair: Dictionary = _chairs[a["seat"]]
+	return (chair["center"] as Vector2) - (chair["facing"] as Vector2) * 14.0 * char_scale
 
 
 func move_actor(actor_id: String, pos: Vector2) -> void:
 	if _actors.has(actor_id):
 		_actors[actor_id]["pos"] = pos
 		_actors[actor_id]["seated"] = false
+
+
+## Camina de su posición a `target` en `seconds` (animación walk) y al llegar mira a `end_facing`
+## con `end_anim`. finish_moves() completa los paseos en curso (saltar animación, tests).
+func walk_to(actor_id: String, target: Vector2, seconds: float, end_facing: Vector2,
+		end_anim: String = "idle") -> void:
+	var a: Dictionary = _actors.get(actor_id, {})
+	if a.is_empty():
+		return
+	var from: Vector2 = _origin_of(a)
+	a["seated"] = false
+	a["pos"] = from
+	set_anim(actor_id, "walk", target - from)
+	_moves[actor_id] = {"from": from, "to": target, "t": 0.0, "dur": maxf(seconds, 0.001),
+			"facing": end_facing, "anim": end_anim}
+
+
+func is_moving() -> bool:
+	return not _moves.is_empty()
+
+
+func finish_moves() -> void:
+	for id: String in _moves.keys():
+		_end_move(id)
+
+
+func _advance_moves(delta: float) -> void:
+	for id: String in _moves.keys():
+		var m: Dictionary = _moves[id]
+		m["t"] = float(m["t"]) + delta
+		var k: float = clampf(float(m["t"]) / float(m["dur"]), 0.0, 1.0)
+		_actors[id]["pos"] = (m["from"] as Vector2).lerp(m["to"], k)
+		if k >= 1.0:
+			_end_move(id)
+
+
+func _end_move(actor_id: String) -> void:
+	var m: Dictionary = _moves[actor_id]
+	_moves.erase(actor_id)
+	if not _actors.has(actor_id):
+		return
+	_actors[actor_id]["pos"] = m["to"]
+	set_anim(actor_id, str(m["anim"]), m["facing"])
 
 
 ## Marca de color bajo los pies (acusador, aliados...). TRANSPARENT la quita.
@@ -471,7 +527,7 @@ func say(actor_id: String, text: String, style: String = STYLE_SAY, seconds: flo
 		_bubbles.erase(actor_id)
 	if text.is_empty() or not _actors.has(actor_id):
 		return
-	var bubble: Bubble = Bubble.new(text, style, 460.0)
+	var bubble: Bubble = Bubble.new(text, style, 460.0 * ui_scale())
 	bubble.hold = reading_time(text) if seconds < 0.0 else seconds
 	_overlay.add_child(bubble)
 	_bubbles[actor_id] = bubble
@@ -577,11 +633,93 @@ static func bubble_box(fill: Color) -> StyleBoxFlat:
 	return box
 
 
+## Factor de la interfaz dibujada a mano respecto al texto medio (tamaño de texto y modo táctil).
+static func ui_scale() -> float:
+	var medium: float = float(maxi(UITheme.base_font_size(UITheme.TEXT_MEDIUM), 1))
+	return maxf(float(UITheme.base_font_size(UITheme.current_text_size)) / medium, 1.0)
+
+
+## Número con un decimal y el separador del idioma (4.5 / 4,5).
+static func decimal(value: float) -> String:
+	var text: String = "%.1f" % value
+	return text.replace(".", ",") if TranslationServer.get_locale().begins_with("es") else text
+
+
 ## Ancho natural de una línea de texto con la fuente del label.
 static func text_width(text: String, label: Label) -> float:
 	var font: Font = label.get_theme_font("font")
-	var size: int = label.get_theme_font_size("font_size")
-	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x if font != null else 0.0
+	var font_size: int = label.get_theme_font_size("font_size")
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x if font != null else 0.0
+
+
+# ─── Utilidades de interfaz (compartidas por las escenas) ─────
+
+static func ui_label(text: String, variation: String = "", wrap: bool = false,
+		color: Color = Color.TRANSPARENT) -> Label:
+	var l: Label = Label.new()
+	l.text = text
+	if not variation.is_empty():
+		l.theme_type_variation = variation
+	if wrap:
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if color.a > 0.0:
+		l.add_theme_color_override("font_color", color)
+	return l
+
+
+static func ui_button(text: String, variation: String, action: Callable) -> Button:
+	var b: Button = Button.new()
+	b.text = text
+	if not variation.is_empty():
+		b.theme_type_variation = variation
+	b.custom_minimum_size.y = MenuKit.MIN_TOUCH
+	b.focus_mode = Control.FOCUS_ALL
+	b.pressed.connect(action)
+	return b
+
+
+static func clear_children(node: Node) -> void:
+	for child: Node in node.get_children():
+		node.remove_child(child)
+		child.queue_free()
+
+
+## Textos visibles (Label, Button y bocadillos) bajo `node`, en orden de árbol (tests y QA).
+static func collect_texts(node: Node, out: Array[String]) -> void:
+	for child: Node in node.get_children():
+		if child is CanvasItem and not (child as CanvasItem).visible:
+			continue
+		if child is Label:
+			out.append((child as Label).text)
+		elif child is Button:
+			out.append((child as Button).text)
+		collect_texts(child, out)
+
+
+## Reproduce un efecto de sonido si hay AudioDirector (con subtítulo, §13.10).
+static func play_sfx(host: Node, ids: Array[String]) -> String:
+	if host == null or not host.is_inside_tree():
+		return ""
+	var director: AudioDirector = AudioDirector.find(host.get_tree())
+	if director == null:
+		return ""
+	for id: String in ids:
+		if SfxBank.has_sfx(id):
+			director.play_sfx(id)
+			return id
+	return ""
+
+
+## Aplica el tema de la interfaz si ningún antecesor (UIRoot) lo da ya.
+static func ensure_theme(ctrl: Control) -> void:
+	var node: Node = ctrl.get_parent()
+	while node != null:
+		if node is Control and (node as Control).theme != null:
+			return
+		if node is Window and (node as Window).theme != null:
+			return
+		node = node.get_parent()
+	ctrl.theme = UITheme.build(UITheme.current_text_size, UITheme.current_high_contrast)
 
 
 # ─── Temblor y ajuste ─────────────────────────────────────────
@@ -647,6 +785,8 @@ func _set_pieces() -> Array[Dictionary]:
 		{"y": AURORA_PODIUM.y, "fn": _paint_podium},
 		{"y": 420.0, "fn": _paint_furniture.bind("plant", Rect2(84, 330, 110, 110))},
 		{"y": 420.0, "fn": _paint_furniture.bind("plant", Rect2(1726, 330, 110, 110))},
+		{"y": 1000.0, "fn": _paint_furniture.bind("plant", Rect2(84, 900, 110, 110))},
+		{"y": 1000.0, "fn": _paint_furniture.bind("plant", Rect2(1726, 900, 110, 110))},
 		{"y": 760.0, "fn": _paint_furniture.bind("water_cooler", Rect2(1740, 660, 110, 110))},
 		{"y": 700.0, "fn": _paint_furniture.bind("coffee_machine", Rect2(60, 610, 110, 110))},
 	]
@@ -691,18 +831,29 @@ func _paint_chair(ci: CanvasItem, chair: Dictionary, front: bool) -> void:
 	var c: Vector2 = chair["center"]
 	var f: Vector2 = chair["facing"]
 	var col: Color = _chair_color(str(chair["style"]))
-	var ol: Color = band_color("outline")
 	if front:
-		_rounded_box(ci, Rect2(c + Vector2(-17, -6) * s, Vector2(34, 22) * s), 6.0 * s, col.lightened(0.1), ol, s)
+		_chair_back(ci, Rect2(c + Vector2(-16, -2) * s, Vector2(32, 18) * s), col, s)
 		return
 	ci.draw_colored_polygon(CharacterStyle.ellipse(c + Vector2(0, 12) * s, Vector2(20, 7) * s), C_SHADOW)
+	ci.draw_line(c + Vector2(0, 8) * s, c + Vector2(0, 15) * s, C_STEEL_DARK, 3.0 * s)
+	ci.draw_line(c + Vector2(-10, 15) * s, c + Vector2(10, 15) * s, C_STEEL_DARK, 2.0 * s)
 	if f.y > 0.5:
-		_rounded_box(ci, Rect2(c + Vector2(-17, -44) * s, Vector2(34, 36) * s), 7.0 * s, col.lightened(0.1), ol, s)
+		_chair_back(ci, Rect2(c + Vector2(-16, -42) * s, Vector2(32, 34) * s), col, s)
 	elif absf(f.x) > 0.5:
 		var bx: float = -f.x * 14.0 - 4.0
-		_rounded_box(ci, Rect2(c + Vector2(bx, -40) * s, Vector2(8, 44) * s), 3.0 * s, col.lightened(0.1), ol, s)
-	_rounded_box(ci, Rect2(c + Vector2(-16, -8) * s, Vector2(32, 18) * s), 6.0 * s, col, ol, s)
-	ci.draw_line(c + Vector2(0, 10) * s, c + Vector2(0, 16) * s, C_STEEL_DARK, 3.0 * s)
+		_chair_back(ci, Rect2(c + Vector2(bx, -38) * s, Vector2(8, 42) * s), col, s)
+	_rounded_box(ci, Rect2(c + Vector2(-16, -8) * s, Vector2(32, 18) * s), 6.0 * s, col, band_color("outline"), s)
+	ci.draw_rect(Rect2(c + Vector2(-13, 6) * s, Vector2(26, 3) * s), col.darkened(0.3))
+
+
+## Respaldo: panel acolchado con reborde claro arriba (se lee como silla a cualquier escala).
+func _chair_back(ci: CanvasItem, r: Rect2, col: Color, s: float) -> void:
+	_rounded_box(ci, r, 7.0 * s, col.lightened(0.08), band_color("outline"), s)
+	var inner: Rect2 = r.grow(-3.5 * s)
+	if inner.size.x > 4.0 and inner.size.y > 4.0:
+		ci.draw_colored_polygon(rounded_rect(inner, 5.0 * s), col.darkened(0.08))
+	ci.draw_line(r.position + Vector2(6, 3) * s, Vector2(r.end.x - 6.0 * s, r.position.y + 3.0 * s),
+			Color(1, 1, 1, 0.22), 2.0 * s)
 
 
 func _chair_color(chair_style: String) -> Color:
@@ -742,9 +893,9 @@ func _font(bold: bool) -> Font:
 	return UITheme.font(UITheme.FONT_BOLD if bold else UITheme.FONT_SEMIBOLD)
 
 
-func _text(ci: CanvasItem, text: String, pos: Vector2, width: float, size: int, color: Color,
+func _text(ci: CanvasItem, text: String, pos: Vector2, width: float, font_size: int, color: Color,
 		bold: bool = false, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_CENTER) -> void:
-	ci.draw_multiline_string(_font(bold), pos, text, align, width, size, -1, color)
+	ci.draw_multiline_string(_font(bold), pos, text, align, width, font_size, -1, color)
 
 
 # ─── Decorado Aurora (P12, the_specialists) ───────────────────
@@ -755,6 +906,7 @@ func _paint_aurora_back(ci: CanvasItem, view: Rect2) -> void:
 	_paint_tiles(ci, Rect2(view.position.x, AURORA_WALL_Y, view.size.x, view.end.y - AURORA_WALL_Y),
 			carpet.lightened(0.07), 96.0)
 	_paint_corridors(ci, view)
+	_paint_rug(ci, AURORA_RUG)
 	_paint_window_wall(ci, view)
 	_paint_screen(ci)
 	_paint_poster(ci, Rect2(1290, 58, 150, 196))
@@ -943,19 +1095,30 @@ func _paint_podium(ci: CanvasItem) -> void:
 	var base: Vector2 = AURORA_PODIUM
 	var ol: Color = band_color("outline")
 	var wood: Color = band_color("furniture")
-	var front: PackedVector2Array = [base + Vector2(-26, -44) * s, base + Vector2(26, -44) * s,
-			base + Vector2(20, 0) * s, base + Vector2(-20, 0) * s]
-	ci.draw_colored_polygon(CharacterStyle.ellipse(base + Vector2(0, 2) * s, Vector2(26, 7) * s), C_SHADOW)
+	var front: PackedVector2Array = [base + Vector2(-22, -34) * s, base + Vector2(22, -34) * s,
+			base + Vector2(17, 0) * s, base + Vector2(-17, 0) * s]
+	ci.draw_colored_polygon(CharacterStyle.ellipse(base + Vector2(0, 2) * s, Vector2(24, 7) * s), C_SHADOW)
 	ci.draw_colored_polygon(front, wood.darkened(0.08))
 	ci.draw_polyline(_closed(front), ol, 3.0, true)
-	var top: PackedVector2Array = [base + Vector2(-30, -56) * s, base + Vector2(30, -56) * s,
-			base + Vector2(27, -44) * s, base + Vector2(-27, -44) * s]
+	var top: PackedVector2Array = [base + Vector2(-26, -44) * s, base + Vector2(26, -44) * s,
+			base + Vector2(23, -34) * s, base + Vector2(-23, -34) * s]
 	ci.draw_colored_polygon(top, wood.lightened(0.1))
 	ci.draw_polyline(_closed(top), ol, 3.0, true)
-	ci.draw_rect(Rect2(base + Vector2(-20, -30) * s, Vector2(40, 8) * s), band_color("accent"))
-	ci.draw_circle(base + Vector2(0, -16) * s, 6.0 * s, Color("#d8b04a"))
-	ci.draw_line(base + Vector2(10, -56) * s, base + Vector2(4, -70) * s, C_STEEL_DARK, 2.0 * s, true)
-	ci.draw_circle(base + Vector2(4, -71) * s, 3.0 * s, C_INK)
+	ci.draw_rect(Rect2(base + Vector2(-17, -24) * s, Vector2(34, 6) * s), band_color("accent"))
+	ci.draw_circle(base + Vector2(0, -12) * s, 5.0 * s, Color("#d8b04a"))
+	ci.draw_arc(base + Vector2(0, -12) * s, 5.0 * s, 0.0, TAU, 16, ol, 2.0, true)
+	ci.draw_line(base + Vector2(-12, -44) * s, base + Vector2(-18, -58) * s, C_STEEL_DARK, 2.0 * s, true)
+	ci.draw_circle(base + Vector2(-18, -59) * s, 3.0 * s, C_INK)
+
+
+## Alfombra bajo la mesa (acento de banda) para enmarcar la escena.
+func _paint_rug(ci: CanvasItem, r: Rect2) -> void:
+	var rug: Color = band_color("carpet").darkened(0.18)
+	ci.draw_rect(Rect2(r.position + Vector2(6, 8), r.size), Color(0, 0, 0, 0.12))
+	ci.draw_rect(r, rug)
+	ci.draw_rect(r.grow(-16.0), band_color("accent").lerp(rug, 0.55), false, 4.0)
+	ci.draw_rect(r.grow(-28.0), band_color("accent").lerp(rug, 0.75), false, 2.0)
+	ci.draw_rect(r, band_color("outline"), false, 2.0)
 
 
 static func _closed(pts: PackedVector2Array) -> PackedVector2Array:
@@ -1191,8 +1354,10 @@ func _paint_slam(ci: CanvasItem, amount: float) -> void:
 	ci.draw_polyline(_closed(pts), C_INK, 5.0, true)
 	ci.draw_set_transform(c, -0.12, Vector2(amount, amount))
 	var text: String = str(_props.get("slam_text", ""))
-	var size: int = 64
-	var w: float = _font(true).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	ci.draw_string_outline(_font(true), Vector2(-w * 0.5, 22), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 10, C_INK)
-	ci.draw_string(_font(true), Vector2(-w * 0.5, 22), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color("#e2382b"))
+	var font_size: int = 64
+	var w: float = _font(true).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	ci.draw_string_outline(_font(true), Vector2(-w * 0.5, 22), text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			font_size, 10, C_INK)
+	ci.draw_string(_font(true), Vector2(-w * 0.5, 22), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size,
+			Color("#e2382b"))
 	ci.draw_set_transform(Vector2.ZERO)

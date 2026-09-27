@@ -1,5 +1,5 @@
 # save_system.gd — Persistencia (§12.7, §19.13): la partida en curso (run.json, escritura atómica verificada) y el perfil (profile.json: ajustes y galería de finales).
-# PROPIETARIO DE: los dos archivos de persistencia, los ajustes del perfil, los finales desbloqueados y la marca de partida viva (§19.13).
+# PROPIETARIO DE: los dos archivos de persistencia, los ajustes del perfil, los finales desbloqueados y las marcas de partida viva, cargada y terminada (§19.13).
 # ESCUCHA: run_started, game_over.
 class_name SaveSystemNode
 extends Node
@@ -9,23 +9,34 @@ extends Node
 ##  · save_run() recorre la lista de autoloads de project.godot, en su orden, y guarda el
 ##    save_state() de cada uno que implemente save_state y load_state, SIN conocer su contenido,
 ##    en un único JSON: {"version", "day", "checksum", "systems": {Autoload: estado}}.
-##    checksum = MD5 del texto exacto de "systems", serializado con precisión completa (los float
-##    vuelven idénticos al cargar).
+##    Cada estado va SIN PÉRDIDA: base64 de var_to_bytes (el JSON de Godot no devuelve idénticos
+##    los float de 17 cifras y convierte int↔float y las claves a texto). Así load_state() recibe
+##    exactamente el Dictionary que dio save_state() (tipos, float, arrays tipados, claves int).
+##    checksum = MD5 del texto exacto de "systems".
 ##  · Escritura atómica: se escribe RUN_PATH + ".tmp", se relee y se verifica (texto idéntico, JSON
 ##    válido, versión y checksum) y solo entonces se renombra sobre el destino
 ##    (DirAccess.rename_absolute). Si algo falla se borra el .tmp y el archivo bueno no se toca.
-##  · load_run(): verifica el archivo ANTES de tocar ningún sistema; después llama a load_state()
-##    de cada autoload en el orden de project.godot y emite run_loaded(día).
+##    Recuperación: si el destino falta o no verifica y el .tmp sí (corte tras verificar y antes o
+##    durante el renombrado), la lectura promueve el .tmp y lo usa (read_or_recover).
+##  · load_run(): verifica y decodifica el archivo ANTES de tocar ningún sistema; después llama a
+##    load_state() de cada autoload en el orden de project.godot y emite run_loaded(día).
 ##  · Se guarda SOLO al dormir (§12.7): el mundo llama a save_run() al terminar la secuencia de
 ##    sueño. Nada se guarda automáticamente.
-##  · Permadeath, variante A: game_over → delete_run() (run.json y su .tmp) y desbloqueo del final
-##    en el perfil (más "<final>@<empire|husk>" si tiene variantes de ruina) guardado en disco,
-##    siempre que haya una partida viva: la marcan run_started, load_run() y save_run(); la
-##    quitan delete_run() y reset_for_new_run(). Un proceso que no juega (tests) no borra nada.
+##  · Permadeath, variante A: game_over termina la partida del proceso: save_run() se niega
+##    (is_run_over) hasta run_started o reset_for_new_run(). Si había una partida viva (la marcan
+##    run_started, load_run() y save_run(); la quitan delete_run() y reset_for_new_run()),
+##    delete_run() (run.json y su .tmp) y desbloqueo en el perfil del final que decide Tracking
+##    (evaluate_ending(): Tracking ya registró la causa; el ending_id del payload solo si Tracking
+##    no da uno válido; si discrepan, aviso) más "<final>@<empire|husk>" (Tracking.get_ruin_tier)
+##    si tiene variantes; el perfil se guarda en disco. Un proceso que no juega (tests) no borra.
+##  · run_started = partida NUEVA (game_root la emite con el mundo listo; tras load_run() emite
+##    run_loaded): borra el run.json de un personaje anterior (§12.7: un único archivo), salvo que
+##    esta partida venga de load_run().
 ## PERFIL (PROFILE_PATH): {"version", "checksum", "profile": {"settings", "unlocked_endings"}}.
 ##  · Ajustes (contrato de SettingsMenu): language, text_size 0-2, high_contrast, colorblind_safe,
 ##    clock_speed, difficulty, max_agents, subtitles, music_volume, sfx_volume, skip_seen_intro,
-##    opening_seen. Por defecto: balance menus.ajustes_por_defecto. set_setting valida y acota
+##    opening_seen. "skip_tutorial_seen" es alias de skip_seen_intro (SETTING_ALIASES: una sola
+##    bandera). Por defecto: balance menus.ajustes_por_defecto. set_setting valida y acota
 ##    (tipo del valor por defecto, text_size y max_agents siempre int; rangos menus.escala_texto, menus.velocidad_reloj,
 ##    menus.agentes.min..lod.max_agentes_total, volumen 0..1; idiomas cargados; presets de
 ##    dificultad). Un valor inválido se ignora. Claves desconocidas: se guardan tal cual si son
@@ -54,9 +65,12 @@ const KEY_VALUE_SEPARATOR := ":"
 const FIELD_SEPARATOR := ","
 const OBJECT_END := "}"
 const VARIANT_SEPARATOR := "@"
-const SNAPSHOT_RUIN_TIER := "ruin_tier"
 const ENDING_HAS_VARIANTS := "has_ruin_variants"
 const ENDING_VARIANTS := "epilogue_variants"
+const TRACKING_EVALUATOR := "evaluate_ending"
+const TRACKING_TIER := "get_ruin_tier"
+## Nombre del ajuste pedido → clave con la que se guarda.
+const SETTING_ALIASES: Dictionary = {"skip_tutorial_seen": "skip_seen_intro"}
 
 # Ajustes con validación propia (el resto: tipo del valor por defecto).
 const SET_LANGUAGE := "language"
@@ -82,10 +96,17 @@ const WARN_RENAME := "SaveSystem: no se pudo renombrar '%s' sobre '%s'"
 const WARN_CORRUPT := "SaveSystem: '%s' no es válido (JSON, versión o checksum)"
 const WARN_SETTING := "SaveSystem: ajuste '%s' con valor no válido (%s)"
 const WARN_ENDING := "SaveSystem: final desconocido '%s'"
+const WARN_RUN_OVER := "SaveSystem: la partida terminó (game_over); no se guarda"
+const WARN_RECOVERED := "SaveSystem: '%s' recuperado sobre '%s' (escritura interrumpida)"
+const WARN_ENDING_MISMATCH := "SaveSystem: game_over trae el final '%s'; Tracking decide '%s'"
 
 var _run_path: String = RUN_PATH
 var _profile_path: String = PROFILE_PATH
 var _run_active: bool = false
+## Tras game_over: nada se guarda hasta una partida nueva.
+var _run_over: bool = false
+## La partida en curso salió de load_run() (run_started no debe borrar su archivo).
+var _run_loaded: bool = false
 ## Solo los ajustes fijados (por el jugador o leídos del perfil); el resto, por defecto.
 var _settings: Dictionary = {}
 var _unlocked: Array[String] = []
@@ -101,12 +122,17 @@ func _ready() -> void:
 ## El perfil no pertenece a la partida: sobrevive. Solo se olvida la partida viva.
 func reset_for_new_run() -> void:
 	_run_active = false
+	_run_over = false
+	_run_loaded = false
 
 
 # ═══ Partida (§19.13) ═════════════════════════════════════════════════
 
-## Escritura atómica: run.json.tmp → verificar → renombrar.
+## Escritura atómica: run.json.tmp → verificar → renombrar. false tras game_over (permadeath).
 func save_run() -> bool:
+	if _run_over:
+		push_warning(WARN_RUN_OVER)
+		return false
 	var header: Dictionary = {K_VERSION: SAVE_VERSION, K_DAY: GameClock.get_day()}
 	var text: String = compose(header, K_SYSTEMS, _collect_states())
 	var ok: bool = write_atomic(_run_path, text, K_SYSTEMS)
@@ -116,17 +142,18 @@ func save_run() -> bool:
 
 
 func load_run() -> bool:
-	var data: Dictionary = read_verified(_run_path, K_SYSTEMS)
-	if data.is_empty():
+	var data: Dictionary = read_or_recover(_run_path, K_SYSTEMS)
+	var states: Variant = decode_systems(data.get(K_SYSTEMS)) if not data.is_empty() else null
+	if not states is Dictionary:
 		if FileAccess.file_exists(_run_path):
 			push_warning(WARN_CORRUPT % _run_path)
 		return false
-	var systems: Dictionary = data[K_SYSTEMS]
 	for autoload_name: String in get_persistent_autoloads():
-		var state: Variant = systems.get(autoload_name)
-		if state is Dictionary:
-			_autoload(autoload_name).call("load_state", state)
+		if (states as Dictionary).has(autoload_name):
+			_autoload(autoload_name).call("load_state", states[autoload_name])
 	_run_active = true
+	_run_over = false
+	_run_loaded = true
 	EventBus.run_loaded.emit(int(data.get(K_DAY, 0)))
 	return true
 
@@ -136,10 +163,13 @@ func delete_run() -> void:
 	_discard(_run_path)
 	_discard(_run_path + TMP_SUFFIX)
 	_run_active = false
+	_run_loaded = false
 
 
+## También con solo un .tmp verificado (corte durante el renombrado): load_run() lo recupera.
 func run_exists() -> bool:
-	return FileAccess.file_exists(_run_path)
+	return FileAccess.file_exists(_run_path) \
+			or not read_verified(_run_path + TMP_SUFFIX, K_SYSTEMS).is_empty()
 
 
 # ═══ Perfil (§19.13) ══════════════════════════════════════════════════
@@ -157,7 +187,7 @@ func load_profile() -> bool:
 	_profile_loaded = true
 	_settings.clear()
 	_unlocked.clear()
-	var data: Dictionary = read_verified(_profile_path, K_PROFILE)
+	var data: Dictionary = read_or_recover(_profile_path, K_PROFILE)
 	if data.is_empty():
 		if FileAccess.file_exists(_profile_path):
 			push_warning(WARN_CORRUPT % _profile_path)
@@ -181,18 +211,20 @@ func get_unlocked_endings() -> Array[String]:
 
 
 func get_setting(key: String) -> Variant:
-	if _settings.has(key):
-		return _settings[key]
-	var default: Variant = _get_defaults().get(key)
-	return int(default) if INT_SETTINGS.has(key) and _is_number(default) else default
+	var setting: String = _canonical(key)
+	if _settings.has(setting):
+		return _settings[setting]
+	var default: Variant = _get_defaults().get(setting)
+	return int(default) if INT_SETTINGS.has(setting) and _is_number(default) else default
 
 
 func set_setting(key: String, value: Variant) -> void:
-	var valid: Variant = _validated_setting(key, value)
+	var setting: String = _canonical(key)
+	var valid: Variant = _validated_setting(setting, value)
 	if valid == null:
-		push_warning(WARN_SETTING % [key, str(value)])
+		push_warning(WARN_SETTING % [setting, str(value)])
 		return
-	_settings[key] = valid
+	_settings[setting] = valid
 
 
 # ═══ Extensiones públicas ═════════════════════════════════════════════
@@ -226,6 +258,11 @@ func is_run_active() -> bool:
 	return _run_active
 
 
+## true tras game_over hasta run_started, load_run() o reset_for_new_run(): save_run() se niega.
+func is_run_over() -> bool:
+	return _run_over
+
+
 ## Autoloads (orden de project.godot) que implementan save_state y load_state.
 func get_persistent_autoloads() -> Array[String]:
 	var out: Array[String] = []
@@ -249,6 +286,50 @@ func compose(header: Dictionary, body_key: String, body: Variant) -> String:
 	var head_text: String = JSON.stringify(head, "", false, true)
 	return head_text.trim_suffix(OBJECT_END) + FIELD_SEPARATOR + _body_marker(body_key) \
 			+ body_text + OBJECT_END
+
+
+## Estado de un sistema sin pérdida: base64 de var_to_bytes (sin objetos).
+static func encode_state(state: Dictionary) -> String:
+	return Marshalls.raw_to_base64(var_to_bytes(state))
+
+
+## Inverso de encode_state; null si no es un estado válido.
+static func decode_state(blob: Variant) -> Variant:
+	if not blob is String or (blob as String).is_empty():
+		return null
+	var raw: PackedByteArray = Marshalls.base64_to_raw(blob)
+	if raw.is_empty():
+		return null
+	var state: Variant = bytes_to_var(raw)
+	return state if state is Dictionary else null
+
+
+## {autoload: encode_state} → {autoload: estado}; null si alguno no decodifica.
+static func decode_systems(body: Variant) -> Variant:
+	if not body is Dictionary:
+		return null
+	var out: Dictionary = {}
+	for autoload_name: Variant in body:
+		var state: Variant = decode_state((body as Dictionary)[autoload_name])
+		if state == null:
+			return null
+		out[str(autoload_name)] = state
+	return out
+
+
+## read_verified(path) o, si falta o no verifica, el .tmp verificado, que se promueve sobre path.
+func read_or_recover(path: String, body_key: String) -> Dictionary:
+	var data: Dictionary = read_verified(path, body_key)
+	if not data.is_empty():
+		return data
+	var tmp: String = path + TMP_SUFFIX
+	data = read_verified(tmp, body_key)
+	if data.is_empty():
+		return {}
+	push_warning(WARN_RECOVERED % [tmp, path])
+	if DirAccess.rename_absolute(tmp, path) != OK:
+		push_warning(WARN_RENAME % [tmp, path])
+	return data
 
 
 ## Diccionario del archivo si es íntegro (JSON, versión, checksum, cuerpo); si no, {}.
@@ -312,12 +393,13 @@ func is_valid_ending_id(ending_id: String) -> bool:
 
 # ═══ Internos: partida ════════════════════════════════════════════════
 
+## {autoload: encode_state(save_state())}.
 func _collect_states() -> Dictionary:
 	var systems: Dictionary = {}
 	for autoload_name: String in get_persistent_autoloads():
 		var state: Variant = _autoload(autoload_name).call("save_state")
 		if state is Dictionary:
-			systems[autoload_name] = state
+			systems[autoload_name] = encode_state(state)
 	return systems
 
 
@@ -352,7 +434,7 @@ static func _discard(path: String) -> void:
 ## Primer guardado sin load_profile(): adopta lo del disco que no se haya cambiado en la sesión.
 func _merge_disk_profile() -> void:
 	_profile_loaded = true
-	var data: Dictionary = read_verified(_profile_path, K_PROFILE)
+	var data: Dictionary = read_or_recover(_profile_path, K_PROFILE)
 	if not data.is_empty():
 		_absorb_profile(data[K_PROFILE])
 
@@ -370,6 +452,10 @@ func _absorb_profile(profile: Dictionary) -> void:
 		for ending_id: Variant in endings:
 			if is_valid_ending_id(str(ending_id)) and not _unlocked.has(str(ending_id)):
 				_unlocked.append(str(ending_id))
+
+
+static func _canonical(key: String) -> String:
+	return str(SETTING_ALIASES.get(key, key))
 
 
 func _get_defaults() -> Dictionary:
@@ -435,22 +521,39 @@ static func _is_number(value: Variant) -> bool:
 
 # ═══ Oyentes ══════════════════════════════════════════════════════════
 
+## Partida nueva: el run.json de un personaje anterior ya no vale (§12.7: un único archivo).
 func _on_run_started(_run_seed: int) -> void:
+	if not _run_loaded:
+		delete_run()
 	_run_active = true
+	_run_over = false
 
 
 ## Permadeath (§12.7): la partida muere con el personaje; solo el perfil sobrevive.
-func _on_game_over(_cause: String, ending_id: String, tracking_snapshot: Dictionary) -> void:
+func _on_game_over(_cause: String, ending_id: String, _tracking_snapshot: Dictionary) -> void:
+	_run_over = true
 	if not _run_active:
 		return
 	delete_run()
-	if not is_valid_ending_id(ending_id):
+	var final_id: String = _final_ending(ending_id)
+	if final_id.is_empty():
 		return
-	unlock_ending(ending_id)
-	var tier: String = str(tracking_snapshot.get(SNAPSHOT_RUIN_TIER, ""))
-	if tier.is_empty() and Tracking.has_method("get_ruin_tier"):
-		tier = Tracking.get_ruin_tier()
-	var variant_id: String = ending_id + VARIANT_SEPARATOR + tier
-	if is_valid_ending_id(variant_id):
-		unlock_ending(variant_id)
+	unlock_ending(final_id)
+	if Tracking.has_method(TRACKING_TIER):
+		var variant_id: String = final_id + VARIANT_SEPARATOR + str(Tracking.call(TRACKING_TIER))
+		if is_valid_ending_id(variant_id):
+			unlock_ending(variant_id)
 	save_profile()
+
+
+## El final que decide Tracking (autoload anterior: ya registró la causa del game_over); el del
+## payload solo si Tracking no da uno válido.
+func _final_ending(payload_id: String) -> String:
+	var tracked: String = ""
+	if Tracking.has_method(TRACKING_EVALUATOR):
+		tracked = str(Tracking.call(TRACKING_EVALUATOR))
+	if not is_valid_ending_id(tracked):
+		return payload_id if is_valid_ending_id(payload_id) else ""
+	if not payload_id.is_empty() and payload_id != tracked:
+		push_warning(WARN_ENDING_MISMATCH % [payload_id, tracked])
+	return tracked

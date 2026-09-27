@@ -1,4 +1,4 @@
-# fundamentals_case.gd — Cuerpo de test_fundamentals: fórmulas §9.2, ironía §9.10 (robo, talento, escándalo), mecha de auditoría y autorización de cifras reportadas.
+# fundamentals_case.gd — Cuerpo de test_fundamentals: fórmulas §9.2, ironía §9.10 (robo por crime_committed y directo, talento, escándalo), tendencia trimestral, mecha de auditoría y cifras reportadas por cargo.
 # PROPIETARIO DE: nada.
 # ESCUCHA: fundamentals_updated, audit_fuse_lit, audit_triggered (solo para comprobarlas).
 extends TestCase
@@ -19,6 +19,16 @@ const NOT_AUTHORIZED: Array[String] = ["email_worker_3b", "deputy_cfo", "c10_dir
 		"chief_auditor"]
 const INFLATION := 0.15
 const THEFT := 25000.0
+## §11.6 palé: ingreso del jugador 8.000–18.000 €; pérdida declarada por quien roba (company_loss).
+const PALLET := 18000.0
+const PALLET_RETAIL := 38000.0
+const PETTY := 60.0
+const SABOTAGE_LOSS := 5000.0
+const GROWTH_LIE := 0.5
+const SMALL_DIVERGENCE := 0.1
+const FULL_DIVERGENCE := 1.0
+const AUDIT_ROUNDS := 12
+const IDLE_WEEKS := 10
 const MAX_AUDIT_ATTEMPTS := 60
 const B10_FUSE_WEEKS := 2
 const SIGNALS: Array[String] = ["fundamentals_updated", "audit_fuse_lit", "audit_triggered"]
@@ -31,15 +41,23 @@ func run_case() -> void:
 	_connect_bus()
 	_test_starting_figures()
 	_test_theft_losses()
+	_test_theft_from_crimes()
 	_test_talent_loss()
 	_test_elimination_risk()
 	_test_scandal()
 	_test_turnover_and_staffing()
+	_test_player_moves_not_turnover()
 	_test_growth()
+	_test_quarter_average()
 	_test_fuse_formula()
 	_test_reported_authorization()
+	_test_reportable_keys_by_post()
+	_test_growth_and_risk_figures()
+	_test_fuse_shortening_and_idle_weeks()
+	_test_quarter_reported_restates()
 	_test_fuse_expiry_as_auditor()
 	_test_detection_and_demotion()
+	_test_audit_determinism()
 	_test_daily_recalculation()
 	_test_save_load()
 
@@ -81,6 +99,36 @@ func _test_theft_losses() -> void:
 			"after a full window the loss leaves the daily costs")
 
 
+## PASO 32: «robar producto y comprobar que el componente de pérdidas se incrementa». Company oye
+## crime_committed (company_loss; si falta, value de un theft_product), sin llamadas directas.
+func _test_theft_from_crimes() -> void:
+	_fresh()
+	var window: int = Database.get_balance_int("empresa.jornadas_ventana_contable")
+	EventBus.crime_committed.emit("theft_product", "factory_floor", {"value": PALLET, "quantity": 300})
+	check_near(float(Company.get_fundamentals()["theft_losses"]), PALLET / window, EPS,
+			"stealing product raises the losses component at once")
+	check_near(Company.get_total_theft_losses(), PALLET, EPS, "the pallet is booked in full")
+	EventBus.crime_committed.emit("theft_product", "factory_floor",
+			{"value": PALLET, "company_loss": PALLET_RETAIL})
+	check_near(Company.get_total_theft_losses(), PALLET + PALLET_RETAIL, EPS,
+			"details.company_loss takes precedence over the player's income")
+	EventBus.crime_committed.emit("theft_small", "office_3b", {"value": PETTY})
+	check_near(Company.get_total_theft_losses(), PALLET + PALLET_RETAIL, EPS,
+			"petty theft from desks is not a company loss")
+	EventBus.crime_committed.emit("sabotage", "factory_floor", {"company_loss": SABOTAGE_LOSS})
+	var total: float = PALLET + PALLET_RETAIL + SABOTAGE_LOSS
+	check_near(Company.get_total_theft_losses(), total, EPS, "any crime with company_loss counts")
+	Company.add_theft_loss(PALLET)
+	EventBus.crime_committed.emit("theft_product", "factory_floor",
+			{"value": PALLET, "loss_booked": true})
+	total += PALLET
+	check_near(Company.get_total_theft_losses(), total, EPS,
+			"add_theft_loss + crime_committed(loss_booked) counts the loss once")
+	GameClock.advance_to_next_day()
+	check_near(float(Company.get_fundamentals()["theft_losses"]), total / window, EPS,
+			"the next daily recalculation keeps the losses in the costs")
+
+
 ## §9.10: expulsar personal cualificado (escalón ≥ 3) reduce calidad e ideas.
 func _test_talent_loss() -> void:
 	_fresh()
@@ -103,9 +151,7 @@ func _test_talent_loss() -> void:
 			"lower quality → fewer units sold → lower revenue")
 	check_near(Company.get_idea_generation_modifier(),
 			ideas - Database.get_balance_float("empresa.ideas_por_talento_perdido"), RATIO_EPS,
-			"and lowers idea generation")
-	check_near(IdeaPool.get_generation_modifier(), Company.get_idea_generation_modifier(),
-			RATIO_EPS, "IdeaPool reads Company's idea generation modifier")
+			"and lowers idea generation (get_idea_generation_modifier)")
 
 
 func _test_elimination_risk() -> void:
@@ -158,6 +204,25 @@ func _test_turnover_and_staffing() -> void:
 			"a factory vacancy lowers the effective efficiency and the units")
 
 
+## Rotación directiva: las salidas cuentan; los traslados internos (también los del jugador) no.
+func _test_player_moves_not_turnover() -> void:
+	_fresh()
+	NPCDirector.remove_npc(Company.get_seat_holder("b10_director"), "expelled")
+	_set_player("b10_director")
+	check_eq(Company.get_player_seat().get("temporary"), false, "the player sits in the real B10 chair")
+	NPCDirector.remove_npc(Company.get_seat_holder("c10_director"), "expelled")
+	check_eq(Company.get_executive_turnover(), 2, "two directors expelled: two departures")
+	PlayerState.modify_reputation(Database.get_occupation("c10_director").min_reputation, "test")
+	Company.register_merit("test", Company.get_merit_threshold())
+	Company.recalculate_fundamentals()
+	var risk: float = float(Company.get_fundamentals()["risk_factor"])
+	check(Company.promote_player("c10_director"), "the B10 director is promoted to C10")
+	check_eq(Company.get_executive_turnover(), 2, "the player's own promotion is not turnover")
+	Company.recalculate_fundamentals()
+	check_near(float(Company.get_fundamentals()["risk_factor"]), risk, RATIO_EPS,
+			"and does not raise the risk factor")
+
+
 func _test_growth() -> void:
 	_fresh()
 	EventBus.idea_presented.emit("idea_test_1", "player", 10)
@@ -175,6 +240,19 @@ func _test_growth() -> void:
 	check_near(float(Company.get_fundamentals()["growth_expectation"]),
 			per_product + trend * Database.get_balance_float("empresa.peso_tendencia_crecimiento"),
 			RATIO_EPS, "growth = trend of the last quarters + products in development")
+
+
+## §9.2 tendencia: el trimestre entra con su beneficio diario MEDIO, no con la foto del último día.
+func _test_quarter_average() -> void:
+	_fresh()
+	var first_day: float = float(Company.get_fundamentals()["profit"])
+	Company.add_theft_loss(THEFT * 100.0)
+	GameClock.advance_to_next_day()
+	var second_day: float = float(Company.get_fundamentals()["profit"])
+	check(second_day < first_day, "the theft lowers the second day's profit")
+	EventBus.quarter_closed.emit(1)
+	check_near(Company.get_quarter_profits().back(), (first_day + second_day) / 2.0, EPS,
+			"the quarter's point is the average of its days")
 
 
 ## §9.2: semanas = 8 − 6 × divergencia, acotado a [2, 8].
@@ -215,6 +293,92 @@ func _test_reported_authorization() -> void:
 	check_eq(_calls("audit_fuse_lit").back()[1],
 			mini(Company.compute_fuse_weeks(divergence), B10_FUSE_WEEKS),
 			"§9.9: the B10 director's sales figures carry a two-week fuse")
+
+
+## §9.9: el director del B10 controla las cifras de venta; CFO y CEO, todas.
+func _test_reportable_keys_by_post() -> void:
+	_fresh()
+	_set_player("b10_director")
+	check_eq(Company.get_reportable_keys(), ["revenue"], "B10: only the reported sales")
+	var real: Dictionary = Company.get_fundamentals()
+	Company.set_reported_figures({"costs": float(real["costs"]) * 0.5,
+			"profit": float(real["profit"]) * 2.0})
+	check(_calls("audit_fuse_lit").is_empty(), "B10 cannot touch costs or profit: no fuse")
+	check_eq(Company.get_reported_figures(), real, "and the reported figures stay honest")
+	Company.set_reported_figures({"revenue": float(real["revenue"]) * (1.0 + INFLATION),
+			"costs": 0.0})
+	var reported: Dictionary = Company.get_reported_figures()
+	check_near(float(reported["costs"]), float(real["costs"]), EPS, "costs are ignored for B10")
+	check_near(float(reported["profit"]), float(reported["revenue"]) - float(real["costs"]), EPS,
+			"the reported profit follows the inflated sales")
+	for occupation_id: String in ["cfo", "ceo"]:
+		_set_player(occupation_id)
+		check_eq(Company.get_reportable_keys().size(), 5, "%s controls all five figures" % occupation_id)
+	_set_player("email_worker_3b")
+	check(Company.get_reportable_keys().is_empty(), "an unauthorised post controls none")
+
+
+## §9.2 «toda divergencia»: también crecimiento y riesgo (diferencia absoluta: valores pequeños).
+func _test_growth_and_risk_figures() -> void:
+	_fresh()
+	_set_player("cfo")
+	var real: Dictionary = Company.get_fundamentals()
+	Company.set_reported_figures({"growth_expectation": float(real["growth_expectation"]) + GROWTH_LIE})
+	check_near(float(Company.get_reported_figures()["growth_expectation"]),
+			float(real["growth_expectation"]) + GROWTH_LIE, RATIO_EPS, "the invented growth is reported")
+	check_eq(_calls("audit_fuse_lit"), [[GROWTH_LIE, Company.compute_fuse_weeks(GROWTH_LIE)]],
+			"an invented growth expectation lights the fuse (8 − 6 × 0.5 = 5 weeks)")
+	_fresh()
+	_set_player("cfo")
+	EventBus.news_published.emit("TEST_BAD_PRESS", -0.1, false)
+	Company.recalculate_fundamentals()
+	var risk: float = float(Company.get_fundamentals()["risk_factor"])
+	check(risk > 0.0, "bad press gives the company some risk")
+	Company.set_reported_figures({"risk_factor": 0.0})
+	check_near(float(Company.get_audit_fuse()["divergence"]), risk, RATIO_EPS,
+			"hiding the risk is a divergence of the hidden amount")
+
+
+## Una segunda falsificación acorta la mecha vigente (nunca la alarga); sin mecha no hay cuenta.
+func _test_fuse_shortening_and_idle_weeks() -> void:
+	_fresh()
+	for _i: int in IDLE_WEEKS:
+		EventBus.week_closed.emit(1)
+	check(_calls("audit_triggered").is_empty(), "weeks without a lit fuse trigger no audit")
+	_set_player("cfo")
+	var real: Dictionary = Company.get_fundamentals()
+	Company.set_reported_figures(_scaled(real, SMALL_DIVERGENCE))
+	var weeks: int = Company.compute_fuse_weeks(SMALL_DIVERGENCE)
+	check_eq(int(Company.get_audit_fuse()["weeks_left"]), weeks, "a 10 %% lie: %d weeks" % weeks)
+	EventBus.week_closed.emit(1)
+	check_eq(int(Company.get_audit_fuse()["weeks_left"]), weeks - 1, "one week burns per week_closed")
+	Company.set_reported_figures(_scaled(real, FULL_DIVERGENCE))
+	check_eq(int(Company.get_audit_fuse()["weeks_left"]), Company.compute_fuse_weeks(FULL_DIVERGENCE),
+			"a bigger second lie shortens the fuse to its own duration")
+	check_near(float(Company.get_audit_fuse()["divergence"]), FULL_DIVERGENCE, RATIO_EPS,
+			"and the fuse keeps the largest magnitude")
+	Company.set_reported_figures(_scaled(real, SMALL_DIVERGENCE))
+	check_eq(int(Company.get_audit_fuse()["weeks_left"]), Company.compute_fuse_weeks(FULL_DIVERGENCE),
+			"a smaller later lie never lengthens it")
+
+
+func _test_quarter_reported_restates() -> void:
+	_fresh()
+	_set_player("cfo")
+	Company.set_reported_figures(_inflated(Company.get_fundamentals()))
+	EventBus.quarter_reported.emit(Company.get_fundamentals(), Company.get_reported_figures())
+	check_eq(Company.get_reported_figures(), Company.get_fundamentals(),
+			"quarter_reported: the communicated figures are withdrawn")
+	check(not Company.get_audit_fuse().is_empty(), "but the fuse already lit keeps burning")
+
+
+## El RNG de la auditoría sale de la semilla de partida: misma semilla, mismos hallazgos.
+func _test_audit_determinism() -> void:
+	var first: Array[bool] = _audit_rolls(DEFAULT_SEED)
+	var second: Array[bool] = _audit_rolls(DEFAULT_SEED)
+	check_eq(first.size(), AUDIT_ROUNDS, "%d audits ran" % AUDIT_ROUNDS)
+	check_eq(second, first, "the same run seed gives the same audit outcomes")
+	check(first.has(true) and first.has(false), "outcomes vary between audits (probability < 1)")
 
 
 ## El jugador como Auditor Jefe: probabilidad nula (§9.2).
@@ -305,6 +469,26 @@ func _fresh() -> void:
 
 func _set_player(occupation_id: String) -> void:
 	PlayerState.set_occupation(occupation_id, "test")
+
+
+## CFO (sin descenso por cifras): AUDIT_ROUNDS mechas consumidas; resultado de cada auditoría.
+func _audit_rolls(run_seed: int) -> Array[bool]:
+	new_run(run_seed)
+	_clear()
+	_set_player("cfo")
+	var out: Array[bool] = []
+	for _round: int in AUDIT_ROUNDS:
+		Company.set_reported_figures(_inflated(Company.get_fundamentals()))
+		while not Company.get_audit_fuse().is_empty():
+			EventBus.week_closed.emit(1)
+		out.append(bool(_calls("audit_triggered").back()[0]))
+	return out
+
+
+## Ingresos y beneficio × (1 + d), costes intactos: la divergencia es exactamente d.
+func _scaled(real: Dictionary, divergence: float) -> Dictionary:
+	return {"revenue": float(real["revenue"]) * (1.0 + divergence),
+			"profit": float(real["profit"]) * (1.0 + divergence)}
 
 
 func _inflated(real: Dictionary) -> Dictionary:

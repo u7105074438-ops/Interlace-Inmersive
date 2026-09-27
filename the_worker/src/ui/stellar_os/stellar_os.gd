@@ -93,12 +93,13 @@ var _clock_owned: bool = false
 var _speed_before: float = 1.0
 var _fallback_duties: DutySystem = null
 var _icons: Dictionary = {}
+var _desktop_apps: Array[String] = []
 var _window_layer: Control
 var _ad_layer: Control
-var _taskbar: Taskbar
-var _start_menu: StartMenu
-var _busy: BusyOverlay
-var _boot: BootScreen
+var _taskbar: OSTaskbar
+var _start_menu: OSStartMenu
+var _busy: OSBusyOverlay
+var _boot: OSBootScreen
 var _balloon: PanelContainer
 var _balloon_label: Label
 var _balloon_left: float = 0.0
@@ -107,7 +108,7 @@ var _balloon_left: float = 0.0
 # ─── Piezas del escritorio (clases internas) ───────────────────────
 
 ## Papel pintado (y franja de invitado) según el aspecto y la banda.
-class Wallpaper extends Control:
+class OSWallpaper extends Control:
 	var pal: Dictionary = {}
 
 	func _init(p: Dictionary) -> void:
@@ -120,7 +121,7 @@ class Wallpaper extends Control:
 
 
 ## Líneas de barrido del monitor CRT sobre todo el escritorio (aspecto retro).
-class Scanlines extends Control:
+class OSScanlines extends Control:
 	var base: int = 24
 
 	func _init(base_px: int) -> void:
@@ -133,7 +134,7 @@ class Scanlines extends Control:
 
 
 ## Icono del escritorio: dibujo vectorial + rótulo; un toque lo abre.
-class DesktopIcon extends Control:
+class OSDesktopIcon extends Control:
 	signal activated(app_id: String)
 	var pal: Dictionary = {}
 	var base: int = 24
@@ -304,7 +305,7 @@ class OSWindow extends Control:
 
 
 ## Barra de tareas: botón de inicio, aplicación abierta y bandeja (reloj de juego y velocidad).
-class Taskbar extends PanelContainer:
+class OSTaskbar extends PanelContainer:
 	signal start_pressed()
 	signal task_pressed()
 	var pal: Dictionary = {}
@@ -383,7 +384,7 @@ class Taskbar extends PanelContainer:
 
 
 ## Menú de inicio: franja lateral con el nombre del producto y las aplicaciones disponibles.
-class StartMenu extends PanelContainer:
+class OSStartMenu extends PanelContainer:
 	signal app_chosen(app_id: String)
 	signal shutdown_chosen()
 	var pal: Dictionary = {}
@@ -431,7 +432,7 @@ class StartMenu extends PanelContainer:
 
 
 ## Reloj de arena del equipo lento: bloquea los clics y anima la apertura de ventanas.
-class BusyOverlay extends Control:
+class OSBusyOverlay extends Control:
 	var pal: Dictionary = {}
 	var base: int = 24
 	var _from: Rect2 = Rect2()
@@ -491,7 +492,7 @@ class BusyOverlay extends Control:
 
 ## Pantalla de arranque: BIOS (aspectos biselados), presentación con anuncios internos, o inicio de
 ## sesión de invitado (intrusión) con la foto del dueño del equipo.
-class BootScreen extends Control:
+class OSBootScreen extends Control:
 	var pal: Dictionary = {}
 	var base: int = 24
 	var progress: float = 0.0
@@ -606,7 +607,7 @@ class BootScreen extends Control:
 
 
 ## Anuncio interno emergente (§13.3: «publicidad interna» del equipo de R1).
-class AdPopup extends Control:
+class OSAdPopup extends Control:
 	signal dismissed()
 	var pal: Dictionary = {}
 	var base: int = 24
@@ -661,7 +662,7 @@ class AdPopup extends Control:
 
 
 ## Contenido de una aplicación sin desplegar (PERSONNEL/PORTAL/MARKET mientras no existan).
-class NotDeployedApp extends OSApp:
+class OSNotDeployedApp extends OSApp:
 	func build() -> void:
 		var center: CenterContainer = CenterContainer.new()
 		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -835,6 +836,11 @@ func is_booted() -> bool:
 	return _booted
 
 
+## true en modo QA (context.instant): sin esperas, animaciones ni anuncios.
+func is_instant() -> bool:
+	return _instant
+
+
 func get_boot_duration() -> float:
 	return _boot_duration
 
@@ -883,11 +889,11 @@ func get_duty_system() -> DutySystem:
 
 ## Aplicaciones que muestra el escritorio (MARKET solo si la ocupación la desbloquea).
 func get_desktop_apps() -> Array[String]:
-	var out: Array[String] = []
-	for app_id: String in APP_ORDER:
-		if app_id != APP_MARKET or _market_unlocked():
-			out.append(app_id)
-	return out
+	if _desktop_apps.is_empty():
+		for app_id: String in APP_ORDER:
+			if app_id != APP_MARKET or _market_unlocked():
+				_desktop_apps.append(app_id)
+	return _desktop_apps.duplicate()
 
 
 func is_app_available(app_id: String) -> bool:
@@ -1004,7 +1010,7 @@ func spawn_ad(index: int = -1) -> Control:
 	var count: int = AD_ICONS.size()
 	var i: int = index if index >= 1 and index <= count else (_ad_serial + _rng.randi_range(0, count - 1)) % count + 1
 	_ad_serial += 1
-	var ad: AdPopup = AdPopup.new(_pal, _base, i, AD_ICONS[i - 1])
+	var ad: OSAdPopup = OSAdPopup.new(_pal, _base, i, AD_ICONS[i - 1])
 	_ad_layer.add_child(ad)
 	var area: Rect2 = _window_rect()
 	var span: Vector2 = (area.size - ad.size).max(Vector2.ZERO)
@@ -1023,28 +1029,28 @@ func _resolve_tier() -> int:
 
 
 func _build_desktop() -> void:
-	add_child(Wallpaper.new(_pal))
+	add_child(OSWallpaper.new(_pal))
 	_build_icons()
 	if is_guest():
 		add_child(_guest_banner())
 	_window_layer = _layer("Windows", Control.MOUSE_FILTER_IGNORE)
 	_ad_layer = _layer("Ads", Control.MOUSE_FILTER_IGNORE)
-	_taskbar = Taskbar.new(_pal, _base, is_guest())
+	_taskbar = OSTaskbar.new(_pal, _base, is_guest())
 	_taskbar.start_pressed.connect(_toggle_start_menu)
 	_taskbar.task_pressed.connect(_on_task_pressed)
 	add_child(_taskbar)
-	_start_menu = StartMenu.new(_pal, _base)
+	_start_menu = OSStartMenu.new(_pal, _base)
 	_start_menu.visible = false
 	_start_menu.app_chosen.connect(func(app_id: String) -> void: open_app(app_id))
 	_start_menu.shutdown_chosen.connect(shut_down)
 	add_child(_start_menu)
 	_build_balloon()
-	_busy = BusyOverlay.new(_pal, _base)
+	_busy = OSBusyOverlay.new(_pal, _base)
 	add_child(_busy)
-	_boot = BootScreen.new(_pal, _base)
+	_boot = OSBootScreen.new(_pal, _base)
 	add_child(_boot)
 	if bool(_pal.get("scanlines", false)):
-		add_child(Scanlines.new(_base))
+		add_child(OSScanlines.new(_base))
 	_layout_desktop()
 
 
@@ -1060,7 +1066,7 @@ func _layer(layer_name: String, filter: Control.MouseFilter) -> Control:
 func _build_icons() -> void:
 	var locked: Array[String] = []
 	for app_id: String in get_desktop_apps():
-		var icon: DesktopIcon = DesktopIcon.new(_pal, _base, app_id, t(app_name_key(app_id)))
+		var icon: OSDesktopIcon = OSDesktopIcon.new(_pal, _base, app_id, t(app_name_key(app_id)))
 		icon.locked = not is_app_available(app_id)
 		if icon.locked:
 			locked.append(app_id)
@@ -1108,7 +1114,7 @@ func _layout_desktop() -> void:
 	var rows: int = maxi(floori((size.y - tb_h - margin * 2.0) / cell.y), 1)
 	var i: int = 0
 	for app_id: String in get_desktop_apps():
-		var icon: DesktopIcon = _icons[app_id]
+		var icon: OSDesktopIcon = _icons[app_id]
 		icon.position = Vector2(margin + floorf(float(i) / float(rows)) * cell.x, margin + (i % rows) * cell.y)
 		icon.size = cell
 		i += 1
@@ -1137,7 +1143,7 @@ func _window_rect() -> Rect2:
 
 
 func _icon_rect(app_id: String) -> Rect2:
-	var icon: DesktopIcon = _icons.get(app_id) as DesktopIcon
+	var icon: OSDesktopIcon = _icons.get(app_id) as OSDesktopIcon
 	return Rect2(icon.position, icon.size) if icon != null else Rect2()
 
 
@@ -1205,22 +1211,38 @@ func _mount_app(app_id: String) -> Control:
 	return app
 
 
-func _instantiate_app(app_id: String) -> Control:
+## Script desplegado de una aplicación (null si falta o no compila).
+func _app_script(app_id: String) -> GDScript:
 	var path: String = APP_DIR + str(APP_SCRIPTS.get(app_id, ""))
+	if not APP_SCRIPTS.has(app_id) or not ResourceLoader.exists(path):
+		return null
+	var script: GDScript = load(path) as GDScript
+	return script if script != null and script.can_instantiate() else null
+
+
+static func _script_has(script: GDScript, method: String) -> bool:
+	for entry: Dictionary in script.get_script_method_list():
+		if str(entry.get("name", "")) == method:
+			return true
+	return false
+
+
+func _instantiate_app(app_id: String) -> Control:
+	var script: GDScript = _app_script(app_id)
 	var node: Control = null
-	if APP_SCRIPTS.has(app_id) and ResourceLoader.exists(path):
-		var script: GDScript = load(path) as GDScript
-		if script != null and script.can_instantiate():
-			var obj: Object = script.new()
-			node = obj as Control
-			if node == null and obj is Node:
-				node = Control.new()
-				node.add_child(obj as Node)
+	if script != null:
+		var obj: Object = script.new()
+		node = obj as Control
+		if node == null and obj is Node:
+			node = Control.new()
+			node.add_child(obj as Node)
 	if node == null:
-		node = NotDeployedApp.new()
+		node = OSNotDeployedApp.new()
 	node.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	node.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if node.has_method("set_embedded"):
+		node.call("set_embedded", true)
 	if node.has_method("setup"):
 		node.call("setup", _app_context(app_id))
 	return node
@@ -1257,7 +1279,12 @@ func _on_task_pressed() -> void:
 func _toggle_start_menu() -> void:
 	if _start_menu.visible:
 		_close_start_menu()
-		return
+	else:
+		open_start_menu()
+
+
+## Menú de inicio (botón Stellar de la barra de tareas).
+func open_start_menu() -> void:
 	var locked: Array[String] = []
 	for app_id: String in get_desktop_apps():
 		if not is_app_available(app_id):
@@ -1317,7 +1344,12 @@ func _release_clock() -> void:
 	GameClock.set_speed_multiplier(_speed_before)
 
 
+## MARKET: la propia aplicación decide (is_available(), si está desplegada); si no, los datos
+## (unlocks_apps de la ocupación contiene "MARKET", desde R25).
 func _market_unlocked() -> bool:
+	var script: GDScript = _app_script(APP_MARKET)
+	if script != null and _script_has(script, "is_available"):
+		return bool(script.call("is_available"))
 	var occ: OccupationData = PlayerState.get_occupation()
 	if occ == null:
 		return false

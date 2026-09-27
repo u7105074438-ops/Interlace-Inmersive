@@ -19,6 +19,7 @@ func run_case() -> void:
 	_test_endings_gallery()
 	_test_persistence()
 	_test_merge_never_clobbers()
+	_test_recovery()
 	_test_corrupt_profile()
 	_cleanup()
 
@@ -53,7 +54,9 @@ func _test_validation() -> void:
 	_expect("difficulty", "nightmare", "auditoria", "unknown preset ignored")
 	_expect("language", "es", "es", "Spanish")
 	_expect("language", "xx", "es", "unknown locale ignored")
+	check_eq(SaveSystem.get_setting("skip_tutorial_seen"), false, "skip_tutorial_seen defaults to false")
 	_expect("skip_seen_intro", true, true, "skip seen intro")
+	check_eq(SaveSystem.get_setting("skip_tutorial_seen"), true, "skip_tutorial_seen is the same flag (alias)")
 	_expect("tutorial_seen", true, true, "profile flags without default are kept")
 	check_eq(typeof(SaveSystem.get_setting("text_size")), TYPE_INT, "int settings stay int")
 	check_eq(typeof(SaveSystem.get_setting("clock_speed")), TYPE_FLOAT, "float settings stay float")
@@ -102,6 +105,17 @@ func _test_merge_never_clobbers() -> void:
 	check_near(float(SaveSystem.get_setting("music_volume")), 0.25, 0.0001, "the session's change was applied")
 	var unlocked: Array[String] = SaveSystem.get_unlocked_endings()
 	check(unlocked.has("the_worker") and unlocked.has("the_file"), "gallery merged, nothing lost")
+
+
+## Corte durante el renombrado: profile.json falta y su .tmp verificado se recupera.
+func _test_recovery() -> void:
+	var path: String = SaveSystem.get_profile_path()
+	var saved: Dictionary = _snapshot()
+	DirAccess.rename_absolute(path, path + ".tmp")
+	SaveSystem.forget_profile()
+	check(SaveSystem.load_profile(), "profile.json missing + verified .tmp → the profile is recovered")
+	check_eq(_snapshot(), saved, "…with every setting and ending")
+	check(FileAccess.file_exists(path) and not FileAccess.file_exists(path + ".tmp"), "…promoted to profile.json")
 
 
 func _test_corrupt_profile() -> void:

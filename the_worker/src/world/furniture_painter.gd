@@ -282,9 +282,9 @@ func _box(ci: CanvasItem, r: Rect2, h: float, top: Color, front: Color = Color.T
 	if h > 0.0:
 		ci.draw_rect(Rect2(r.position.x, r.end.y - h, r.size.x, h), front_col)
 	ci.draw_rect(top_r, top)
-	ci.draw_rect(Rect2(r.position.x, r.position.y - h, r.size.x, r.size.y + h), _ol(), false, _px(OUTLINE_W))
+	frame_rect(ci, Rect2(r.position.x, r.position.y - h, r.size.x, r.size.y + h), _ol(), _px(OUTLINE_W))
 	if h > 0.0:
-		ci.draw_line(Vector2(r.position.x, r.end.y - h), Vector2(r.end.x, r.end.y - h), _ol(), _px(THIN_W))
+		segment(ci, Vector2(r.position.x, r.end.y - h), Vector2(r.end.x, r.end.y - h), _ol(), _px(THIN_W))
 	return top_r
 
 
@@ -296,7 +296,27 @@ func _front(r: Rect2, h: float) -> Rect2:
 func _rect(ci: CanvasItem, r: Rect2, fill: Color, outline: bool = true) -> void:
 	ci.draw_rect(r, fill)
 	if outline:
-		ci.draw_rect(r, _ol(), false, _px(OUTLINE_W))
+		frame_rect(ci, r, _ol(), _px(OUTLINE_W))
+
+
+## Contorno de rectángulo hecho de cuatro rectángulos rellenos (se agrupan con el resto: PASO 40).
+static func frame_rect(ci: CanvasItem, r: Rect2, col: Color, w: float) -> void:
+	var t: float = maxf(1.0, w)
+	ci.draw_rect(Rect2(r.position.x, r.position.y, r.size.x, t), col)
+	ci.draw_rect(Rect2(r.position.x, r.end.y - t, r.size.x, t), col)
+	ci.draw_rect(Rect2(r.position.x, r.position.y + t, t, maxf(0.0, r.size.y - t * 2.0)), col)
+	ci.draw_rect(Rect2(r.end.x - t, r.position.y + t, t, maxf(0.0, r.size.y - t * 2.0)), col)
+
+
+## Segmento: si es horizontal o vertical, un rectángulo relleno (agrupable); si no, una línea.
+static func segment(ci: CanvasItem, a: Vector2, b: Vector2, col: Color, w: float = 1.0) -> void:
+	var t: float = maxf(1.0, w)
+	if is_equal_approx(a.y, b.y):
+		ci.draw_rect(Rect2(minf(a.x, b.x), a.y - t * 0.5, absf(b.x - a.x), t), col)
+	elif is_equal_approx(a.x, b.x):
+		ci.draw_rect(Rect2(a.x - t * 0.5, minf(a.y, b.y), t, absf(b.y - a.y)), col)
+	else:
+		ci.draw_line(a, b, col, w)
 
 
 func _circle(ci: CanvasItem, c: Vector2, rad: float, fill: Color, outline: bool = true) -> void:
@@ -354,7 +374,7 @@ func _monitor(ci: CanvasItem, c: Vector2, w: float, facing_camera: bool) -> void
 	_rect(ci, body, C_SCREEN_DARK)
 	if facing_camera:
 		ci.draw_rect(_inset(body, 2.0), C_SCREEN)
-		ci.draw_line(body.position + Vector2(_px(4), _px(4)), body.position + Vector2(w * 0.6, _px(4)),
+		segment(ci, body.position + Vector2(_px(4), _px(4)), body.position + Vector2(w * 0.6, _px(4)),
 				Color(1, 1, 1, 0.6), _px(1))
 
 
@@ -363,7 +383,7 @@ func _papers(ci: CanvasItem, r: Rect2, count: int) -> void:
 		var p: Vector2 = r.position + Vector2(_rng.randf() * maxf(1.0, r.size.x - _px(10)),
 				_rng.randf() * maxf(1.0, r.size.y - _px(8)))
 		ci.draw_rect(Rect2(p, Vector2(_px(9), _px(7))), C_PAPER)
-		ci.draw_rect(Rect2(p, Vector2(_px(9), _px(7))), _ol().lerp(C_PAPER, 0.5), false, _px(1))
+		frame_rect(ci, Rect2(p, Vector2(_px(9), _px(7))), _ol().lerp(C_PAPER, 0.5), _px(1))
 
 
 func _mug(ci: CanvasItem, p: Vector2) -> void:
@@ -415,7 +435,7 @@ func _cubicle_desk_items(ci: CanvasItem, top: Rect2, vacant: bool, screen_visibl
 	var key_y: float = top.end.y - _px(11) if screen_visible else top.position.y + _px(4)
 	var mon_c: Vector2 = Vector2(top.get_center().x + _px(6), mon_y)
 	ci.draw_rect(Rect2(mon_c.x - _px(11), key_y, _px(22), _px(6)), Color("#e7e4dc"))
-	ci.draw_rect(Rect2(mon_c.x - _px(11), key_y, _px(22), _px(6)), _ol(), false, _px(1))
+	frame_rect(ci, Rect2(mon_c.x - _px(11), key_y, _px(22), _px(6)), _ol(), _px(1))
 	ci.draw_circle(Vector2(mon_c.x + _px(16), key_y + _px(3)), _px(2.5), Color("#e7e4dc"))
 	_monitor(ci, mon_c, _px(26), screen_visible)
 	if vacant:
@@ -461,7 +481,7 @@ func _draw_executive_desk(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 2.0)
 	var wood: Color = _c("furniture") if str(style.get("band", "")) != "the_throne" else Color("#141416")
 	var top: Rect2 = _box(ci, d, height_of("executive_desk"), wood.lightened(0.08), wood.darkened(0.35))
-	ci.draw_rect(_inset(top, 3.0), _c("accent"), false, _px(1.5))
+	frame_rect(ci, _inset(top, 3.0), _c("accent"), _px(1.5))
 	var pad: Rect2 = Rect2(top.get_center().x - top.size.x * 0.22, top.position.y + top.size.y * 0.3,
 			top.size.x * 0.44, top.size.y * 0.42)
 	_rect(ci, pad, Color("#1d3a2c") if str(style.get("band", "")) == "the_power" else Color("#2a2a2e"))
@@ -498,7 +518,7 @@ func _draw_meeting_table(ci: CanvasItem, r: Rect2) -> void:
 	ci.draw_rect(Rect2(d.position.x, d.end.y - h, d.size.x, h), col.darkened(0.3))
 	var top: Rect2 = Rect2(d.position.x, d.position.y - h, d.size.x, d.size.y)
 	_poly(ci, _rounded(top, _px(10)), col)
-	ci.draw_rect(_inset(top, 5.0), _c("accent").lerp(col, 0.4), false, _px(1.5))
+	frame_rect(ci, _inset(top, 5.0), _c("accent").lerp(col, 0.4), _px(1.5))
 	var seats: int = maxi(1, int(top.size.x / _px(48)))
 	for i: int in seats:
 		var x: float = top.position.x + (i + 0.5) * top.size.x / seats
@@ -514,7 +534,7 @@ func _draw_filing_cabinet(ci: CanvasItem, r: Rect2) -> void:
 	var front: Rect2 = _front(d, h)
 	for i: int in 3:
 		var y: float = front.position.y + front.size.y * (i + 0.5) / 3.0
-		ci.draw_line(Vector2(front.position.x, front.position.y + front.size.y * i / 3.0),
+		segment(ci, Vector2(front.position.x, front.position.y + front.size.y * i / 3.0),
 				Vector2(front.end.x, front.position.y + front.size.y * i / 3.0), _ol(), _px(1))
 		ci.draw_rect(Rect2(front.get_center().x - _px(4), y - _px(1), _px(8), _px(2.5)), C_STEEL_DARK)
 
@@ -545,15 +565,15 @@ func _draw_whiteboard(ci: CanvasItem, r: Rect2) -> void:
 	if not horizontal:
 		board = Rect2(r.get_center().x - _px(5), r.position.y - tall * 0.3, _px(10), r.size.y + tall * 0.3)
 	_shadow(ci, Rect2(r.position.x, r.end.y - _px(10), r.size.x, _px(8)))
-	ci.draw_line(Vector2(board.position.x + _px(4), board.end.y), Vector2(board.position.x + _px(4), r.end.y - _px(3)),
+	segment(ci, Vector2(board.position.x + _px(4), board.end.y), Vector2(board.position.x + _px(4), r.end.y - _px(3)),
 			C_STEEL_DARK, _px(2))
-	ci.draw_line(Vector2(board.end.x - _px(4), board.end.y), Vector2(board.end.x - _px(4), r.end.y - _px(3)),
+	segment(ci, Vector2(board.end.x - _px(4), board.end.y), Vector2(board.end.x - _px(4), r.end.y - _px(3)),
 			C_STEEL_DARK, _px(2))
 	_rect(ci, board, Color("#fbfcfd"))
 	if horizontal:
 		for i: int in 3:
 			var y: float = board.position.y + _px(5) + i * _px(5)
-			ci.draw_line(Vector2(board.position.x + _px(5), y),
+			segment(ci, Vector2(board.position.x + _px(5), y),
 					Vector2(board.position.x + _rng.randf_range(0.3, 0.85) * board.size.x, y), _pick(C_BOOKS), _px(1.5))
 
 
@@ -568,7 +588,7 @@ func _draw_motivational_poster(ci: CanvasItem, r: Rect2) -> void:
 	ci.draw_colored_polygon(PackedVector2Array([Vector2(img.position.x, img.end.y),
 			Vector2(img.get_center().x - _px(3), img.position.y + _px(3)), Vector2(img.end.x, img.end.y)]), Color("#e9eef2"))
 	ci.draw_rect(Rect2(poster.position.x + _px(3), poster.end.y - _px(6), w - _px(6), _px(3.5)), Color("#1b1b1b"))
-	ci.draw_line(Vector2(poster.position.x + _px(6), poster.end.y - _px(4.3)),
+	segment(ci, Vector2(poster.position.x + _px(6), poster.end.y - _px(4.3)),
 			Vector2(poster.end.x - _px(6), poster.end.y - _px(4.3)), C_GOLD, _px(1))
 
 
@@ -652,7 +672,7 @@ func _draw_bookshelf(ci: CanvasItem, r: Rect2) -> void:
 			var bh: float = front.size.y / rows * _rng.randf_range(0.65, 0.95)
 			ci.draw_rect(Rect2(x, y0 + front.size.y / rows - bh, minf(bw, front.end.x - x), bh), _pick(C_BOOKS))
 			x += bw + _px(0.8)
-		ci.draw_line(Vector2(front.position.x, y0 + front.size.y / rows), Vector2(front.end.x, y0 + front.size.y / rows),
+		segment(ci, Vector2(front.position.x, y0 + front.size.y / rows), Vector2(front.end.x, y0 + front.size.y / rows),
 				wood.darkened(0.5), _px(1.5))
 
 
@@ -673,7 +693,7 @@ func _draw_shelf_rack(ci: CanvasItem, r: Rect2) -> void:
 			var bw: float = _rng.randf_range(_px(6), _px(11))
 			ci.draw_rect(Rect2(x, y - front.size.y * 0.42, minf(bw, front.end.x - x), front.size.y * 0.4), _pick(goods))
 			x += bw + _px(1.5)
-		ci.draw_line(Vector2(front.position.x, y), Vector2(front.end.x, y), C_STEEL_DARK, _px(1.5))
+		segment(ci, Vector2(front.position.x, y), Vector2(front.end.x, y), C_STEEL_DARK, _px(1.5))
 
 
 ## Mercancía según el uso de la sala: productos de colores (tiendas), archivadores o cajas.
@@ -703,7 +723,7 @@ func _goods_grid(ci: CanvasItem, top: Rect2, goods: Array[Color]) -> void:
 			var size: Vector2 = Vector2(along, across) if long_x else Vector2(across, along)
 			ci.draw_rect(Rect2(top.position + p, size), _pick(goods))
 			t += step
-	ci.draw_rect(top, _ol().lerp(C_METAL, 0.5), false, _px(1))
+	frame_rect(ci, top, _ol().lerp(C_METAL, 0.5), _px(1))
 
 
 func _draw_wardrobe(ci: CanvasItem, r: Rect2) -> void:
@@ -711,7 +731,7 @@ func _draw_wardrobe(ci: CanvasItem, r: Rect2) -> void:
 	var h: float = height_of("wardrobe")
 	_box(ci, d, h, C_WOOD.lightened(0.1), C_WOOD.darkened(0.25))
 	var front: Rect2 = _front(d, h)
-	ci.draw_line(Vector2(front.get_center().x, front.position.y), Vector2(front.get_center().x, front.end.y), _ol(), _px(1))
+	segment(ci, Vector2(front.get_center().x, front.position.y), Vector2(front.get_center().x, front.end.y), _ol(), _px(1))
 	ci.draw_circle(Vector2(front.get_center().x - _px(4), front.get_center().y), _px(1.6), C_GOLD)
 	ci.draw_circle(Vector2(front.get_center().x + _px(4), front.get_center().y), _px(1.6), C_GOLD)
 
@@ -726,13 +746,13 @@ func _draw_lockers(ci: CanvasItem, r: Rect2) -> void:
 	for i: int in doors:
 		if r.size.x >= r.size.y:
 			var x: float = front.position.x + front.size.x * i / doors
-			ci.draw_line(Vector2(x, front.position.y), Vector2(x, front.end.y), _ol(), _px(1))
+			segment(ci, Vector2(x, front.position.y), Vector2(x, front.end.y), _ol(), _px(1))
 			for v: int in 3:
-				ci.draw_line(Vector2(x + _px(3), front.position.y + _px(3 + v * 2.5)),
+				segment(ci, Vector2(x + _px(3), front.position.y + _px(3 + v * 2.5)),
 						Vector2(x + front.size.x / doors - _px(3), front.position.y + _px(3 + v * 2.5)), col.darkened(0.45), _px(1))
 		else:
 			var y: float = front.position.y + front.size.y * i / doors
-			ci.draw_line(Vector2(front.position.x, y), Vector2(front.end.x, y), _ol(), _px(1))
+			segment(ci, Vector2(front.position.x, y), Vector2(front.end.x, y), _ol(), _px(1))
 
 
 func _draw_server_rack(ci: CanvasItem, r: Rect2) -> void:
@@ -745,7 +765,7 @@ func _draw_server_rack(ci: CanvasItem, r: Rect2) -> void:
 		var x: float = front.position.x + front.size.x * u / units
 		for row: int in 4:
 			var y: float = front.position.y + _px(3) + row * front.size.y / 4.0
-			ci.draw_line(Vector2(x + _px(2), y), Vector2(x + front.size.x / units - _px(2), y), Color("#3c434c"), _px(1))
+			segment(ci, Vector2(x + _px(2), y), Vector2(x + front.size.x / units - _px(2), y), Color("#3c434c"), _px(1))
 			var led: Color = [C_GREEN_LED, Color("#4da3ff"), Color("#ffb14d")][_rng.randi_range(0, 2)]
 			ci.draw_circle(Vector2(x + _px(4), y + _px(2)), _px(1.3), led)
 
@@ -770,11 +790,11 @@ func _draw_fridge(ci: CanvasItem, r: Rect2) -> void:
 	var h: float = height_of("fridge")
 	_box(ci, d, h, Color("#f1f3f4"), Color("#c9cfd2"))
 	var front: Rect2 = _front(d, h)
-	ci.draw_line(Vector2(front.position.x, front.position.y + front.size.y * 0.35),
+	segment(ci, Vector2(front.position.x, front.position.y + front.size.y * 0.35),
 			Vector2(front.end.x, front.position.y + front.size.y * 0.35), _ol(), _px(1))
-	ci.draw_line(Vector2(front.end.x - _px(5), front.position.y + _px(3)),
+	segment(ci, Vector2(front.end.x - _px(5), front.position.y + _px(3)),
 			Vector2(front.end.x - _px(5), front.position.y + front.size.y * 0.3), C_STEEL_DARK, _px(2))
-	ci.draw_line(Vector2(front.end.x - _px(5), front.position.y + front.size.y * 0.42),
+	segment(ci, Vector2(front.end.x - _px(5), front.position.y + front.size.y * 0.42),
 			Vector2(front.end.x - _px(5), front.end.y - _px(4)), C_STEEL_DARK, _px(2))
 	ci.draw_rect(Rect2(front.position.x + _px(5), front.position.y + front.size.y * 0.5, _px(6), _px(5)), _pick(C_BOOKS))
 
@@ -792,7 +812,7 @@ func _draw_trophy_case(ci: CanvasItem, r: Rect2) -> void:
 				Vector2(cx + _px(4), glass.position.y + _px(4)), Vector2(cx + _px(1.5), glass.end.y - _px(6)),
 				Vector2(cx - _px(1.5), glass.end.y - _px(6))]), C_GOLD)
 		ci.draw_rect(Rect2(cx - _px(3.5), glass.end.y - _px(5), _px(7), _px(3)), C_GOLD.darkened(0.3))
-	ci.draw_line(glass.position + Vector2(_px(2), glass.size.y), glass.position + Vector2(_px(8), 0),
+	segment(ci, glass.position + Vector2(_px(2), glass.size.y), glass.position + Vector2(_px(8), 0),
 			Color(1, 1, 1, 0.5), _px(1.5))
 
 
@@ -813,7 +833,7 @@ func _draw_monitor_wall(ci: CanvasItem, r: Rect2) -> void:
 		var s: Rect2 = Rect2(frame.position.x + _px(2) + i * frame.size.x / screens, frame.position.y + _px(2),
 				frame.size.x / screens - _px(4), frame.size.y - _px(4))
 		ci.draw_rect(s, Color("#7f9aa6") if cctv else _pick([C_SCREEN, Color("#8fe0a8"), Color("#f2c46b")]))
-		ci.draw_line(s.position + Vector2(_px(2), s.size.y * 0.6), s.end - Vector2(_px(2), s.size.y * 0.25),
+		segment(ci, s.position + Vector2(_px(2), s.size.y * 0.6), s.end - Vector2(_px(2), s.size.y * 0.25),
 				Color(0, 0, 0, 0.35), _px(1.5))
 
 
@@ -863,10 +883,10 @@ func _draw_sofa(ci: CanvasItem, r: Rect2) -> void:
 	for i: int in range(1, cushions):
 		if absf(_facing.y) > 0.5:
 			var x: float = d.position.x + d.size.x * i / cushions
-			ci.draw_line(Vector2(x, d.position.y + _px(12)), Vector2(x, d.end.y - _px(12)), col.darkened(0.3), _px(1))
+			segment(ci, Vector2(x, d.position.y + _px(12)), Vector2(x, d.end.y - _px(12)), col.darkened(0.3), _px(1))
 		else:
 			var y: float = d.position.y + d.size.y * i / cushions
-			ci.draw_line(Vector2(d.position.x + _px(12), y), Vector2(d.end.x - _px(12), y), col.darkened(0.3), _px(1))
+			segment(ci, Vector2(d.position.x + _px(12), y), Vector2(d.end.x - _px(12), y), col.darkened(0.3), _px(1))
 
 
 func _draw_bench(ci: CanvasItem, r: Rect2) -> void:
@@ -876,7 +896,7 @@ func _draw_bench(ci: CanvasItem, r: Rect2) -> void:
 	_rect(ci, d, wood)
 	for i: int in 3:
 		var y: float = d.position.y + d.size.y * (i + 1) / 4.0
-		ci.draw_line(Vector2(d.position.x + _px(2), y), Vector2(d.end.x - _px(2), y), wood.darkened(0.35), _px(1))
+		segment(ci, Vector2(d.position.x + _px(2), y), Vector2(d.end.x - _px(2), y), wood.darkened(0.35), _px(1))
 
 
 func _draw_bed(ci: CanvasItem, r: Rect2) -> void:
@@ -888,7 +908,7 @@ func _draw_bed(ci: CanvasItem, r: Rect2) -> void:
 	var blanket: Rect2 = Rect2(mattress.position.x, mattress.position.y + mattress.size.y * 0.36, mattress.size.x,
 			mattress.size.y * 0.64)
 	_rect(ci, blanket, _pick([Color("#5a78a8"), Color("#a85a5a"), Color("#6a9a6a"), Color("#c9a86a")]))
-	ci.draw_line(blanket.position + Vector2(0, _px(5)), Vector2(blanket.end.x, blanket.position.y + _px(5)),
+	segment(ci, blanket.position + Vector2(0, _px(5)), Vector2(blanket.end.x, blanket.position.y + _px(5)),
 			Color(1, 1, 1, 0.5), _px(2))
 	var pillows: int = 2 if mattress.size.x > _px(80) else 1
 	for i: int in pillows:
@@ -910,7 +930,7 @@ func _draw_weight_bench(ci: CanvasItem, r: Rect2) -> void:
 	_shadow(ci, d)
 	_poly(ci, _rounded(d, _px(5)), Color("#26282c"))
 	var bar_x: float = d.position.x + d.size.x * 0.25
-	ci.draw_line(Vector2(bar_x, d.position.y - _px(10)), Vector2(bar_x, d.end.y + _px(10)), C_METAL, _px(2.5))
+	segment(ci, Vector2(bar_x, d.position.y - _px(10)), Vector2(bar_x, d.end.y + _px(10)), C_METAL, _px(2.5))
 	for y: float in [d.position.y - _px(8), d.end.y + _px(8)]:
 		_rect(ci, Rect2(bar_x - _px(5), y - _px(3), _px(10), _px(6)), Color("#1a1a1a"))
 
@@ -954,13 +974,13 @@ func _draw_sink(ci: CanvasItem, r: Rect2) -> void:
 	var basin: Rect2 = _inset(top, 5.0)
 	_poly(ci, _rounded(basin, _px(6)), Color("#f6f8f9"))
 	ci.draw_circle(basin.get_center(), _px(1.8), C_STEEL_DARK)
-	ci.draw_line(basin.get_center() - _facing * _px(8), basin.get_center() - _facing * _px(3), C_METAL, _px(2))
+	segment(ci, basin.get_center() - _facing * _px(8), basin.get_center() - _facing * _px(3), C_METAL, _px(2))
 
 
 func _draw_mirror(ci: CanvasItem, r: Rect2) -> void:
 	var m: Rect2 = Rect2(r.position.x + _px(8), r.position.y - _px(17), r.size.x - _px(16), _px(14))
 	_rect(ci, m, Color("#cfe6f0"))
-	ci.draw_line(m.position + Vector2(_px(4), m.size.y - _px(3)), m.position + Vector2(_px(11), _px(3)),
+	segment(ci, m.position + Vector2(_px(4), m.size.y - _px(3)), m.position + Vector2(_px(11), _px(3)),
 			Color(1, 1, 1, 0.8), _px(2))
 
 
@@ -977,7 +997,7 @@ func _draw_kitchen_counter(ci: CanvasItem, r: Rect2) -> void:
 	var front: Rect2 = _front(d, height_of("kitchen_counter"))
 	var doors: int = maxi(1, int(front.size.x / _px(22)))
 	for i: int in doors:
-		ci.draw_line(Vector2(front.position.x + front.size.x * i / doors, front.position.y),
+		segment(ci, Vector2(front.position.x + front.size.x * i / doors, front.position.y),
 				Vector2(front.position.x + front.size.x * i / doors, front.end.y), _ol(), _px(1))
 	if top.size.x > _px(80):
 		for k: int in 2:
@@ -985,7 +1005,7 @@ func _draw_kitchen_counter(ci: CanvasItem, r: Rect2) -> void:
 					C_STEEL_DARK, _px(2))
 	var basin: Rect2 = Rect2(top.end.x - _px(24), top.position.y + _px(6), _px(16), top.size.y - _px(12))
 	ci.draw_rect(basin, Color("#aab4ba"))
-	ci.draw_rect(basin, _ol(), false, _px(1))
+	frame_rect(ci, basin, _ol(), _px(1))
 
 
 func _draw_bar_counter(ci: CanvasItem, r: Rect2) -> void:
@@ -1026,7 +1046,7 @@ func _draw_safe(ci: CanvasItem, r: Rect2) -> void:
 	var front: Rect2 = _front(d, h)
 	_circle(ci, Vector2(front.position.x + front.size.x * 0.4, front.get_center().y), minf(_px(5), front.size.y * 0.35),
 			Color("#b8bfc4"))
-	ci.draw_line(Vector2(front.end.x - _px(6), front.position.y + _px(3)), Vector2(front.end.x - _px(6), front.end.y - _px(3)),
+	segment(ci, Vector2(front.end.x - _px(6), front.position.y + _px(3)), Vector2(front.end.x - _px(6), front.end.y - _px(3)),
 			C_GOLD, _px(2))
 
 
@@ -1038,7 +1058,7 @@ func _draw_electrical_panel(ci: CanvasItem, r: Rect2) -> void:
 	var c: Vector2 = front.get_center()
 	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -_px(6)), c + Vector2(_px(6), _px(5)),
 			c + Vector2(-_px(6), _px(5))]), C_HAZARD)
-	ci.draw_line(c + Vector2(0, -_px(2)), c + Vector2(0, _px(2)), Color("#1b1b1b"), _px(1.5))
+	segment(ci, c + Vector2(0, -_px(2)), c + Vector2(0, _px(2)), Color("#1b1b1b"), _px(1.5))
 
 
 func _draw_boiler(ci: CanvasItem, r: Rect2) -> void:
@@ -1047,16 +1067,16 @@ func _draw_boiler(ci: CanvasItem, r: Rect2) -> void:
 	var rust: Color = Color("#8a4a2b")
 	_shadow(ci, d)
 	ci.draw_rect(Rect2(d.position.x, d.get_center().y - h, d.size.x, d.size.y * 0.5 + h), rust.darkened(0.2))
-	ci.draw_rect(Rect2(d.position.x, d.get_center().y - h, d.size.x, d.size.y * 0.5 + h), _ol(), false, _px(OUTLINE_W))
+	frame_rect(ci, Rect2(d.position.x, d.get_center().y - h, d.size.x, d.size.y * 0.5 + h), _ol(), _px(OUTLINE_W))
 	var top_c: Vector2 = Vector2(d.get_center().x, d.get_center().y - h)
 	ci.draw_set_transform(top_c, 0.0, Vector2(1.0, 0.55))
 	_circle(ci, Vector2.ZERO, d.size.x * 0.5, rust.lightened(0.1))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	for i: int in 3:
 		var y: float = d.get_center().y - h + _px(10) + i * (h + d.size.y * 0.5 - _px(14)) / 3.0
-		ci.draw_line(Vector2(d.position.x, y), Vector2(d.end.x, y), rust.darkened(0.45), _px(2))
+		segment(ci, Vector2(d.position.x, y), Vector2(d.end.x, y), rust.darkened(0.45), _px(2))
 	_circle(ci, Vector2(d.get_center().x, d.end.y - _px(10)), _px(5), C_PAPER)
-	ci.draw_line(Vector2(d.get_center().x, d.end.y - _px(10)), Vector2(d.get_center().x + _px(3), d.end.y - _px(13)),
+	segment(ci, Vector2(d.get_center().x, d.end.y - _px(10)), Vector2(d.get_center().x + _px(3), d.end.y - _px(13)),
 			C_RED_LED, _px(1.5))
 
 
@@ -1067,19 +1087,19 @@ func _draw_hvac_unit(ci: CanvasItem, r: Rect2) -> void:
 	_circle(ci, c, top.size.y * 0.38, Color("#2b3035"))
 	for k: int in 4:
 		var ang: float = k * PI * 0.5 + 0.4
-		ci.draw_line(c, c + Vector2(cos(ang), sin(ang)) * top.size.y * 0.34, C_METAL, _px(3))
+		segment(ci, c, c + Vector2(cos(ang), sin(ang)) * top.size.y * 0.34, C_METAL, _px(3))
 	for i: int in 4:
 		var x: float = top.get_center().x + _px(4) + i * _px(5)
-		ci.draw_line(Vector2(x, top.position.y + _px(4)), Vector2(x, top.end.y - _px(4)), Color("#7d858a"), _px(1.5))
+		segment(ci, Vector2(x, top.position.y + _px(4)), Vector2(x, top.end.y - _px(4)), Color("#7d858a"), _px(1.5))
 
 
 func _draw_crate(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 5.0)
 	var wood: Color = Color("#b98b52")
 	var top: Rect2 = _box(ci, d, height_of("crate"), wood, wood.darkened(0.25))
-	ci.draw_line(top.position, top.end, wood.darkened(0.4), _px(2))
-	ci.draw_line(Vector2(top.end.x, top.position.y), Vector2(top.position.x, top.end.y), wood.darkened(0.4), _px(2))
-	ci.draw_rect(_inset(top, 3.0), wood.darkened(0.3), false, _px(1.5))
+	segment(ci, top.position, top.end, wood.darkened(0.4), _px(2))
+	segment(ci, Vector2(top.end.x, top.position.y), Vector2(top.position.x, top.end.y), wood.darkened(0.4), _px(2))
+	frame_rect(ci, _inset(top, 3.0), wood.darkened(0.3), _px(1.5))
 
 
 func _draw_pallet_stack(ci: CanvasItem, r: Rect2) -> void:
@@ -1089,10 +1109,10 @@ func _draw_pallet_stack(ci: CanvasItem, r: Rect2) -> void:
 	var h: float = height_of("pallet_stack")
 	boxes.position.y -= _px(5)
 	var top: Rect2 = _box(ci, boxes, h, C_CARDBOARD, C_CARDBOARD.darkened(0.2))
-	ci.draw_line(Vector2(top.get_center().x, top.position.y), Vector2(top.get_center().x, top.end.y), Color("#d9c28f"), _px(3))
-	ci.draw_line(Vector2(top.position.x, top.get_center().y), Vector2(top.end.x, top.get_center().y), C_CARDBOARD.darkened(0.3), _px(1))
+	segment(ci, Vector2(top.get_center().x, top.position.y), Vector2(top.get_center().x, top.end.y), Color("#d9c28f"), _px(3))
+	segment(ci, Vector2(top.position.x, top.get_center().y), Vector2(top.end.x, top.get_center().y), C_CARDBOARD.darkened(0.3), _px(1))
 	var front: Rect2 = _front(boxes, h)
-	ci.draw_line(Vector2(front.position.x, front.get_center().y), Vector2(front.end.x, front.get_center().y),
+	segment(ci, Vector2(front.position.x, front.get_center().y), Vector2(front.end.x, front.get_center().y),
 			C_CARDBOARD.darkened(0.4), _px(1))
 
 
@@ -1100,7 +1120,7 @@ func _draw_dumpster(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 3.0)
 	var col: Color = Color("#3f7a4a")
 	var top: Rect2 = _box(ci, d, height_of("dumpster"), col.lightened(0.05), col.darkened(0.25))
-	ci.draw_line(Vector2(top.get_center().x, top.position.y), Vector2(top.get_center().x, top.end.y), _ol(), _px(1.5))
+	segment(ci, Vector2(top.get_center().x, top.position.y), Vector2(top.get_center().x, top.end.y), _ol(), _px(1.5))
 	ci.draw_rect(Rect2(top.position.x + _px(4), top.position.y + _px(3), top.size.x * 0.4, _px(4)), col.lightened(0.25))
 
 
@@ -1108,7 +1128,7 @@ func _draw_workbench(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 3.0)
 	var top: Rect2 = _box(ci, d, height_of("workbench"), C_WOOD.lightened(0.15), C_WOOD.darkened(0.3))
 	_rect(ci, Rect2(top.position.x + _px(4), top.position.y + _px(4), _px(12), _px(10)), C_STEEL_DARK)
-	ci.draw_line(top.get_center() + Vector2(-_px(8), _px(2)), top.get_center() + Vector2(_px(10), -_px(4)), C_METAL, _px(3))
+	segment(ci, top.get_center() + Vector2(-_px(8), _px(2)), top.get_center() + Vector2(_px(10), -_px(4)), C_METAL, _px(3))
 	ci.draw_rect(Rect2(top.get_center().x + _px(8), top.get_center().y - _px(7), _px(6), _px(5)), Color("#c23b35"))
 	_rect(ci, Rect2(top.end.x - _px(16), top.end.y - _px(12), _px(12), _px(8)), C_HAZARD)
 
@@ -1139,10 +1159,10 @@ func _draw_conveyor(ci: CanvasItem, r: Rect2) -> void:
 	for i: int in steps:
 		var t: float = i * _px(8)
 		if vertical:
-			ci.draw_line(Vector2(top.position.x + _px(2), top.position.y + t), Vector2(top.end.x - _px(2), top.position.y + t),
+			segment(ci, Vector2(top.position.x + _px(2), top.position.y + t), Vector2(top.end.x - _px(2), top.position.y + t),
 					Color("#3c3f44"), _px(1))
 		else:
-			ci.draw_line(Vector2(top.position.x + t, top.position.y + _px(2)), Vector2(top.position.x + t, top.end.y - _px(2)),
+			segment(ci, Vector2(top.position.x + t, top.position.y + _px(2)), Vector2(top.position.x + t, top.end.y - _px(2)),
 					Color("#3c3f44"), _px(1))
 	var shift: float = fmod(anim_time * _px(CONVEYOR_SPEED), _px(40))
 	for i: int in int(length / _px(40)):
@@ -1151,7 +1171,7 @@ func _draw_conveyor(ci: CanvasItem, r: Rect2) -> void:
 			continue
 		var p: Vector2 = top.position + (Vector2(top.size.x * 0.5, t) if vertical else Vector2(t, top.size.y * 0.5))
 		_rect(ci, Rect2(p - Vector2(_px(8), _px(6)), Vector2(_px(16), _px(12))), C_CARDBOARD)
-	ci.draw_rect(top, C_HAZARD, false, _px(2))
+	frame_rect(ci, top, C_HAZARD, _px(2))
 
 
 func _draw_holding_cell(ci: CanvasItem, r: Rect2) -> void:
@@ -1162,9 +1182,9 @@ func _draw_holding_cell(ci: CanvasItem, r: Rect2) -> void:
 	var bars: int = int(d.size.x / _px(8))
 	for i: int in bars + 1:
 		var x: float = d.position.x + i * d.size.x / bars
-		ci.draw_line(Vector2(x, d.end.y), Vector2(x, d.end.y - h), C_STEEL_DARK, _px(2))
-	ci.draw_line(Vector2(d.position.x, d.end.y - h), Vector2(d.end.x, d.end.y - h), C_STEEL_DARK, _px(3))
-	ci.draw_rect(d, C_STEEL_DARK, false, _px(3))
+		segment(ci, Vector2(x, d.end.y), Vector2(x, d.end.y - h), C_STEEL_DARK, _px(2))
+	segment(ci, Vector2(d.position.x, d.end.y - h), Vector2(d.end.x, d.end.y - h), C_STEEL_DARK, _px(3))
+	frame_rect(ci, d, C_STEEL_DARK, _px(3))
 
 
 # ─── Especiales y exteriores ──────────────────────────────────
@@ -1195,9 +1215,9 @@ func _draw_street_lamp(ci: CanvasItem, r: Rect2) -> void:
 	var h: float = height_of("street_lamp")
 	ci.draw_circle(base + Vector2(_px(2), _px(3)), _px(6), SHADOW)
 	_circle(ci, base, _px(5), Color("#2b2f38"))
-	ci.draw_line(base, base - Vector2(0, h), Color("#2b2f38"), _px(3.5))
+	segment(ci, base, base - Vector2(0, h), Color("#2b2f38"), _px(3.5))
 	var head: Vector2 = base - Vector2(-_px(8), h)
-	ci.draw_line(base - Vector2(0, h), head, Color("#2b2f38"), _px(3))
+	segment(ci, base - Vector2(0, h), head, Color("#2b2f38"), _px(3))
 	_poly(ci, _rounded(Rect2(head - Vector2(_px(8), _px(4)), Vector2(_px(16), _px(8))), _px(3)), Color("#3a404c"))
 	ci.draw_circle(head + Vector2(0, _px(2)), _px(4), Color("#ffe6a0"))
 
@@ -1222,20 +1242,20 @@ func _draw_barrier(ci: CanvasItem, r: Rect2) -> void:
 	_shadow(ci, d)
 	var glass: Rect2 = Rect2(d.position.x, d.position.y - h, d.size.x, h + d.size.y)
 	ci.draw_rect(glass, Color(C_SCREEN.r, C_SCREEN.g, C_SCREEN.b, 0.45))
-	ci.draw_line(glass.position + Vector2(_px(5), glass.size.y - _px(3)), glass.position + Vector2(_px(14), _px(3)),
+	segment(ci, glass.position + Vector2(_px(5), glass.size.y - _px(3)), glass.position + Vector2(_px(14), _px(3)),
 			Color(1, 1, 1, 0.6), _px(2))
-	ci.draw_rect(glass, _ol(), false, _px(1.5))
-	ci.draw_line(glass.position, Vector2(glass.end.x, glass.position.y), C_METAL.lightened(0.2), _px(3))
+	frame_rect(ci, glass, _ol(), _px(1.5))
+	segment(ci, glass.position, Vector2(glass.end.x, glass.position.y), C_METAL.lightened(0.2), _px(3))
 	for x: float in [d.position.x + _px(2), d.end.x - _px(2)]:
-		ci.draw_line(Vector2(x, d.end.y), Vector2(x, glass.position.y), C_STEEL_DARK, _px(3))
+		segment(ci, Vector2(x, d.end.y), Vector2(x, glass.position.y), C_STEEL_DARK, _px(3))
 
 
 ## Reloj de pared (colgado en la cara norte): esfera, agujas y marco.
 func _draw_wall_clock(ci: CanvasItem, r: Rect2) -> void:
 	var c: Vector2 = Vector2(r.get_center().x, r.position.y - _px(10))
 	_circle(ci, c, _px(7), C_PAPER)
-	ci.draw_line(c, c + Vector2(0, -_px(5.5)), Color("#1b1b1b"), _px(1.5))
-	ci.draw_line(c, c + Vector2(_px(4), _px(1.5)), Color("#1b1b1b"), _px(1.5))
+	segment(ci, c, c + Vector2(0, -_px(5.5)), Color("#1b1b1b"), _px(1.5))
+	segment(ci, c, c + Vector2(_px(4), _px(1.5)), Color("#1b1b1b"), _px(1.5))
 	ci.draw_circle(c, _px(1.4), C_RED_LED)
 
 
@@ -1244,7 +1264,7 @@ func _draw_fire_extinguisher(ci: CanvasItem, r: Rect2) -> void:
 	var ext: Rect2 = Rect2(r.get_center().x - _px(5), r.position.y - _px(17), _px(10), _px(15))
 	_poly(ci, _rounded(ext, _px(4)), Color("#d33a2c"))
 	ci.draw_rect(Rect2(ext.position.x + _px(2), ext.position.y - _px(3), ext.size.x - _px(4), _px(4)), Color("#1b1b1b"))
-	ci.draw_line(ext.position + Vector2(_px(2), _px(5)), ext.position + Vector2(_px(2), ext.size.y - _px(4)),
+	segment(ci, ext.position + Vector2(_px(2), _px(5)), ext.position + Vector2(_px(2), ext.size.y - _px(4)),
 			Color(1, 1, 1, 0.45), _px(1.5))
 
 
@@ -1264,7 +1284,7 @@ func _draw_podium(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = Rect2(r.get_center().x - _px(12), r.get_center().y - _px(8), _px(24), _px(18))
 	var top: Rect2 = _box(ci, d, height_of("podium"), C_WOOD.lightened(0.1), C_WOOD.darkened(0.25))
 	ci.draw_rect(Rect2(d.get_center().x - _px(5), d.end.y - _px(12), _px(10), _px(8)), C_GOLD)
-	ci.draw_line(top.get_center(), top.get_center() + Vector2(_px(4), -_px(10)), C_STEEL_DARK, _px(1.5))
+	segment(ci, top.get_center(), top.get_center() + Vector2(_px(4), -_px(10)), C_STEEL_DARK, _px(1.5))
 	ci.draw_circle(top.get_center() + Vector2(_px(4), -_px(11)), _px(2.2), Color("#1b1b1b"))
 
 
@@ -1273,8 +1293,8 @@ func _draw_light_stand(ci: CanvasItem, r: Rect2) -> void:
 	var h: float = height_of("light_stand")
 	for k: int in 3:
 		var ang: float = PI * 0.5 + (k - 1) * 0.9
-		ci.draw_line(c - Vector2(0, _px(6)), c + Vector2(cos(ang), sin(ang) * 0.4) * _px(12), C_STEEL_DARK, _px(2))
-	ci.draw_line(c, c - Vector2(0, h), C_STEEL_DARK, _px(2))
+		segment(ci, c - Vector2(0, _px(6)), c + Vector2(cos(ang), sin(ang) * 0.4) * _px(12), C_STEEL_DARK, _px(2))
+	segment(ci, c, c - Vector2(0, h), C_STEEL_DARK, _px(2))
 	_rect(ci, Rect2(c.x - _px(9), c.y - h - _px(8), _px(18), _px(12)), Color("#2b2f36"))
 	ci.draw_rect(Rect2(c.x - _px(7), c.y - h - _px(6), _px(14), _px(8)), Color("#fff6d8"))
 
@@ -1284,14 +1304,14 @@ func _draw_photo_backdrop(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 2.0)
 	_shadow(ci, d)
 	ci.draw_rect(Rect2(d.position.x, d.position.y - h, d.size.x, d.size.y + h + _px(10)), Color("#f7f7f5"))
-	ci.draw_rect(Rect2(d.position.x, d.position.y - h, d.size.x, d.size.y + h + _px(10)), _ol(), false, _px(OUTLINE_W))
+	frame_rect(ci, Rect2(d.position.x, d.position.y - h, d.size.x, d.size.y + h + _px(10)), _ol(), _px(OUTLINE_W))
 	_rect(ci, Rect2(d.position.x - _px(2), d.position.y - h - _px(5), d.size.x + _px(4), _px(6)), C_STEEL_DARK)
 
 
 func _draw_mannequin(ci: CanvasItem, r: Rect2) -> void:
 	var c: Vector2 = r.get_center() + Vector2(0, _px(10))
 	ci.draw_circle(c + Vector2(_px(2), _px(3)), _px(7), SHADOW)
-	ci.draw_line(c, c - Vector2(0, _px(12)), C_STEEL_DARK, _px(2))
+	segment(ci, c, c - Vector2(0, _px(12)), C_STEEL_DARK, _px(2))
 	_poly(ci, _rounded(Rect2(c.x - _px(8), c.y - _px(30), _px(16), _px(20)), _px(6)), _pick(C_CLOTHES))
 	_circle(ci, c - Vector2(0, _px(34)), _px(5), Color("#e8dcc8"))
 
@@ -1300,13 +1320,13 @@ func _draw_clothes_rack(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 4.0)
 	var h: float = height_of("clothes_rack")
 	var rail_y: float = d.get_center().y - h
-	ci.draw_line(Vector2(d.position.x, d.get_center().y), Vector2(d.position.x, rail_y), C_STEEL_DARK, _px(2))
-	ci.draw_line(Vector2(d.end.x, d.get_center().y), Vector2(d.end.x, rail_y), C_STEEL_DARK, _px(2))
+	segment(ci, Vector2(d.position.x, d.get_center().y), Vector2(d.position.x, rail_y), C_STEEL_DARK, _px(2))
+	segment(ci, Vector2(d.end.x, d.get_center().y), Vector2(d.end.x, rail_y), C_STEEL_DARK, _px(2))
 	var count: int = int(d.size.x / _px(7))
 	for i: int in count:
 		var x: float = d.position.x + _px(4) + i * (d.size.x - _px(8)) / maxf(1.0, count - 1)
 		_rect(ci, Rect2(x - _px(3), rail_y + _px(1), _px(6), h * 0.8), _pick(C_CLOTHES))
-	ci.draw_line(Vector2(d.position.x, rail_y), Vector2(d.end.x, rail_y), C_METAL, _px(2.5))
+	segment(ci, Vector2(d.position.x, rail_y), Vector2(d.end.x, rail_y), C_METAL, _px(2.5))
 
 
 ## Piano de cola visto desde arriba: caja curva lacada, tapa abierta con su vara, teclado blanco
@@ -1320,8 +1340,8 @@ func _draw_piano(ci: CanvasItem, r: Rect2) -> void:
 	var lid: PackedVector2Array = _piano_outline(Rect2(d.position.x + _px(5), d.position.y + _px(14) - h,
 			d.size.x - _px(10), d.size.y - _px(22)))
 	_poly(ci, lid, Color("#2c2c31"))
-	ci.draw_line(lid[0] + Vector2(_px(4), _px(4)), lid[lid.size() / 2], Color(1, 1, 1, 0.22), _px(2))
-	ci.draw_line(Vector2(d.get_center().x, d.position.y + _px(14) - h), Vector2(d.get_center().x + _px(10),
+	segment(ci, lid[0] + Vector2(_px(4), _px(4)), lid[lid.size() / 2], Color(1, 1, 1, 0.22), _px(2))
+	segment(ci, Vector2(d.get_center().x, d.position.y + _px(14) - h), Vector2(d.get_center().x + _px(10),
 			d.get_center().y - h), C_GOLD, _px(1.5))
 	var keys: Rect2 = Rect2(d.position.x + _px(3), d.position.y + _px(2) - h, d.size.x - _px(6), _px(7))
 	_rect(ci, keys, Color("#f7f7f2"))
@@ -1345,7 +1365,7 @@ func _draw_mixing_desk(ci: CanvasItem, r: Rect2) -> void:
 	var faders: int = int(top.size.x / _px(6))
 	for i: int in faders:
 		var x: float = top.position.x + _px(4) + i * _px(6)
-		ci.draw_line(Vector2(x, top.position.y + _px(4)), Vector2(x, top.end.y - _px(4)), Color("#11141a"), _px(1.5))
+		segment(ci, Vector2(x, top.position.y + _px(4)), Vector2(x, top.end.y - _px(4)), Color("#11141a"), _px(1.5))
 		ci.draw_rect(Rect2(x - _px(1.5), top.position.y + _rng.randf_range(_px(4), top.size.y - _px(8)), _px(3), _px(3)),
 				_pick([C_GREEN_LED, C_RED_LED, C_HAZARD]))
 
@@ -1357,7 +1377,7 @@ func _draw_foosball_table(ci: CanvasItem, r: Rect2) -> void:
 	ci.draw_rect(pitch, Color("#3a9a4a"))
 	for i: int in 4:
 		var x: float = pitch.position.x + (i + 0.5) * pitch.size.x / 4.0
-		ci.draw_line(Vector2(x, top.position.y - _px(3)), Vector2(x, top.end.y + _px(3)), C_METAL, _px(1.5))
+		segment(ci, Vector2(x, top.position.y - _px(3)), Vector2(x, top.end.y + _px(3)), C_METAL, _px(1.5))
 		ci.draw_circle(Vector2(x, pitch.get_center().y), _px(2.5), C_RED_LED if i % 2 == 0 else Color("#4da3ff"))
 
 
@@ -1377,7 +1397,7 @@ func _draw_sauna(ci: CanvasItem, r: Rect2) -> void:
 	var wood: Color = Color("#c08850")
 	var top: Rect2 = _box(ci, d, h, wood.darkened(0.1), wood)
 	for i: int in int(top.size.y / _px(7)):
-		ci.draw_line(Vector2(top.position.x, top.position.y + i * _px(7)), Vector2(top.end.x, top.position.y + i * _px(7)),
+		segment(ci, Vector2(top.position.x, top.position.y + i * _px(7)), Vector2(top.end.x, top.position.y + i * _px(7)),
 				wood.darkened(0.3), _px(1))
 	var front: Rect2 = _front(d, h)
 	_rect(ci, Rect2(front.get_center().x - _px(8), front.position.y + _px(2), _px(16), front.size.y - _px(2)), wood.darkened(0.2))
@@ -1389,9 +1409,9 @@ func _draw_rug(ci: CanvasItem, r: Rect2) -> void:
 	var band: String = str(style.get("band", ""))
 	var base: Color = _c("accent").darkened(0.35) if band != "the_throne" else Color("#8f1e24")
 	ci.draw_rect(d, base)
-	ci.draw_rect(_inset(d, 6.0), _c("carpet").lerp(base, 0.35), false, _px(3))
-	ci.draw_rect(_inset(d, 12.0), C_GOLD.lerp(base, 0.4), false, _px(1.5))
-	ci.draw_rect(d, _ol().lerp(base, 0.5), false, _px(1))
+	frame_rect(ci, _inset(d, 6.0), _c("carpet").lerp(base, 0.35), _px(3))
+	frame_rect(ci, _inset(d, 12.0), C_GOLD.lerp(base, 0.4), _px(1.5))
+	frame_rect(ci, d, _ol().lerp(base, 0.5), _px(1))
 
 
 func _draw_runway(ci: CanvasItem, r: Rect2) -> void:
@@ -1412,8 +1432,8 @@ func _draw_helipad(ci: CanvasItem, r: Rect2) -> void:
 	ci.draw_arc(c, rad, 0.0, TAU, 48, _ol(), _px(2))
 	var s: float = rad * 0.4
 	for x: float in [-s * 0.6, s * 0.6]:
-		ci.draw_line(c + Vector2(x, -s), c + Vector2(x, s), Color("#f4f4f2"), _px(8))
-	ci.draw_line(c + Vector2(-s * 0.6, 0), c + Vector2(s * 0.6, 0), Color("#f4f4f2"), _px(8))
+		segment(ci, c + Vector2(x, -s), c + Vector2(x, s), Color("#f4f4f2"), _px(8))
+	segment(ci, c + Vector2(-s * 0.6, 0), c + Vector2(s * 0.6, 0), Color("#f4f4f2"), _px(8))
 
 
 func _draw_window_wall(ci: CanvasItem, r: Rect2) -> void:
@@ -1421,12 +1441,12 @@ func _draw_window_wall(ci: CanvasItem, r: Rect2) -> void:
 	var glass: Rect2 = Rect2(r.position.x, r.position.y, r.size.x, _px(8)) if horizontal \
 			else Rect2(r.position.x, r.position.y, _px(8), r.size.y)
 	ci.draw_rect(glass, _c("window").lightened(0.2))
-	ci.draw_rect(glass, _c("accent"), false, _px(2))
+	frame_rect(ci, glass, _c("accent"), _px(2))
 	var panes: int = maxi(1, int((r.size.x if horizontal else r.size.y) / _px(48)))
 	for i: int in panes:
 		var t: float = i * (r.size.x if horizontal else r.size.y) / panes
 		var a: Vector2 = glass.position + (Vector2(t, 0) if horizontal else Vector2(0, t))
-		ci.draw_line(a, a + (Vector2(0, glass.size.y) if horizontal else Vector2(glass.size.x, 0)), _c("accent"), _px(2))
+		segment(ci, a, a + (Vector2(0, glass.size.y) if horizontal else Vector2(glass.size.x, 0)), _c("accent"), _px(2))
 
 
 ## Cortinas: pliegues verticales colgados del muro más cercano (escondite).
@@ -1438,8 +1458,8 @@ func _draw_curtain(ci: CanvasItem, r: Rect2) -> void:
 	for i: int in folds:
 		var f: Rect2 = Rect2(d.position.x + i * d.size.x / folds, d.position.y, d.size.x / folds, d.size.y)
 		ci.draw_rect(f, col if i % 2 == 0 else col.darkened(0.2))
-	ci.draw_rect(d, _ol(), false, _px(OUTLINE_W))
-	ci.draw_line(d.position, Vector2(d.end.x, d.position.y), C_GOLD, _px(3))
+	frame_rect(ci, d, _ol(), _px(OUTLINE_W))
+	segment(ci, d.position, Vector2(d.end.x, d.position.y), C_GOLD, _px(3))
 
 
 func _draw_generic(ci: CanvasItem, r: Rect2) -> void:

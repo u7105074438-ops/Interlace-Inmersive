@@ -47,13 +47,15 @@ const TRANSIT_BY_INTERACTABLE: Dictionary = {
 const LEFT_CAP_KINDS: Array[String] = [TRANSIT_ELEVATOR, TRANSIT_STAIRS]
 ## Sala núcleo de las plantas sin pasillo (§22): la circulación nace de ella.
 const HUB_ROOMS: Dictionary = {
-	-3: "service_tunnel", -2: "dead_archive", -1: "service_stairs", 0: "main_reception",
+	-3: "service_stairs", -2: "dead_archive", -1: "service_stairs", 0: "main_reception",
 	21: "rooftop_terrace", 100: "assembly_line", 200: "street",
 }
-## Núcleos que se estiran como eje aunque no sean alargados. Si el eje es una sala de tránsito
-## (escalera), su tramo ocupa el arranque del eje (ancho de datos). En S1 el rellano de la escalera
-## de servicio hace de pasillo técnico (garaje, vestuarios, taller).
-const STRETCHED_HUBS: Array[String] = ["service_stairs"]
+## Plantas cuyo núcleo se estira como eje aunque no sea alargado. Si el eje es una sala de
+## tránsito (escalera), su tramo ocupa el arranque del eje (ancho de datos). En S1 el rellano de la
+## escalera de servicio hace de pasillo técnico (garaje, vestuarios, taller); en S3, de distribuidor
+## de las tripas (calderas, sala eléctrica, almacén, pasillo olvidado), y el túnel hacia la nave
+## sale de las calderas.
+const STRETCHED_FLOORS: Array[int] = [-3, -1]
 ## Control de acceso (§22.4 "Control de torniquetes", §5.6): una sala con una fila de tornos es
 ## una compuerta. Se cuelga, a su tamaño de datos, bajo la sala núcleo que la enlaza (alineada a su
 ## derecha); la fila de tornos (cerrada con barandillas generadas) separa su lado público (norte,
@@ -456,7 +458,7 @@ static func _is_transversal(ctx: Ctx, id: String) -> bool:
 
 static func _is_spine_floor(ctx: Ctx) -> bool:
 	var room: RoomData = ctx.defs[ctx.spine]
-	if room.size.x == 0 or bool(room.extra.get(KEY_FULL_WIDTH, false)) or STRETCHED_HUBS.has(base_id(ctx.spine)):
+	if room.size.x == 0 or bool(room.extra.get(KEY_FULL_WIDTH, false)) or STRETCHED_FLOORS.has(ctx.floor_number):
 		return true
 	var aspect: float = float(room.size.x) / float(maxi(1, room.size.y))
 	return aspect >= Database.get_balance_float("mundo.aspecto_minimo_eje")
@@ -487,11 +489,11 @@ static func _layout_spine(ctx: Ctx) -> void:
 	for id: String in _spine_primaries(ctx):
 		var side: int = SIDE_TOP if cursors[SIDE_TOP] <= cursors[SIDE_BOTTOM] else SIDE_BOTTOM
 		cursors[side] = _place_chain(ctx, _cluster_chain(ctx, id), side, cursors[side], height)
-	var used: int = maxi(cursors[SIDE_TOP], cursors[SIDE_BOTTOM]) + _cap_width(ctx, right, true)
-	var length: int = maxi(used, spine_def.size.x)
+	_append_right_caps(ctx, right, cursors, height)
+	var length: int = maxi(maxi(cursors[SIDE_TOP], cursors[SIDE_BOTTOM]), spine_def.size.x)
 	ctx.rects[ctx.spine] = Rect2i(0, 0, length, height)
 	_place_left_cap(ctx, left, height, head)
-	_place_right_cap(ctx, right, length, height)
+	_place_right_side_caps(ctx, right, length, height)
 
 
 ## Celdas del arranque del eje reservadas al tramo de escalera cuando el eje es un tránsito.
@@ -638,20 +640,45 @@ static func _place_left_cap(ctx: Ctx, cap: Array[String], height: int, head: int
 		ctx.parent[id] = ctx.spine
 
 
-static func _place_right_cap(ctx: Ctx, cap: Array[String], length: int, height: int) -> void:
-	var cursors: Array[int] = [length, length]
+## Tránsitos del extremo derecho que no van al costado (montacargas, cuarto de limpieza): a
+## continuación de la cadena del lado donde está una sala que enlaza con ellos (puerta directa),
+## o alternando arriba/abajo si ninguna lo hace.
+static func _append_right_caps(ctx: Ctx, cap: Array[String], cursors: Array[int], height: int) -> void:
 	var index: int = 0
 	for id: String in cap:
-		var size: Vector2i = (ctx.defs[id] as RoomData).size
 		if _is_side_cap(ctx, id, true):
-			ctx.rects[id] = Rect2i(length, (height - size.y) / 2, size.x, size.y)
-		else:
-			var side: int = index % 2
-			cursors[side] -= size.x
-			var y: int = -size.y if side == SIDE_TOP else height
-			ctx.rects[id] = Rect2i(cursors[side], y, size.x, size.y)
+			continue
+		var side: int = _linked_side(ctx, id)
+		if side < 0:
+			side = index % 2
 			index += 1
+		var size: Vector2i = (ctx.defs[id] as RoomData).size
+		ctx.rects[id] = Rect2i(cursors[side], -size.y if side == SIDE_TOP else height, size.x, size.y)
 		ctx.parent[id] = ctx.spine
+		cursors[side] += size.x
+
+
+## Lado del eje (arriba/abajo) de la sala colocada más a la derecha que enlaza con `id`; -1 si no hay.
+static func _linked_side(ctx: Ctx, id: String) -> int:
+	var best: int = -1
+	var best_end: int = -2147483647
+	for other: String in ctx.links[id]:
+		if other == ctx.spine or not _is_placed(ctx, other):
+			continue
+		var r: Rect2i = ctx.rects[other]
+		if r.end.x > best_end:
+			best_end = r.end.x
+			best = SIDE_TOP if r.position.y < 0 else SIDE_BOTTOM
+	return best
+
+
+## Escalera de servicio (u otro tránsito "de costado") en el extremo derecho, centrada en el eje.
+static func _place_right_side_caps(ctx: Ctx, cap: Array[String], length: int, height: int) -> void:
+	for id: String in cap:
+		if _is_side_cap(ctx, id, true):
+			var size: Vector2i = (ctx.defs[id] as RoomData).size
+			ctx.rects[id] = Rect2i(length, (height - size.y) / 2, size.x, size.y)
+			ctx.parent[id] = ctx.spine
 
 
 # ─── Disposición con sala núcleo (planta baja, fábrica, sótanos, azotea) ──
@@ -881,7 +908,7 @@ static func _is_placed(ctx: Ctx, id: String) -> bool:
 static func _find_adjacent(ctx: Ctx, size: Vector2i, parent_id: String, min_overlap: int, id: String) -> Rect2i:
 	var parent_rect: Rect2i = ctx.rects[parent_id]
 	var others: Array[Rect2i] = _other_link_rects(ctx, id, parent_id)
-	var pending: Array[Dictionary] = _pending_rings(ctx, id)
+	var pending: Array[Dictionary] = _pending_rings(ctx, id, parent_id)
 	var best: Rect2i = Rect2i()
 	var best_score: float = HUGE_SCORE
 	var bounds: Rect2i = _bounds(ctx)
@@ -918,18 +945,24 @@ static func _other_link_rects(ctx: Ctx, id: String, parent_id: String) -> Array[
 	return out
 
 
-## Anillos por cerrar: enlaces Y de `id` aún sin colocar que también enlazan con salas ya
-## colocadas Z. [{size: tamaño de Y, touch: [Rect2i de cada Z]}].
-static func _pending_rings(ctx: Ctx, id: String) -> Array[Dictionary]:
+## Huecos que hay que dejar libres al colocar `id` junto a `parent_id`: enlaces Y de `id` aún sin
+## colocar que también enlazan con salas ya colocadas Z (cerrar anillos) y los otros enlaces sin
+## colocar de la madre (no encajonarla). [{size: tamaño de Y, touch: [Rect2i de cada Z]}].
+static func _pending_rings(ctx: Ctx, id: String, parent_id: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if id.is_empty():
 		return out
 	for y: String in ctx.links[id]:
-		if _is_placed(ctx, y) or _is_transversal(ctx, y):
+		if _is_placed(ctx, y) or _is_transversal(ctx, y) or ctx.rects.has(y):
 			continue
 		var touch: Array[Rect2i] = _other_link_rects(ctx, y, id)
 		if not touch.is_empty():
 			out.append({"size": (ctx.defs[y] as RoomData).size, "touch": touch})
+	if parent_id == ctx.spine:
+		return out
+	for y: String in ctx.links[parent_id]:
+		if y != id and not ctx.rects.has(y):
+			out.append({"size": (ctx.defs[y] as RoomData).size, "touch": [ctx.rects[parent_id]] as Array[Rect2i]})
 	return out
 
 

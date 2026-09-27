@@ -491,8 +491,7 @@
     "euros_tramo_sobornos": 1000,
     "euros_tramo_robo": 2000,
     "euros_por_punto_perdidas": 1000,
-    "acciones_en_circulacion": 40000000,
-    "_nota_ext": "PASO 31 (Tracking). sangre_por_violencia = +3 por violencia sin muerte (crime_committed con details.violent). euros_tramo_sobornos / euros_tramo_robo: tamaño del tramo de los incrementos de ORO (+1 por cada 1.000 € pagados en sobornos aceptados, +1 por cada 2.000 € robados), acumulados en la partida. euros_por_punto_perdidas: un punto de pérdidas de la compañía = 1.000 € de robo a la compañía (theft_product o details.company_loss); RUINA suma ruina_por_punto_perdidas por punto. acciones_en_circulacion: capitalización del epílogo = cotización × acciones."
+    "_nota_ext": "PASO 31 (Tracking). sangre_por_violencia = +3 por violencia sin muerte (crime_committed con details.violent). euros_tramo_sobornos / euros_tramo_robo: tamaño del tramo de los incrementos de ORO (+1 por cada 1.000 € pagados en sobornos aceptados, +1 por cada 2.000 € robados), acumulados en la partida. euros_por_punto_perdidas: un punto de pérdidas de la compañía = 1.000 € de Company.get_total_theft_losses() (la única cifra de pérdidas por robo); RUINA suma ruina_por_punto_perdidas por punto. La capitalización del epílogo usa market.json shares.share_count (la misma cifra que Market)."
   },
   "lod": {
     "radio_salas_completo": 1,
@@ -2916,18 +2915,8 @@
     "amplificacion_secreto_descubierto": 1.0
   },
   "empresa": {
-    "_nota": "Company (§6, §9.2, §9.10, §11.7, §19.8; PASO 21 y 32). Mérito del jugador en puntos; fundamentales por jornada (market.json starting_fundamentals). Ventanas en jornadas. cargos_*: ids de occupations.json.",
+    "_nota": "Company (§6, §9.2, §9.10, §11.7, §19.8; PASO 21 y 32). Mérito del jugador en puntos: cualquier suceso de mérito (idea, éxito visible, rescate, recomendación) da ≥ merito_minimo_ascenso y basta para la condición 2 de §6.2. Fundamentales por jornada (market.json starting_fundamentals). Ventanas en jornadas. cargos_*: ids de occupations.json.",
     "jornadas_vacante_abierta": 2,
-    "merito_minimo_por_escalon": {
-      "1": 2,
-      "2": 3,
-      "3": 5,
-      "4": 8,
-      "5": 12,
-      "6": 16,
-      "7": 20,
-      "8": 25
-    },
     "jornadas_caducidad_merito": 5,
     "margen_reputacion_crear_puesto": 30.0,
     "escalon_max_crear_puesto": 5,
@@ -2979,13 +2968,24 @@
       "blocks"
     ],
     "peso_vacantes_comerciales": 0.5,
-    "factor_unidades_huelga": 0.25,
+    "factor_unidades_huelga": 0.0,
     "crecimiento_por_producto": 0.02,
     "peso_tendencia_crecimiento": 1.0,
     "trimestres_tendencia": 4,
     "aumento_nomina_por_concesion": 0.02,
     "mecha_max_semanas_por_cargo": {
       "b10_director": 2
+    },
+    "merito_minimo_ascenso": 1,
+    "tipos_exito_visible": [
+      "delivery",
+      "presentation"
+    ],
+    "cifras_restringidas_por_cargo": {
+      "_nota": "Cargo autorizado → únicas cifras que puede alterar (§9.9: B10 solo las de venta; el beneficio se recalcula). Los cargos autorizados sin entrada alteran revenue, costs, profit, growth_expectation y risk_factor.",
+      "b10_director": [
+        "revenue"
+      ]
     }
   },
   "ordenador": {
@@ -3114,12 +3114,13 @@
   },
   "portal": {
     "_nota": "PORTAL (§13.3, PASO 25): agendas visibles en el organigrama para titulares de escalón ≥ escalon_agenda_min (la de Voss, §11.8).",
-    "escalon_agenda_min": 5
+    "escalon_agenda_min": 5,
+    "minutos_muestra_agenda": 30
   },
   "mercado_ui": {
     "_nota": "MARKET (§13.3, §9.11, PASO 34): jornadas del gráfico y del calendario; lotes de compra/venta.",
     "dias_grafico": 30,
-    "dias_calendario": 10,
+    "dias_calendario": 20,
     "lotes": [
       10,
       100,

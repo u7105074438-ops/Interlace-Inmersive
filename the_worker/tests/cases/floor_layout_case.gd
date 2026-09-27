@@ -14,8 +14,11 @@ extends TestCase
 const DOOR_KINDS: Array[String] = ["normal", "reader", "service", "old_lock", "vent"]
 const TRANSIT_KINDS: Array[String] = ["elevator", "stairs", "service_stairs", "freight", "vent_hatch", "exit"]
 ## Pares connects_to sin puerta directa aceptados (la sala se alcanza por otra vía del plano):
-## la cafetería es pública (§5.2 N0) y se abre al vestíbulo, no al lado seguro de los tornos.
-const LINK_EXCEPTIONS: Array[String] = ["cafeteria|turnstiles"]
+## - la cafetería es pública (§5.2 N0) y se abre al vestíbulo, no al lado seguro de los tornos;
+## - S3: calderas y almacén se abren al rellano de la escalera de servicio y el túnel a la nave sale
+##   de las calderas; con sus tamaños de datos el anillo calderas–túnel–almacén no cierra (el
+##   almacén queda a dos puertas del túnel, por el rellano y las calderas).
+const LINK_EXCEPTIONS: Array[String] = ["cafeteria|turnstiles", "maintenance_store|service_tunnel"]
 
 
 func run_case() -> void:

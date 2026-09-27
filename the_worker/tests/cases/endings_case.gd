@@ -3,6 +3,10 @@
 # ESCUCHA: nada (emite señales de dominio para alimentar a Tracking).
 extends TestCase
 
+## El estado de los demás sistemas se prepara con señales de EventBus o con su API pública de
+## "manos" (Company.add_theft_loss, NewsFeed.publish/bury, PlayerState.add_item...), nunca con
+## sus internos.
+
 # §12.8 (números del manual, no de balance.json).
 const BLOOD_ELIMINATION := 10
 const BLOOD_BODY := 5
@@ -33,6 +37,13 @@ const R32 := "vice_ceo"
 const R20 := "b10_director"
 const R10 := "senior_sales"
 const R0 := "eternal_intern"
+## Escalón 3 (talento cualificado, empresa.escalon_talento_cualificado) y escalón 2.
+const QUALIFIED_SEAT := "marketing_creative"
+const JUNIOR_SEAT := "junior_sales"
+const PRESENTATION_DUTY := "duty_quarterly_board_r33"
+## Vías de adquisición, de menos a más requisitos (IdeaPool §11.1).
+const ACQUISITION_METHODS: Array[String] = ["purchase", "inherit", "steal_file", "overhear", "gifted"]
+const VICTORY_CATEGORIES: Array[String] = ["full_victory", "partial_victory"]
 const STASH_ROOM := "dead_archive"
 const STASH_SPOT := "hide_dead_archive_west"
 const DEFEAT_FILE: Array[String] = [
@@ -100,9 +111,8 @@ func _bribe(npc_id: String, amount: int, paid: int, accepted: bool) -> void:
 
 func _test_silk() -> void:
 	new_run(DEFAULT_SEED, false)
-	var stolen: String = IdeaPool.generate_idea(IDEA_OWNER, "general")
-	check(IdeaPool.acquire(stolen, "overhear"), "the player overhears an idea")
-	check_eq(Tracking.get_axis("silk"), SILK_IDEA, "stolen idea → SILK +8")
+	EventBus.idea_acquired.emit("idea_w", "overhear")
+	check_eq(Tracking.get_axis("silk"), SILK_IDEA, "overheard (stolen) idea → SILK +8")
 	EventBus.idea_acquired.emit("idea_x", "steal_file")
 	EventBus.idea_acquired.emit("idea_y", "gifted")
 	EventBus.idea_acquired.emit("idea_z", "purchase")
@@ -131,46 +141,95 @@ func _test_sweat() -> void:
 	check_eq(Tracking.get_axis("sweat"), SWEAT_HONEST, "A.S.S.I.S.T. or stolen material → nothing")
 	EventBus.duty_completed.emit("duty_campaign_pieces_r11", 1.0, "honest")
 	check_eq(Tracking.get_axis("sweat"), SWEAT_HONEST + SWEAT_REPORT, "an honest delivery is a real report → +10")
-	EventBus.tracking_event_recorded.emit("sweat", SWEAT_PRESENTATION, "presentation_prepared")
+	EventBus.duty_completed.emit(PRESENTATION_DUTY, 1.0, "honest")
 	check_eq(Tracking.get_axis("sweat"), SWEAT_HONEST + SWEAT_REPORT + SWEAT_PRESENTATION,
-			"ResultsPresentation real work (tracking_event_recorded) → +5")
-	var idea: String = IdeaPool.generate_idea(IDEA_OWNER, "general")
-	IdeaPool.acquire(idea, "steal_file")
-	check(IdeaPool.set_preparation(idea, "real"), "the player prepares the presentation for real")
+			"an honest presentation duty is a prepared presentation → +5")
+	EventBus.tracking_event_recorded.emit("sweat", SWEAT_PRESENTATION, "presentation_prepared")
+	var sweat: int = SWEAT_HONEST + SWEAT_REPORT + 2 * SWEAT_PRESENTATION
+	check_eq(Tracking.get_axis("sweat"), sweat, "ResultsPresentation real work (tracking_event_recorded) → +5")
+	var idea: String = _player_idea()
+	check(IdeaPool.set_preparation(idea, "real"), "the player prepares the idea presentation for real")
 	EventBus.idea_presented.emit(idea, "player", 10)
-	check_eq(Tracking.get_axis("sweat"), SWEAT_HONEST + SWEAT_REPORT + 2 * SWEAT_PRESENTATION,
-			"a prepared idea presentation → +5")
+	check_eq(Tracking.get_axis("sweat"), sweat + SWEAT_PRESENTATION, "a prepared idea presentation → +5")
 	EventBus.idea_presented.emit(idea, IDEA_OWNER, 10)
-	check_eq(Tracking.get_axis("sweat"), SWEAT_HONEST + SWEAT_REPORT + 2 * SWEAT_PRESENTATION,
-			"someone else's presentation adds nothing")
+	check_eq(Tracking.get_axis("sweat"), sweat + SWEAT_PRESENTATION, "someone else's presentation adds nothing")
 	PlayerState.add_tracking("sweat", 4)
 	check_eq(Tracking.get_breakdown().get("player_state", {}).get("sweat", 0), 4,
 			"PlayerState.add_tracking reaches Tracking through tracking_event_recorded")
 
 
+## Una idea del jugador por la vía con menos requisitos que IdeaPool permita ahora (API pública).
+func _player_idea() -> String:
+	var idea: String = IdeaPool.generate_idea(IDEA_OWNER, "general")
+	for method: String in ACQUISITION_METHODS:
+		if IdeaPool.get_acquisition_block(idea, method).is_empty():
+			IdeaPool.acquire(idea, method)
+			break
+	check(IdeaPool.get_player_ideas().any(func(i: Idea) -> bool: return i.id == idea),
+			"the player owns an idea to present")
+	return idea
+
+
 func _test_ruin() -> void:
 	new_run(DEFAULT_SEED, false)
 	EventBus.crime_committed.emit("theft_product", "factory_floor", {"value": 2500, "quantity": 26})
-	check_eq(Tracking.get_axis("ruin"), 2 * RUIN_PER_LOSS_POINT, "2.500 € of product → 2 loss points → RUIN +2")
+	check_eq(Tracking.get_axis("ruin"), 2 * RUIN_PER_LOSS_POINT,
+			"2.500 € of product stolen from the company → 2 loss points → RUIN +2")
 	check_eq(Tracking.get_axis("gold"), GOLD_PER_2000_STOLEN, "…and GOLD +1 for the 2.000 € stolen")
 	EventBus.crime_committed.emit("theft_small", "office_supplies", {"value": 100, "company_loss": 700})
-	check_eq(Tracking.get_axis("ruin"), 3 * RUIN_PER_LOSS_POINT, "company_loss accumulates (3.200 € → 3 points)")
-	EventBus.seat_vacated.emit("junior_sales", "npc_talent", "expelled")
-	check_eq(Tracking.get_axis("ruin"), 3 + RUIN_TALENT, "talent expelled → +5")
-	EventBus.seat_vacated.emit("junior_sales", "npc_other", "promoted")
+	check_eq(Tracking.get_axis("ruin"), 3 * RUIN_PER_LOSS_POINT, "company losses accumulate (3.200 € → 3 points)")
+	Company.add_theft_loss(1000.0)
+	check_eq(Tracking.get_axis("ruin"), 4 * RUIN_PER_LOSS_POINT,
+			"a loss booked without a crime event (Company.add_theft_loss) also counts (4.200 € → 4)")
+	check_eq(Tracking.get_total("company_losses"), roundi(Company.get_total_theft_losses()),
+			"RUIN losses come from Company's own theft-loss figure")
+	_test_pure_getters()
+	EventBus.seat_vacated.emit(QUALIFIED_SEAT, "npc_talent", "expelled")
+	check_eq(Tracking.get_axis("ruin"), 4 + RUIN_TALENT, "qualified talent (tier 3) expelled → +5")
+	EventBus.seat_vacated.emit(JUNIOR_SEAT, "npc_junior", "fired")
+	check_eq(Tracking.get_axis("ruin"), 4 + RUIN_TALENT, "firing a tier-2 junior is not talent loss")
+	EventBus.seat_vacated.emit(JUNIOR_SEAT, "npc_other", "promoted")
 	EventBus.seat_vacated.emit("email_worker_3b", "player", "expelled")
-	check_eq(Tracking.get_axis("ruin"), 3 + RUIN_TALENT, "promotions and the player's own seat do not count")
+	check_eq(Tracking.get_axis("ruin"), 4 + RUIN_TALENT, "promotions and the player's own seat do not count")
+	_test_scandals(4 + RUIN_TALENT)
+
+
+## Los getters no tienen efectos: la RUINA pendiente se ve al leer y se anota al pasar el día.
+func _test_pure_getters() -> void:
+	var saved: Dictionary = Tracking.save_state()
+	Tracking.get_axis("ruin")
+	Tracking.get_all_axes()
+	Tracking.get_ruin_tier()
+	Tracking.evaluate_ending()
+	Tracking.get_snapshot()
+	check_eq(Tracking.save_state(), saved, "reading Tracking never changes its state")
+	check_eq(Tracking.get_breakdown().get("company_losses", {}).get("ruin", 0), 4 * RUIN_PER_LOSS_POINT,
+			"the breakdown already shows the pending loss points")
+	EventBus.day_advanced.emit(GameClock.get_day() + 1)
+	check_eq(int(Tracking.save_state()["axes"]["ruin"]), 4 * RUIN_PER_LOSS_POINT,
+			"day_advanced books the loss points into the axis")
+	check_eq(Tracking.get_axis("ruin"), 4 * RUIN_PER_LOSS_POINT, "…without counting them twice")
+
+
+## +10 por escándalo que NewsFeed consolida sin enterrar; los días pasan por EventBus.day_advanced.
+func _test_scandals(base: int) -> void:
 	var kept: String = NewsFeed.publish("NEWS_FRAUD_UNCOVERED", -0.2, true)
 	var buried: String = NewsFeed.publish("NEWS_BODY_FOUND", -0.2, true)
 	NewsFeed.bury(buried, "npc_bree_nash")
-	var day: int = GameClock.get_day()
+	var day: int = NewsFeed.get_current_day()
 	for offset: int in range(1, Database.get_balance_int("noticias.dias_consolidacion") + 1):
-		NewsFeed.advance_day(day + offset)
+		EventBus.day_advanced.emit(day + offset)
 	check(NewsFeed.get_news(kept).get("consolidated", false), "the unburied scandal settles")
-	EventBus.day_advanced.emit(day + 1)
-	check_eq(Tracking.get_axis("ruin"), 3 + RUIN_TALENT + RUIN_SCANDAL,
-			"scandal not buried → +10; the buried one adds nothing")
-	check_eq(Tracking.get_axis("ruin"), 3 + RUIN_TALENT + RUIN_SCANDAL, "a settled scandal is counted once")
+	check(not NewsFeed.get_news(buried).get("consolidated", false), "the buried scandal never settles")
+	var settled: int = NewsFeed.get_settled_scandal_count()
+	check(settled >= 1, "NewsFeed counts the settled scandal")
+	check_eq(Tracking.get_axis("ruin"), base + RUIN_SCANDAL * settled,
+			"each scandal not buried → RUIN +10 (the buried one adds nothing)")
+	check_eq(int(Tracking.save_state()["axes"]["ruin"]), base + RUIN_SCANDAL * settled,
+			"…booked on day_advanced")
+	EventBus.day_advanced.emit(day + Database.get_balance_int("noticias.dias_consolidacion") + 1)
+	check_eq(Tracking.get_axis("ruin"), base + RUIN_SCANDAL * NewsFeed.get_settled_scandal_count(),
+			"a settled scandal is counted once")
 
 
 # ─── Estilo dominante, híbrido y variante de ruina ────────────
@@ -238,6 +297,10 @@ func _test_partial_victories() -> void:
 	for cause: String in ["board_removal", "ceo_term_without_ownership"]:
 		_run_as(R33, false, {"blood": 60})
 		check_eq(_end_with(cause), "the_figurehead", "R33 without documents, cause %s → THE FIGUREHEAD" % cause)
+		_run_as(R33, false, {})
+		PlayerState.add_item("ownership_documents")
+		check_eq(_end_with(cause), "the_figurehead",
+				"R33 holding UN-notarised documents, cause %s → THE FIGUREHEAD (not THE GAP)" % cause)
 	for occupation: String in [R32, R20, R0]:
 		_run_as(occupation, false, {"sweat": 60})
 		PlayerState.add_item("ownership_documents")
@@ -245,11 +308,9 @@ func _test_partial_victories() -> void:
 				"documents at %s and caught → THE OWNER IN EXILE (before THE FILE)" % occupation)
 	_run_as(R20, false, {})
 	PlayerState.add_item("ownership_documents")
+	check_eq(Tracking.evaluate_ending(), "the_gap",
+			"documents but no terminal cause yet: [\"any\"] needs a cause → fallback while the run goes on")
 	check_eq(_end_with("starvation"), "the_owner_in_exile", "documents without the chair, any cause → exile")
-	_run_as(R33, false, {})
-	PlayerState.add_item("ownership_documents")
-	check_eq(_end_with("board_removal"), "the_gap",
-			"R33 with unnotarised documents removed by the board matches nothing → fallback THE GAP")
 
 
 func _test_defeats() -> void:
@@ -277,7 +338,7 @@ func _run_as(occupation: String, notarised: bool, axes: Dictionary) -> void:
 
 
 func _end_with(cause: String) -> String:
-	EventBus.game_over.emit(cause, "", Tracking.get_snapshot())
+	EventBus.game_over.emit(cause, "", Tracking.get_snapshot_for_cause(cause))
 	return Tracking.evaluate_ending()
 
 
@@ -312,6 +373,10 @@ func _test_epilogue() -> void:
 	check_eq(Tracking.get_epilogue("the_gap", {"successor": "Bob Hale"}),
 			tr("EPILOGUE_THE_GAP").format({"name": PLAYER_NAME, "days": str(GameClock.get_day()),
 			"successor": "Bob Hale"}), "context values override the run's own")
+	var shares: int = int(Database.get_market_params()["shares"]["share_count"])
+	var worth: String = _money(roundi(Market.get_price() * float(shares)))
+	check(Tracking.get_epilogue("the_worker").contains(worth),
+			"company value = share price × market.json share_count (%s)" % worth)
 	var file_text: String = Tracking.get_epilogue("the_file")
 	check(file_text.contains(tr("UI_EPILOGUE_REDACTED")), "unknown case data is redacted in THE FILE")
 	check_eq(Tracking.get_epilogue("no_such_ending"), "", "unknown ending → empty text")
@@ -320,6 +385,40 @@ func _test_epilogue() -> void:
 	var spanish: String = Tracking.get_epilogue("the_butcher", ctx)
 	TranslationServer.set_locale("en")
 	check(spanish != english and spanish.contains(VICTIM_NAME), "the epilogue follows the language setting")
+	_test_victory_variants()
+
+
+## Los siete finales de victoria: texto + párrafo + variante imperio/cascarón, sin marcadores sueltos.
+func _test_victory_variants() -> void:
+	var ctx: Dictionary = {"name": PLAYER_NAME, "days": "12", "victims": VICTIM_NAME, "scapegoats": "Bob Hale",
+			"bribes_total": "€5", "company_value": "€9", "share_price": "€1.00"}
+	var victories: int = 0
+	for ending: Dictionary in Database.get_all_endings():
+		if not VICTORY_CATEGORIES.has(str(ending.get("category", ""))):
+			continue
+		victories += 1
+		var id: String = str(ending["id"])
+		var body: String = tr(str(ending["epilogue_key"]))
+		check(body != str(ending["epilogue_key"]), "%s has a translated epilogue" % id)
+		for tier: String in ["empire", "husk"]:
+			ctx["ruin_tier"] = tier
+			var variant_key: String = str(ending.get("epilogue_variants", {}).get(tier, ""))
+			var text: String = Tracking.get_epilogue(id, ctx)
+			check(tr(variant_key) != variant_key and text == body.format(ctx) + "\n\n" + tr(variant_key).format(ctx),
+					"%s %s epilogue = text + paragraph + %s variant" % [id, tier, tier])
+			check(not text.contains("{"), "%s %s has no raw placeholders" % [id, tier])
+	check_eq(victories, 7, "the seven victory endings (§12.9) carry ruin variants")
+
+
+## Importe con el formato de strings.csv (UI_MONEY_FMT, separador de miles UI_THOUSANDS_SEP).
+func _money(amount: int) -> String:
+	var digits: String = str(amount)
+	var grouped: String = ""
+	for i: int in digits.length():
+		if i > 0 and (digits.length() - i) % 3 == 0:
+			grouped += tr("UI_THOUSANDS_SEP")
+		grouped += digits[i]
+	return tr("UI_MONEY_FMT") % grouped
 
 
 func _mentions_bank_name(text: String) -> bool:
@@ -339,6 +438,10 @@ func _test_snapshot_and_state() -> void:
 	_bribe("npc_a", 1200, 1200, true)
 	var snapshot: Dictionary = Tracking.get_snapshot()
 	check_eq(snapshot["axes"], {"blood": 22, "gold": 4, "silk": 4, "sweat": 5, "ruin": 7}, "snapshot axes")
+	check_eq(snapshot["cause"], "ownership_notarised", "the snapshot carries the recorded cause")
+	var for_cause: Dictionary = Tracking.get_snapshot_for_cause("board_removal")
+	check(for_cause["cause"] == "board_removal" and for_cause["ending_id"] == "the_butcher",
+			"get_snapshot_for_cause carries the emitter's cause and the ending it leads to")
 	check_eq(snapshot["dominant_axis"], "blood", "snapshot dominant axis")
 	check(snapshot["notarised"] and snapshot["has_ownership_documents"], "snapshot ownership flags")
 	check((snapshot["victims"] as Array).size() == 1 and snapshot["victims"][0] == VICTIM, "snapshot victims")
@@ -349,6 +452,26 @@ func _test_snapshot_and_state() -> void:
 	Tracking.reset_for_new_run()
 	check_eq(Tracking.get_axis("blood"), 0, "reset clears the axes")
 	Tracking.load_state(json.data)
-	check_eq(JSON.stringify(Tracking.save_state(), "", true), JSON.stringify(saved, "", true),
-			"save_state → JSON → load_state reproduces the exact state")
+	check(_strict_equal(Tracking.save_state(), saved),
+			"save_state → JSON → load_state reproduces the exact state (values and types)")
+	Tracking.load_state(saved.duplicate(true))
+	check(_strict_equal(Tracking.save_state(), saved), "save_state → load_state (lossless) reproduces the exact state")
 	check_eq(Tracking.evaluate_ending(), "the_butcher", "the loaded run still evaluates the same ending")
+
+
+## Igualdad estricta (tipos incluidos) sin depender del orden de las claves.
+static func _strict_equal(a: Variant, b: Variant) -> bool:
+	return var_to_bytes(_sorted(a)) == var_to_bytes(_sorted(b))
+
+
+static func _sorted(value: Variant) -> Variant:
+	if value is Array:
+		return (value as Array).map(func(item: Variant) -> Variant: return _sorted(item))
+	if not value is Dictionary:
+		return value
+	var keys: Array = (value as Dictionary).keys()
+	keys.sort_custom(func(x: Variant, y: Variant) -> bool: return var_to_str(x) < var_to_str(y))
+	var out: Dictionary = {}
+	for key: Variant in keys:
+		out[key] = _sorted(value[key])
+	return out

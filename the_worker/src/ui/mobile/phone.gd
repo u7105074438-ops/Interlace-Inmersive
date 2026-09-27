@@ -91,7 +91,7 @@ class Glyph extends Control:
 
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_THEME_CHANGED:
-			var side: float = float(get_theme_constant("icon", UITheme.HUD_TYPE)) * ems
+			var side: float = PhoneOverlay.icon_size(self) * ems
 			custom_minimum_size = Vector2(side, side)
 
 	func set_glyph(p_glyph: String, p_tint: Color = Color(0, 0, 0, 0)) -> void:
@@ -165,7 +165,7 @@ class Portrait extends Control:
 
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_THEME_CHANGED:
-			var side: float = float(get_theme_constant("base", UITheme.HUD_TYPE)) * ems
+			var side: float = PhoneOverlay.base_size(self) * ems
 			custom_minimum_size = Vector2(side, side)
 
 	func set_npc(npc: NPCRuntime) -> void:
@@ -201,7 +201,7 @@ class TabButton extends Control:
 
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_THEME_CHANGED:
-			var base: float = float(get_theme_constant("base", UITheme.HUD_TYPE))
+			var base: float = PhoneOverlay.base_size(self)
 			custom_minimum_size = Vector2(base * 3.0, base * 2.9)
 
 	func _gui_input(event: InputEvent) -> void:
@@ -210,7 +210,7 @@ class TabButton extends Control:
 			pressed.emit()
 
 	func _draw() -> void:
-		var base: float = float(get_theme_constant("base", UITheme.HUD_TYPE))
+		var base: float = PhoneOverlay.base_size(self)
 		var col: Color = accent if active else UITheme.color("muted")
 		if active:
 			draw_rect(Rect2(size.x * 0.22, 0.0, size.x * 0.56, 3.0), accent)
@@ -268,7 +268,7 @@ class Device extends Control:
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
 		var radius: float = size.x * CORNER
-		PhoneOverlay.fill_round(self, r.grow(2.0).translated(Vector2(7, 11)), radius, Color(0, 0, 0, 0.32))
+		PhoneOverlay.fill_round(self, Rect2(r.position + Vector2(5, 9), r.size + Vector2(4, 4)), radius, Color(0, 0, 0, 0.32))
 		_draw_side_keys(radius)
 		PhoneOverlay.fill_round(self, r, radius, body)
 		PhoneOverlay.line_round(self, r.grow(-6.0), radius - 6.0, Color(body.lightened(0.28), 0.55), 1.5)
@@ -553,9 +553,7 @@ func _style_device() -> void:
 
 
 func _layout() -> void:
-	var base: float = float(get_theme_constant("base", UITheme.HUD_TYPE))
-	if base <= 0.0:
-		base = float(UITheme.base_font_size(UITheme.current_text_size))
+	var base: float = base_size(self)
 	var h: float = minf(size.y - MARGIN_TOP - MARGIN_BOTTOM, base * DEVICE_HEIGHT_EMS)
 	var w: float = h * DEVICE_ASPECT
 	_rest = Vector2(size.x - MARGIN_RIGHT - w, size.y - MARGIN_BOTTOM - h)
@@ -1004,12 +1002,31 @@ static func clear_children(node: Node) -> void:
 		child.queue_free()
 
 
+## Tamaño base del texto del tema vigente (constante "base" del tipo HUD); sin tema, el de UITheme.
+static func base_size(c: Control) -> float:
+	var base: float = float(c.get_theme_constant("base", UITheme.HUD_TYPE))
+	return base if base > 0.0 else float(UITheme.base_font_size(UITheme.current_text_size))
+
+
+static func icon_size(c: Control) -> float:
+	var side: float = float(c.get_theme_constant("icon", UITheme.HUD_TYPE))
+	return side if side > 0.0 else base_size(c) * UITheme.RATIO_ICON
+
+
 static func fill_round(c: CanvasItem, r: Rect2, radius: float, col: Color) -> void:
-	c.draw_colored_polygon(UITheme.rounded_rect_points(r, maxf(radius, 0.0)), col)
+	if r.size.x <= 0.0 or r.size.y <= 0.0:
+		return
+	var pts: PackedVector2Array = UITheme.rounded_rect_points(r, clampf(radius, 0.0, minf(r.size.x, r.size.y) * 0.5))
+	if pts.size() >= 3:
+		c.draw_colored_polygon(pts, col)
 
 
 static func line_round(c: CanvasItem, r: Rect2, radius: float, col: Color, width: float) -> void:
-	var pts: PackedVector2Array = UITheme.rounded_rect_points(r, maxf(radius, 0.0))
+	if r.size.x <= 0.0 or r.size.y <= 0.0:
+		return
+	var pts: PackedVector2Array = UITheme.rounded_rect_points(r, clampf(radius, 0.0, minf(r.size.x, r.size.y) * 0.5))
+	if pts.size() < 2:
+		return
 	pts.append(pts[0])
 	c.draw_polyline(pts, col, width, true)
 

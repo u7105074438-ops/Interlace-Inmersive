@@ -1374,8 +1374,8 @@ BELIEF_SOURCE_RUMOR,Heard it through the grapevine,Lo oyó en un corrillo
 BELIEF_SOURCE_RECORD,Permanent record,Registro permanente
 UI_CAUGHT_TITLE,Caught red-handed,Pillado con las manos en la masa
 UI_CAUGHT_BODY,%s saw everything. Decide before they do.,%s lo ha visto todo. Decide antes de que lo haga por ti.
-UI_CAUGHT_BRIBE,Buy their silence (%d €),Comprar su silencio (%d €)
-UI_CAUGHT_BRIBE_COUNTEROFFER,They want more: %d €,Quiere más: %d €
+UI_CAUGHT_BRIBE,Buy their silence: %s,Comprar su silencio: %s
+UI_CAUGHT_BRIBE_COUNTEROFFER,They want more: %s,Quiere más: %s
 UI_CAUGHT_BRIBE_NO_FUNDS,You cannot afford their silence.,No te llega para comprar su silencio.
 UI_CAUGHT_ELIMINATE,Make the problem disappear,Hacer desaparecer el problema
 UI_CAUGHT_ELIMINATE_WITNESSES,There are witnesses. Not here. Not now.,Hay testigos. Aquí no. Ahora no.
@@ -1929,13 +1929,13 @@ HUD_REASON_CASH_PICKUP,Cash found,Efectivo encontrado
 HUD_REASON_SHARES,Shares,Acciones
 PROMO_MISSING_PATH,Not reachable from your current post,No es accesible desde tu puesto actual
 PROMO_MISSING_REPUTATION,Your reputation is below the post's minimum,Tu reputación no alcanza el mínimo del puesto
-PROMO_MISSING_MERIT,"You need recent merit: an idea, a visible success, a recommendation","Te falta mérito reciente: una idea, un éxito visible, una recomendación"
+PROMO_MISSING_MERIT,"You need recent merit: an idea, a visible success, a rescue or a recommendation","Te falta mérito reciente: una idea, un éxito visible, un rescate o una recomendación"
 PROMO_MISSING_VACANCY,The chair is occupied. Somebody would have to leave it,La silla está ocupada. Alguien tendría que dejarla libre
 NOTE_PROMOTION_AVAILABLE,HR: %d post(s) within your reach. The chair will not wait for ever.,RR. HH.: %d puesto(s) a tu alcance. La silla no esperará eternamente.
 NOTE_CAREER_PROMOTED,Promoted to %s. Try to look as if you deserved it.,Ascenso a %s. Procura parecer que lo merecías.
 NOTE_CAREER_LATERAL,"Moved sideways to %s. Same rank, different keys.","Traslado lateral a %s. Mismo rango, otras llaves."
 NOTE_CAREER_CREATED_POST,Management created a post just for you: %s.,La dirección ha creado un puesto a tu medida: %s.
-NOTE_CAREER_DEMOTED,Demoted to %s. Your old chair has already been assigned.,Descenso a %s. Tu antigua silla ya tiene dueño.
+NOTE_CAREER_DEMOTED,Demoted to %s. Everyone watched you clear your desk.,Descenso a %s. Todos te vieron vaciar el escritorio.
 NOTE_CAREER_DECLINED,You turned down %s. Somebody else said yes.,Rechazaste %s. Otro dijo que sí.
 NOTE_AUDIT_FUSE_LIT,The figures no longer match. Internal Audit checks in %d week(s).,Las cifras ya no cuadran. Auditoría interna revisa dentro de %d semana(s).
 INTERROGATION_OUTCOME_NO_PIECE,There is nothing left on the table.,Ya no queda nada sobre la mesa.
@@ -2353,3 +2353,618 @@ INTERROGATION_REACT_PIECE_TRANSFERRED,Interesting. I'll have a word with %s.,Int
 INTERROGATION_REACT_SILENCE_KEPT,Silence is also an answer.,El silencio también es una respuesta.
 INTERROGATION_REACT_CASE_FROZEN,Your lawyer is here. We'll continue in three days.,Ha llegado tu abogado. Seguiremos dentro de tres días.
 INTERROGATION_REACT_REQUIREMENT_MISSING,Try again.,Inténtalo otra vez.
+OS_CLOSE,Close,Cerrar
+PERS_APP_TITLE,PERSONNEL — Human Capital Records System v3.1,PERSONNEL — Sistema de Registro de Capital Humano v3.1
+PERS_ACT_MARK,Mark as target,Marcar objetivo
+PERS_ACT_COMPARE,Compare,Comparar
+PERS_ADDRESS_FMT,%d %s,"Nº %d, %s"
+PERS_ALL,All,Todos
+PERS_BRIBE_UNBRIBABLE,Will not take money,No acepta dinero
+PERS_CAT_BRIBABLE,Bribable,Sobornables
+PERS_CAT_DANGEROUS,Dangerous,Peligrosos
+PERS_CAT_DEBTORS,Owe you a favour,Deudores
+PERS_CAT_TARGETS,Marked targets,Objetivos marcados
+PERS_CLASSIFIED,Classified,Clasificado
+PERS_CLEARANCE,File clearance,Acreditación
+PERS_CMP_ATTITUDE,Attitude to you,Actitud contigo
+PERS_CMP_BRIBE,Bribe to look away,Soborno por mirar a otro lado
+PERS_CMP_DEBT,Debts,Deudas
+PERS_CMP_FACTS,On file,En el expediente
+PERS_CMP_HOME,Home,Domicilio
+PERS_CMP_LEVEL,FILE LEVEL N%d,EXPEDIENTE N%d
+PERS_CMP_NO_LINK,No known link,Sin vínculo conocido
+PERS_CMP_TYPE,Type,Tipo
+PERS_CMP_WEAKNESS,Weakness,Debilidad
+PERS_COMMS_LINE,"Day %d, %02d:00 — %s told %s something about %s.","Día %d, %02d:00 — %s le contó a %s algo sobre %s."
+PERS_COMMS_NONE,No readable messages on the servers.,No hay mensajes legibles en los servidores.
+PERS_COMPARE_HINT,Comparing %s. Pick a second employee from the list.,Comparando a %s. Elige a un segundo empleado de la lista.
+PERS_COUNT_FMT,%d of %d employees,%d de %d empleados
+PERS_DEBT_NONE,Nobody owes anybody,Nadie debe nada
+PERS_DEBT_OWES_YOU,Owes you,Te debe
+PERS_DEBT_YOU_OWE,You owe them,Le debes
+PERS_DESC_AVERAGE,Unremarkable in every measurable way.,Anodino en todos los aspectos medibles.
+PERS_DESC_AMBITION_HIGH,Wants a bigger chair. Possibly yours.,Quiere una silla más grande. Quizá la tuya.
+PERS_DESC_AMBITION_LOW,"Happy where they are, which worries management.","Está contento donde está, cosa que inquieta a la dirección."
+PERS_DESC_LOYALTY_HIGH,"Loyal to the company, sincerely.","Leal a la empresa, y lo dice en serio."
+PERS_DESC_LOYALTY_LOW,Loyal to nobody in particular.,No es leal a nadie en particular.
+PERS_DESC_GREED_HIGH,Always counting something.,Siempre está contando algo.
+PERS_DESC_GREED_LOW,Money does not seem to move them.,El dinero no parece moverle.
+PERS_DESC_COURAGE_HIGH,Speaks up.,Dice lo que piensa.
+PERS_DESC_COURAGE_LOW,Avoids trouble at all costs.,Evita los problemas a toda costa.
+PERS_DESC_PERCEPTION_HIGH,Notices things.,Se fija en todo.
+PERS_DESC_PERCEPTION_LOW,Misses the obvious.,No ve lo evidente.
+PERS_DESC_SOCIABILITY_HIGH,Talks a lot.,Habla mucho.
+PERS_DESC_SOCIABILITY_LOW,Keeps to themselves.,Va a lo suyo.
+PERS_DISC_ABSENCES,Repeated unexplained absences from their post.,Ausencias repetidas e injustificadas de su puesto.
+PERS_DISC_CLEAN,Spotless. Suspiciously so.,Impecable. Sospechosamente impecable.
+PERS_DISC_CONVICTED,Found responsible: %s (day %d).,Declarado responsable: %s (día %d).
+PERS_DISC_RECORD,Formal note added to the file (day %d).,Anotación formal en el expediente (día %d).
+PERS_DISC_SUSPECT,Named as a suspect: %s (day %d).,Señalado como sospechoso: %s (día %d).
+PERS_FEAR_HIGH,Afraid of you,Te teme
+PERS_FEAR_LOW,Not afraid of you,No te teme
+PERS_FIELD_FLOOR,Floor,Planta
+PERS_FIELD_POST,Post,Puesto
+PERS_FIELD_WING,Wing,Ala
+PERS_FILE_KICKER,HUMAN RESOURCES · EMPLOYEE FILE,RECURSOS HUMANOS · EXPEDIENTE DE EMPLEADO
+PERS_FILTER_CATEGORY,Category,Categoría
+PERS_FILTER_FLOOR,Floor,Planta
+PERS_FILTER_RANK,Rank,Rango
+PERS_FILTER_SORT,Sort by,Ordenar
+PERS_FILTER_TYPE,Type,Tipo
+PERS_FLOOR_BASEMENT,Basement %d,Sótano %d
+PERS_FLOOR_FACTORY,Factory floor,Nave fabril
+PERS_FLOOR_GROUND,Ground floor,Planta baja
+PERS_FLOOR_N,Floor %d,Planta %d
+PERS_FLOOR_OUTSIDE,Outside the building,Fuera del edificio
+PERS_HISTORY_FAVOUR,You did them a favour,Le hiciste un favor
+PERS_HISTORY_GRIEVANCE,Holds something against you,Te guarda rencor
+PERS_HISTORY_LINE,Day %d: %s,Día %d: %s
+PERS_HISTORY_NONE,No history with you. Yet.,Sin historial contigo. De momento.
+PERS_HOME_NIGHT_OPS,Knowing where someone sleeps makes night-time visits possible.,Saber dónde duerme alguien hace posibles las visitas nocturnas.
+PERS_LINKS_NONE,No known links.,Sin vínculos conocidos.
+PERS_MOOD_COLD,Cold,Frío
+PERS_MOOD_NEUTRAL,Indifferent,Indiferente
+PERS_MOOD_WARM,Warm,Cordial
+PERS_NOTE_ADD,Add note,Anotar
+PERS_NOTE_ENTRY,%s: %s,%s: %s
+PERS_NOTE_FULL_FILE,Full personnel file obtained: %s (%s).,Expediente completo obtenido: %s (%s).
+PERS_NOTE_HINT,Write a note about this person (it goes to your notebook)…,Escribe una nota sobre esta persona (va a tu cuaderno)…
+PERS_NOTE_LINE,"Day %d, %s — %s","Día %d, %s — %s"
+PERS_NOTE_STUDY,Studied %s. %s: %s.,Estudiaste a %s. %s: %s.
+PERS_NOTE_TARGET_CLEARED,Target cleared: %s.,Objetivo retirado: %s.
+PERS_NOTE_TARGET_MARKED,New target: %s.,Nuevo objetivo: %s.
+PERS_POST_FMT,%s · R%d,%s · R%d
+PERS_POST_UNKNOWN,Post not on file,Puesto sin registrar
+PERS_PROB_VERY_UNLIKELY,Very unlikely,Muy improbable
+PERS_PROB_UNLIKELY,Unlikely,Improbable
+PERS_PROB_UNCERTAIN,Hard to say,Incierto
+PERS_PROB_LIKELY,Likely,Probable
+PERS_PROB_VERY_LIKELY,Very likely,Muy probable
+PERS_REASON_HR_INTRUSION,HR break-in,intrusión en RR. HH.
+PERS_REASON_HR_POST,HR access,acceso de RR. HH.
+PERS_REASON_BLACKMAIL,blackmail,chantaje
+PERS_ROUTINE_AWAY,Out of the building,Fuera del edificio
+PERS_SEARCH_HINT,Search by name…,Buscar por nombre…
+PERS_SECRET_AFFAIR,Secret relationship with %s.,Relación secreta con %s.
+PERS_SECRET_NONE,Nothing on file. Everyone has something.,Nada registrado. Todo el mundo tiene algo.
+PERS_SECRET_TAG,secret,secreto
+PERS_SEC_ROUTINE,Approximate routine,Rutina aproximada
+PERS_SEC_CHARACTER,Character,Carácter
+PERS_SEC_TRAITS,Personality profile,Perfil de personalidad
+PERS_SEC_LINKS,Main social links,Vínculos sociales principales
+PERS_SEC_WEAKNESS,Exploitable weakness,Debilidad explotable
+PERS_SEC_HISTORY,History with you,Historial contigo
+PERS_SEC_EXACT_FIGURES,Exact figures,Valores exactos
+PERS_SEC_DISCIPLINE,Disciplinary record,Expediente disciplinario
+PERS_SEC_BRIBE_PRICE,Estimated bribe price,Precio estimado de soborno
+PERS_SEC_SECRETS,Personal secrets,Secretos personales
+PERS_SEC_HOME,Home address,Domicilio
+PERS_SEC_POLITICS,Internal politics,Política interna
+PERS_SEC_PRIVATE_COMMS,Private communications (IT),Comunicaciones privadas (IT)
+PERS_SEC_CLASSIFIED,Beyond your clearance,Fuera de tu acreditación
+PERS_SORT_FLOOR,Floor,Planta
+PERS_SORT_NAME,Name,Nombre
+PERS_SORT_RANK,Rank,Rango
+PERS_STAMP_TARGET,TARGET,OBJETIVO
+PERS_STATUS_CLOCK,Day %d · %s,Día %d · %s
+PERS_STATUS_LEVEL,Clearance N%d — %s,Acreditación N%d — %s
+PERS_STATUS_TARGETS,%d target(s) marked,%d objetivo(s) marcado(s)
+PERS_STUDY_BTN_BRIBE,Bribe?,¿Soborno?
+PERS_STUDY_BTN_CONFRONT,Confront?,¿Confrontar?
+PERS_STUDY_BTN_REPORT,Report?,¿Denunciar?
+PERS_STUDY_LABEL,STUDY,ESTUDIAR
+PERS_STUDY_Q_BRIBE,Would take a fair bribe,Aceptaría un soborno justo
+PERS_STUDY_Q_CONFRONT,Would confront you if they caught you,Te confrontaría si te pillara
+PERS_STUDY_Q_REPORT,Would report you if they caught you,Te denunciaría si te pillara
+PERS_STUDY_RESULT,%s (studied for %d min):,%s (estudiado %d min):
+PERS_STUDY_TIP,Studying someone costs 15 to 30 minutes of game time.,Estudiar a alguien cuesta entre 15 y 30 minutos de juego.
+PERS_TRAIT_AMBITION,Ambition,Ambición
+PERS_TRAIT_LOYALTY,Loyalty,Lealtad
+PERS_TRAIT_GREED,Greed,Codicia
+PERS_TRAIT_COURAGE,Courage,Valentía
+PERS_TRAIT_PERCEPTION,Perception,Perspicacia
+PERS_TRAIT_SOCIABILITY,Sociability,Sociabilidad
+PERS_WEAK_ARCH_CLIMBER,Anything that looks like a shortcut upwards.,Cualquier cosa que parezca un atajo hacia arriba.
+PERS_WEAK_ARCH_SNITCH,Believes anything that comes with a form attached.,Se cree todo lo que venga con un formulario.
+PERS_WEAK_ARCH_BRIBABLE,"Cash, promptly.","Dinero en efectivo, y sin demora."
+PERS_WEAK_ARCH_COMPANY_MAN,Appeals to the good of the company.,Apelar al bien de la empresa.
+PERS_WEAK_ARCH_OBLIVIOUS,Needs no weakness: they simply do not notice.,No necesita debilidad: simplemente no se entera.
+PERS_WEAK_ARCH_GOSSIP,Give them a story and they will carry it anywhere.,Dale una historia y la llevará a cualquier parte.
+PERS_WEAK_ARCH_BURNOUT,Anything that means less work.,Cualquier cosa que suponga trabajar menos.
+PERS_WEAK_ARCH_OLD_HAND,"Respect, earned slowly.","Respeto, ganado poco a poco."
+PERS_WEAK_ARCH_ROOKIE,Desperate to be liked.,Desesperado por caer bien.
+PERS_WEAK_ARCH_HARDLINER,Only procedure moves them. Forge the procedure.,Solo le mueve el procedimiento. Falsifica el procedimiento.
+PERS_WEAK_ARCH_COWARD,Fear. A little goes a long way.,El miedo. Con un poco basta.
+PERS_WEAK_ARCH_INCORRUPTIBLE,None known. Go around them.,Ninguna conocida. Rodéale.
+PERS_WING_NONE,No fixed desk,Sin puesto fijo
+PERS_WORD_HIGH,high,alta
+PERS_WORD_MID,average,media
+PERS_WORD_LOW,low,baja
+PERS_YOU,You,Tú
+PERS_LEVEL_NAME_1,Public directory,Directorio público
+PERS_LEVEL_NAME_2,Supervisor view,Vista de supervisor
+PERS_LEVEL_NAME_3,Team-lead view,Vista de jefatura
+PERS_LEVEL_NAME_4,HR casework,Expediente de RR. HH.
+PERS_LEVEL_NAME_5,Management file,Ficha de dirección
+PERS_LEVEL_NAME_6,Executive dossier,Dossier ejecutivo
+PERS_LEVEL_NAME_7,Board eyes only,Solo para el consejo
+PERS_STREET_1,Larch Close,calle del Alerce
+PERS_STREET_2,Cedar Row,calle de los Cedros
+PERS_STREET_3,Marlowe Street,calle Marlowe
+PERS_STREET_4,Pewter Lane,callejón del Peltre
+PERS_STREET_5,Station Approach,avenida de la Estación
+PERS_STREET_6,Orchard Crescent,glorieta del Huerto
+PERS_STREET_7,Canal Terrace,paseo del Canal
+PERS_STREET_8,Belvedere Avenue,avenida Belvedere
+PORTAL_TIER_1,T1 · Base,E1 · Base
+PORTAL_TIER_2,T2 · Junior,E2 · Junior
+PORTAL_TIER_3,T3 · Senior,E3 · Sénior
+PORTAL_TIER_4,T4 · Team lead,E4 · Jefatura de equipo
+PORTAL_TIER_5,T5 · Block management,E5 · Dirección de bloque
+PORTAL_TIER_6,T6 · Area management,E6 · Dirección de área
+PORTAL_TIER_7,T7 · Senior management,E7 · Alta dirección
+PORTAL_TIER_8,T8 · The summit,E8 · La cúspide
+AURORA_ASSIST_WHISPER,Are those figures… made up?,¿Esas cifras son… inventadas?
+PHONE_TAB_CONTACTS,Contacts,Contactos
+PHONE_TAB_CHAT,Chat,Chat
+PHONE_TAB_CALL,Call,Llamar
+PHONE_CARRIER,STELLAR MOBILE,STELLAR MÓVIL
+PHONE_SILENT_TOGGLE,Silent mode: your phone will not vibrate.,Modo silencio: el móvil no vibrará.
+PHONE_UNKNOWN_NUMBER,Unknown number,Número desconocido
+PHONE_TOAST_MESSAGE,New message from %s,Mensaje nuevo de %s
+PHONE_EXPO_SUPERIOR,%s can see you on your phone.,%s te está viendo con el móvil.
+PHONE_EXPO_SUPERIORS,%d superiors can see you on your phone.,%d superiores te ven con el móvil.
+PHONE_EXPO_LISTENERS,%d people within earshot.,%d personas pueden oírte.
+PHONE_EXPO_PRIVATE,Private spot. Safe to talk.,Rincón privado. Puedes hablar.
+PHONE_EXPO_ALONE,Nobody around. For now.,No hay nadie cerca. De momento.
+PHONE_CONTACTS_TITLE,Contacts,Contactos
+PHONE_CONTACTS_EMPTY,"No numbers yet. Work near people, do favours, or get into HR.","Aún no tienes números. Trabaja cerca de la gente, haz favores o entra en RRHH."
+PHONE_CONTACT_IGNORES,Management does not answer people at your level.,La dirección no responde a gente de tu nivel.
+PHONE_CONTACT_IGNORES_SHORT,Ignores you,Te ignora
+PHONE_SOURCE_MESSAGED,Messaged you,Te escribió
+PHONE_SOURCE_FAVOUR,Favours,Favores
+PHONE_SOURCE_COLLEAGUE,Colleague,Compañero
+PHONE_SOURCE_HR,HR file,Ficha de RRHH
+PHONE_SOURCE_BOUGHT,Bought,Comprado
+PHONE_ACTION_CHAT,Chat,Escribir
+PHONE_ACTION_CALL,Call,Llamar
+PHONE_ACTION_DEAL,Deal,Trato
+PHONE_BACK,Back,Volver
+PHONE_CHAT_TITLE,Chats,Conversaciones
+PHONE_CHAT_EMPTY,No messages. Enjoy it while it lasts.,Sin mensajes. Disfrútalo mientras dure.
+PHONE_CHAT_RECORD_WARNING,Everything written here is stored on the company server. IT can read it.,Todo lo que escribas aquí queda en el servidor de la empresa. IT puede leerlo.
+PHONE_CHAT_RECORD_COUNT,On file: %d messages,En el archivo: %d mensajes
+PHONE_CHAT_IGNORED,Seen. No reply.,Visto. Sin respuesta.
+PHONE_CHAT_ANSWER_DEMAND,Answer their demand,Responder a su exigencia
+PHONE_CHAT_OFFER_DEAL,Propose a deal,Proponer un trato
+PHONE_CHAT_OFFER_TEXT,I'll give you %s. In exchange: %s.,Te doy %s. A cambio: %s.
+PHONE_CHAT_LOGGED,Message archived on the server,Mensaje archivado en el servidor
+PHONE_DEMAND_CHIP_MONEY,Wants %s,Pide %s
+PHONE_DEMAND_CHIP_PROMOTION,Wants your support,Pide tu apoyo
+PHONE_DEMAND_CHIP_FAVOUR,Wants a favour,Pide un favor
+PHONE_CALL_TITLE,Calls,Llamadas
+PHONE_CALL_PROPOSE,Propose a deal,Proponer un trato
+PHONE_CALL_HANG_UP,Hang up,Colgar
+PHONE_CALL_RINGING,Calling…,Llamando…
+PHONE_CALL_NO_ANSWER,No answer,No contesta
+PHONE_CALL_IGNORED,Straight to voicemail. Management does not pick up for people at your level.,Directo al buzón. La dirección no descuelga a gente de tu nivel.
+PHONE_CALL_CONNECTED,Connected · %s,Conectado · %s
+PHONE_CALL_OVERHEARD,%d people overheard every word.,%d personas lo han oído todo.
+PHONE_PRIVACY_PRIVATE,Private,Privado
+PHONE_PRIVACY_EXPOSED,Exposed,Expuesto
+PHONE_PRIVACY_NOBODY,Nobody can hear you.,Nadie puede oírte.
+PHONE_PRIVACY_LISTENERS,%d people can hear you.,%d personas pueden oírte.
+PHONE_PRIVACY_HINT,Only the toilets and the service stairs are safe to talk.,Solo los baños y la escalera de servicio son seguros para hablar.
+PHONE_BRIBE_TITLE,Deal with %s,Trato con %s
+PHONE_BRIBE_VIA_CHAT,By chat,Por chat
+PHONE_BRIBE_VIA_CALL,By phone call,Por llamada
+PHONE_BRIBE_FAVOUR_CAPTION,What you want,Qué quieres
+PHONE_BRIBE_AMOUNT_CAPTION,Your offer,Tu oferta
+PHONE_BRIBE_FUNDS,You have %s,Tienes %s
+PHONE_BRIBE_ESTIMATE,Personnel file estimate: %s,Estimación del expediente: %s
+PHONE_BRIBE_BLIND,Price unknown. You are guessing (a level N%d personnel file shows an estimate).,Precio desconocido. Vas a ciegas (el expediente de nivel N%d muestra una estimación).
+PHONE_BRIBE_ASKED,They asked for %s.,Te ha pedido %s.
+PHONE_BRIBE_RISK_CHAT,Leaves a permanent record on the company server.,Deja un registro permanente en el servidor de la empresa.
+PHONE_BRIBE_SEND,Send offer · %s,Enviar oferta · %s
+PHONE_BRIBE_CONFIRM,Send it,Enviarla
+PHONE_BRIBE_CONFIRM_BODY,Offer %s to %s for: %s? This cannot be undone.,¿Ofrecer %s a %s por: %s? No hay vuelta atrás.
+PHONE_BRIBE_DONE,Done,Listo
+PHONE_BRIBE_PAY_ASKED,Offer %s,Ofrecer %s
+CAUGHTUI_SUBTITLE,%s saw you %s.,%s te ha visto %s.
+CAUGHTUI_CRIME_THEFT_SMALL,pocketing something that isn't yours,embolsándote algo que no es tuyo
+CAUGHTUI_CRIME_THEFT_PRODUCT,stealing company product,robando producto de la empresa
+CAUGHTUI_CRIME_DRAWER_FORCED,forcing a drawer,forzando un cajón
+CAUGHTUI_CRIME_LOCK_FORCED,picking a lock,forzando una cerradura
+CAUGHTUI_CRIME_FILE_COPIED,copying someone else's files,copiando archivos ajenos
+CAUGHTUI_CRIME_TRESPASS,somewhere you should not be,donde no deberías estar
+CAUGHTUI_CRIME_BRIBE,handing over an envelope,entregando un sobre
+CAUGHTUI_CRIME_FORGERY,forging a document,falsificando un documento
+CAUGHTUI_CRIME_SABOTAGE,sabotaging company property,saboteando material de la empresa
+CAUGHTUI_CRIME_ELIMINATION,doing something unspeakable,haciendo algo inconfesable
+CAUGHTUI_CRIME_BODY_MOVED,dragging a body,arrastrando un cuerpo
+CAUGHTUI_CRIME_FOOTAGE_DELETED,deleting security footage,borrando grabaciones de seguridad
+CAUGHTUI_CRIME_RECORDS_DELETED,wiping records from the server,borrando registros del servidor
+CAUGHTUI_CRIME_FRAUD,cooking the books,maquillando las cuentas
+CAUGHTUI_CRIME_INSIDER_TRADE,trading on inside information,operando con información privilegiada
+CAUGHTUI_CRIME_RUMOUR_PLANTED,planting a rumour,sembrando un rumor
+CAUGHTUI_CRIME_IDEA_STOLEN,stealing a colleague's idea,robando la idea de un compañero
+CAUGHTUI_CRIME_FRAMING,planting evidence on someone,colocándole pruebas a alguien
+CAUGHTUI_CRIME_POWER_CUT,cutting the power,cortando la luz
+CAUGHTUI_CRIME_BURGLARY,breaking in,allanando
+CAUGHTUI_CRIME_GENERIC,doing something you really should not,haciendo algo que no deberías
+CAUGHTUI_INACTION,"If you do nothing, %s will decide for you.","Si no haces nada, %s decidirá por ti."
+CAUGHTUI_WITNESSES,Witnesses: %d,Testigos: %d
+CAUGHTUI_OFFER_MONEY,Offer money,Ofrecer dinero
+CAUGHTUI_BRIBE_HINT,On the spot: the priciest silence there is (×20).,En el acto: el silencio más caro que existe (×20).
+CAUGHTUI_COUNTER_HINT,They named their price. Pay it or live with it.,Ha puesto precio. Págalo o apechuga.
+CAUGHTUI_PRICE,Price: %s,Precio: %s
+CAUGHTUI_ELIMINATE,Silence them permanently,Silenciarlo para siempre
+CAUGHTUI_ELIMINATE_HINT,Nobody else is looking. It cannot be undone.,Nadie más mira. No tiene vuelta atrás.
+CAUGHTUI_CONFIRM_BRIBE,Pay %s to %s for their silence?,¿Pagar %s a %s por su silencio?
+CAUGHTUI_CONFIRM_ELIMINATE,Silence %s permanently? There is no going back.,¿Silenciar a %s para siempre? No hay vuelta atrás.
+CAUGHTUI_CONFIRM_PAY,Pay,Pagar
+CAUGHTUI_CONFIRM_KILL,Do it,Hacerlo
+CAUGHTUI_BACK,Back,Volver
+CAUGHTUI_OUTCOME_INACTION,%s walks away. They have made up their mind.,%s se aleja. Ya ha decidido.
+CAUGHTUI_OUTCOME_ELIMINATED,%s will not be telling anyone. Now deal with what is left.,%s no se lo contará a nadie. Ahora ocúpate de lo que queda.
+CAUGHTUI_OUTCOME_VOID,%s is gone. The moment has passed.,%s ya no está. El momento ha pasado.
+CAUGHTUI_REACTION_REPORT_TO_SECURITY,%s heads straight for Security.,%s va directo a Seguridad.
+CAUGHTUI_REACTION_REPORT_TO_SUPERIOR,%s goes off to tell their boss.,%s va a contárselo a su jefe.
+CAUGHTUI_REACTION_SPREAD_AT_LUNCH,%s smiles. The whole canteen will know by lunch.,%s sonríe. Todo el comedor lo sabrá a la hora de comer.
+CAUGHTUI_REACTION_SILENT_BLACKMAIL,%s says nothing. They are saving it for later.,%s no dice nada. Se lo guarda para más adelante.
+CAUGHTUI_REACTION_INDIFFERENT,%s shrugs. Not their problem.,%s se encoge de hombros. No es su problema.
+CAUGHTUI_REACTION_REMEMBERS_QUIETLY,%s looks away. They will remember this.,%s aparta la vista. Lo recordará.
+CAUGHTUI_REACTION_USE_AS_LEVERAGE,%s files this away as leverage.,%s lo archiva como moneda de cambio.
+CAUGHTUI_REACTION_ASK_FOR_MONEY,%s holds out a hand. Silence has a price.,%s tiende la mano. El silencio tiene precio.
+CAUGHTUI_REACTION_SILENCED_BY_DEBT,%s owes you one. They let it go.,%s te debe una. Lo deja pasar.
+CAUGHTUI_REACTION_HESITATED,"%s hesitates, and decides it is not worth it.",%s duda y decide que no merece la pena.
+BLACKMAILUI_KICKER,New message,Mensaje nuevo
+BLACKMAILUI_QUOTE,“%s”,«%s»
+BLACKMAILUI_THEY_WANT,They want,Lo que quiere
+BLACKMAILUI_WANTS_MONEY,Money,Dinero
+BLACKMAILUI_WANTS_PROMOTION,Your support for their promotion,Tu apoyo para su ascenso
+BLACKMAILUI_WANTS_FAVOUR,"A favour, no questions asked","Un favor, sin preguntas"
+BLACKMAILUI_REPUTATION_COST,Complying costs you %d reputation.,Ceder te cuesta %d de reputación.
+BLACKMAILUI_DEADLINE,Answer by day %d (%d days left). Silence counts as a no.,Responde antes del día %d (quedan %d días). El silencio cuenta como un no.
+BLACKMAILUI_PAY_MONEY,Pay %s,Pagar %s
+BLACKMAILUI_COMPLY,Comply,Ceder
+BLACKMAILUI_REFUSE,Refuse,Negarse
+BLACKMAILUI_LATER,Decide later,Decidir después
+BLACKMAILUI_CONFIRM_PAY,"Give in to %s? Paying buys silence, not forgetting.","¿Ceder ante %s? Pagar compra silencio, no olvido."
+BLACKMAILUI_CONFIRM_REFUSE,Refuse %s? They will talk.,¿Plantarte ante %s? Hablará.
+BLACKMAILUI_YES_PAY,Give in,Ceder
+BLACKMAILUI_YES_REFUSE,Let them talk,Que hable
+BLACKMAILUI_CLOSE,Close,Cerrar
+BLACKMAILUI_FAILED_INSUFFICIENT_FUNDS,You do not have that much money.,No tienes tanto dinero.
+BLACKMAILUI_FAILED_NO_DEMAND,That demand is no longer on the table.,Esa exigencia ya no está sobre la mesa.
+INTERROGATION_POSTER,TRUTH · TRUST · TERMS APPLY,VERDAD · CONFIANZA · CONSULTE CONDICIONES
+OS_PRODUCT_RETRO,StellarOS 98,StellarOS 98
+OS_EDITION_RETRO,Budget Edition · Licensed to: base staff,Edición Económica · Licencia: personal de base
+OS_PRODUCT_CLASSIC,StellarOS 2000,StellarOS 2000
+OS_EDITION_CLASSIC,Professional · Now with fewer crashes,Professional · Ahora con menos cuelgues
+OS_PRODUCT_LUNA,StellarOS XP,StellarOS XP
+OS_EDITION_LUNA,Executive Edition · Leather-bound interface,Edición Ejecutiva · Interfaz encuadernada en piel
+OS_PRODUCT_SOVEREIGN,StellarOS ∞,StellarOS ∞
+OS_EDITION_SOVEREIGN,Sovereign · It already knows what you want,Soberano · Ya sabe lo que quieres
+OS_EDITION_CONTRAST,High-contrast edition,Edición de alto contraste
+OS_WALL_SLOGAN_RETRO,WE SELL STARS · YOU SELL TIME,VENDEMOS ESTRELLAS · TÚ VENDES TU TIEMPO
+OS_WALL_SLOGAN_CLASSIC,EXCELLENCE IS A DEFAULT SETTING,LA EXCELENCIA VIENE DE SERIE
+OS_WALL_SLOGAN_SOVEREIGN,Nobody here works.,Aquí nadie trabaja.
+OS_APP_MAIL,MAIL,CORREO
+OS_APP_NOTEBOOK,NOTEBOOK,CUADERNO
+OS_APP_PERSONNEL,PERSONNEL,PERSONAL
+OS_APP_ASSIST,A.S.S.I.S.T.,A.S.S.I.S.T.
+OS_APP_PORTAL,PORTAL,PORTAL
+OS_APP_FILES,FILES,ARCHIVOS
+OS_APP_MARKET,MARKET,MERCADO
+OS_START,Stellar,Stellar
+OS_GUEST_START,GUEST,INVITADO
+OS_TRAY_SPEED_TIP,Time keeps running while you use the computer (at 40% speed).,El tiempo sigue corriendo mientras usas el ordenador (al 40 %).
+OS_TRAY_DAY,Day %d,Día %d
+OS_TRAY_SPEED,%d%%,%d %%
+OS_SHUT_DOWN,Shut down…,Apagar…
+OS_BIOS_1,StellarBIOS v1.02  (c) 1994 Stellar Sell Hardware Division,StellarBIOS v1.02  (c) 1994 División de Hardware de Stellar Sell
+OS_BIOS_2,Memory test: 640 KB OK (plenty for your rank),Test de memoria: 640 KB OK (de sobra para tu rango)
+OS_BIOS_3,Detecting ambition ............ none found,Detectando ambición ............ no encontrada
+OS_BIOS_4,Loading corporate values from floppy disk A:,Cargando valores corporativos desde el disquete A:
+OS_BIOS_5,Starting StellarOS. Please look busy.,"Iniciando StellarOS. Por favor, aparenta estar ocupado."
+OS_BOOT_TIP_HEADER,INTERNAL ANNOUNCEMENT,COMUNICADO INTERNO
+OS_BOOT_TIP_1,Did you know? Smiling increases quarterly output by 0.3%.,"¿Sabías que sonreír aumenta la producción trimestral un 0,3 %?"
+OS_BOOT_TIP_2,Stellar Sell: forty years putting a spring in the world's step.,Stellar Sell: cuarenta años poniendo muelles en los pasos del mundo.
+OS_BOOT_TIP_3,Your computer is loading. Your career is also loading. Please be patient with both.,Tu ordenador está cargando. Tu carrera también. Ten paciencia con ambos.
+OS_BOOT_TIP_4,Remember: a clean desk is a searchable desk.,Recuerda: una mesa limpia es una mesa registrable.
+OS_BOOT_TIP_5,"Tip: the faster your computer, the more important you are.","Consejo: cuanto más rápido es tu ordenador, más importante eres."
+OS_BOOT_TIP_6,Every second this bar takes is logged as 'engagement'. Thank you for engaging.,Cada segundo que tarda esta barra se registra como «implicación». Gracias por implicarte.
+OS_GUEST_LOGIN_TITLE,StellarOS — Log on,StellarOS — Iniciar sesión
+OS_GUEST_PASSWORD,Password: ,Contraseña: 
+OS_GUEST_LOGIN_HINT,The password was on a sticky note under the keyboard. Company policy forbids this. Everybody does it.,La contraseña estaba en un pósit debajo del teclado. La normativa lo prohíbe. Todo el mundo lo hace.
+OS_AD_WINDOW_TITLE,StellarOS Messenger — Internal Comms,StellarOS Messenger — Comunicación Interna
+OS_AD_1_TITLE,HYDRATION IS A TEAM SPORT,LA HIDRATACIÓN ES UN DEPORTE DE EQUIPO
+OS_AD_1_BODY,"Hydrated employees answer 4% more emails. Drink responsibly, during your break.","Los empleados hidratados responden un 4 % más de correos. Bebe con responsabilidad, en tu descanso."
+OS_AD_1_BUTTON,I am hydrated,Estoy hidratado
+OS_AD_2_TITLE,EMPLOYEE OF THE MONTH,EMPLEADO DEL MES
+OS_AD_2_BODY,"It is not you. It is never you. But statistically, one day, it could be.","No eres tú. Nunca eres tú. Pero, estadísticamente, algún día podrías serlo."
+OS_AD_2_BUTTON,So motivating!,¡Qué motivador!
+OS_AD_3_TITLE,SMILE AUDIT,AUDITORÍA DE SONRISAS
+OS_AD_3_BODY,Random smile audits start on Monday. Please keep your teeth visible between 08:00 and 19:00.,Las auditorías aleatorias de sonrisas empiezan el lunes. Mantén los dientes visibles de 08:00 a 19:00.
+OS_AD_3_BUTTON,Understood :),Entendido :)
+OS_AD_4_TITLE,NEW! STELLAR AIR MAX PRO,¡NUEVO! STELLAR AIR MAX PRO
+OS_AD_4_BODY,"Staff discount: 5% off our new trainer, payable in 48 easy payroll instalments.","Descuento para la plantilla: un 5 % en nuestra nueva zapatilla, en 48 cómodos plazos por nómina."
+OS_AD_4_BUTTON,Take my salary,Toma mi nómina
+OS_AD_5_TITLE,SYNERGY WEEK,SEMANA DE LA SINERGIA
+OS_AD_5_BODY,Synergy is mandatory. Participation is voluntary. Attendance will be recorded.,La sinergia es obligatoria. La participación es voluntaria. La asistencia quedará registrada.
+OS_AD_5_BUTTON,Synergise,Sinergizar
+OS_AD_6_TITLE,DID YOU KNOW?,¿SABÍAS QUE…?
+OS_AD_6_BODY,The CEO's computer boots in 0.0 seconds. Work hard and one day yours might boot in 6.5.,"El ordenador del consejero delegado arranca en 0,0 segundos. Trabaja duro y algún día el tuyo arrancará en 6,5."
+OS_AD_6_BUTTON,Inspiring,Inspirador
+OS_AD_7_TITLE,WELLNESS REMINDER,RECORDATORIO DE BIENESTAR
+OS_AD_7_BODY,Your chair is not a bed. Your desk is not a pillow. Your break was eleven minutes ago.,Tu silla no es una cama. Tu mesa no es una almohada. Tu descanso fue hace once minutos.
+OS_AD_7_BUTTON,Sit up straight,Me pongo recto
+OS_AD_8_TITLE,IT NOTICE,AVISO DE IT
+OS_AD_8_BODY,Your computer is scheduled for an upgrade in Q3 of a year to be determined. Thank you for your patience.,Tu ordenador tiene prevista una actualización en el tercer trimestre de un año por determinar. Gracias por tu paciencia.
+OS_AD_8_BUTTON,Wait patiently,Esperar con paciencia
+OS_404_TITLE,404: APP NOT DEPLOYED,404: APLICACIÓN NO DESPLEGADA
+OS_404_BODY,%s is still being rolled out to your rank. IT ticket #%d has been opened on your behalf. Estimated resolution: after your retirement.,%s aún se está desplegando para tu rango. Se ha abierto en tu nombre la incidencia de IT n.º %d. Resolución estimada: después de tu jubilación.
+OS_404_OK,Accept my fate,Aceptar mi destino
+OS_404_WINDOW,Application error,Error de aplicación
+OS_ACCESS_DENIED,ACCESS DENIED: guest accounts cannot open %s.,ACCESO DENEGADO: las cuentas de invitado no pueden abrir %s.
+OS_APP_UNKNOWN,That application is not installed on this terminal.,Esa aplicación no está instalada en este terminal.
+OS_GUEST_BANNER,GUEST SESSION · %s's workstation · be quick,SESIÓN DE INVITADO · puesto de %s · date prisa
+OS_STATUS_READY,Ready.,Listo.
+OS_SESSION_GUEST,Guest on %s's computer,Invitado en el ordenador de %s
+OS_SESSION_OWN,Logged in: %s,Sesión: %s
+OS_SESSION_ANON,you,tú
+MAIL_WINDOW_TITLE,MAIL — Inbox,CORREO — Bandeja de entrada
+MAIL_STATUS_SENT,Reply sent (+%d min).,Respuesta enviada (+%d min).
+MAIL_REACT_OK_1,Your manager's manager is quietly pleased.,El jefe de tu jefe está discretamente satisfecho.
+MAIL_REACT_OK_2,HR has filed your reply under 'team player'.,RR. HH. ha archivado tu respuesta en «buen compañero».
+MAIL_REACT_OK_3,Nobody will read it. Perfect.,Nadie la va a leer. Perfecto.
+MAIL_REACT_OK_4,A.S.S.I.S.T. rated your tone: 'appropriately hollow'.,A.S.S.I.S.T. califica tu tono: «adecuadamente vacío».
+MAIL_REACT_BAD_1,HR has flagged your tone as 'creative'.,RR. HH. ha marcado tu tono como «creativo».
+MAIL_REACT_BAD_2,Seventeen people were copied in. All of them noticed.,Había diecisiete personas en copia. Todas se han dado cuenta.
+MAIL_REACT_BAD_3,"Your reply has been forwarded to Legal, for fun.","Tu respuesta se ha reenviado a Asesoría Jurídica, por diversión."
+MAIL_REACT_BAD_4,Someone printed your reply and pinned it up in the pantry.,Alguien ha imprimido tu respuesta y la ha colgado en el office.
+MAIL_STATUS_REPUTATION,Reputation %s.,Reputación %s.
+MAIL_STATUS_DONE,Inbox zero! Duty complete. Your productivity has been noted.,¡Bandeja a cero! Deber cumplido. Se ha tomado nota de tu productividad.
+MAIL_HEADER_NO_DUTY,Inbox,Bandeja de entrada
+MAIL_HEADER_NO_DUTY_SUB,No email duty today. Your post has other ways to waste your time.,Hoy no tienes deber de correo. Tu puesto tiene otras formas de hacerte perder el tiempo.
+MAIL_HEADER_DUTY,Today's duty: %s (%d emails),Deber de hoy: %s (%d correos)
+MAIL_HEADER_SUB,%d of %d answered · deadline %s · about %d min per reply,%d de %d respondidos · plazo %s · unos %d min por respuesta
+MAIL_HEADER_DONE,"All answered. The inbox will refill tomorrow, forever.","Todo respondido. La bandeja se volverá a llenar mañana, para siempre."
+MAIL_HEADER_FAILED,Too late: this duty has been marked as failed.,Demasiado tarde: este deber consta como incumplido.
+MAIL_TAG_REPLIED,REPLIED,RESPONDIDO
+MAIL_TAG_NEXT,NEXT,SIGUIENTE
+MAIL_EMPTY_TITLE,Inbox zero. Suspicious.,Bandeja a cero. Sospechoso.
+MAIL_EMPTY_BODY,Nobody has written to you today. Enjoy it before somebody notices.,Hoy nadie te ha escrito. Disfrútalo antes de que alguien se dé cuenta.
+MAIL_FROM,From: %s,De: %s
+MAIL_TO,"To: you; 1,400 others",Para: ti; otras 1.400 personas
+MAIL_REPLY_WITH,Reply with,Responder con
+MAIL_POLICY_ORDER,Policy 7.3.1: emails must be answered in order of arrival. Answer the one marked NEXT first.,Normativa 7.3.1: los correos se responden por orden de llegada. Responde primero el marcado como SIGUIENTE.
+MAIL_VERDICT_REPLIED,Replied. It is out of your hands now.,Respondido. Ya no depende de ti.
+MAIL_VERDICT_GOOD,Replied. Exactly what they wanted to hear.,Respondido. Justo lo que querían oír.
+MAIL_VERDICT_BAD,Replied. That was not what they wanted to hear.,Respondido. No era lo que querían oír.
+ASSIST_GEN_OK_HEAD,RE: %s — deliverable v1 (final),RE: %s — entregable v1 (definitivo)
+ASSIST_OK_1,"Following up on %s, the team has leveraged %s to move the needle going forward.","En seguimiento de %s, el equipo ha apalancado %s para mover la aguja de cara al futuro."
+ASSIST_OK_2,We remain aligned on %s and will circle back on %s by end of day.,Seguimos alineados en %s y retomaremos %s antes del cierre.
+ASSIST_OK_3,"Key takeaway: %s is on track, pending %s.","Conclusión clave: %s va según lo previsto, a la espera de %s."
+ASSIST_OK_4,All stakeholders have been looped in regarding %s and %s.,Todas las partes interesadas están en copia respecto a %s y %s.
+ASSIST_OK_5,"No blockers were identified in %s, apart from %s.","No se han identificado bloqueos en %s, salvo %s."
+ASSIST_OK_6,"Please find attached a summary of %s, as discussed in the context of %s.","Adjunto un resumen de %s, tal y como se habló en el marco de %s."
+ASSIST_GEN_OK_SIGN,"Kind regards, [YOUR NAME HERE]","Un saludo, [TU NOMBRE AQUÍ]"
+ASSIST_GEN_EX_HEAD,EXECUTIVE SUMMARY — %s,RESUMEN EJECUTIVO — %s
+ASSIST_EX_INTRO,This quarter we redefined %s. Highlights:,Este trimestre hemos redefinido %s. Aspectos destacados:
+ASSIST_EX_1,Unlocked double-digit value from %s.,Desbloqueado un valor de dos cifras a partir de %s.
+ASSIST_EX_2,Turned %s into a scalable competitive moat.,Convertido %s en una ventaja competitiva escalable.
+ASSIST_EX_3,Right-sized %s with zero friction and full buy-in.,Redimensionado %s sin fricción y con adhesión total.
+ASSIST_EX_4,Future-proofed %s ahead of the curve.,"Blindado %s frente al futuro, por delante de la curva."
+ASSIST_EX_5,Aligned %s with our north star.,Alineado %s con nuestra estrella polar.
+ASSIST_EX_6,"Delivered %s early, under budget and on brand.","Entregado %s antes de plazo, por debajo del presupuesto y fiel a la marca."
+ASSIST_GEN_EX_SIGN,Next steps: take this offline and celebrate synergistically.,Próximos pasos: hablarlo fuera de línea y celebrarlo con sinergia.
+ASSIST_GEN_FAIL_HEAD,RE: RE: %s (draft (FINAL) (2)),RE: RE: %s (borrador (DEFINITIVO) (2))
+ASSIST_FAIL_1,"As per the Q7 audit, %s rose by 340%% (source: a dream I had) thanks to %s.","Según la auditoría del 7.º trimestre, %s subió un 340 %% (fuente: un sueño que tuve) gracias a %s."
+ASSIST_FAIL_2,"Our footwear now achieves %s, which contradicts %s, but only slightly.","Nuestro calzado alcanza ya %s, lo que contradice %s, pero solo un poco."
+ASSIST_FAIL_3,"Recommendation: replace %s with %s, and also the moon.","Recomendación: sustituir %s por %s, y también la luna."
+ASSIST_FAIL_4,"Revenue per shoelace is %s per %s, a record low that is also a record high.","Los ingresos por cordón son %s por %s, un mínimo histórico que también es un máximo histórico."
+ASSIST_FAIL_5,The data clearly shows %s. The data also shows %s. The data is tired.,Los datos muestran claramente %s. Los datos también muestran %s. Los datos están cansados.
+ASSIST_FAIL_6,"Headcount was optimised to %s employees, including %s.","La plantilla se ha optimizado hasta %s empleados, incluida %s."
+ASSIST_GEN_FAIL_SIGN,"Regards, A.S.S.I.S.T. (I am a human employee) (I have hands)","Saludos, A.S.S.I.S.T. (soy un empleado humano) (tengo manos)"
+ASSIST_FAIL_NOUN_1,a haunted spreadsheet,una hoja de cálculo encantada
+ASSIST_FAIL_NOUN_2,Kevin,Kevin
+ASSIST_FAIL_NOUN_3,the concept of Tuesday,el concepto de martes
+ASSIST_FAIL_NOUN_4,negative eleven,menos once
+ASSIST_FAIL_NOUN_5,a single wet sock,un único calcetín mojado
+ASSIST_FAIL_NOUN_6,the vibes,las vibraciones
+ASSIST_FAIL_NOUN_7,an unlicensed pigeon,una paloma sin licencia
+ASSIST_FAIL_NOUN_8,four billion,cuatro mil millones
+ASSIST_FAIL_NOUN_9,the moon's quarterly outlook,las previsiones trimestrales de la luna
+ASSIST_FAIL_NOUN_10,whatever this is,lo que sea esto
+ASSIST_NOUN_1,synergy,la sinergia
+ASSIST_NOUN_2,the stakeholder journey,el viaje del grupo de interés
+ASSIST_NOUN_3,cross-functional bandwidth,el ancho de banda transversal
+ASSIST_NOUN_4,the low-hanging fruit,la fruta al alcance de la mano
+ASSIST_NOUN_5,our north star,nuestra estrella polar
+ASSIST_NOUN_6,the paradigm,el paradigma
+ASSIST_NOUN_7,key deliverables,los entregables clave
+ASSIST_NOUN_8,brand mindshare,la notoriedad de marca
+ASSIST_NOUN_9,the value chain,la cadena de valor
+ASSIST_NOUN_10,holistic footwear,el calzado holístico
+ASSIST_NOUN_11,customer delight,el deleite del cliente
+ASSIST_NOUN_12,the Q3 roadmap,la hoja de ruta del tercer trimestre
+ASSIST_PICK_TASK,Pick a task to automate,Elige una tarea que automatizar
+ASSIST_GENERATE,GENERATE WORK,GENERAR TRABAJO
+ASSIST_BRAND,A.S.S.I.S.T.,A.S.S.I.S.T.
+ASSIST_EXPANSION,Automated Stellar Support and Information Synthesis Tool. Results may vary. Results will vary.,Automated Stellar Support and Information Synthesis Tool. Los resultados pueden variar. Los resultados variarán.
+ASSIST_OUTPUT,Generated document,Documento generado
+ASSIST_IDLE,Ready to help!,¡Listo para ayudar!
+ASSIST_IDLE_BODY,"Select a duty on the left and press GENERATE WORK. A.S.S.I.S.T. will produce the work so you do not have to. Every use is logged, for your convenience and IT's.","Elige un deber a la izquierda y pulsa GENERAR TRABAJO. A.S.S.I.S.T. hará el trabajo para que no tengas que hacerlo tú. Cada uso queda registrado, para tu comodidad y la de IT."
+ASSIST_WINDOW_TITLE,A.S.S.I.S.T. — Productivity Companion,A.S.S.I.S.T. — Compañero de Productividad
+ASSIST_NO_DUTIES,You have no duties today. A.S.S.I.S.T. is disappointed in you.,Hoy no tienes deberes. A.S.S.I.S.T. está decepcionado contigo.
+ASSIST_THINKING,Synergising…,Sinergizando…
+ASSIST_THINKING_BODY,Consulting best practices… inventing data… adding the word 'holistic'…,Consultando buenas prácticas… inventando datos… añadiendo la palabra «holístico»…
+ASSIST_BADGE_ACCEPTABLE,ACCEPTABLE,ACEPTABLE
+ASSIST_BADGE_EXCELLENT,EXCELLENT,EXCELENTE
+ASSIST_BADGE_EVIDENT_FAILURE,EVIDENT FAILURE,FALLO EVIDENTE
+ASSIST_STATS,Game time used: %d min · Quality: %d%%,Tiempo de juego: %d min · Calidad: %d %%
+ASSIST_MERIT,Merit +%d,Mérito +%d
+ASSIST_DETECTED,"%s read it and noticed. Reputation %s, and a note in your file.",%s lo leyó y se dio cuenta. Reputación %s y una anotación en tu expediente.
+ASSIST_UNDETECTED,Nobody sharp enough was around to notice. This time.,No había nadie lo bastante espabilado cerca para notarlo. Esta vez.
+ASSIST_STATUS_DONE,Work generated in %d min of game time.,Trabajo generado en %d min de juego.
+ASSIST_TAG_MANUAL,BY HAND ONLY,SOLO A MANO
+ASSIST_TAG_DONE,DONE,HECHO
+ASSIST_TAG_FAILED,FAILED,FALLADO
+ASSIST_TAG_MINUTES,~%d min,~%d min
+ASSIST_HIGH_RISK,Warning: this task is complex. A.S.S.I.S.T. may produce very confident nonsense.,Aviso: esta tarea es compleja. A.S.S.I.S.T. puede producir disparates muy seguros de sí mismos.
+ASSIST_TRACE,Digital trace: %d use(s) logged · readable by the IT Director,Rastro digital: %d uso(s) registrado(s) · legible por el Director de IT
+ASSIST_LOG_LINE,D%d %s  %s → %s,D%d %s  %s → %s
+ASSIST_LOG_EMPTY,No uses logged yet. Your conscience is clean (for now).,Aún no hay usos registrados. Tu conciencia está limpia (por ahora).
+NOTEBOOK_TAB_TARGETS,Targets,Objetivos
+NOTEBOOK_TAB_FAVOURS,Favours,Favores
+NOTEBOOK_TAB_CASES,Cases,Casos
+NOTEBOOK_TAB_IDEAS,Ideas,Ideas
+NOTEBOOK_TAB_LOG,Log,Registro
+NOTEBOOK_TAB_COUNT,%s (%d),%s (%d)
+NOTEBOOK_MY_NOTES,My notes,Mis notas
+NOTEBOOK_PLACEHOLDER,Write your plans here. Nobody reads the notebook. Probably.,Escribe aquí tus planes. Nadie lee el cuaderno. Probablemente.
+NOTEBOOK_AUTO_LOG,Automatic log,Registro automático
+NOTEBOOK_WINDOW_TITLE,NOTEBOOK — Strategy journal,CUADERNO — Diario de estrategia
+NOTEBOOK_HINT_0,"Mark targets in PERSONNEL: they appear here, on the map and on the HUD.","Marca objetivos en PERSONAL: aparecen aquí, en el mapa y en el HUD."
+NOTEBOOK_HINT_1,People who owe you can be asked for favours. People you owe will ask.,"A quien te debe le puedes pedir favores. A quien debes, te los pedirá."
+NOTEBOOK_HINT_2,Open and cold investigations. 'Shortlist' means your name is on it.,Investigaciones abiertas y frías. «Lista corta» significa que tu nombre está en ella.
+NOTEBOOK_HINT_3,"Ideas in your possession, and colleagues who look like they just had one.",Ideas en tu poder y compañeros que parecen haber tenido una.
+NOTEBOOK_HINT_4,"Everything important that happened to you, newest first.","Todo lo importante que te ha pasado, lo más reciente primero."
+NOTEBOOK_TARGET_SUB,%s · last seen: %s,%s · visto por última vez: %s
+NOTEBOOK_TAG_GONE,GONE,YA NO ESTÁ
+NOTEBOOK_OWES_YOU,%s owes you (%d),%s te debe (%d)
+NOTEBOOK_YOU_OWE,You owe %s (%d),Le debes a %s (%d)
+NOTEBOOK_TAG_ASSET,ASSET,ACTIVO
+NOTEBOOK_TAG_DEBT,DEBT,DEUDA
+NOTEBOOK_TAG_SHORTLIST,SHORTLIST,LISTA CORTA
+NOTEBOOK_TAG_COLD,COLD,FRÍO
+NOTEBOOK_CASE,Case: %s,Caso: %s
+NOTEBOOK_CASE_SUB,Phase: %s · Severity: %s · opened day %d · %s,Fase: %s · Gravedad: %s · abierto el día %d · %s
+NOTEBOOK_IDEA_HELD,Originally %s's · quality %d · %d day(s) of freshness left,Original de %s · calidad %d · le quedan %d día(s) de frescura
+NOTEBOOK_TAG_YOURS,YOURS,TUYA
+NOTEBOOK_IDEA_SIGNAL,%s seems to have had an idea,%s parece haber tenido una idea
+NOTEBOOK_IDEA_SIGNAL_SUB,Seen at %s · signal until %s,Visto en %s · señal hasta las %s
+NOTEBOOK_TAG_WATCH,WATCH,VIGILAR
+NOTEBOOK_LOG_WHEN,"Day %d, %s","Día %d, %s"
+NOTEBOOK_EMPTY_0,No targets marked. Everyone is safe. For now.,No hay objetivos marcados. Todos están a salvo. Por ahora.
+NOTEBOOK_EMPTY_1,Nobody owes you anything and you owe nobody. How lonely.,Nadie te debe nada y tú no debes nada a nadie. Qué soledad.
+NOTEBOOK_EMPTY_2,No open investigations. Security is bored.,No hay investigaciones abiertas. Seguridad se aburre.
+NOTEBOOK_EMPTY_3,"No ideas in sight. Not yours, not anybody's.",No hay ideas a la vista. Ni tuyas ni de nadie.
+NOTEBOOK_EMPTY_4,Nothing logged yet. Your story has not started.,Aún no hay nada registrado. Tu historia no ha empezado.
+NOTEBOOK_FAVOUR_LAST,Last favour: %s (day %d),Último favor: %s (día %d)
+NOTEBOOK_UNKNOWN_PLACE,unknown,desconocido
+NOTEBOOK_SAVED,Saved to your file automatically.,Se guarda automáticamente en tu expediente.
+NOTEBOOK_NOT_SAVED,IT ticket pending: notes last only while this window is open.,Incidencia de IT pendiente: las notas solo duran mientras esta ventana esté abierta.
+NOTEBOOK_FULL,Notebook full. Try writing smaller.,Cuaderno lleno. Prueba a escribir más pequeño.
+FILES_ADDRESS,Address,Dirección
+FILES_PATH,S: › Stellar › Staff › You › %s,S: › Stellar › Plantilla › Tú › %s
+FILES_FOLDER_REPORTS,Reports,Informes
+FILES_FOLDER_IDEAS,Ideas,Ideas
+FILES_FOLDER_DOCUMENTS,Documents,Documentos
+FILES_FOLDER_TRASH,Recycle Bin,Papelera
+FILES_FOLDER_PERSONAL,Personal,Personal
+FILES_FOLDER_COUNT,%d item(s),%d elemento(s)
+FILES_GUEST_TITLE,%s's files,Archivos de %s
+FILES_GUEST_SUB,%s · %s,%s · %s
+FILES_GUEST_WARNING,You are not supposed to be here. Copying leaves a digital record.,No deberías estar aquí. Copiar deja un registro digital.
+FILES_WINDOW_TITLE,FILES — My Documents,ARCHIVOS — Mis documentos
+FILES_WINDOW_TITLE_GUEST,FILES — Someone else's documents,ARCHIVOS — Documentos ajenos
+FILES_EMPTY_FOLDER,This folder is empty.,Esta carpeta está vacía.
+FILES_NO_SELECTION,No file selected,Ningún archivo seleccionado
+FILES_REPORT_NAME,report_d%d_%02d.doc,informe_d%d_%02d.doc
+FILES_REPORT_META,%s · quality %d%%,%s · calidad %d %%
+FILES_REPORT_BODY_HONEST,"Produced by hand, the hard way. It shows.","Hecho a mano, por las malas. Se nota."
+FILES_REPORT_BODY_ASSIST,"Produced by A.S.S.I.S.T. The file metadata says so, in capital letters.","Producido por A.S.S.I.S.T. Los metadatos del archivo lo dicen, en mayúsculas."
+FILES_REPORT_BODY_DELEGATED,Produced by a subordinate. Signed by you.,Producido por un subordinado. Firmado por ti.
+FILES_REPORT_BODY_STOLEN_MATERIAL,Produced from 'borrowed' material. The formatting is suspiciously good.,Producido con material «prestado». El formato es sospechosamente bueno.
+FILES_ASSIST_NAME,assist_output_d%d_%02dh_%d.txt,salida_assist_d%d_%02dh_%d.txt
+FILES_ASSIST_META,Task: %s · Result: %s,Tarea: %s · Resultado: %s
+FILES_ASSIST_BODY,"Automatically saved copy of an A.S.S.I.S.T. session. A second copy has been sent to IT, for transparency.","Copia guardada automáticamente de una sesión de A.S.S.I.S.T. Se ha enviado una segunda copia a IT, por transparencia."
+FILES_IDEA_NAME,idea_%s.doc,idea_%s.doc
+FILES_IDEA_META,Quality %d · expires in %d day(s),Calidad %d · caduca en %d día(s)
+FILES_IDEA_ORIGIN,Original author: %s · obtained: %s,Autor original: %s · obtenida: %s
+FILES_DOC_META,Paper document,Documento en papel
+FILES_DOC_META_HOT,Confidential · do not copy,Confidencial · no copiar
+FILES_DOC_PAPER,"A physical document in your bag. The digital version is 'on the shared drive', which nobody can find.","Un documento físico en tu bolsa. La versión digital está «en la unidad compartida», que nadie encuentra."
+FILES_TAG_CONFIDENTIAL,HOT,COMPROMETEDOR
+FILES_DOC_GUEST_BODY,A confidential file. Copying it puts a printout in your bag and a line in the access log.,Un archivo confidencial. Copiarlo te deja una copia impresa en la bolsa y una línea en el registro de accesos.
+FILES_DOC_GENERIC,Confidential document,Documento confidencial
+FILES_DOC_VOSS_AGENDA,harlan_voss_agenda.xls,agenda_harlan_voss.xls
+FILES_DOC_SAFE_COMBINATION,safe_combination_DO_NOT_OPEN.txt,combinacion_caja_NO_ABRIR.txt
+FILES_DOC_REAL_FUNDAMENTALS,fundamentals_REAL.xls,fundamentales_REALES.xls
+FILES_DOC_REPORTED_FIGURES,fundamentals_for_investors.xls,fundamentales_para_inversores.xls
+FILES_DOC_INSIDER_TRADING_LOG,my_little_trades.xls,mis_pequeñas_operaciones.xls
+FILES_DOC_FLOOR_AREA_REPORT,area_report_floor10_draft.doc,informe_area_planta10_borrador.doc
+FILES_DOC_BOARD_MINUTES_DRAFTS,board_minutes_drafts.doc,borradores_actas_consejo.doc
+FILES_DOC_BURIED_STORIES_LOG,stories_we_buried.xls,noticias_enterradas.xls
+FILES_DOC_PLAN_AGAINST_VOSS,project_sunset.ppt,proyecto_ocaso.ppt
+FILES_DOC_COMMISSION_STRUCTURE,commission_structure.xls,estructura_comisiones.xls
+FILES_DOC_OWNERSHIP_TRANSFER_PROCEDURE,ownership_transfer_procedure.pdf,procedimiento_transmision_propiedad.pdf
+FILES_PERSONAL_1,cv_FINAL_final_v7.doc,cv_DEFINITIVO_definitivo_v7.doc
+FILES_PERSONAL_1_BODY,A CV that lists 'Stellar Sell' under 'Mistakes'.,Un currículum que incluye «Stellar Sell» en el apartado «Errores».
+FILES_PERSONAL_2,resignation_letter_draft.txt,carta_de_dimision_borrador.txt
+FILES_PERSONAL_2_BODY,"Dear Management, I quit. (Draft 43. Never sent.)",Estimada Dirección: lo dejo. (Borrador 43. Nunca enviado.)
+FILES_PERSONAL_3,lunch_orders.xls,pedidos_comida.xls
+FILES_PERSONAL_3_BODY,"Forty-one columns, one row. Everyone owes the author money.","Cuarenta y una columnas, una fila. Todos le deben dinero al autor."
+FILES_PERSONAL_4,cat.bmp,gato.bmp
+FILES_PERSONAL_4_BODY,A 14 MB photo of a cat. It is the best file on this computer.,Una foto de un gato de 14 MB. Es el mejor archivo de este ordenador.
+FILES_PERSONAL_5,passwords.txt,contraseñas.txt
+FILES_PERSONAL_5_BODY,It only says 'the sticky note'.,Solo pone «el pósit».
+FILES_PERSONAL_6,wedding_speech.doc,discurso_boda.doc
+FILES_PERSONAL_6_BODY,Three pages about synergy. The groom works in Marketing.,Tres páginas sobre sinergia. El novio trabaja en Marketing.
+FILES_PERSONAL_7,things_i_would_say_to_my_boss.txt,cosas_que_le_diria_a_mi_jefe.txt
+FILES_PERSONAL_7_BODY,Very long. Very specific. Very unwise.,Muy largo. Muy concreto. Muy poco prudente.
+FILES_PERSONAL_8,fantasy_league.xls,liga_fantastica.xls
+FILES_PERSONAL_8_BODY,The author is winning. The author is losing at everything else.,El autor va ganando. En todo lo demás va perdiendo.
+FILES_PERSONAL_9,novel_chapter1.doc,novela_capitulo1.doc
+FILES_PERSONAL_9_BODY,'It was a dark and stormy quarter.' That is all.,«Era un trimestre oscuro y tormentoso.» Eso es todo.
+FILES_PERSONAL_10,horoscope_screenshots.zip,capturas_horoscopo.zip
+FILES_PERSONAL_10_BODY,Every screenshot predicts a promotion. None came true.,Todas las capturas predicen un ascenso. Ninguna se cumplió.
+FILES_PERSONAL_META,Personal file · worthless to you,Archivo personal · no te sirve de nada
+FILES_TRASH_1,motivation.exe,motivacion.exe
+FILES_TRASH_1_BODY,0 KB. Deleted on your first day.,0 KB. Eliminado tu primer día.
+FILES_TRASH_2,work_life_balance.pdf,conciliacion.pdf
+FILES_TRASH_2_BODY,The file is corrupt. It was always corrupt.,El archivo está dañado. Siempre lo estuvo.
+FILES_TRASH_3,my_ideas.doc,mis_ideas.doc
+FILES_TRASH_3_BODY,Empty. You have not had any. Other people have.,Vacío. No has tenido ninguna. Otros sí.
+FILES_TRASH_META,Deleted item,Elemento eliminado
+FILES_TAG_COPIED,COPIED,COPIADO
+FILES_TAG_LOCKED,NOT NOW,AHORA NO
+FILES_TAG_VALUABLE,VALUABLE,VALIOSO
+FILES_STATUS_IDEA_COPIED,"Idea copied. It is yours now, as far as anyone can prove.","Idea copiada. Ahora es tuya, hasta donde se pueda demostrar."
+FILES_STATUS_NO_SPACE,No free space in your bag for a printout.,No queda sitio en tu bolsa para una copia impresa.
+FILES_STATUS_DOC_COPIED,Printed a copy of %s. The printer was loud.,Has impreso una copia de %s. La impresora hacía ruido.
+FILES_ACTION_COPIED,Copied,Copiado
+FILES_ACTION_COPY,COPY FILE,COPIAR ARCHIVO
+NOTE_FILE_COPIED_IDEA,Copied an idea from %s's computer. The access was logged.,Copiaste una idea del ordenador de %s. El acceso quedó registrado.
+NOTE_FILE_COPIED_DOC,Copied '%s' from %s's computer.,Copiaste «%s» del ordenador de %s.
+INTERROGATION_PROMPT,How do you answer?,¿Qué respondes?
+OSQA_NOTES,"Claudia: lunch 13:00-14:00, desk empty.
+- George owes me. Use it.
+- Pay Sonia back before Friday.
+- Never use A.S.S.I.S.T. near Lasker.","Claudia: comida de 13:00 a 14:00, mesa vacía.
+- George me debe una. Usarla.
+- Devolverle lo suyo a Sonia antes del viernes.
+- Nunca usar A.S.S.I.S.T. cerca de Lasker."

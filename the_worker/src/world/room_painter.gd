@@ -21,11 +21,6 @@ const AO_DEPTH := 0.45
 const AO_ALPHA := 0.22
 const LIGHT_RADIUS_CELLS := 2.6
 const OUTLINE_W := 2.0
-const TRANSPARENT := Color(0, 0, 0, 0)
-const SHADE_STEP := 0.035
-const STAIN := Color(0.18, 0.16, 0.08, 0.13)
-const GROUT := Color(0, 0, 0, 0.09)
-const HATCH := Color(1, 1, 1, 0.05)
 const C_READER := Color("#26292e")
 const C_LED_SERVICE := Color("#ffb347")
 const C_BRASS := Color("#c9a24a")
@@ -34,8 +29,6 @@ const C_HAZARD := Color("#f2c230")
 const C_EXIT_GREEN := Color("#39d97a")
 const C_ROAD_LINE := Color("#e8d27a")
 const C_KERB := Color("#8c8f96")
-const C_MARBLE_VEIN := Color(0.5, 0.48, 0.44, 0.22)
-const C_MARBLE_GOLD := Color(0.78, 0.64, 0.33, 0.35)
 const LIGHT_GRID_CELLS := 4
 const WARM_LIT_TYPES: Array[String] = ["executive_desk", "bar_counter", "meeting_table", "sofa", "podium"]
 const POSTER_SPACING := {"high": 6, "medium": 10, "low": 16, "none": 0}
@@ -81,6 +74,9 @@ func setup(p_room: RoomData, p_room_id: String, plan: Dictionary, p_style: Dicti
 	name = "%s_%s" % [["Floor", "Walls", "Light"][layer], p_room_id.validate_node_name()]
 	if layer != LAYER_WALLS:
 		_clip_to_room()
+	if layer == LAYER_FLOOR:
+		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
 
 ## Suelo y luz no deben salirse de la sala (manchas, vetas y charcos de luz se recortan).
@@ -242,87 +238,42 @@ func _cell_rect(c: Vector2i) -> Rect2:
 	return Rect2(Vector2(c) * cell, Vector2(cell, cell))
 
 
+## Suelo en mosaico (FloorTiles: un draw por sala, con mipmaps) de color `base`.
+func _tiled(material: String, base: Color, r: Rect2 = Rect2(), extra: Color = Color.BLACK) -> void:
+	var area: Rect2 = r if r.has_area() else Rect2(Vector2.ZERO, _size_px())
+	draw_texture_rect(FloorTiles.tile(material, base, int(cell), extra), area, true)
+
+
 func _floor_carpet(size: Vector2) -> void:
-	var base: Color = _c("carpet")
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	for y: int in rect.size.y:
-		for x: int in rect.size.x:
-			if (x + y) % 2 == 0:
-				draw_rect(_cell_rect(Vector2i(x, y)), base.darkened(SHADE_STEP))
-	for x: int in range(0, rect.size.x + 1, 2):
-		draw_line(Vector2(x * cell, 0), Vector2(x * cell, size.y), GROUT, 1.0)
-	for y: int in range(0, rect.size.y + 1, 2):
-		draw_line(Vector2(0, y * cell), Vector2(size.x, y * cell), GROUT, 1.0)
+	_tiled("carpet", _c("carpet"))
 	if str(style["band"]) == "the_pit":
-		_stains(size, maxi(2, rect.size.x * rect.size.y / 24))
+		_tiled("stains", Color.TRANSPARENT)
 	elif str(style["band"]) == "the_power":
-		draw_rect(Rect2(Vector2.ZERO, size), _c("floor"), false, cell * 0.35)
-		draw_rect(Rect2(Vector2.ONE * cell * 0.18, size - Vector2.ONE * cell * 0.36), C_BRASS.darkened(0.2), false, 1.5)
-
-
-func _stains(size: Vector2, count: int) -> void:
-	for i: int in count:
-		var c: Vector2 = Vector2(_rng.randf() * size.x, _rng.randf() * size.y)
-		var r: float = _rng.randf_range(0.12, 0.38) * cell
-		draw_set_transform(c, _rng.randf() * PI, Vector2(1.0, _rng.randf_range(0.5, 0.9)))
-		draw_circle(Vector2.ZERO, r, STAIN)
-		draw_circle(Vector2(r * 0.4, 0), r * 0.5, STAIN)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		FurniturePainter.frame_rect(self, Rect2(Vector2.ZERO, size), _c("floor"), cell * 0.35)
+		FurniturePainter.frame_rect(self, Rect2(Vector2.ONE * cell * 0.18, size - Vector2.ONE * cell * 0.36), _c("accent").darkened(0.2), 1.5)
 
 
 func _floor_linoleum(size: Vector2) -> void:
-	var base: Color = _c("floor")
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	for y: int in rect.size.y:
-		for x: int in rect.size.x:
-			if (x + y) % 2 == 1:
-				draw_rect(_cell_rect(Vector2i(x, y)), base.lightened(SHADE_STEP))
-	for i: int in rect.size.x * rect.size.y / 3:
-		draw_circle(Vector2(_rng.randf() * size.x, _rng.randf() * size.y), 1.2, base.darkened(0.12))
-	for x: int in range(0, rect.size.x + 1):
-		draw_line(Vector2(x * cell, 0), Vector2(x * cell, size.y), GROUT, 1.0)
-	for y: int in range(0, rect.size.y + 1):
-		draw_line(Vector2(0, y * cell), Vector2(size.x, y * cell), GROUT, 1.0)
+	_tiled("linoleum", _c("floor"))
 	if is_spine and rect.size.y >= 3:
 		var runner: Rect2 = Rect2(0, size.y * 0.3, size.x, size.y * 0.4)
 		draw_rect(runner, _c("carpet").darkened(0.05))
-		draw_line(runner.position, Vector2(runner.end.x, runner.position.y), _c("accent"), 2.0)
-		draw_line(Vector2(0, runner.end.y), runner.end, _c("accent"), 2.0)
+		FurniturePainter.frame_rect(self, runner, _c("accent"), 2.0)
 		if str(style["band"]) == "the_pit":
-			_stains(size, rect.size.x / 6)
+			_tiled("stains", Color.TRANSPARENT)
 
 
-func _floor_tile(size: Vector2) -> void:
-	var base: Color = _c("floor").lerp(Color("#e9ece8"), 0.55)
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	var step: float = cell * 0.5
-	for y: int in int(size.y / step):
-		for x: int in int(size.x / step):
-			if (x + y) % 2 == 0:
-				draw_rect(Rect2(x * step, y * step, step, step), base.darkened(0.05))
-	for x: int in int(size.x / step) + 1:
-		draw_line(Vector2(x * step, 0), Vector2(x * step, size.y), GROUT, 1.0)
-	for y: int in int(size.y / step) + 1:
-		draw_line(Vector2(0, y * step), Vector2(size.x, y * step), GROUT, 1.0)
+func _floor_tile(_size: Vector2) -> void:
+	_tiled("tile", _c("floor").lerp(Color("#e9ece8"), 0.55))
 
 
-func _floor_shop_tile(size: Vector2) -> void:
-	_floor_tile(size)
-	draw_rect(Rect2(Vector2.ZERO, size), Color(1.0, 0.95, 0.8, 0.12))
+func _floor_shop_tile(_size: Vector2) -> void:
+	_tiled("shop_tile", _c("floor").lerp(Color("#e9ece8"), 0.55).lerp(_c("light"), 0.12))
 
 
 func _floor_concrete(size: Vector2) -> void:
 	var base: Color = _c("floor")
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	for i: int in maxi(3, rect.size.x * rect.size.y / 10):
-		var c: Vector2 = Vector2(_rng.randf() * size.x, _rng.randf() * size.y)
-		draw_set_transform(c, _rng.randf() * PI, Vector2(1.0, _rng.randf_range(0.4, 1.0)))
-		draw_circle(Vector2.ZERO, _rng.randf_range(0.3, 1.1) * cell, base.darkened(_rng.randf_range(0.03, 0.09)))
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	for x: int in range(0, rect.size.x + 1, 4):
-		draw_line(Vector2(x * cell, 0), Vector2(x * cell, size.y), base.darkened(0.18), 1.5)
-	for y: int in range(0, rect.size.y + 1, 4):
-		draw_line(Vector2(0, y * cell), Vector2(size.x, y * cell), base.darkened(0.18), 1.5)
+	_tiled("concrete", base)
 	for i: int in maxi(1, rect.size.x / 8):
 		var p: Vector2 = Vector2(_rng.randf() * size.x, _rng.randf() * size.y)
 		var crack: PackedVector2Array = [p]
@@ -332,139 +283,66 @@ func _floor_concrete(size: Vector2) -> void:
 		draw_polyline(crack, base.darkened(0.3), 1.2)
 
 
+## Nave: hormigón, calle de seguridad amarilla y franja de peligro al pie del muro sur.
 func _floor_factory(size: Vector2) -> void:
 	_floor_concrete(size)
 	var lane: float = cell * 0.18
-	var inset: float = cell * 1.0
-	var r: Rect2 = Rect2(Vector2(inset, inset), size - Vector2(inset, inset) * 2.0)
+	var r: Rect2 = Rect2(Vector2(cell, cell), size - Vector2(cell, cell) * 2.0)
 	if r.size.x > cell * 2.0 and r.size.y > cell * 2.0:
-		draw_rect(r, C_HAZARD.darkened(0.1), false, lane)
-	var stripe: float = cell * 0.5
-	for i: int in int(size.x / stripe):
-		if i % 2 == 0:
-			draw_colored_polygon(PackedVector2Array([Vector2(i * stripe, size.y - lane * 2.0),
-					Vector2(i * stripe + stripe, size.y - lane * 2.0), Vector2(i * stripe + stripe * 0.5, size.y),
-					Vector2(i * stripe - stripe * 0.5, size.y)]), C_HAZARD.darkened(0.15))
+		FurniturePainter.frame_rect(self, r, C_HAZARD.darkened(0.1), lane)
+	var band: Rect2 = Rect2(0, size.y - float(maxi(2, int(cell) / 3)), size.x, float(maxi(2, int(cell) / 3)))
+	_tiled("hazard", _c("floor").darkened(0.2), band, C_HAZARD.darkened(0.15))
 
 
 func _floor_wood(size: Vector2) -> void:
-	var base: Color = _c("floor") if str(style["band"]) != "exterior" else Color("#6a5040")
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	var plank_h: float = cell * 0.25
-	var rows: int = int(size.y / plank_h) + 1
-	for row: int in rows:
-		var y: float = row * plank_h
-		draw_line(Vector2(0, y), Vector2(size.x, y), base.darkened(0.22), 1.0)
-		var x: float = -_rng.randf() * cell * 2.0
-		while x < size.x:
-			var length: float = _rng.randf_range(1.2, 2.6) * cell
-			draw_rect(Rect2(maxf(x, 0.0), y, minf(length, size.x - maxf(x, 0.0)), plank_h),
-					base.lightened(_rng.randf_range(-0.05, 0.07)))
-			draw_line(Vector2(x + length, y), Vector2(x + length, y + plank_h), base.darkened(0.25), 1.0)
-			x += length
+	_tiled("wood", _c("floor") if str(style["band"]) != "exterior" else _c("furniture").lerp(Color("#6a5040"), 0.8))
 	if is_spine:
 		var runner: Rect2 = Rect2(0, size.y * 0.22, size.x, size.y * 0.56)
 		draw_rect(runner, _c("carpet"))
-		draw_rect(Rect2(runner.position + Vector2(0, 4), Vector2(runner.size.x, runner.size.y - 8)), C_BRASS, false, 1.5)
+		FurniturePainter.frame_rect(self, Rect2(runner.position + Vector2(0, 4), Vector2(runner.size.x, runner.size.y - 8)), C_BRASS, 1.5)
 
 
 func _floor_marble(size: Vector2) -> void:
-	var base: Color = _c("floor")
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	var slab: int = 2
-	for y: int in range(0, rect.size.y, slab):
-		for x: int in range(0, rect.size.x, slab):
-			var tone: float = _rng.randf_range(-0.03, 0.04)
-			draw_rect(Rect2(x * cell, y * cell, slab * cell, slab * cell), base.lightened(tone))
-	for i: int in maxi(1, rect.size.x * rect.size.y / 30):
-		var p: Vector2 = Vector2(_rng.randf() * size.x, _rng.randf() * size.y)
-		var vein: PackedVector2Array = [p]
-		var dir: Vector2 = Vector2.RIGHT.rotated(_rng.randf_range(-0.5, 0.5) + (PI * 0.25 if i % 2 == 0 else -PI * 0.2))
-		for k: int in 10:
-			dir = dir.rotated(_rng.randf_range(-0.18, 0.18))
-			p += dir * cell * 0.4
-			vein.append(p)
-		draw_polyline(vein, C_MARBLE_GOLD if i % 4 == 0 else C_MARBLE_VEIN, 1.0 + float(i % 2))
-	for x: int in range(0, rect.size.x + 1, slab):
-		draw_line(Vector2(x * cell, 0), Vector2(x * cell, size.y), GROUT, 1.0)
-	for y: int in range(0, rect.size.y + 1, slab):
-		draw_line(Vector2(0, y * cell), Vector2(size.x, y * cell), GROUT, 1.0)
+	_tiled("marble", _c("floor"))
 	if is_spine:
-		draw_rect(Rect2(0, size.y * 0.3, size.x, size.y * 0.4), Color(0.72, 0.6, 0.37, 0.18))
-		draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), _c("accent"), 2.0)
-		draw_line(Vector2(0, size.y * 0.7), Vector2(size.x, size.y * 0.7), _c("accent"), 2.0)
+		draw_rect(Rect2(0, size.y * 0.3, size.x, size.y * 0.4), Color(_c("accent"), 0.18))
+		FurniturePainter.frame_rect(self, Rect2(0, size.y * 0.3, size.x, size.y * 0.4), _c("accent"), 2.0)
 
 
-func _floor_stone(size: Vector2) -> void:
-	var base: Color = _c("floor").lerp(Color("#cfcabf"), 0.5)
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	for y: int in rect.size.y:
-		for x: int in rect.size.x:
-			draw_rect(_cell_rect(Vector2i(x, y)), base.lightened(_rng.randf_range(-0.04, 0.04)))
-	for x: int in range(0, rect.size.x + 1):
-		draw_line(Vector2(x * cell, 0), Vector2(x * cell, size.y), GROUT, 1.0)
-	for y: int in range(0, rect.size.y + 1):
-		draw_line(Vector2(0, y * cell), Vector2(size.x, y * cell), GROUT, 1.0)
+func _floor_stone(_size: Vector2) -> void:
+	_tiled("stone", _c("floor").lerp(Color("#cfcabf"), 0.5))
 
 
-func _floor_raised(size: Vector2) -> void:
-	var base: Color = Color("#8f989f").lerp(_c("floor"), 0.45)
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	for y: int in rect.size.y:
-		for x: int in rect.size.x:
-			var r: Rect2 = _cell_rect(Vector2i(x, y)).grow(-1.5)
-			draw_rect(r, base.lightened(0.04))
-			if (x * 7 + y * 3) % 5 == 0:
-				for k: int in 3:
-					draw_line(r.position + Vector2(6, 8 + k * 8), r.position + Vector2(r.size.x - 6, 8 + k * 8),
-							base.darkened(0.25), 1.5)
+func _floor_raised(_size: Vector2) -> void:
+	_tiled("raised", Color("#8f989f").lerp(_c("floor"), 0.45))
 
 
-func _floor_rubber(size: Vector2) -> void:
-	var base: Color = Color("#2f3136")
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	for i: int in rect.size.x * rect.size.y:
-		draw_circle(Vector2(_rng.randf() * size.x, _rng.randf() * size.y), 1.0, Color(0.6, 0.6, 0.65, 0.25))
-	for x: int in range(0, rect.size.x + 1):
-		draw_line(Vector2(x * cell, 0), Vector2(x * cell, size.y), Color(0, 0, 0, 0.3), 1.0)
+func _floor_rubber(_size: Vector2) -> void:
+	_tiled("rubber", _c("shadow").lerp(Color("#2f3136"), 0.8))
 
 
-func _floor_deck(size: Vector2) -> void:
-	var base: Color = Color("#a8825a")
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	var plank: float = cell * 0.33
-	for i: int in int(size.x / plank) + 1:
-		draw_line(Vector2(i * plank, 0), Vector2(i * plank, size.y), base.darkened(0.25), 1.0)
-		if i % 2 == 0:
-			draw_rect(Rect2(i * plank, 0, plank, size.y), base.lightened(0.04))
+func _floor_deck(_size: Vector2) -> void:
+	_tiled("deck", Color("#a8825a"))
 
 
+## Calzada: asfalto; en la calle, aceras con bordillo arriba y abajo y línea discontinua central.
 func _floor_asphalt(size: Vector2) -> void:
-	var base: Color = _c("floor")
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	for i: int in rect.size.x * rect.size.y / 2:
-		draw_circle(Vector2(_rng.randf() * size.x, _rng.randf() * size.y), 1.3, base.lightened(0.08))
+	_tiled("asphalt", _c("floor"))
 	if not is_spine:
 		return
 	var walk: float = cell * 1.6
-	for y: float in [0.0, size.y - walk]:
-		draw_rect(Rect2(0, y, size.x, walk), C_KERB.darkened(0.35))
-		for x: int in range(0, rect.size.x + 1):
-			draw_line(Vector2(x * cell, y), Vector2(x * cell, y + walk), Color(0, 0, 0, 0.2), 1.0)
-	draw_line(Vector2(0, walk), Vector2(size.x, walk), C_KERB, 3.0)
-	draw_line(Vector2(0, size.y - walk), Vector2(size.x, size.y - walk), C_KERB, 3.0)
+	var kerb: Color = C_KERB.darkened(0.35)
+	_tiled("sidewalk", kerb, Rect2(0, 0, size.x, walk), C_KERB)
+	draw_set_transform(Vector2(0, size.y), 0.0, Vector2(1, -1))
+	_tiled("sidewalk", kerb, Rect2(0, 0, size.x, walk), C_KERB)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var dash: float = cell * 1.2
 	for i: int in int(size.x / (dash * 2.0)) + 1:
-		draw_line(Vector2(i * dash * 2.0, size.y * 0.5), Vector2(i * dash * 2.0 + dash, size.y * 0.5), C_ROAD_LINE, 3.0)
+		draw_rect(Rect2(i * dash * 2.0, size.y * 0.5 - 1.5, dash, 3.0), C_ROAD_LINE)
 
 
-func _floor_pavement(size: Vector2) -> void:
-	var base: Color = C_KERB.darkened(0.3)
-	draw_rect(Rect2(Vector2.ZERO, size), base)
-	for y: int in range(0, rect.size.y * 2 + 1):
-		draw_line(Vector2(0, y * cell * 0.5), Vector2(size.x, y * cell * 0.5), Color(0, 0, 0, 0.18), 1.0)
-	for x: int in range(0, rect.size.x * 2 + 1):
-		draw_line(Vector2(x * cell * 0.5, 0), Vector2(x * cell * 0.5, size.y), Color(0, 0, 0, 0.18), 1.0)
+func _floor_pavement(_size: Vector2) -> void:
+	_tiled("pavement", C_KERB.darkened(0.3))
 
 
 ## Escaleras y ascensores: tramo con peldaños o puertas de cabina.
@@ -486,9 +364,9 @@ func _draw_stairs(size: Vector2, service: bool) -> void:
 		var treads: int = int(lane.size.y / (cell * 0.28))
 		for i: int in treads + 1:
 			var y: float = lane.position.y + i * lane.size.y / maxf(1.0, treads)
-			draw_line(Vector2(lane.position.x, y), Vector2(lane.end.x, y), col.darkened(0.3 - 0.2 * i / maxf(1.0, treads)), 2.0)
-		draw_rect(lane, _c("outline"), false, OUTLINE_W)
-	draw_line(Vector2(flight.get_center().x, flight.position.y), Vector2(flight.get_center().x, flight.end.y),
+			FurniturePainter.segment(self, Vector2(lane.position.x, y), Vector2(lane.end.x, y), col.darkened(0.3 - 0.2 * i / maxf(1.0, treads)), 2.0)
+		FurniturePainter.frame_rect(self, lane, _c("outline"), OUTLINE_W)
+	FurniturePainter.segment(self, Vector2(flight.get_center().x, flight.position.y), Vector2(flight.get_center().x, flight.end.y),
 			C_HAZARD if service else C_BRASS, 3.0)
 	var arrow_c: Vector2 = Vector2(flight.position.x + half * 0.5, flight.get_center().y)
 	draw_colored_polygon(PackedVector2Array([arrow_c + Vector2(0, -cell * 0.35), arrow_c + Vector2(cell * 0.22, 0),
@@ -504,15 +382,15 @@ func _draw_fixtures() -> void:
 				draw_rect(r, Color("#7d858a"))
 				for k: int in 4:
 					var y: float = r.position.y + (k + 0.5) * r.size.y / 4.0
-					draw_line(Vector2(r.position.x + 3, y), Vector2(r.end.x - 3, y), Color("#3b4247"), 2.0)
-				draw_rect(r, _c("outline"), false, OUTLINE_W)
+					FurniturePainter.segment(self, Vector2(r.position.x + 3, y), Vector2(r.end.x - 3, y), Color("#3b4247"), 2.0)
+				FurniturePainter.frame_rect(self, r, _c("outline"), OUTLINE_W)
 			"floor_safe", "trash_chute":
 				draw_rect(r, Color("#4a5056"))
-				draw_rect(r.grow(-4), Color("#2c3136"), false, 2.0)
+				FurniturePainter.frame_rect(self, r.grow(-4), Color("#2c3136"), 2.0)
 				draw_circle(r.get_center(), 3.0, C_BRASS)
 			"bus_stop":
 				draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.35)), Color("#3a6fb8"))
-				draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.35)), _c("outline"), false, OUTLINE_W)
+				FurniturePainter.frame_rect(self, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.35)), _c("outline"), OUTLINE_W)
 
 
 func _draw_flat_furniture() -> void:
@@ -689,19 +567,19 @@ func _face_fill(r: Rect2) -> void:
 			var panel: Rect2 = Rect2(r.position.x, r.position.y + r.size.y * 0.42, r.size.x, r.size.y * 0.58)
 			draw_rect(panel, _c("floor"))
 			for x: int in int(r.size.x / (cell * 0.5)):
-				draw_line(Vector2(r.position.x + x * cell * 0.5, panel.position.y + 3), Vector2(r.position.x + x * cell * 0.5,
+				FurniturePainter.segment(self, Vector2(r.position.x + x * cell * 0.5, panel.position.y + 3), Vector2(r.position.x + x * cell * 0.5,
 						panel.end.y - 5), _c("floor").darkened(0.2), 1.0)
-			draw_line(panel.position, Vector2(panel.end.x, panel.position.y), _c("accent"), 2.0)
+			FurniturePainter.segment(self, panel.position, Vector2(panel.end.x, panel.position.y), _c("accent"), 2.0)
 		"the_throne":
 			draw_rect(Rect2(r.position.x, r.position.y + 2, r.size.x, r.size.y - 6), _c("window").lerp(wall, 0.35))
 			for x: int in int(r.size.x / cell) + 1:
-				draw_line(Vector2(r.position.x + x * cell, r.position.y), Vector2(r.position.x + x * cell, r.end.y - 4), _c("accent"), 1.5)
+				FurniturePainter.segment(self, Vector2(r.position.x + x * cell, r.position.y), Vector2(r.position.x + x * cell, r.end.y - 4), _c("accent"), 1.5)
 		"the_guts":
-			draw_line(Vector2(r.position.x, r.position.y + r.size.y * 0.45), Vector2(r.end.x, r.position.y + r.size.y * 0.45),
+			FurniturePainter.segment(self, Vector2(r.position.x, r.position.y + r.size.y * 0.45), Vector2(r.end.x, r.position.y + r.size.y * 0.45),
 					_c("accent").darkened(0.2), 2.0)
 		"factory":
 			_hazard_band(Rect2(r.position.x, r.end.y - 9, r.size.x, 5))
-	draw_line(r.position + Vector2(0, 1), Vector2(r.end.x, r.position.y + 1), wall.lightened(0.18), 2.0)
+	FurniturePainter.segment(self, r.position + Vector2(0, 1), Vector2(r.end.x, r.position.y + 1), wall.lightened(0.18), 2.0)
 	draw_rect(Rect2(r.position.x, r.end.y - 4, r.size.x, 4), _c("shadow"))
 
 
@@ -726,8 +604,8 @@ func _draw_face_windows(r: Rect2) -> void:
 			w = Rect2(r.position.x + i * pane, r.position.y + 1.0, pane, r.size.y - 5.0)
 		draw_rect(w, glass)
 		draw_rect(Rect2(w.position, Vector2(w.size.x, w.size.y * 0.35)), glass.lightened(0.18))
-		draw_line(w.position + Vector2(4, w.size.y - 3), w.position + Vector2(w.size.x * 0.3, 3), Color(1, 1, 1, 0.5), 2.0)
-		draw_rect(w, frame, false, 2.0)
+		FurniturePainter.segment(self, w.position + Vector2(4, w.size.y - 3), w.position + Vector2(w.size.x * 0.3, 3), Color(1, 1, 1, 0.5), 2.0)
+		FurniturePainter.frame_rect(self, w, frame, 2.0)
 
 
 ## Pasillo: extintores, carteles motivacionales según la densidad de la banda y señal de salida.
@@ -743,7 +621,7 @@ func _draw_spine_decor(holes: Array) -> void:
 				_painter.draw_item(self, {"type": "motivational_poster", "pos": Vector2i(x, 0)}, Rect2(x * cell, bottom, cell, cell))
 	var sign: Rect2 = Rect2(cell * 0.6, _t_draw() * 0.5 + 3.0, cell * 0.8, _face() * 0.55)
 	draw_rect(sign, C_EXIT_GREEN)
-	draw_rect(sign, _c("outline"), false, 1.5)
+	FurniturePainter.frame_rect(self, sign, _c("outline"), 1.5)
 	draw_colored_polygon(PackedVector2Array([sign.get_center() + Vector2(-6, -4), sign.get_center() + Vector2(6, 0),
 			sign.get_center() + Vector2(-6, 4)]), Color.WHITE)
 
@@ -772,7 +650,7 @@ func _draw_wall_segment(side: int, seg: Vector2) -> void:
 		var inner: Rect2 = r.grow(-_t_draw() * 0.32)
 		if inner.size.x > 0.0 and inner.size.y > 0.0:
 			draw_rect(inner, _c("accent").darkened(0.15))
-	draw_rect(r, _c("outline"), false, OUTLINE_W)
+	FurniturePainter.frame_rect(self, r, _c("outline"), OUTLINE_W)
 	if _has_windows() and side != FloorLayout.SIDE_TOP:
 		for part: Vector2 in _exterior_parts(side, seg):
 			_draw_wall_window(side, part)
@@ -800,7 +678,7 @@ func _draw_wall_window(side: int, part: Vector2) -> void:
 	for i: int in int((to - from) / mullion) + 1:
 		var a: Vector2 = r.position + (Vector2(i * mullion, 0) if side == FloorLayout.SIDE_BOTTOM else Vector2(0, i * mullion))
 		var b: Vector2 = a + (Vector2(0, r.size.y) if side == FloorLayout.SIDE_BOTTOM else Vector2(r.size.x, 0))
-		draw_line(a, b, _c("accent") if band in ["the_throne", "the_power"] else _cap(), 2.0)
+		FurniturePainter.segment(self, a, b, _c("accent") if band in ["the_throne", "the_power"] else _cap(), 2.0)
 
 
 ## Puerta: umbral de color por tipo, marco a ambos lados y hoja. Las puertas con control de
@@ -817,7 +695,7 @@ func _draw_door(door: Dictionary) -> void:
 	var kind: String = str(door["kind"])
 	var threshold: Rect2 = Rect2(start - across * t * 0.5, along * span + across * t).abs()
 	draw_rect(threshold, _threshold_color(kind))
-	draw_rect(threshold.grow(-3.0), _c("outline").lerp(_threshold_color(kind), 0.6), false, 1.5)
+	FurniturePainter.frame_rect(self, threshold.grow(-3.0), _c("outline").lerp(_threshold_color(kind), 0.6), 1.5)
 	if _door_room_kind(door) == FloorLayout.TRANSIT_ELEVATOR:
 		_draw_sliding_door(threshold, along)
 	elif not FloorLayout.is_controlled_door(door):
@@ -825,11 +703,11 @@ func _draw_door(door: Dictionary) -> void:
 	for end: Vector2 in [start, start + along * span]:
 		var post: Rect2 = Rect2(end - Vector2(t, t) * 0.62, Vector2(t, t) * 1.24)
 		draw_rect(post, _cap().lightened(0.12))
-		draw_rect(post, _c("outline"), false, 2.0)
+		FurniturePainter.frame_rect(self, post, _c("outline"), 2.0)
 	if FloorLayout.is_controlled_door(door) and kind != FloorLayout.DOOR_OLD_LOCK:
 		var reader_c: Vector2 = start + along * (span + t * 1.25) - into_b * t * 0.95
 		draw_rect(Rect2(reader_c - Vector2(6, 8), Vector2(12, 16)), C_READER)
-		draw_rect(Rect2(reader_c - Vector2(6, 8), Vector2(12, 16)), _c("outline"), false, 1.5)
+		FurniturePainter.frame_rect(self, Rect2(reader_c - Vector2(6, 8), Vector2(12, 16)), _c("outline"), 1.5)
 		draw_rect(Rect2(reader_c + Vector2(-3, 1), Vector2(6, 4)), C_LED_SERVICE if kind == FloorLayout.DOOR_SERVICE else C_STEEL)
 
 
@@ -867,7 +745,7 @@ func _draw_leaf(hinge_line: Vector2, along: Vector2, into_b: Vector2, span: floa
 	var leaf: Rect2 = Rect2(hinge - along * thick * 0.5, into_b * length + along * thick).abs()
 	draw_rect(Rect2(leaf.position + Vector2(2, 3), leaf.size), Color(0, 0, 0, 0.25))
 	draw_rect(leaf, col)
-	draw_rect(leaf, _c("outline"), false, 2.0)
+	FurniturePainter.frame_rect(self, leaf, _c("outline"), 2.0)
 	draw_circle(hinge + into_b * length * 0.82 + along * thick * 0.9, 3.0, C_STEEL)
 
 
@@ -876,8 +754,8 @@ func _draw_sliding_door(threshold: Rect2, along: Vector2) -> void:
 	var other: Rect2 = Rect2(threshold.end - half.size, half.size)
 	for panel: Rect2 in [half, other]:
 		draw_rect(panel, C_STEEL)
-		draw_rect(panel, _c("outline"), false, 1.5)
-		draw_line(panel.get_center() - along * 4.0, panel.get_center() + along * 4.0, C_STEEL.lightened(0.3), 2.0)
+		FurniturePainter.frame_rect(self, panel, _c("outline"), 1.5)
+		FurniturePainter.segment(self, panel.get_center() - along * 4.0, panel.get_center() + along * 4.0, C_STEEL.lightened(0.3), 2.0)
 
 
 ## Cabina del ascensor en el fondo (muro opuesto a la entrada): marco, puertas de acero,
@@ -891,19 +769,19 @@ func _draw_elevator_car(holes: Array) -> void:
 	var y: float = rect.size.y * cell - _t_draw() * 0.5 - cell * 1.1 if entry_on_top else _t_draw() * 0.5
 	var shaft: Rect2 = Rect2(x, y, w, cell * 1.1 if entry_on_top else _face() + cell * 0.7)
 	draw_rect(shaft.grow(5.0), _cap())
-	draw_rect(shaft.grow(5.0), _c("outline"), false, 2.0)
+	FurniturePainter.frame_rect(self, shaft.grow(5.0), _c("outline"), 2.0)
 	for k: int in 2:
 		var panel: Rect2 = Rect2(x + k * w * 0.5 + 1.5, shaft.position.y, w * 0.5 - 3.0, shaft.size.y)
 		draw_rect(panel, C_STEEL.lerp(_c("wall"), 0.2))
 		draw_rect(Rect2(panel.position, Vector2(panel.size.x, panel.size.y * 0.3)), C_STEEL.lightened(0.18))
-		draw_rect(panel, _c("outline"), false, 1.5)
+		FurniturePainter.frame_rect(self, panel, _c("outline"), 1.5)
 	var lamp: Vector2 = Vector2(x + w * 0.5, shaft.position.y - 12.0 if not entry_on_top else shaft.end.y + 12.0)
 	draw_rect(Rect2(lamp - Vector2(16, 6), Vector2(32, 12)), Color("#15171b"))
-	draw_rect(Rect2(lamp - Vector2(16, 6), Vector2(32, 12)), _c("outline"), false, 1.5)
+	FurniturePainter.frame_rect(self, Rect2(lamp - Vector2(16, 6), Vector2(32, 12)), _c("outline"), 1.5)
 	draw_colored_polygon(PackedVector2Array([lamp + Vector2(-5, 3), lamp + Vector2(5, 3), lamp + Vector2(0, -4)]), C_LED_SERVICE)
 	var panel_c: Vector2 = Vector2(shaft.end.x + cell * 0.45, shaft.get_center().y)
 	draw_rect(Rect2(panel_c - Vector2(7, 12), Vector2(14, 24)), C_STEEL.darkened(0.2))
-	draw_rect(Rect2(panel_c - Vector2(7, 12), Vector2(14, 24)), _c("outline"), false, 1.5)
+	FurniturePainter.frame_rect(self, Rect2(panel_c - Vector2(7, 12), Vector2(14, 24)), _c("outline"), 1.5)
 	draw_circle(panel_c + Vector2(0, -5), 3.5, C_EXIT_GREEN)
 	draw_circle(panel_c + Vector2(0, 5), 3.5, C_LED_SERVICE)
 
@@ -919,18 +797,18 @@ func _draw_exit_door(t: Dictionary) -> void:
 		inward = -inward
 	var mat: Rect2 = Rect2(start + inward * thick * 0.5, along * width + inward * cell * 0.7).abs()
 	draw_rect(mat, _c("shadow").darkened(0.2))
-	draw_rect(mat.grow(-4.0), _c("accent").darkened(0.2), false, 2.0)
+	FurniturePainter.frame_rect(self, mat.grow(-4.0), _c("accent").darkened(0.2), 2.0)
 	for k: int in 2:
 		var a: Vector2 = start + along * (k * width * 0.5)
 		var r: Rect2 = Rect2(a - Vector2(thick, thick) * 0.4, along * width * 0.5 + Vector2(thick, thick) * 0.8).abs()
 		draw_rect(r, _c("window").lightened(0.25))
-		draw_rect(r, _c("outline"), false, 2.0)
-		draw_line(r.get_center() - along * 6.0, r.get_center() + along * 6.0, C_STEEL, 3.0)
+		FurniturePainter.frame_rect(self, r, _c("outline"), 2.0)
+		FurniturePainter.segment(self, r.get_center() - along * 6.0, r.get_center() + along * 6.0, C_STEEL, 3.0)
 	for end: Vector2 in [start, start + along * width]:
 		draw_rect(Rect2(end - Vector2(thick, thick) * 0.62, Vector2(thick, thick) * 1.24), _cap().lightened(0.12))
 	var sign_pos: Vector2 = start + along * width * 0.5 + inward * cell * 1.05
 	draw_rect(Rect2(sign_pos - Vector2(14, 8), Vector2(28, 16)), C_EXIT_GREEN)
-	draw_rect(Rect2(sign_pos - Vector2(14, 8), Vector2(28, 16)), _c("outline"), false, 1.5)
+	FurniturePainter.frame_rect(self, Rect2(sign_pos - Vector2(14, 8), Vector2(28, 16)), _c("outline"), 1.5)
 	draw_colored_polygon(PackedVector2Array([sign_pos + Vector2(-6, -4), sign_pos + Vector2(6, 0), sign_pos + Vector2(-6, 4)]),
 			Color.WHITE)
 

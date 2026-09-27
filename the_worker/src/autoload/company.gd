@@ -1,13 +1,13 @@
 # company.gd — Sillas, promoción del jugador, fundamentales, cifras reportadas, mecha de auditoría y descontento.
-# PROPIETARIO DE: sillas y titulares (también la del jugador), Rookies contratados, mérito reciente del jugador, fundamentales y sus entradas (marca, calidad, eficiencia, cuota, recorte, nómina, pérdidas por robo, escándalos, prensa negativa, rotación directiva, eliminaciones, historial trimestral, productos en desarrollo), cifras reportadas, mecha de auditoría, descontento y huelga (§19.8).
-# ESCUCHA: day_advanced, week_closed, quarter_closed, quarter_reported, npc_removed, occupation_changed, reputation_changed, news_published, news_buried, idea_presented, duty_completed, bribe_offered, bribe_result, strike_resolved.
+# PROPIETARIO DE: sillas y titulares (también la del jugador), Rookies contratados, mérito reciente del jugador, fundamentales y sus entradas (marca, calidad, eficiencia, cuota, recorte, nómina, pérdidas por robo, escándalos, prensa negativa, rotación directiva, eliminaciones, historial trimestral y acumulado del trimestre en curso, productos en desarrollo), oferta de promoción vigente, cifras reportadas, mecha de auditoría, descontento y huelga (§19.8).
+# ESCUCHA: day_advanced, week_closed, quarter_closed, quarter_reported, npc_removed, occupation_changed, reputation_changed, news_published, news_buried, idea_presented, duty_completed, bribe_offered, bribe_result, crime_committed, strike_resolved.
 class_name CompanySystem
 extends Node
 
 ## Manual §6.1-§6.3, §9.2, §9.9, §9.10, §11.6, §11.7, §19.8; PASO 21 y PASO 32; BUILD_NOTES §2, §13.
 ## Emite: seat_vacated, seat_filled, occupation_changed, promotion_available, promotion_declined,
 ## merit_gained, fundamentals_updated, audit_fuse_lit, audit_triggered, strike_discontent_changed,
-## strike_started, game_over, notebook_entry_added.
+## strike_started, strike_resolved ("appeased"), game_over, notebook_entry_added.
 ## DECISIONES (contrato para el resto de sistemas):
 ##  · SILLAS. Cada ocupación tiene una o varias sillas {occupation_id, seat_index, holder, temporary,
 ##    vacated_day, cause}; holder "" = vacante, "player" = el jugador. reset_for_new_run() las
@@ -35,56 +35,76 @@ extends Node
 ##    vacancy_cause, player_caused, favour_to, grievance_to, day}.
 ##  · PROMOCIÓN DEL JUGADOR (§6.2): can_player_promote_to → missing ⊂ [path, reputation, merit,
 ##    vacancy] ("path", extra = no alcanzable desde el puesto actual). Destinos: promotes_to +
-##    can_jump_to (tres condiciones) y lateral_to de rango ≤ actual (lateral: sin mérito). Mérito
-##    mínimo por escalón de destino (empresa.merito_minimo_por_escalon); caduca a las
-##    empresa.jornadas_caducidad_merito jornadas y un ascenso lo consume. Reputación ≥ mínima +
-##    empresa.margen_reputacion_crear_puesto (escalón ≤ escalon_max_crear_puesto) "crea el puesto": no
-##    hace falta vacante y se añade una silla temporal (desaparece cuando el jugador la deja).
+##    can_jump_to (tres condiciones) y lateral_to de rango ≤ actual (lateral: sin mérito y siempre
+##    con vacante). MÉRITO: basta UN suceso de mérito reciente (idea, éxito visible, rescate,
+##    recomendación): get_recent_merit() ≥ empresa.merito_minimo_ascenso (1) y toda fuente apunta
+##    ≥ 1. Caduca a las empresa.jornadas_caducidad_merito jornadas y un ascenso lo consume.
+##    CREAR EL PUESTO (solo ascensos, no laterales): reputación ≥ mínima +
+##    empresa.margen_reputacion_crear_puesto (escalón ≤ escalon_max_crear_puesto): no hace falta
+##    vacante y se añade una silla temporal (desaparece cuando el jugador la deja).
 ##    promote_player emite seat_vacated(antigua, "player", player_promoted|player_lateral),
 ##    seat_filled(nueva, "player") y occupation_changed(antigua, nueva, promotion|lateral|
-##    created_post): PlayerState adopta la ocupación al oír occupation_changed.
-##    promotion_available(ids) se emite al empezar cada jornada si hay destinos permitidos y cuando la
-##    lista cambia. decline_promotion(occ) emite promotion_declined y repone ya esa vacante.
+##    created_post): PlayerState adopta la ocupación al oír occupation_changed. El agravio
+##    "grievance_to" (quien esperaba la silla) solo existe si el jugador ocupa una silla VACANTE
+##    real; una silla temporal (puesto creado, descenso sin vacante) no se la quita a nadie.
+##    promotion_available(ids) se emite al empezar cada jornada si hay destinos permitidos y cuando
+##    la lista cambia; la nota del cuaderno, solo cuando cambia. decline_promotion(occ) solo vale
+##    para un destino disponible: emite promotion_declined y repone ya sus vacantes.
 ##  · DESCENSOS (§6.1): demote_player(motivo) → primer demotes_to con vacante (si no, silla
 ##    temporal). En R0 → game_over("failed_at_r0"); en R33 por "board_pressure" → game_over(
 ##    "board_removal"). Company degrada por sí misma ante la presión del consejo (quarter_reported con
 ##    Market.is_board_pressure_triggered()) y las cifras afloradas por la auditoría (salvo
 ##    empresa.cargos_sin_descenso_por_cifras: ahí la consecuencia es la investigación de Security).
 ##  · occupation_changed ajeno (depuración, tutorial): la silla del jugador se sincroniza EN SILENCIO.
-##  · MÉRITO DEL JUGADOR: register_merit (IdeaPresentation, DutySystem) + "éxito visible"
-##    (duty_completed con calidad ≥ empresa.calidad_exito_visible y método en metodos_exito_visible)
-##    + "recomendación" (soborno aceptado del favor empresa.favor_recomendacion; Bribery no la apunta).
+##    fill_seat(occ, id) solo acepta personajes en plantilla (NPCDirector.is_active) o Rookies de
+##    Company (is_hire); "player" mueve al jugador sin condiciones.
+##  · MÉRITO DEL JUGADOR: register_merit (IdeaPresentation, DutySystem, rescates) + "éxito visible"
+##    (duty_completed de un deber de tipo empresa.tipos_exito_visible —entrega, presentación—, con
+##    calidad ≥ empresa.calidad_exito_visible y método en metodos_exito_visible; los deberes
+##    rutinarios de volumen, cuota o ronda no cuentan) + "recomendación" (soborno aceptado del favor
+##    empresa.favor_recomendacion; Bribery no la apunta).
 ##  · FUNDAMENTALES (§9.2), POR JORNADA. unidades = base × eficiencia efectiva × calidad × fuerza
-##    comercial × cuota (× factor_unidades_huelga en huelga); ingresos = unidades × precio × marca;
-##    costes = materiales (∝ unidades, × (1 − recorte)) + nóminas (× concesiones) + generales +
-##    legales (+ por investigación abierta) + pérdidas por robo + escándalos (estos dos: suma de la
-##    ventana empresa.jornadas_ventana_contable ÷ ventana); crecimiento = tendencia de los últimos
-##    trimestres + productos en desarrollo (ideas presentadas en la ventana); riesgo = suma ponderada
-##    (market.json risk_factor_weights) de investigaciones abiertas, prensa negativa viva, huelga y
-##    rotación directiva (sillas de escalón ≥ escalon_directivo liberadas, salvo "promoted") +
-##    eliminaciones × empresa.riesgo_por_eliminacion. Eficiencia y fuerza comercial bajan con las
-##    vacantes de sus departamentos. Recalculo en cada day_advanced y al instante tras una llamada
-##    directa (add_theft_loss, modify_*, palancas, concesión salarial); las señales esperan al día.
-##  · IRONÍA (§9.10): add_theft_loss → costes; npc_removed (expulsión o eliminación) de escalón ≥
+##    comercial × cuota (× factor_unidades_huelga = 0 en huelga: producción detenida); ingresos =
+##    unidades × precio × marca; costes = materiales (∝ unidades, × (1 − recorte)) + nóminas
+##    (× concesiones) + generales + legales (+ por investigación abierta) + pérdidas por robo +
+##    escándalos (estos dos: suma de la ventana empresa.jornadas_ventana_contable ÷ ventana, así el
+##    trimestre carga el importe entero); crecimiento = tendencia de los últimos trimestres (media
+##    del beneficio diario de cada trimestre) + productos en desarrollo (ideas presentadas en la
+##    ventana); riesgo = suma ponderada (market.json risk_factor_weights) de investigaciones
+##    abiertas, prensa negativa viva, huelga y rotación directiva (salidas de sillas de escalón ≥
+##    escalon_directivo, salvo traslados internos: promoted, player_promoted, player_lateral,
+##    reassigned) + eliminaciones × empresa.riesgo_por_eliminacion. Eficiencia y fuerza comercial
+##    bajan con las vacantes de sus departamentos. Recalculo en cada day_advanced y al instante tras
+##    un robo o una llamada directa (modify_*, palancas, concesión salarial); el resto de señales
+##    esperan al día.
+##  · IRONÍA (§9.10). ROBO: Company escucha crime_committed y apunta como pérdida
+##    details.company_loss o, si falta, details.value de un "theft_product" (misma regla que
+##    Tracking). add_theft_loss(importe) es para pérdidas sin crime_committed; quien llame a
+##    add_theft_loss Y emita crime_committed del mismo robo pone details.loss_booked = true (no se
+##    cuenta dos veces). npc_removed (expulsión o eliminación) de escalón ≥
 ##    empresa.escalon_talento_cualificado → calidad y get_idea_generation_modifier() bajan;
-##    escándalo (news_published is_scandal) → coste y riesgo (news_buried los retira). Company NO
-##    escucha crime_committed: quien ejecuta el robo en fábrica llama a add_theft_loss.
+##    escándalo (news_published is_scandal) → coste y riesgo (news_buried los retira).
 ##  · CIFRAS REPORTADAS: get_reported_figures() = fundamentales si no hay otras. set_reported_figures
-##    solo con el jugador en empresa.cargos_cifras_reportadas. Divergencia = máx |reportado − real| ÷
-##    |real| en revenue/costs/profit, acotada a [0, 1]; toda divergencia enciende la mecha: semanas =
-##    audit_fuse de market.json (8 − 6 × divergencia) acotada a balance mercado.mecha_auditoria_*
-##    y, por cargo, a empresa.mecha_max_semanas_por_cargo (B10: dos semanas, §9.9); una segunda
-##    falsificación acorta la vigente. Cuenta atrás con week_closed; al expirar, probabilidad =
-##    perspicacia del titular de Auditoría Jefe ÷ 100 × factor (0 si es el jugador o está vacante)
-##    → audit_triggered(encontrada); get_last_audit() conserva la magnitud auditada. Las cifras
-##    reportadas se retiran al oír quarter_reported (el trimestre ya se comunicó).
+##    solo con el jugador en empresa.cargos_cifras_reportadas; cada cargo altera solo sus claves
+##    (empresa.cifras_restringidas_por_cargo: B10 solo "revenue", §9.9; el beneficio se recalcula),
+##    el resto se ignora. Divergencia = máx |reportado − real| ÷ máx(|real|, 1) en revenue, costs,
+##    profit, growth_expectation y risk_factor, acotada a [0, 1]; toda divergencia enciende la
+##    mecha: semanas = audit_fuse de market.json (8 − 6 × divergencia) acotada a balance
+##    mercado.mecha_auditoria_* y, por cargo, a empresa.mecha_max_semanas_por_cargo (B10: dos
+##    semanas, §9.9); una segunda falsificación acorta la vigente. Cuenta atrás con week_closed;
+##    al expirar, probabilidad = perspicacia del titular de Auditoría Jefe ÷ 100 × factor (0 si es
+##    el jugador o está vacante) → audit_triggered(encontrada); get_last_audit() conserva la
+##    magnitud auditada. Las cifras reportadas se retiran al oír quarter_reported.
 ##  · DESCONTENTO (§11.7), 0-100: modify_discontent; apply_labour_event(id) aplica un factor de la
 ##    tabla (unjust_dismissal, payroll_manipulation_discovered, wage_concession, culprit_dismissed);
 ##    diarios: cuota > empresa.cuota_razonable_max y recorte de costes > 0; término de ánimo =
 ##    round(−ánimo medio de escalones ≤ descontento.escalon_max_afectado × por_animo_diario). Una
-##    expulsión (npc_removed) de escalón ≤ ese máximo cuenta como despido injusto. Cruzar
-##    umbral_huelga hacia arriba sin huelga activa → strike_started; strike_resolved la termina.
-##    Agitar, apaciguar, liderar y traicionar son del módulo Strike (modify_discontent).
+##    expulsión (npc_removed) de escalón ≤ ese máximo cuenta como despido injusto. HUELGA: estalla
+##    al SUPERAR umbral_huelga ("superior a 70", §11.7) sin huelga activa → strike_started; si el
+##    descontento vuelve a ≤ umbral (apaciguar) Company la da por terminada y emite
+##    strike_resolved("appeased"). Un strike_resolved ajeno (módulo Strike: traición...) también la
+##    termina; para otra hay que volver a cruzar el umbral. Agitar, apaciguar, liderar y traicionar
+##    son del módulo Strike (modify_discontent / apply_labour_event).
 
 const PLAYER_ID := "player"
 const HIRE_ID_FORMAT := "npc_hire_%03d"
@@ -139,6 +159,10 @@ const PLAYER_CAUSES: Array[String] = [
 	"expelled", "expulsion", "fired", "framed", "eliminated", "elimination", "demoted",
 	"demotion", "player_promoted", "player_lateral", "displaced_by_player",
 ]
+## Traslados internos: no son rotación directiva (§9.2 factor de riesgo).
+const NON_TURNOVER_CAUSES: Array[String] = [
+	CAUSE_PROMOTED, CAUSE_PLAYER_PROMOTED, CAUSE_PLAYER_LATERAL, CAUSE_REASSIGNED,
+]
 
 # Tipos de relleno (get_last_fill_context) y motivos de occupation_changed.
 const FILL_PROMOTION := "promotion"
@@ -157,11 +181,18 @@ const DEMOTION_BOARD := "board_pressure"
 const DEMOTION_FIGURES := "figures_surfaced"
 const CAUSE_FAILED_AT_R0 := "failed_at_r0"
 const CAUSE_BOARD_REMOVAL := "board_removal"
-const MARKET_BOARD_GETTER := "is_board_pressure_triggered"
 
 # Mérito.
 const MERIT_DUTY := "duty_success"
 const MERIT_RECOMMENDATION := "bribed_recommendation"
+const DUTY_TYPE_KEY := "type"
+const DUTY_ID_KEY := "id"
+
+# Robo (§9.10, §11.6): claves de crime_committed (misma regla que Tracking).
+const CRIME_THEFT_PRODUCT := "theft_product"
+const D_VALUE := "value"
+const D_COMPANY_LOSS := "company_loss"
+const D_LOSS_BOOKED := "loss_booked"
 
 # Descontento: factores de la tabla §11.7.
 const EVENT_UNJUST_DISMISSAL := "unjust_dismissal"
@@ -177,6 +208,7 @@ const LABOUR_EVENTS: Dictionary = {
 const CAUSE_EXCESSIVE_QUOTA := "excessive_quota"
 const CAUSE_DEGRADED_FACTORY := "degraded_factory"
 const CAUSE_MOOD := "workforce_mood"
+const STRIKE_APPEASED := "appeased"
 
 # Cuaderno.
 const NOTE_CATEGORY := "career"
@@ -189,7 +221,10 @@ const NOTE_DECLINED := "NOTE_CAREER_DECLINED"
 const NOTE_FUSE_LIT := "NOTE_AUDIT_FUSE_LIT"
 
 # Fundamentales.
-const FIGURE_KEYS: Array[String] = ["revenue", "costs", "profit"]
+## Cifras reportables (y las que miden la divergencia, §9.2 «toda divergencia»).
+const FIGURE_KEYS: Array[String] = [
+	"revenue", "costs", "profit", "growth_expectation", "risk_factor",
+]
 const COST_KEYS: Array[String] = [
 	"materials", "payroll", "overheads", "legal", "theft_losses", "scandal_costs",
 ]
@@ -219,7 +254,7 @@ const CFG_INSIDER := "insider_detection"
 
 # Rutas de balance.json.
 const B_VACANCY_DAYS := "empresa.jornadas_vacante_abierta"
-const B_MERIT_BY_TIER := "empresa.merito_minimo_por_escalon.%d"
+const B_MERIT_MIN := "empresa.merito_minimo_ascenso"
 const B_MERIT_DAYS := "empresa.jornadas_caducidad_merito"
 const B_CREATE_MARGIN := "empresa.margen_reputacion_crear_puesto"
 const B_CREATE_MAX_TIER := "empresa.escalon_max_crear_puesto"
@@ -228,9 +263,11 @@ const B_WIDEN_RANKS := "empresa.rangos_busqueda_ampliada"
 const B_DUTY_MERIT := "empresa.merito_deber_exitoso"
 const B_DUTY_QUALITY := "empresa.calidad_exito_visible"
 const B_DUTY_METHODS := "empresa.metodos_exito_visible"
+const B_DUTY_TYPES := "empresa.tipos_exito_visible"
 const B_RECOMMEND_FAVOUR := "empresa.favor_recomendacion"
 const B_RECOMMEND_MERIT := "empresa.merito_recomendacion"
 const B_REPORT_POSTS := "empresa.cargos_cifras_reportadas"
+const B_REPORT_KEYS_BY_POST := "empresa.cifras_restringidas_por_cargo.%s"
 const B_NO_DEMOTION_POSTS := "empresa.cargos_sin_descenso_por_cifras"
 const B_AUDIT_FACTOR := "empresa.factor_deteccion_auditoria"
 const B_WINDOW := "empresa.jornadas_ventana_contable"
@@ -315,7 +352,12 @@ var _negative_press: Dictionary = {}
 var _turnover_log: Array[Dictionary] = []
 var _elimination_log: Array[Dictionary] = []
 var _product_log: Array[Dictionary] = []
+## Beneficio diario medio de cada trimestre cerrado (tendencia de crecimiento, §9.2).
 var _quarter_profits: Array[float] = []
+## Trimestre en curso: suma del beneficio de sus jornadas, jornadas sumadas y última sumada.
+var _q_profit_sum: float = 0.0
+var _q_days: int = 0
+var _q_last_day: int = 0
 var _fundamentals: Dictionary = {}
 var _reported: Dictionary = {}
 var _fuse: Dictionary = {}
@@ -353,6 +395,7 @@ func _connect_signals() -> void:
 	EventBus.duty_completed.connect(_on_duty_completed)
 	EventBus.bribe_offered.connect(_on_bribe_offered)
 	EventBus.bribe_result.connect(_on_bribe_result)
+	EventBus.crime_committed.connect(_on_crime_committed)
 	EventBus.strike_resolved.connect(_on_strike_resolved)
 
 
@@ -366,6 +409,7 @@ func reset_for_new_run() -> void:
 			DISCONTENT_MAX)
 	_active = true
 	_fundamentals = _compute_fundamentals()
+	_accumulate_day(GameClock.get_day())
 
 
 func _load_config() -> void:
@@ -423,6 +467,9 @@ func _clear_fundamentals_state() -> void:
 	_elimination_log.clear()
 	_product_log.clear()
 	_quarter_profits.clear()
+	_q_profit_sum = 0.0
+	_q_days = 0
+	_q_last_day = 0
 	_fundamentals = {}
 	_reported = {}
 	_fuse = {}
@@ -474,12 +521,16 @@ func vacate_npc_seat(npc_id: String, cause: String) -> bool:
 
 
 ## Ocupa la primera silla vacante con ese personaje (su silla anterior queda vacante, causa
-## "reassigned"). "player" mueve al jugador sin comprobar condiciones (motivo "assigned").
+## "reassigned"). "player" mueve al jugador sin comprobar condiciones (motivo "assigned"). Solo
+## personajes en plantilla (NPCDirector.is_active) o Rookies de Company (is_hire).
 func fill_seat(occupation_id: String, npc_id: String) -> void:
 	if npc_id.is_empty() or _occupation(occupation_id) == null:
 		return
 	if npc_id == PLAYER_ID:
 		_move_player(occupation_id, REASON_ASSIGNED, CAUSE_REASSIGNED)
+		return
+	if not NPCDirector.is_active(npc_id) and not is_hire(npc_id):
+		push_warning("Company.fill_seat: '%s' no está en plantilla" % npc_id)
 		return
 	var target: Dictionary = _vacant_seat(occupation_id)
 	var current: Dictionary = _seat_of_holder(npc_id)
@@ -565,9 +616,10 @@ func can_player_promote_to(occupation_id: String) -> Dictionary:
 	if target != null:
 		if PlayerState.get_reputation() < target.min_reputation:
 			missing.append(MISSING_REPUTATION)
-		if kind != MOVE_LATERAL and get_recent_merit() < get_merit_threshold(target.tier):
+		if kind != MOVE_LATERAL and get_recent_merit() < get_merit_threshold():
 			missing.append(MISSING_MERIT)
-		if not is_seat_vacant(occupation_id) and not can_create_post(occupation_id):
+		var created: bool = kind != MOVE_LATERAL and can_create_post(occupation_id)
+		if not is_seat_vacant(occupation_id) and not created:
 			missing.append(MISSING_VACANCY)
 	return {"allowed": missing.is_empty(), "missing": missing}
 
@@ -607,14 +659,17 @@ func promote_player(occupation_id: String) -> bool:
 	return true
 
 
-## Extra (PASO 21): el jugador rechaza el puesto; la vacante se repone en el acto.
+## Extra (PASO 21): el jugador rechaza un destino disponible (get_available_promotions) y aún no
+## rechazado hoy; sus vacantes se reponen en el acto.
 func decline_promotion(occupation_id: String) -> void:
 	var target: OccupationData = _occupation(occupation_id)
-	if not _active or target == null:
+	if not _active or target == null or not get_available_promotions().has(occupation_id):
+		return
+	if int(_declined.get(occupation_id, NO_DAY)) == GameClock.get_day():
 		return
 	_declined[occupation_id] = GameClock.get_day()
 	EventBus.promotion_declined.emit(occupation_id)
-	_note(NOTE_DECLINED, [tr(target.name_key)])
+	_note(NOTE_DECLINED, [target.name_key])
 	for seat: Dictionary in _seats_of(occupation_id):
 		if _is_vacant(seat):
 			_fill_chain(seat)
@@ -657,10 +712,9 @@ func get_recent_merit() -> int:
 	return total
 
 
-## Extra: mérito reciente mínimo para ascender a un puesto de ese escalón.
-func get_merit_threshold(tier: int) -> int:
-	var path: String = B_MERIT_BY_TIER % tier
-	return Database.get_balance_int(path) if Database.has_balance(path) else 0
+## Extra: mérito reciente mínimo para ascender (§6.2: basta un suceso de mérito; toda fuente da ≥ 1).
+func get_merit_threshold() -> int:
+	return Database.get_balance_int(B_MERIT_MIN)
 
 
 ## Extra (§6.2): la dirección crearía el puesto (reputación excepcional).
@@ -690,12 +744,13 @@ func get_reported_figures() -> Dictionary:
 	return get_fundamentals() if _reported.is_empty() else _reported.duplicate()
 
 
-## Solo cargos autorizados (empresa.cargos_cifras_reportadas). Toda divergencia enciende la mecha.
+## Solo cargos autorizados (empresa.cargos_cifras_reportadas), y cada uno solo sus claves
+## (get_reportable_keys: B10, las ventas). Toda divergencia enciende la mecha.
 func set_reported_figures(figures: Dictionary) -> void:
 	if not _active or not can_set_reported_figures():
 		return
 	var real: Dictionary = get_fundamentals()
-	var reported: Dictionary = _merge_figures(real, figures)
+	var reported: Dictionary = _merge_figures(real, figures, get_reportable_keys())
 	var divergence: float = compute_divergence(real, reported)
 	if divergence <= EPSILON:
 		_reported = {}
@@ -712,13 +767,10 @@ func recalculate_fundamentals() -> void:
 			float(_fundamentals["costs"]), float(_fundamentals[K_RISK]))
 
 
-## §11.6 / §9.10: la pérdida entra en la ventana contable y se refleja al instante.
+## §11.6 / §9.10: la pérdida entra en la ventana contable y se refleja al instante. Para pérdidas
+## sin crime_committed (el robo de producto ya lo apunta _on_crime_committed; ver cabecera).
 func add_theft_loss(amount: float) -> void:
-	if not _active or amount <= 0.0:
-		return
-	_theft_log.append({L_DAY: GameClock.get_day(), L_AMOUNT: amount})
-	_theft_total += amount
-	recalculate_fundamentals()
+	_book_theft_loss(amount)
 
 
 func modify_product_quality(delta: float) -> void:
@@ -760,12 +812,38 @@ func get_total_theft_losses() -> float:
 	return _theft_total
 
 
+## Extra: beneficio diario medio de los últimos trimestres cerrados (base de la tendencia, §9.2).
+func get_quarter_profits() -> Array[float]:
+	return _quarter_profits.duplicate()
+
+
+## Extra: salidas de sillas directivas en la ventana contable (rotación del factor de riesgo).
+func get_executive_turnover() -> int:
+	return _window_count(_turnover_log, GameClock.get_day())
+
+
 ## Extra: el jugador ocupa un cargo autorizado a fijar las cifras reportadas.
 func can_set_reported_figures() -> bool:
 	return _string_list(Database.get_balance(B_REPORT_POSTS)).has(_player_occupation_id())
 
 
-## Extra: máx |reportado − real| ÷ |real| en revenue, costs y profit, acotada a [0, 1].
+## Extra: cifras que el cargo actual puede alterar ([] si no está autorizado). §9.9: el director
+## del B10 solo las de venta (empresa.cifras_restringidas_por_cargo); CFO y CEO, todas.
+func get_reportable_keys() -> Array[String]:
+	if not can_set_reported_figures():
+		return []
+	var path: String = B_REPORT_KEYS_BY_POST % _player_occupation_id()
+	if not Database.has_balance(path):
+		return FIGURE_KEYS.duplicate()
+	var out: Array[String] = []
+	for key: String in _string_list(Database.get_balance(path)):
+		if FIGURE_KEYS.has(key):
+			out.append(key)
+	return out
+
+
+## Extra: máx |reportado − real| ÷ máx(|real|, 1) en FIGURE_KEYS (ingresos, costes, beneficio,
+## crecimiento y riesgo: en los dos últimos, valores pequeños, es la diferencia absoluta), en [0, 1].
 static func compute_divergence(real: Dictionary, reported: Dictionary) -> float:
 	var worst: float = 0.0
 	for key: String in FIGURE_KEYS:
@@ -855,12 +933,14 @@ func is_factory_degraded() -> bool:
 	return _cost_cutting > EPSILON
 
 
+## Extra: umbral de huelga (la huelga exige descontento estrictamente superior).
+func get_strike_threshold() -> int:
+	return Database.get_balance_int(B_STRIKE_THRESHOLD)
+
+
 ## Extra: término diario del ánimo medio de los escalones 1-3 (ánimo negativo → más descontento).
 func get_mood_discontent_delta() -> int:
-	if not NPCDirector.has_method("get_average_mood"):
-		return 0
-	var mood: float = float(NPCDirector.call("get_average_mood",
-			Database.get_balance_int(B_AFFECTED_TIER)))
+	var mood: float = NPCDirector.get_average_mood(Database.get_balance_int(B_AFFECTED_TIER))
 	return roundi(-mood * _bf(B_MOOD_DAILY))
 
 
@@ -876,6 +956,7 @@ func save_state() -> Dictionary:
 		"version": SAVE_VERSION, "rng_seed": str(_rng.seed), "rng_state": str(_rng.state),
 		"seats": _seats.duplicate(true), "hire_count": _hire_count, "hires": _hires.duplicate(true),
 		"last_fill": _last_fill.duplicate(), "merits": _merits.duplicate(true),
+		"last_offer": _last_offer.duplicate(),
 		"declined": _declined.duplicate(), "successions_done": _successions_done.duplicate(),
 		"pending_bribes": _pending_bribes.duplicate(), "game_over_sent": _game_over_sent,
 		"last_closed_quarter": _last_closed_quarter, "board_quarter": _board_quarter,
@@ -888,6 +969,10 @@ func save_state() -> Dictionary:
 
 
 func load_state(data: Dictionary) -> void:
+	var version: int = int(data.get("version", SAVE_VERSION))
+	if version != SAVE_VERSION:
+		push_warning("Company.load_state: versión %d (esperada %d); carga parcial" % [version,
+				SAVE_VERSION])
 	_load_config()
 	_clear_state()
 	_rng.seed = str(data.get("rng_seed", "0")).to_int()
@@ -925,9 +1010,7 @@ func _build_seats() -> void:
 
 
 func _npc_seat_index(npc: NPCRuntime) -> int:
-	var index: int = -1
-	if NPCDirector.has_method("get_seat_index"):
-		index = int(NPCDirector.call("get_seat_index", npc.id))
+	var index: int = NPCDirector.get_seat_index(npc.id)
 	if index < 0 or _has_index(npc.occupation_id, index):
 		index = _next_index(npc.occupation_id)
 	return index
@@ -1035,10 +1118,11 @@ func _fill_context(kind: String, seat: Dictionary, holder: String, from_occupati
 	}
 
 
+## Rotación directiva: salidas de sillas directivas; los traslados internos no cuentan.
 func _note_turnover(occupation_id: String, cause: String) -> void:
 	var occupation: OccupationData = _occupation(occupation_id)
 	if occupation != null and occupation.tier >= Database.get_balance_int(B_EXEC_TIER) \
-			and cause != CAUSE_PROMOTED:
+			and not NON_TURNOVER_CAUSES.has(cause):
 		_turnover_log.append({L_DAY: GameClock.get_day(), L_ID: occupation_id})
 
 
@@ -1094,10 +1178,8 @@ func _hire_rookie(seat: Dictionary, cause: String) -> void:
 
 ## Sucesor preferente (perfil future_occupation de NPCDirector), activo y aún sin ese puesto.
 func _designated_successor(occupation_id: String) -> String:
-	if not NPCDirector.has_method("get_profile"):
-		return ""
 	for npc: NPCRuntime in NPCDirector.get_all_npcs():
-		var profile: Dictionary = _as_dict(NPCDirector.call("get_profile", npc.id))
+		var profile: Dictionary = NPCDirector.get_profile(npc.id)
 		var current: String = str(_seat_of_holder(npc.id).get(S_OCC, ""))
 		if str(profile.get("future_occupation", "")) == occupation_id \
 				and _rank_of_or_none(current) < _rank_of(occupation_id):
@@ -1148,10 +1230,8 @@ func _best_among(ids: Array[String]) -> String:
 
 ## Rose Miller (§7.13): en su jornada, el titular generado se jubila y ella ocupa la silla.
 func _process_dated_successions(day: int) -> void:
-	if not NPCDirector.has_method("get_profile"):
-		return
 	for npc: NPCRuntime in NPCDirector.get_all_npcs():
-		var profile: Dictionary = _as_dict(NPCDirector.call("get_profile", npc.id))
+		var profile: Dictionary = NPCDirector.get_profile(npc.id)
 		var occupation_id: String = str(profile.get("future_occupation", ""))
 		var due: int = int(profile.get("future_occupation_day", 0))
 		if occupation_id.is_empty() or due <= 0 or day < due or _successions_done.has(npc.id):
@@ -1216,10 +1296,13 @@ func _move_player(occupation_id: String, reason: String, cause: String) -> void:
 	var old_id: String = str(old_seat.get(S_OCC, _player_occupation_id()))
 	if old_id == occupation_id:
 		return
-	var passed_over: String = _best_candidate(occupation_id, false)
 	var target: Dictionary = _vacant_seat(occupation_id)
+	# §6.3: solo una silla vacante real deja a alguien sin ella; la temporal no.
+	var passed_over: String = ""
 	if target.is_empty():
 		target = _add_temporary_seat(occupation_id)
+	else:
+		passed_over = _best_candidate(occupation_id, false)
 	var vacancy_cause: String = str(target[S_CAUSE])
 	_moving_player = true
 	_release_player_seat(old_seat, cause, true)
@@ -1263,7 +1346,9 @@ func _add_temporary_seat(occupation_id: String) -> Dictionary:
 	return seat
 
 
-func _refresh_promotion_offer() -> void:
+## promotion_available cuando la oferta cambia (y, con day_start, cada mañana mientras exista);
+## la nota del cuaderno solo cuando cambia (sin repetirla a diario).
+func _refresh_promotion_offer(day_start: bool = false) -> void:
 	if not _active:
 		return
 	var offer: Array[String] = []
@@ -1271,13 +1356,13 @@ func _refresh_promotion_offer() -> void:
 	for occupation_id: String in get_available_promotions():
 		if int(_declined.get(occupation_id, NO_DAY)) != today:
 			offer.append(occupation_id)
-	if offer == _last_offer:
-		return
+	var changed: bool = offer != _last_offer
 	_last_offer = offer
-	if offer.is_empty():
+	if offer.is_empty() or not (changed or day_start):
 		return
 	EventBus.promotion_available.emit(offer.duplicate())
-	_note(NOTE_PROMOTION_AVAILABLE, [offer.size()])
+	if changed:
+		_note(NOTE_PROMOTION_AVAILABLE, [offer.size()])
 
 
 func _declare_game_over(cause: String) -> void:
@@ -1288,9 +1373,10 @@ func _declare_game_over(cause: String) -> void:
 func _note_career(reason: String, occupation_id: String) -> void:
 	var occupation: OccupationData = _occupation(occupation_id)
 	if NOTE_BY_REASON.has(reason) and occupation != null:
-		_note(str(NOTE_BY_REASON[reason]), [tr(occupation.name_key)])
+		_note(str(NOTE_BY_REASON[reason]), [occupation.name_key])
 
 
+## Los argumentos van como claves (name_key) o números: el cuaderno los traduce al mostrarlos.
 func _note(text_key: String, args: Array) -> void:
 	EventBus.notebook_entry_added.emit(NOTE_CATEGORY, text_key, args)
 
@@ -1381,13 +1467,16 @@ func _open_investigations() -> int:
 	return Security.get_active_investigations().size()
 
 
-func _merge_figures(real: Dictionary, figures: Dictionary) -> Dictionary:
+## Reales + las cifras numéricas permitidas; sin beneficio propio, se recalcula (ingresos − costes).
+func _merge_figures(real: Dictionary, figures: Dictionary, allowed: Array[String]) -> Dictionary:
 	var out: Dictionary = real.duplicate()
+	var changed: Array[String] = []
 	for key: Variant in figures:
 		var value: Variant = figures[key]
-		if value is float or value is int:
+		if allowed.has(str(key)) and (value is float or value is int):
 			out[str(key)] = float(value)
-	if not figures.has("profit") and (figures.has("revenue") or figures.has("costs")):
+			changed.append(str(key))
+	if not changed.has("profit") and (changed.has("revenue") or changed.has("costs")):
 		out["profit"] = float(out["revenue"]) - float(out["costs"])
 	return out
 
@@ -1432,12 +1521,15 @@ func _apply_talent_loss(tier: int, cause: String) -> void:
 
 # ═══ Privado: descontento ═════════════════════════════════════════════
 
+## Estalla al SUPERAR el umbral ("superior a 70") desde ≤ umbral; apaciguada al volver a ≤ umbral.
 func _check_strike(old_value: int) -> void:
-	var threshold: int = Database.get_balance_int(B_STRIKE_THRESHOLD)
-	if _strike_active or old_value >= threshold or _discontent < threshold:
-		return
-	_strike_active = true
-	EventBus.strike_started.emit()
+	var threshold: int = get_strike_threshold()
+	if _strike_active and _discontent <= threshold:
+		_strike_active = false
+		EventBus.strike_resolved.emit(STRIKE_APPEASED)
+	elif not _strike_active and old_value <= threshold and _discontent > threshold:
+		_strike_active = true
+		EventBus.strike_started.emit()
 
 
 func _apply_daily_discontent() -> void:
@@ -1458,8 +1550,8 @@ func _on_day_advanced(day_number: int) -> void:
 	_auto_fill_expired(day_number)
 	_apply_daily_discontent()
 	recalculate_fundamentals()
-	_last_offer.clear()
-	_refresh_promotion_offer()
+	_accumulate_day(day_number)
+	_refresh_promotion_offer(true)
 
 
 func _on_week_closed(_week_number: int) -> void:
@@ -1470,13 +1562,29 @@ func _on_week_closed(_week_number: int) -> void:
 		_run_audit()
 
 
+## El trimestre entra en la tendencia con su beneficio diario MEDIO (no la foto del último día).
 func _on_quarter_closed(quarter_number: int) -> void:
 	if not _active:
 		return
 	_last_closed_quarter = quarter_number
-	_quarter_profits.append(float(_fundamentals.get("profit", 0.0)))
+	_accumulate_day(GameClock.get_day())
+	var profit: float = float(_fundamentals.get("profit", 0.0))
+	if _q_days > 0:
+		profit = _q_profit_sum / float(_q_days)
+	_quarter_profits.append(profit)
+	_q_profit_sum = 0.0
+	_q_days = 0
 	while _quarter_profits.size() > maxi(Database.get_balance_int(B_TREND_QUARTERS), 1):
 		_quarter_profits.pop_front()
+
+
+## Suma el beneficio de la jornada al trimestre en curso (una vez por jornada).
+func _accumulate_day(day: int) -> void:
+	if day <= _q_last_day or _fundamentals.is_empty():
+		return
+	_q_profit_sum += float(_fundamentals.get("profit", 0.0))
+	_q_days += 1
+	_q_last_day = day
 
 
 ## El trimestre ya se comunicó: las cifras reportadas se retiran. Presión del consejo (§6.1).
@@ -1484,7 +1592,7 @@ func _on_quarter_reported(_real_figures: Dictionary, _reported_figures: Dictiona
 	if not _active:
 		return
 	_reported = {}
-	if not Market.has_method(MARKET_BOARD_GETTER) or not bool(Market.call(MARKET_BOARD_GETTER)):
+	if not Market.is_board_pressure_triggered():
 		return
 	if _board_quarter == _last_closed_quarter:
 		return
@@ -1545,12 +1653,23 @@ func _on_idea_presented(idea_id: String, _presenter: String, _merit_gained: int)
 	_product_log.append({L_DAY: GameClock.get_day(), L_ID: idea_id})
 
 
-## "Éxito visible" (§6.2): deber cumplido con calidad alta por un método que se ve.
-func _on_duty_completed(_duty_id: String, quality: float, method: String) -> void:
+## "Éxito visible" (§6.2): un deber notable (entrega, presentación) cumplido con calidad alta por
+## un método que se ve. Los deberes rutinarios (volumen, cuota, ronda) no son mérito.
+func _on_duty_completed(duty_id: String, quality: float, method: String) -> void:
 	if not _active or quality < _bf(B_DUTY_QUALITY):
+		return
+	if not _string_list(Database.get_balance(B_DUTY_TYPES)).has(_duty_type(duty_id)):
 		return
 	if _string_list(Database.get_balance(B_DUTY_METHODS)).has(method):
 		register_merit(MERIT_DUTY, Database.get_balance_int(B_DUTY_MERIT))
+
+
+## §9.10 / §11.6: el robo de producto (o cualquier delito con details.company_loss) es pérdida de
+## la compañía. details.loss_booked = true: quien lo emite ya llamó a add_theft_loss.
+func _on_crime_committed(crime_type: String, _room_id: String, details: Dictionary) -> void:
+	if not _active or bool(details.get(D_LOSS_BOOKED, false)):
+		return
+	_book_theft_loss(company_loss_of(crime_type, details))
 
 
 func _on_bribe_offered(npc_id: String, _amount: int, favour_type: String) -> void:
@@ -1568,6 +1687,38 @@ func _on_bribe_result(npc_id: String, accepted: bool, _outcome: String) -> void:
 
 func _on_strike_resolved(_resolution: String) -> void:
 	_strike_active = false
+
+
+# ═══ Privado: robo ════════════════════════════════════════════════════
+
+## Extra: € que un crime_committed hace perder a la compañía (misma regla que Tracking):
+## details.company_loss si existe; si no, details.value de un "theft_product"; si no, 0.
+static func company_loss_of(crime_type: String, details: Dictionary) -> float:
+	if details.has(D_COMPANY_LOSS):
+		return maxf(float(details[D_COMPANY_LOSS]), 0.0)
+	if crime_type == CRIME_THEFT_PRODUCT:
+		return maxf(float(details.get(D_VALUE, 0.0)), 0.0)
+	return 0.0
+
+
+func _book_theft_loss(amount: float) -> void:
+	if not _active or amount <= 0.0:
+		return
+	_theft_log.append({L_DAY: GameClock.get_day(), L_AMOUNT: amount})
+	_theft_total += amount
+	recalculate_fundamentals()
+
+
+## Tipo del deber ("delivery", "volume"...): el de la jornada (PlayerState) o el de occupations.json.
+func _duty_type(duty_id: String) -> String:
+	var duty: Dictionary = PlayerState.get_duty(duty_id)
+	if duty.has(DUTY_TYPE_KEY):
+		return str(duty[DUTY_TYPE_KEY])
+	for occupation: OccupationData in Database.get_all_occupations():
+		for definition: Dictionary in occupation.duties:
+			if str(definition.get(DUTY_ID_KEY, "")) == duty_id:
+				return str(definition.get(DUTY_TYPE_KEY, ""))
+	return ""
 
 
 # ═══ Privado: utilidades ══════════════════════════════════════════════
@@ -1680,7 +1831,8 @@ func _save_inputs() -> Dictionary:
 		"factory_efficiency": _factory_efficiency, "production_quota": _production_quota,
 		"cost_cutting": _cost_cutting, "payroll_factor": _payroll_factor,
 		"idea_modifier": _idea_modifier, "theft_total": _theft_total,
-		"quarter_profits": _quarter_profits.duplicate(),
+		"quarter_profits": _quarter_profits.duplicate(), "q_profit_sum": _q_profit_sum,
+		"q_days": _q_days, "q_last_day": _q_last_day,
 	}
 
 
@@ -1706,6 +1858,9 @@ func _load_seats(data: Dictionary) -> void:
 	_hire_count = int(data.get("hire_count", 0))
 	_hires = _entries(data.get("hires", []), [])
 	_last_fill = _as_dict(data.get("last_fill", {})).duplicate()
+	if _last_fill.has(L_DAY):
+		_last_fill[L_DAY] = int(_last_fill[L_DAY])
+	_last_offer = _string_list(data.get("last_offer", []))
 	_merits = _entries(data.get("merits", []), [L_AMOUNT])
 	_declined = _int_values(_as_dict(data.get("declined", {})))
 	_successions_done = _string_list(data.get("successions_done", []))
@@ -1727,6 +1882,9 @@ func _load_inputs(d: Dictionary) -> void:
 	_quarter_profits.clear()
 	for value: Variant in d.get("quarter_profits", []):
 		_quarter_profits.append(float(value))
+	_q_profit_sum = float(d.get("q_profit_sum", 0.0))
+	_q_days = int(d.get("q_days", 0))
+	_q_last_day = int(d.get("q_last_day", 0))
 
 
 func _load_logs(d: Dictionary) -> void:
@@ -1746,7 +1904,7 @@ func _load_fuse(d: Dictionary) -> Dictionary:
 
 
 ## Copia entradas {day, ...}: "day" y las claves int_keys vuelven a int (JSON las da en float).
-static func _entries(raw: Variant, int_keys: Array) -> Array[Dictionary]:
+static func _entries(raw: Variant, int_keys: Array[String]) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if not (raw is Array):
 		return out
@@ -1754,7 +1912,7 @@ static func _entries(raw: Variant, int_keys: Array) -> Array[Dictionary]:
 		if not (item is Dictionary):
 			continue
 		var entry: Dictionary = (item as Dictionary).duplicate()
-		for key: Variant in [L_DAY] + int_keys:
+		for key: String in [L_DAY] + int_keys:
 			if entry.has(key):
 				entry[key] = int(entry[key])
 		out.append(entry)

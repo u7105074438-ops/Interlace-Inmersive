@@ -421,7 +421,13 @@ func _status(room_id: String) -> int:
 
 
 func _base_size() -> int:
-	return get_theme_default_font_size() if has_theme_default_font_size() else UITheme.base_font_size(UITheme.current_text_size)
+	return base_font_of(self)
+
+
+## Tamaño base de letra del tema heredado (UIRoot); sin tema propio, el de UITheme vigente.
+static func base_font_of(ctrl: Control) -> int:
+	var theme_size: int = ctrl.get_theme_default_font_size()
+	return theme_size if theme_size > ThemeDB.fallback_font_size else UITheme.base_font_size(UITheme.current_text_size)
 
 
 func _wall_w() -> float:
