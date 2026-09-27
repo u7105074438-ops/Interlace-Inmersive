@@ -296,40 +296,70 @@ static func lead_note(kind: String, midi: float, gate_s: float, rate: int, seed:
 
 ## "Saxofón" sintético: sierra + cuadrada, scoop de afinación, vibrato retardado, aliento, filtro SVF.
 static func reed(p: Array, midi: float, gate_s: float, rate: int, seed: int) -> PackedFloat32Array:
-	var freq: float = SynthDSP.midi_hz(midi + float(p[R_OCTAVE]))
-	var rel: float = float(p[R_RELEASE])
-	var buf: PackedFloat32Array = SynthDSP.silence(gate_s + rel, rate)
+	var v: PackedFloat32Array = PackedFloat32Array(p)
+	var buf: PackedFloat32Array = SynthDSP.silence(gate_s + v[R_RELEASE], rate)
+	var env: PackedFloat32Array = _reed_envelope(v, gate_s, rate, buf.size())
+	var incs: PackedFloat32Array = _reed_pitch(v, SynthDSP.midi_hz(midi + v[R_OCTAVE]), rate, buf.size())
 	var noise: PackedFloat32Array = SynthDSP.noise_table()
 	var off: int = absi(seed * 7349) & SynthDSP.NOISE_MASK
-	var v: PackedFloat32Array = PackedFloat32Array(p)
-	var inc: float = freq / float(rate)
-	var dec_k: float = exp(-1.0 / (DECAY_S * rate))
-	var scoop_k: float = exp(-1.0 / (SCOOP_TAU_S * rate))
-	var vib_w: float = TAU * v[R_VIB_HZ]
+	var sq: float = v[R_SQUARE]
+	var breath: float = v[R_BREATH]
+	var cut: float = v[R_CUT]
+	var env_cut: float = v[R_ENV_CUT]
+	var damp: float = v[R_DAMP]
+	var amp: float = v[R_AMP]
 	var f_scale: float = TAU / float(rate)
 	var max_fc: float = float(rate) / FILTER_CEILING_DIV
-	var dec: float = 1.0
-	var scoop: float = v[R_SCOOP]
 	var ph: float = 0.0
 	var low: float = 0.0
 	var band: float = 0.0
 	for i: int in buf.size():
-		var t: float = float(i) / rate
-		var env: float = minf(1.0, t / v[R_ATTACK]) * (SUSTAIN + (1.0 - SUSTAIN) * dec) \
-				* clampf(1.0 - (t - gate_s) / rel, 0.0, 1.0)
-		var depth: float = v[R_VIB_CENTS] * clampf((t - v[R_VIB_DELAY]) / VIBRATO_FADE_S, 0.0, 1.0)
-		ph += inc * (1.0 + (depth * sin(vib_w * t) - scoop) * CENT_LINEAR)
+		ph += incs[i]
 		if ph >= 1.0:
 			ph -= 1.0
-		dec *= dec_k
-		scoop *= scoop_k
-		var x: float = (2.0 * ph - 1.0) * (1.0 - v[R_SQUARE]) + (v[R_SQUARE] if ph < 0.5 else -v[R_SQUARE])
-		x += noise[(off + i) & SynthDSP.NOISE_MASK] * v[R_BREATH] * (BREATH_FLOOR + env)
-		var f: float = f_scale * minf(v[R_CUT] + v[R_ENV_CUT] * env, max_fc)
+		var e: float = env[i]
+		var x: float = (2.0 * ph - 1.0) * (1.0 - sq) + (sq if ph < 0.5 else -sq)
+		x += noise[(off + i) & SynthDSP.NOISE_MASK] * breath * (BREATH_FLOOR + e)
+		var f: float = f_scale * minf(cut + env_cut * e, max_fc)
 		low += f * band
-		band += f * (x - low - v[R_DAMP] * band)
-		buf[i] = low * env * v[R_AMP]
+		band += f * (x - low - damp * band)
+		buf[i] = low * e * amp
 	return buf
+
+
+## Envolvente del saxo: ataque lineal, caída a sostenido, relajación lineal tras la puerta.
+static func _reed_envelope(v: PackedFloat32Array, gate_s: float, rate: int, n: int) -> PackedFloat32Array:
+	var env: PackedFloat32Array = PackedFloat32Array()
+	env.resize(n)
+	var att: float = maxf(1.0, v[R_ATTACK] * rate)
+	var gate: float = gate_s * rate
+	var rel: float = maxf(1.0, v[R_RELEASE] * rate)
+	var dec_k: float = exp(-1.0 / (DECAY_S * rate))
+	var dec: float = 1.0
+	for i: int in n:
+		var fi: float = float(i)
+		env[i] = minf(1.0, fi / att) * (SUSTAIN + (1.0 - SUSTAIN) * dec) \
+				* clampf(1.0 - (fi - gate) / rel, 0.0, 1.0)
+		dec *= dec_k
+	return env
+
+
+## Incremento de fase por muestra: scoop inicial (entra calado) + vibrato retardado.
+static func _reed_pitch(v: PackedFloat32Array, freq: float, rate: int, n: int) -> PackedFloat32Array:
+	var incs: PackedFloat32Array = PackedFloat32Array()
+	incs.resize(n)
+	var inc: float = freq / float(rate)
+	var scoop_k: float = exp(-1.0 / (SCOOP_TAU_S * rate))
+	var scoop: float = v[R_SCOOP]
+	var vib_w: float = TAU * v[R_VIB_HZ] / float(rate)
+	var vib_c: float = v[R_VIB_CENTS]
+	var delay: float = v[R_VIB_DELAY] * rate
+	var fade: float = VIBRATO_FADE_S * rate
+	for i: int in n:
+		var depth: float = vib_c * clampf((float(i) - delay) / fade, 0.0, 1.0)
+		incs[i] = inc * (1.0 + (depth * sin(vib_w * float(i)) - scoop) * CENT_LINEAR)
+		scoop *= scoop_k
+	return incs
 
 
 ## Flauta: seno + armónico + aliento, vibrato suave (doblaje orquestal de las plantas altas).
