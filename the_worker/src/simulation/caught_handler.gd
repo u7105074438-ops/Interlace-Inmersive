@@ -14,9 +14,10 @@ extends Node
 ## Sin elección en flagrancia.plazo_decision_segundos, el personaje reacciona según el
 ## caught_reaction de su arquetipo (apply_caught_reaction). Una flagrancia que llega con la
 ## ventana abierta espera en cola.
-## Dependencias sustituibles (herramientas y pruebas): npc_resolver (id → NPCRuntime, por
-## defecto NPCDirector.get_npc), wallet (can_afford/spend_money, por defecto PlayerState),
-## population_source (→ Array[NPCRuntime], por defecto NPCDirector.get_all_npcs).
+## El reloj se ralentiza a flagrancia.multiplicador_tiempo y al cerrar vuelve al ritmo previo.
+## Dependencias sustituibles (herramientas y pruebas): npc_resolver (id → NPCRuntime; si no está
+## o devuelve null, NPCDirector.get_npc), wallet (can_afford/spend_money, por defecto
+## PlayerState), population_source (→ Array[NPCRuntime], por defecto NPCDirector.get_all_npcs).
 
 signal decision_window_opened(npc_id: String, options: Dictionary)
 signal decision_window_updated(npc_id: String, options: Dictionary)
@@ -30,7 +31,6 @@ const REASON_NO_WINDOW := "no_window"
 const REASON_WITNESSES := "witnesses"
 const REMOVAL_CAUSE := "eliminated"
 const CRIME_ELIMINATION := "elimination"
-const NEUTRAL_SPEED := 1.0
 
 const REACTION_SECURITY := "report_to_security"
 const REACTION_SUPERIOR := "report_to_superior"
@@ -64,6 +64,7 @@ var population_source: Callable = Callable()
 var _window: Dictionary = {}
 var _queue: Array[Dictionary] = []
 var _time_slowed: bool = false
+var _speed_before: float = 1.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
@@ -89,7 +90,7 @@ func reset_for_new_run() -> void:
 
 func save_state() -> Dictionary:
 	return {"window": _window.duplicate(true), "queue": _queue.duplicate(true),
-			"rng_state": str(_rng.state)}
+			"rng_state": str(_rng.state), "speed_before": _speed_before}
 
 
 func load_state(data: Dictionary) -> void:
@@ -102,6 +103,7 @@ func load_state(data: Dictionary) -> void:
 	if not window.is_empty():
 		_window = window.duplicate(true)
 		_slow_time()
+		_speed_before = float(data.get("speed_before", _speed_before))
 		decision_window_opened.emit(str(_window["npc_id"]), get_options())
 
 
@@ -133,7 +135,8 @@ func get_options() -> Dictionary:
 		"seconds_left": float(_window["remaining"]),
 		OPTION_BRIBE: {"enabled": affordable and npc != null, "price": price,
 				"favour": Bribery.FAVOUR_SILENCE, "channel": Bribery.CHANNEL_IMMEDIATE,
-				"counteroffer": countered, "label_key": LABEL_COUNTEROFFER if countered else LABEL_BRIBE,
+				"counteroffer": countered,
+				"label_key": LABEL_COUNTEROFFER if countered else LABEL_BRIBE,
 				"disabled_reason_key": "" if affordable else LABEL_NO_FUNDS},
 		OPTION_ELIMINATE: {"enabled": witnesses == 0, "flagged_red": witnesses > 0,
 				"label_key": LABEL_ELIMINATE,
@@ -188,6 +191,14 @@ func advance_timer(seconds: float) -> void:
 		resolve_inaction()
 
 
+## Tick diario del chantaje (lo dispara day_advanced): exigencias que vencen y plazos agotados.
+func process_blackmail_day(day_number: int) -> Array[Dictionary]:
+	var population: Array[NPCRuntime] = []
+	if population_source.is_valid():
+		population.assign(population_source.call())
+	return Blackmail.process_day(day_number, population)
+
+
 ## La tercera consecuencia: sin elección, el personaje actúa según su arquetipo.
 ## roll < 0 = tirada del RNG propio (semilla de partida).
 func resolve_inaction(roll: float = -1.0) -> Dictionary:
@@ -218,7 +229,8 @@ static func apply_caught_reaction(npc: NPCRuntime, crime_type: String, location:
 	var reaction: String = archetype_reaction(npc.archetype)
 	if reaction == REACTION_INDIFFERENT:
 		if roll < Bribery.tunable("flagrancia.prob_indiferencia"):
-			return _decide(npc, reaction, ACTION_IGNORE, crime_type, location, {"indifferent": true})
+			return _decide(npc, reaction, ACTION_IGNORE, crime_type, location,
+					{"indifferent": true})
 		reaction = REACTION_REMEMBERS
 	match reaction:
 		REACTION_SECURITY:
@@ -308,10 +320,7 @@ func _on_player_caught_redhanded(npc_id: String, crime_type: String, witnesses: 
 
 
 func _on_day_advanced(day_number: int) -> void:
-	var population: Array[NPCRuntime] = []
-	if population_source.is_valid():
-		population.assign(population_source.call())
-	Blackmail.process_day(day_number, population)
+	process_blackmail_day(day_number)
 
 
 func _open(caught: Dictionary) -> bool:
@@ -321,7 +330,7 @@ func _open(caught: Dictionary) -> bool:
 	_window = caught.duplicate(true)
 	_window["remaining"] = Bribery.tunable("flagrancia.plazo_decision_segundos")
 	_window["asked_price"] = 0
-	_window["room_id"] = _room_of(npc)
+	_window["room_id"] = Bribery.npc_location(npc)
 	_slow_time()
 	decision_window_opened.emit(npc.id, get_options())
 	return true
@@ -364,30 +373,27 @@ func _is_queued(npc_id: String) -> bool:
 	return false
 
 
+## Guarda el ritmo previo (p. ej. 0,4 dentro del ordenador) para restaurarlo al cerrar.
 func _slow_time() -> void:
+	if not _time_slowed:
+		_speed_before = GameClock.get_speed_multiplier()
 	GameClock.set_speed_multiplier(Bribery.tunable("flagrancia.multiplicador_tiempo"))
 	_time_slowed = true
 
 
 func _restore_time() -> void:
 	if _time_slowed:
-		GameClock.set_speed_multiplier(NEUTRAL_SPEED)
+		GameClock.set_speed_multiplier(_speed_before)
 	_time_slowed = false
 
 
 func _resolve(npc_id: String) -> NPCRuntime:
-	if npc_resolver.is_valid():
-		return npc_resolver.call(npc_id) as NPCRuntime
-	return NPCDirector.get_npc(npc_id)
+	var npc: NPCRuntime = npc_resolver.call(npc_id) as NPCRuntime if npc_resolver.is_valid() else null
+	return npc if npc != null else NPCDirector.get_npc(npc_id)
 
 
 func _wallet() -> Object:
 	return wallet if wallet != null else PlayerState
-
-
-func _room_of(npc: NPCRuntime) -> String:
-	var location: String = NPCDirector.get_current_location(npc.id)
-	return location if not location.is_empty() else npc.current_room
 
 
 func _seed() -> int:

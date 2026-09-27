@@ -95,10 +95,11 @@ func _cert(id: String) -> float:
 	return b.certainty if b != null else -1.0
 
 
-## Credibilidad esperada según §7.2 + BUILD_NOTES §13 (reputación de NPCDirector o 50 por defecto).
+## Credibilidad esperada según §7.2 + BUILD_NOTES §13 (reputación de NPCDirector o 50 por defecto;
+## el archivo de registros no es un personaje).
 func _cred(holder: String) -> float:
 	var rep: float = 0.0
-	if NPCDirector.has_method("get_npc_reputation"):
+	if holder != "archive" and NPCDirector.has_method("get_npc_reputation"):
 		rep = float(NPCDirector.call("get_npc_reputation", holder))
 	if rep <= 0.0:
 		rep = _bal("creencias.reputacion_portador_por_defecto")
@@ -128,7 +129,7 @@ func _test_manual_numbers() -> void:
 	check_near(_bal("creencias.certeza_parcial"), MANUAL_PARTIAL, EPS, "balance: partial 0.35")
 	check_near(_bal("creencias.certeza_directa_completa"), MANUAL_DIRECT, EPS, "balance: 0.90")
 	check_near(_bal("creencias.descuento_por_transmision"), MANUAL_ORAL, EPS, "balance: ×0.75")
-	check_near(_bal("creencias.amplificacion_rumor_max"), MANUAL_AMPLIFICATION, EPS, "balance ×1.15")
+	check_near(_bal("creencias.amplificacion_rumor_max"), MANUAL_AMPLIFICATION, EPS, "×1.15")
 	check_near(_bal("creencias.decaimiento_diario"), MANUAL_DECAY, EPS, "balance: 0.08/day")
 	check_near(_bal("creencias.umbral_olvido"), MANUAL_FORGET, EPS, "balance: forget < 0.10")
 	check_near(_bal("investigaciones.pesos_evidencia.grabacion_camara"), MANUAL_FOOTAGE, EPS,
@@ -238,7 +239,8 @@ func _test_difficulty_preset() -> void:
 	var default_preset: String = str(Database.get_balance("presets_por_defecto"))
 	check(Database.set_difficulty_preset("interno"), "switch to the 'interno' preset")
 	_fresh()
-	var mine: String = BeliefNet.create_belief("npc_t_a", PLAYER, THEFT, MANUAL_DIRECT, "direct", "")
+	var mine: String = BeliefNet.create_belief("npc_t_a", PLAYER, THEFT, MANUAL_DIRECT,
+			"direct", "")
 	var other: String = BeliefNet.create_belief("npc_t_a", "npc_t_x", THEFT, MANUAL_DIRECT,
 			"direct", "")
 	BeliefNet.apply_daily_decay()
@@ -285,6 +287,7 @@ func _test_crime_records() -> void:
 	check(left.size() == 1 and left[0].fact == "footage:cam_b", "footage_deleted erases cam_a only")
 	EventBus.crime_committed.emit("footage_deleted", "monitor_room", {})
 	check_eq(BeliefNet.get_records_about(PLAYER).size(), 1, "no selection → nothing erased")
+	_check_digital_records_deleted()
 	EventBus.crime_committed.emit("forgery", "c10_office", {})
 	var stamped: Array[Belief] = BeliefNet.get_records_about(PLAYER)
 	check(stamped.size() == 2 and stamped[1].record_type == "stamped_document",
@@ -294,7 +297,8 @@ func _test_crime_records() -> void:
 	EventBus.crime_committed.emit("fraud", "accounting", {})
 	var pending: Array[Dictionary] = BeliefNet.get_pending_records()
 	check_eq(pending.size(), 1, "fraud: the accounting trail is delayed (§12.4)")
-	var due: int = GameClock.get_day() + _bal_int("creencias.registros_por_delito.fraud.retardo_dias")
+	var delay: int = _bal_int("creencias.registros_por_delito.fraud.retardo_dias")
+	var due: int = GameClock.get_day() + delay
 	check_eq(int(pending[0]["due_day"]) if pending.size() == 1 else -1, due, "due day")
 	EventBus.day_advanced.emit(due - 1)
 	check_eq(BeliefNet.get_records_about(PLAYER).size(), 2, "not yet surfaced the day before")
@@ -306,6 +310,16 @@ func _test_crime_records() -> void:
 		check_near(surfaced[2].weight, MANUAL_ACCOUNTING, EPS, "accounting trail weight 3.0")
 		check_eq(surfaced[2].timestamp, due, "stamped with the day it surfaces")
 	check(BeliefNet.get_pending_records().is_empty(), "no pending records left")
+
+
+## records_deleted (sala de servidores) borra registros de tarjeta y de chat, no grabaciones.
+func _check_digital_records_deleted() -> void:
+	var card: String = BeliefNet.create_record("card_log", PLAYER, MANUAL_CARD, "lobby")
+	var chat: String = BeliefNet.create_record("chat_log", PLAYER, MANUAL_CARD, "wing_3b")
+	EventBus.crime_committed.emit("records_deleted", "server_room", {"subject": PLAYER})
+	check(BeliefNet.get_belief(card) == null and BeliefNet.get_belief(chat) == null,
+			"records_deleted erases card and chat logs about the player")
+	check_eq(BeliefNet.get_records_about(PLAYER).size(), 1, "... but not the footage")
 
 
 func _bal_int(path: String) -> int:
@@ -375,16 +389,21 @@ func _test_report_and_clamp() -> void:
 	_fresh()
 	var before: float = BeliefNet.calculate_player_suspicion()
 	check_near(before, 0.0, EPS, "no beliefs → suspicion 0")
-	EventBus.npc_reported_player.emit("npc_t_hardliner", "security", MANUAL_REPORT_WEIGHT, "p15")
+	EventBus.npc_reported_player.emit("npc_t_hardliner", "security", MANUAL_REPORT_SUSPICION, "p15")
 	var report: Belief = _only(BeliefNet.get_beliefs_held_by("npc_t_hardliner"), "report belief")
 	check_eq(report.fact, "reported:security", "report fact")
-	check_near(report.weight, MANUAL_REPORT_WEIGHT, EPS, "the report keeps the signal's weight")
+	var certainty: float = _bal("creencias.certeza_denuncia")
+	var divisor: float = _bal("creencias.divisor_normalizacion")
+	var default_cred: float = _bal("creencias.reputacion_portador_por_defecto") \
+			* _bal("creencias.mod_credibilidad_por_reputacion")
+	check_near(report.weight, MANUAL_REPORT_SUSPICION * divisor
+			/ (SUSPICION_MAX * default_cred * certainty), EPS, "report points → belief weight")
 	var delta: float = BeliefNet.calculate_player_suspicion() - before
-	var expected: float = _bal("creencias.certeza_denuncia") * _cred("npc_t_hardliner") \
-			* MANUAL_REPORT_WEIGHT * SUSPICION_MAX / _bal("creencias.divisor_normalizacion")
-	check_near(delta, expected, EPS, "report adds certainty × credibility × weight")
+	check_near(delta, certainty * _cred("npc_t_hardliner") * report.weight * SUSPICION_MAX
+			/ divisor, EPS, "the report adds certainty × credibility × weight")
 	if _documented_calibration(["npc_t_hardliner"]):
 		check_near(delta, MANUAL_REPORT_SUSPICION, EPS, "§12.2: report to Security → suspicion +20")
+		check_near(report.weight, MANUAL_REPORT_WEIGHT, EPS, "... = weight 4.0 (§12.3 report)")
 	for _i: int in 20:
 		BeliefNet.create_record("footage", PLAYER, MANUAL_FOOTAGE, CORRIDOR)
 	check_near(BeliefNet.calculate_player_suspicion(), SUSPICION_MAX, EPS, "clamped to 100")
@@ -405,7 +424,8 @@ func _test_reputation_modulators() -> void:
 	EventBus.player_caught_redhanded.emit("npc_t_b", "theft_small", 1)
 	var caught: Belief = _only(BeliefNet.get_beliefs_held_by("npc_t_b"), "flagrancy at rep 80")
 	check_near(caught.certainty, MANUAL_DIRECT + birth * rep, EPS, "rep 80: 0.90 − 0.16 = 0.74")
-	var neutral: String = BeliefNet.create_belief("npc_t_c", PLAYER, "hard_worker", 0.6, "direct", "")
+	var neutral: String = BeliefNet.create_belief("npc_t_c", PLAYER, "hard_worker", 0.6,
+			"direct", "")
 	var other: String = BeliefNet.create_belief("npc_t_c", "npc_t_x", THEFT, 0.5, "direct", "")
 	check_near(_cert(neutral), 0.6, EPS, "non-negative beliefs are born intact")
 	check_near(_cert(other), 0.5, EPS, "beliefs about NPCs are born intact")
@@ -444,7 +464,8 @@ func _test_reinforcement_and_merge() -> void:
 	BeliefNet.reinforce_belief(id, -0.5)
 	check(BeliefNet.get_belief(id) == null and _forgotten.has(id),
 			"a negative reinforcement below 0.10 forgets the belief")
-	var src: String = BeliefNet.create_belief("npc_t_b", PLAYER, THEFT, MANUAL_DIRECT, "direct", ROOM)
+	var src: String = BeliefNet.create_belief("npc_t_b", PLAYER, THEFT, MANUAL_DIRECT,
+			"direct", ROOM)
 	var copy1: String = BeliefNet.transfer_belief(src, "npc_t_c", 0.5)
 	var copy2: String = BeliefNet.transfer_belief(src, "npc_t_c", MANUAL_ORAL)
 	check_eq(copy2, copy1, "hearing the same rumour again reuses the belief")
@@ -479,10 +500,11 @@ func _test_save_load_round_trip() -> void:
 	_fresh(30.0)
 	EventBus.player_seen_partially.emit("npc_t_a", MANUAL_PARTIAL, ROOM)
 	var partial: String = BeliefNet.get_beliefs_held_by("npc_t_a")[0].id
-	var caught: String = BeliefNet.create_belief("npc_t_b", PLAYER, THEFT, MANUAL_DIRECT, "direct", "")
+	var caught: String = BeliefNet.create_belief("npc_t_b", PLAYER, THEFT, MANUAL_DIRECT,
+			"direct", "")
 	BeliefNet.transfer_belief(caught, "npc_t_c", MANUAL_ORAL)
 	EventBus.camera_recorded_player.emit("cam_s", CORRIDOR, 7)
-	EventBus.npc_reported_player.emit("npc_t_d", "superior", 2.0, ROOM)
+	EventBus.npc_reported_player.emit("npc_t_d", "superior", 10.0, ROOM)
 	EventBus.crime_committed.emit("fraud", "accounting", {})
 	BeliefNet.apply_daily_decay()
 	var ids: Array[String] = []

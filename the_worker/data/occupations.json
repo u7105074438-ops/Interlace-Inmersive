@@ -794,7 +794,7 @@
       "daily_wage": 75,
       "commission": true,
       "office_room": "senior_sales_offices",
-      "desk_position": [6, 11],
+      "desk_position": [10, 11],
       "floor": 11,
       "wing": "",
       "department": "sales_marketing",

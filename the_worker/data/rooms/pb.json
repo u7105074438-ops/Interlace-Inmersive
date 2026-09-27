@@ -104,7 +104,7 @@
       "floor": 0,
       "wing": null,
       "clearance_required": 5,
-      "special_access": ["security"],
+      "special_access": ["guard"],
       "special_access_mode": "and",
       "art_band": "the_pit",
       "kit": "lobby",

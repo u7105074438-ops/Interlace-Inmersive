@@ -61,6 +61,27 @@
     {
      "type": "chair",
      "pos": [
+      6,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
       11,
       4
      ],
@@ -777,6 +798,27 @@
       9
      ],
      "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      7
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
     }
    ],
    "hiding_spots": [],
@@ -867,6 +909,27 @@
      "type": "desk",
      "pos": [
       8,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      4,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      4,
       3
      ],
      "rotation": 0,

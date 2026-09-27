@@ -385,6 +385,69 @@
      "owner": "generated"
     },
     {
+     "type": "chair",
+     "pos": [
+      10,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      6
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      7
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      10
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      11
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "vacant"
+    },
+    {
      "type": "plant",
      "pos": [
       11,

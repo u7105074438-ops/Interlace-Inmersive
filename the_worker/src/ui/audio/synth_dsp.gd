@@ -84,15 +84,25 @@ static func tone_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s:
 	var k: float = exp(-1.0 / (tau_s * rate)) if tau_s > 0.0 else 1.0
 	var att: float = maxf(1.0, attack_s * rate)
 	var guard: float = maxf(1.0, CLICK_GUARD_S * rate)
-	var env: float = 1.0
+	var env: float = amp
 	var ph: float = 0.0
+	var inc: float = f0 / rate
+	var dinc: float = (f1 - f0) / (float(rate) * float(maxi(1, n)))
 	for i: int in n:
-		var f: float = f0 + (f1 - f0) * float(i) / float(n)
-		ph += f / rate
+		ph += inc
+		inc += dinc
 		if ph >= 1.0:
 			ph -= floorf(ph)
-		var edge: float = minf(1.0, minf(float(i) / att, float(n - i) / guard))
-		buf[start + i] += osc(wave, ph) * amp * env * edge
+		var v: float
+		if wave == Wave.SAW:
+			v = 2.0 * ph - 1.0
+		elif wave == Wave.SQUARE:
+			v = 1.0 if ph < 0.5 else -1.0
+		elif wave == Wave.TRIANGLE:
+			v = 1.0 - 4.0 * absf(ph - 0.5)
+		else:
+			v = sin(TAU * ph)
+		buf[start + i] += v * env * minf(1.0, minf(float(i) / att, float(n - i) / guard))
 		env *= k
 
 

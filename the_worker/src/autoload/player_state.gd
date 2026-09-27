@@ -32,8 +32,13 @@ extends Node
 ##    DutySystem/Company. Los fallos consecutivos vuelven a 0 al cerrar una jornada sin fallos y con
 ##    algún deber cumplido.
 ##  · Inventario: 8 posiciones (inventario.capacidad). Apilables comparten posición (ItemData.stack
-##    = unidades). Herramientas de puesto (post_tool) no ocupan posición: has_item() es true si la
-##    ocupación las concede. El efectivo ordinario se convierte en capital al recogerlo.
+##    = unidades). Herramientas de puesto (kind post_tool) no se pueden recoger. El efectivo
+##    ordinario se convierte en capital al recogerlo.
+##  · Material entregado por el puesto (occupation.tools: llaves, estampa, uniforme del limpiador,
+##    llaves maestras del vigilante...): has_item() es true aunque no se lleve encima, y si se lleva
+##    NO cuenta como comprometedor mientras la ocupación actual lo entregue (get_inventory() devuelve
+##    su copia como "ordinary" con extra.issued = true). Al dejar el puesto, lo que se conserve
+##    vuelve a ser comprometedor (uniforme que ya no corresponde).
 ##  · Alijos: stash_item() en un escondite de trash_dock equivale a dispose_item(id, "trash_dock").
 ##  · Ejes de seguimiento: los posee Tracking. add_tracking() solo emite tracking_event_recorded;
 ##    get_tracking()/get_dominant_axis() leen Tracking.
@@ -60,6 +65,7 @@ const METHOD_CONFISCATED := "confiscated"
 const REASON_DUTY_FAILED := "duty_failed"
 const CASH_REASON_FORMAT := "cash_pickup:%s"
 const DEFAULT_NAME_KEY := "PLAYER_DEFAULT_NAME"
+const EXTRA_ISSUED := "issued"
 const MINUTES_PER_HOUR := 60
 const MINUTES_PER_DAY := 1440
 
@@ -292,16 +298,21 @@ func _set_suspicion_from_beliefnet(value: float) -> void:
 
 # ─── Inventario ────────────────────────────────────────────────
 
-## Copias (una por posición; stack = unidades).
+## Copias (una por posición; stack = unidades). Lo que entrega el puesto actual figura como
+## "ordinary" con extra.issued = true (no es comprometedor para quien lo tiene asignado).
 func get_inventory() -> Array[ItemData]:
 	var out: Array[ItemData] = []
 	for item: ItemData in _slots:
-		out.append(_copy_item(item))
+		var copy: ItemData = _copy_item(item)
+		if _is_issued(item.id):
+			copy.category = ItemData.CATEGORY_ORDINARY
+			copy.extra[EXTRA_ISSUED] = true
+		out.append(copy)
 	return out
 
 
-## false si está lleno o si es una herramienta de puesto. El efectivo ordinario pasa al capital
-## (money_changed) y devuelve true sin ocupar posición.
+## false si está lleno o si es una herramienta de puesto (kind post_tool). El efectivo ordinario
+## pasa al capital (money_changed) y devuelve true sin ocupar posición.
 func add_item(item_id: String) -> bool:
 	return add_item_data(InventoryRules.make_item(item_id))
 
@@ -332,20 +343,20 @@ func remove_item(item_id: String) -> bool:
 	return true
 
 
-## true si está en el inventario o es una herramienta de puesto de la ocupación actual.
+## true si está en el inventario o si lo entrega la ocupación actual (occupation.tools).
 func has_item(item_id: String) -> bool:
-	return _find_slot(item_id) >= 0 or _grants_post_tool(item_id)
+	return _find_slot(item_id) >= 0 or _is_issued(item_id)
 
 
 func has_hot_items() -> bool:
 	return get_hot_item_count() > 0
 
 
-## Unidades comprometedoras transportadas.
+## Unidades comprometedoras transportadas (sin contar el material entregado por el puesto actual).
 func get_hot_item_count() -> int:
 	var count: int = 0
 	for item: ItemData in _slots:
-		if item.is_compromising():
+		if _is_hot(item):
 			count += item.stack
 	return count
 
@@ -380,7 +391,7 @@ func confiscate_hot_items() -> Array[String]:
 	var taken: Array[String] = []
 	for index: int in range(_slots.size() - 1, -1, -1):
 		var item: ItemData = _slots[index]
-		if not item.is_compromising():
+		if not _is_hot(item):
 			continue
 		for _unit: int in item.stack:
 			taken.append(item.id)
@@ -795,11 +806,13 @@ func _take_unit(index: int) -> ItemData:
 	return unit
 
 
-func _grants_post_tool(item_id: String) -> bool:
-	if _occupation == null or not _occupation.tools.has(item_id):
-		return false
-	var item: ItemData = Database.get_item(item_id)
-	return item != null and not InventoryRules.occupies_slot(item)
+## Material entregado por la ocupación actual (occupation.tools).
+func _is_issued(item_id: String) -> bool:
+	return _occupation != null and _occupation.tools.has(item_id)
+
+
+func _is_hot(item: ItemData) -> bool:
+	return item.is_compromising() and not _is_issued(item.id)
 
 
 # ─── Interno: alijos ───────────────────────────────────────────

@@ -101,6 +101,20 @@ static func get_open_demand(npc: NPCRuntime) -> Dictionary:
 	return {}
 
 
+## Exigencias abiertas de la población (para el móvil): [{npc_id, demand_type, amount,
+## deadline_day, kind}]. npcs vacío = NPCDirector.get_all_npcs().
+static func get_open_demands(npcs: Array[NPCRuntime] = []) -> Array[Dictionary]:
+	var population: Array[NPCRuntime] = npcs if not npcs.is_empty() else NPCDirector.get_all_npcs()
+	var out: Array[Dictionary] = []
+	for npc: NPCRuntime in population:
+		var entry: Dictionary = get_open_demand(npc) if npc != null and npc.alive else {}
+		if not entry.is_empty():
+			out.append({"npc_id": npc.id, "demand_type": entry["demand_type"],
+					"amount": int(entry["amount"]), "deadline_day": int(entry["deadline_day"]),
+					"kind": entry["kind"]})
+	return out
+
+
 ## Avance diario: emite las exigencias que tocan y da por rechazadas las que vencen.
 ## npcs vacío = NPCDirector.get_all_npcs(). Devuelve los sucesos producidos.
 static func process_day(day: int, npcs: Array[NPCRuntime] = []) -> Array[Dictionary]:
@@ -138,8 +152,10 @@ static func issue_demand(npc: NPCRuntime, entry: Dictionary, day: int) -> Dictio
 static func demand_amount(npc: NPCRuntime, entry: Dictionary) -> int:
 	if entry.get("demand_type", "") != DEMAND_MONEY:
 		return 0
-	return roundi(Bribery.npc_daily_wage(npc) * Bribery.tunable("chantaje.multiplicador_exigencia_dinero")
-			* pow(Bribery.tunable("chantaje.factor_escalada"), int(entry.get("demands_made", 0))))
+	var escalation: float = pow(Bribery.tunable("chantaje.factor_escalada"),
+			int(entry.get("demands_made", 0)))
+	return roundi(Bribery.npc_daily_wage(npc)
+			* Bribery.tunable("chantaje.multiplicador_exigencia_dinero") * escalation)
 
 
 ## Cumplir la exigencia abierta. Dinero: se cobra de ctx.wallet (PlayerState por defecto).
@@ -198,7 +214,8 @@ static func _pay_cost(npc: NPCRuntime, entry: Dictionary, ctx: Dictionary) -> Di
 	var cost: float = Bribery.tunable(str(REPUTATION_COST_KEYS[demand_type]))
 	var magnitude: int = Bribery.tunable_int(str(FAVOUR_MAGNITUDE_KEYS[demand_type]))
 	PlayerState.modify_reputation(-cost, REPUTATION_REASON)
-	NPCDirector.add_favour(npc.id, FAVOUR_TYPE_FORMAT % demand_type, magnitude)
+	if Bribery.is_managed(npc):
+		NPCDirector.add_favour(npc.id, FAVOUR_TYPE_FORMAT % demand_type, magnitude)
 	result["reputation_cost"] = cost
 	result["favour_magnitude"] = magnitude
 	return result
@@ -207,16 +224,16 @@ static func _pay_cost(npc: NPCRuntime, entry: Dictionary, ctx: Dictionary) -> Di
 static func _refuse_entry(npc: NPCRuntime, entry: Dictionary, event: String,
 		ctx: Dictionary) -> Dictionary:
 	entry["status"] = STATUS_USED
-	var brave: bool = npc.get_trait("courage") >= Bribery.tunable_int("chantaje.umbral_valentia_denuncia")
+	var brave: bool = npc.get_trait("courage") \
+			>= Bribery.tunable_int("chantaje.umbral_valentia_denuncia")
 	var report_type: String = REPORT_SECURITY if brave else REPORT_ANONYMOUS
 	var weight: float = Bribery.tunable("chantaje.peso_denuncia_rechazo" if brave
 			else "chantaje.peso_chivatazo_anonimo")
-	var location: String = str(ctx.get("room_id", NPCDirector.get_current_location(npc.id)))
-	if location.is_empty():
-		location = npc.current_room
+	var location: String = str(ctx["room_id"]) if ctx.has("room_id") else Bribery.npc_location(npc)
 	EventBus.npc_reported_player.emit(npc.id, report_type, weight, location)
-	NPCDirector.add_grievance(npc.id, GRIEVANCE_REFUSED,
-			Bribery.tunable_int("chantaje.gravedad_agravio_rechazo"))
+	if Bribery.is_managed(npc):
+		NPCDirector.add_grievance(npc.id, GRIEVANCE_REFUSED,
+				Bribery.tunable_int("chantaje.gravedad_agravio_rechazo"))
 	return {"ok": true, "npc_id": npc.id, "event": event, "report_type": report_type,
 			"weight": weight, "text_key": TEXT_REFUSED}
 

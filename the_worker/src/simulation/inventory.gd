@@ -20,7 +20,8 @@ extends RefCounted
 ##   de peso investigaciones.pesos_evidencia.objeto_comprometedor (10) y el caso se cierra contra el
 ##   jugador; el grado sale de los umbrales de condena modulados por la sospecha
 ##   (umbral + mod_umbral_por_sospecha × sospecha): "conviction_major" si el peso supera el umbral
-##   grave, "conviction_minor" si alcanza el leve, "clean" sin objetos comprometedores.
+##   grave, "conviction_minor" si alcanza el leve, "clean" sin objetos comprometedores
+##   ("evidence_noted" = peso positivo por debajo del umbral leve; solo vía classify_evidence).
 
 const LOC_DESK := "desk"
 const LOC_LOCKER := "locker"
@@ -59,6 +60,7 @@ const FALLBACK_NAME_KEY_FORMAT := "ITEM_%s"
 const UNKNOWN_ITEM_WARNING := "InventoryRules: objeto '%s' ausente del catálogo balance.objetos; se aplica la regla de respaldo (%s)."
 
 const OUTCOME_CLEAN := "clean"
+const OUTCOME_EVIDENCE_NOTED := "evidence_noted"
 const OUTCOME_CONVICTION_MINOR := "conviction_minor"
 const OUTCOME_CONVICTION_MAJOR := "conviction_major"
 const OUTCOME_KEY_FORMAT := "SEARCH_OUTCOME_%s"
@@ -68,7 +70,7 @@ const SECURITY_KEY_FORMAT := "HIDE_SECURITY_%s"
 
 const P_DEFAULT_CATEGORY := "inventario.categoria_por_defecto"
 const P_ORDINARY_PREFIXES := "inventario.prefijos_ordinarios"
-const P_BULKY_KINDS := "inventario.clases_voluminosas"
+const P_BULKY_ITEMS := "inventario.objetos_voluminosos"
 const P_LOCATION_FORMAT := "inventario.escondites.%s.%s"
 const P_WEIGHT_ITEM := "investigaciones.pesos_evidencia.objeto_comprometedor"
 const P_MINOR_THRESHOLD := "investigaciones.umbral_condena_leve"
@@ -137,7 +139,7 @@ static func is_pocket_cash(item: ItemData) -> bool:
 
 
 static func is_bulky(item: ItemData) -> bool:
-	return _balance_array(P_BULKY_KINDS).has(get_kind(item))
+	return _balance_array(P_BULKY_ITEMS).has(item.id)
 
 
 # ─── Ubicaciones de ocultación ─────────────────────────────────
@@ -181,7 +183,7 @@ static func find_spot(room_id: String, spot_id: String) -> Dictionary:
 
 ## ¿Se puede ocultar `item_id` en un escondite de este tipo (o ubicación)? No admiten objetos las
 ## cortinas, las herramientas de puesto ni el efectivo de bolsillo; los objetos voluminosos
-## (inventario.clases_voluminosas) no caben donde admite_voluminosos = false (escritorio, conductos).
+## (inventario.objetos_voluminosos) no caben donde admite_voluminosos = false (escritorio, conductos).
 static func can_hide_in(spot_type: String, item_id: String) -> bool:
 	var location: String = spot_location(spot_type, "")
 	if location.is_empty():
@@ -272,7 +274,8 @@ static func resolve_body_search(player_items: Array, suspicion: float) -> Dictio
 	}
 
 
-## Grado de la evidencia según §12.3 fase 5 con la modulación de §12.4.
+## Grado de la evidencia según §12.3 fase 5 con la modulación de §12.4:
+## "clean" (peso 0) | "evidence_noted" | "conviction_minor" | "conviction_major".
 static func classify_evidence(weight: float, suspicion: float) -> String:
 	if weight <= 0.0:
 		return OUTCOME_CLEAN
@@ -281,7 +284,7 @@ static func classify_evidence(weight: float, suspicion: float) -> String:
 		return OUTCOME_CONVICTION_MAJOR
 	if weight >= Database.get_balance_float(P_MINOR_THRESHOLD) + shift:
 		return OUTCOME_CONVICTION_MINOR
-	return OUTCOME_CLEAN
+	return OUTCOME_EVIDENCE_NOTED
 
 
 static func get_outcome_key(outcome: String) -> String:

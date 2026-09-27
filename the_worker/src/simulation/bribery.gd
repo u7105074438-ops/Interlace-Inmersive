@@ -1,5 +1,5 @@
 # bribery.gd — Sobornos (§8.2): precio justo, probabilidad de aceptación, rechazo y canales.
-# PROPIETARIO DE: nada (librería sin estado: dinero de PlayerState, creencias de BeliefNet, material de chantaje en NPCRuntime vía Blackmail).
+# PROPIETARIO DE: nada (librería sin estado; dinero, creencias y material de chantaje pertenecen a sus dueños).
 # ESCUCHA: nada.
 class_name Bribery
 extends RefCounted
@@ -107,6 +107,17 @@ static func tier_daily_wage(tier: int) -> int:
 	return roundi(float(total) / occupations.size())
 
 
+## true si el personaje pertenece a la población de NPCDirector (su registro y su ubicación
+## se consultan allí); los personajes sueltos (herramientas, pruebas) solo usan sus datos.
+static func is_managed(npc: NPCRuntime) -> bool:
+	return npc != null and NPCDirector.get_npc(npc.id) != null
+
+
+static func npc_location(npc: NPCRuntime) -> String:
+	var location: String = NPCDirector.get_current_location(npc.id) if is_managed(npc) else ""
+	return location if not location.is_empty() else npc.current_room
+
+
 # ─── Precio ────────────────────────────────────────────────────
 
 ## §8.2 paso primero, sin modificadores: salario diario × multiplicador del favor.
@@ -132,7 +143,7 @@ static func estimated_price(npc: NPCRuntime, favour_id: String) -> int:
 ## Agravios encarecen y favores abaratan (§7.9). Manda NPCDirector si ofrece
 ## get_bribe_price_modifier(npc_id) y conoce al personaje; si no, se calcula del registro.
 static func ledger_price_modifier(npc: NPCRuntime) -> float:
-	if NPCDirector.has_method(DIRECTOR_PRICE_METHOD) and NPCDirector.get_npc(npc.id) != null:
+	if NPCDirector.has_method(DIRECTOR_PRICE_METHOD) and is_managed(npc):
 		return float(NPCDirector.call(DIRECTOR_PRICE_METHOD, npc.id))
 	return ledger_modifier_from(npc.ledger)
 
@@ -181,7 +192,8 @@ static func rank_term(rank_relation: int) -> float:
 
 ## §8.2 paso segundo, con todos sus términos. inputs: reputation, suspicion, affection, debt,
 ## rank_relation. Acotada a [0, probabilidad_maxima]; oferta insultante → × 1/3.
-static func probability_from(traits: Dictionary, offer: int, fair: int, inputs: Dictionary) -> float:
+static func probability_from(traits: Dictionary, offer: int, fair: int,
+		inputs: Dictionary) -> float:
 	if is_unbribable(traits):
 		return 0.0
 	var p: float = tunable("sobornos.base")
@@ -286,7 +298,8 @@ static func roll_for(parts: Array) -> float:
 
 ## Decisión pura (sin efectos): {fair_price, probability, roll, accepted, outcome, insulting,
 ## asked_price (solo contraoferta)}.
-static func evaluate(npc: NPCRuntime, amount: int, favour_id: String, ctx: Dictionary) -> Dictionary:
+static func evaluate(npc: NPCRuntime, amount: int, favour_id: String,
+		ctx: Dictionary) -> Dictionary:
 	var fair: int = fair_price(npc, favour_id, ctx)
 	var result: Dictionary = {"npc_id": npc.id, "amount": amount, "favour": favour_id,
 			"fair_price": fair, "insulting": is_insulting(amount, fair), "asked_price": 0}
@@ -300,7 +313,8 @@ static func evaluate(npc: NPCRuntime, amount: int, favour_id: String, ctx: Dicti
 			else roll_for([npc.id, amount, favour_id, OUTCOME_ACCEPTED])
 	var accepted: bool = roll < p
 	result.merge({"probability": p, "roll": roll, "accepted": accepted}, true)
-	result["outcome"] = OUTCOME_ACCEPTED if accepted else rejection_outcome(npc.traits, amount, fair)
+	result["outcome"] = OUTCOME_ACCEPTED if accepted \
+			else rejection_outcome(npc.traits, amount, fair)
 	if result["outcome"] == OUTCOME_COUNTEROFFER:
 		var counter_roll: float = float(ctx["counter_roll"]) if ctx.has("counter_roll") \
 				else roll_for([npc.id, amount, favour_id, OUTCOME_COUNTEROFFER])
@@ -340,7 +354,8 @@ static func offer_to(npc_id: String, amount: int, favour_id: String, channel_id:
 		ctx: Dictionary = {}) -> Dictionary:
 	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
 	if npc == null:
-		return {"ok": false, "outcome": OUTCOME_INVALID, "text_key": OUTCOME_TEXT_KEYS[OUTCOME_INVALID]}
+		return {"ok": false, "outcome": OUTCOME_INVALID,
+				"text_key": OUTCOME_TEXT_KEYS[OUTCOME_INVALID]}
 	return offer(npc, amount, favour_id, channel_id, ctx)
 
 
@@ -409,14 +424,16 @@ static func _apply_outcome(npc: NPCRuntime, ctx: Dictionary, result: Dictionary)
 				Blackmail.add_material(npc, Blackmail.KIND_BRIBED_SILENCE, crime_type, _day(ctx))
 				result["effects"].append(EFFECT_BLACKMAIL)
 		OUTCOME_SILENCE:
-			_add_belief(result, npc.id, FACT_REMEMBERED, tunable("sobornos.certeza_silencio_memoria"),
-					room)
+			_add_belief(result, npc.id, FACT_REMEMBERED,
+					tunable("sobornos.certeza_silencio_memoria"), room)
 			Blackmail.add_material(npc, Blackmail.KIND_SILENCE_MEMORY, crime_type, _day(ctx))
 			result["effects"].append(EFFECT_BLACKMAIL)
 		OUTCOME_NEUTRAL:
-			_add_belief(result, npc.id, FACT_REFUSED, tunable("sobornos.certeza_rechazo_neutro"), room)
+			_add_belief(result, npc.id, FACT_REFUSED, tunable("sobornos.certeza_rechazo_neutro"),
+					room)
 	if bool(result["insulting"]) and result["outcome"] != OUTCOME_DENOUNCED:
-		_add_belief(result, npc.id, FACT_INSULTED, tunable("sobornos.certeza_oferta_insultante"), room)
+		_add_belief(result, npc.id, FACT_INSULTED, tunable("sobornos.certeza_oferta_insultante"),
+				room)
 		result["effects"].append(EFFECT_INSULTED)
 
 
@@ -452,10 +469,7 @@ static func _wallet(ctx: Dictionary) -> Object:
 
 
 static func _room(npc: NPCRuntime, ctx: Dictionary) -> String:
-	if ctx.has("room_id"):
-		return str(ctx["room_id"])
-	var location: String = NPCDirector.get_current_location(npc.id)
-	return location if not location.is_empty() else npc.current_room
+	return str(ctx["room_id"]) if ctx.has("room_id") else npc_location(npc)
 
 
 static func _day(ctx: Dictionary) -> int:

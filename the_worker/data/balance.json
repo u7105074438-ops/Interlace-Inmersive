@@ -246,11 +246,12 @@
       "sell_block": -0.15,
       "viral_rant": -0.03
     },
-    "momentum_umbral_tendencia": 0.005,
+    "momentum_umbral_tendencia": 0.015,
     "momentum_paso_confianza": 1,
     "ventana_patron_insider_jornadas": 25,
     "votos_minimos_paquete": 1,
-    "_nota_ext": "Claves añadidas en PASO 33-35: la fórmula diaria se aplica en (hora_fin_jornada - hora_inicio_jornada) pasos horarios de 1/N; β·sentimiento se aplica como β×sentimiento×P (sentimiento adimensional en [-sentimiento_max, sentimiento_max]); el ruido diario se sortea una vez por jornada."
+    "_nota_ext": "Claves añadidas en PASO 33-35: la fórmula diaria se aplica en (hora_fin_jornada - hora_inicio_jornada) pasos horarios de 1/N; β·sentimiento se aplica como β×sentimiento×P (sentimiento adimensional en [-sentimiento_max, sentimiento_max]); el ruido diario se sortea una vez por jornada.",
+    "rearme_perdida_confianza": 10
   },
   "ideas": {
     "prob_generacion_diaria_base": 0.12,
@@ -1884,7 +1885,7 @@
     "semilla_apariencia": 1987
   },
   "inventario": {
-    "_nota": "Inventario y contrabando (§11.3, PASO 37). capacidad = posiciones; los objetos apilables (objetos.*.stackable) comparten posición; los post_tool no ocupan posición; el efectivo ordinario (kind cash) pasa al capital al recogerse. categoria_por_defecto/prefijos_ordinarios = reglas de respaldo para ids ausentes del catálogo objetos. clases_voluminosas = kinds que no caben en escondites con admite_voluminosos=false. escondites: seguridad 0-1 y nivel (§11.3); registrable/gravedad_minima_registro/solo_si_registra_sotanos = cuándo lo encuentra el registro físico de la fase 2 (§12.3; gravedad 1-5 de investigations.json); orden_registro = orden de visita; minutos_recuperacion = coste de recuperar; prob_hallazgo_diaria = hallazgo casual (Connie Marks en cuartos de limpieza); irreversible = el objeto sale del juego.",
+    "_nota": "Inventario y contrabando (§11.3, PASO 37). capacidad = posiciones; los objetos apilables (objetos.*.stackable) comparten posición; los post_tool no ocupan posición; el efectivo ordinario (kind cash) pasa al capital al recogerse. categoria_por_defecto/prefijos_ordinarios = reglas de respaldo para ids ausentes del catálogo objetos. objetos_voluminosos = ids que no caben en escondites con admite_voluminosos=false. escondites: seguridad 0-1 y nivel (§11.3); registrable/gravedad_minima_registro/solo_si_registra_sotanos = cuándo lo encuentra el registro físico de la fase 2 (§12.3; gravedad 1-5 de investigations.json); orden_registro = orden de visita; minutos_recuperacion = coste de recuperar; prob_hallazgo_diaria = hallazgo casual (Connie Marks en cuartos de limpieza); irreversible = el objeto sale del juego.",
     "capacidad": 8,
     "inicial": [
       "own_card",
@@ -1895,9 +1896,14 @@
       "food_",
       "own_"
     ],
-    "clases_voluminosas": [
-      "product",
-      "material"
+    "objetos_voluminosos": [
+      "product_box",
+      "leather_roll",
+      "exotic_leather",
+      "angle_grinder",
+      "office_equipment",
+      "spare_parts",
+      "sabotage_chemicals"
     ],
     "escondites": {
       "desk": {

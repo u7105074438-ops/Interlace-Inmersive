@@ -328,7 +328,7 @@
    "wing": null,
    "clearance_required": 3,
    "special_access": [
-    "security"
+    "guard"
    ],
    "special_access_mode": "and",
    "art_band": "the_power",
@@ -405,6 +405,27 @@
      ]
     },
     {
+     "type": "chair",
+     "pos": [
+      8,
+      5
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      8,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
      "type": "filing_cabinet",
      "pos": [
       9,
@@ -433,7 +454,7 @@
       2,
       0
      ],
-     "uniform": "security"
+     "uniform": "uniform_security"
     },
     {
      "id": "guard_key_locker",
@@ -442,7 +463,7 @@
       9,
       0
      ],
-     "uniform": "security",
+     "uniform": "uniform_security",
      "contains": [
       "guard_keys"
      ]

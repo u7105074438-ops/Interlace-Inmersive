@@ -57,6 +57,11 @@ const RECORD_TO_EVIDENCE: Dictionary = {
 	"accounting_entry": "accounting_trail", "stamped_document": "forged_document",
 }
 const RECORDS_HANDLED_BY_SECURITY: Array[String] = ["footage", "card_log", "body_found"]
+## Incidentes y registros sin entrada en investigations.json → clave de texto.
+const EXTRA_NAME_KEYS: Dictionary = {
+	"missing_person": "INCIDENT_MISSING_PERSON", "signed_expulsion": "EVIDENCE_SIGNED_EXPULSION",
+	"board_minutes": "EVIDENCE_BOARD_MINUTES",
+}
 ## Hecho de percepción parcial en BeliefNet ("seen_partially[:detalle]").
 const FACT_SEEN_PARTIALLY := "seen_partially"
 
@@ -109,7 +114,7 @@ static func evidence_name_key(params: Dictionary, evidence_type: String) -> Stri
 		var entry: Dictionary = find_by_id(params.get(list_key, []), evidence_type)
 		if not entry.is_empty():
 			return str(entry.get("name_key", ""))
-	return ""
+	return str(EXTRA_NAME_KEYS.get(evidence_type, ""))
 
 
 # ─── Fase 1: incidente ────────────────────────────────────────

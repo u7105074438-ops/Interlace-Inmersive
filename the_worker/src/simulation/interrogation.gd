@@ -45,6 +45,11 @@ const OUTCOME_CASE_FROZEN := "case_frozen"
 const OUTCOME_REQUIREMENT_MISSING := "requirement_missing"
 const OUTCOME_NO_PIECE := "no_piece"
 
+const OUTCOME_KEY_PREFIX := "INTERROGATION_OUTCOME_"
+const B_DENY_DISCOUNT := "seguridad.interrogatorio_sospecha_descuenta_negar"
+const B_ALLY_GRIEVANCE := "seguridad.gravedad_agravio_aliados"
+const B_ALLY_STRENGTH := "seguridad.fuerza_minima_aliado"
+const B_FREEZE_DAYS := "investigaciones.dias_congelacion_por_abogado"
 const GRIEVANCE_ACCUSED := "accused_in_interrogation"
 const GRIEVANCE_ALLY := "ally_accused"
 const SALT := "interrogation"
@@ -77,24 +82,35 @@ static func load_rules() -> Dictionary:
 	var answers: Array = block.get("answers", [])
 	var deny: Dictionary = InvestigationEngine.find_by_id(answers, ANSWER_DENY)
 	var explain: Dictionary = InvestigationEngine.find_by_id(answers, ANSWER_EXPLAIN)
+	var accuse: Dictionary = InvestigationEngine.find_by_id(answers, ANSWER_ACCUSE)
+	var silence: Dictionary = InvestigationEngine.find_by_id(answers, ANSWER_SILENCE)
 	return {
-		"deny_reputation_above": float(InvestigationEngine.dig(deny, "removes_piece_if.reputation_above", 0.0)),
-		"deny_weight_below": float(InvestigationEngine.dig(deny, "removes_piece_if.piece_weight_below", 0.0)),
+		"deny_reputation_above": float(_dig(deny, "removes_piece_if.reputation_above")),
+		"deny_weight_below": float(_dig(deny, "removes_piece_if.piece_weight_below")),
 		"deny_fail_suspicion": int(deny.get("on_failure_suspicion_delta", 0)),
-		"deny_discount_suspicion": Database.get_balance_float("seguridad.interrogatorio_sospecha_descuenta_negar"),
+		"deny_discount_suspicion": Database.get_balance_float(B_DENY_DISCOUNT),
 		"false_alibi_multiplier": float(explain.get("false_alibi_weight_multiplier", 1.0)),
 		"alibi_verification_chance": float(explain.get("bought_alibi_verification_chance", 0.0)),
-		"accuse_grievance": int(InvestigationEngine.find_by_id(answers, ANSWER_ACCUSE).get("grievance_severity", 0)),
-		"ally_grievance": Database.get_balance_int("seguridad.gravedad_agravio_aliados"),
-		"ally_min_strength": Database.get_balance_float("seguridad.fuerza_minima_aliado"),
-		"silence_suspicion": int(InvestigationEngine.find_by_id(answers, ANSWER_SILENCE).get("suspicion_delta_per_use", 0)),
-		"freeze_days": Database.get_balance_int("investigaciones.dias_congelacion_por_abogado"),
+		"accuse_grievance": int(accuse.get("grievance_severity", 0)),
+		"ally_grievance": Database.get_balance_int(B_ALLY_GRIEVANCE),
+		"ally_min_strength": Database.get_balance_float(B_ALLY_STRENGTH),
+		"silence_suspicion": int(silence.get("suspicion_delta_per_use", 0)),
+		"freeze_days": Database.get_balance_int(B_FREEZE_DAYS),
 		"success_below": float(block.get("success_below_weight", 0.0)),
-		"apology_above": float(InvestigationEngine.dig(block, "tone.apology_if_reputation_above", 0.0)),
-		"door_slam_above": float(InvestigationEngine.dig(block, "tone.door_slam_if_suspicion_above", 0.0)),
+		"apology_above": float(_dig(block, "tone.apology_if_reputation_above")),
+		"door_slam_above": float(_dig(block, "tone.door_slam_if_suspicion_above")),
 		"intro_keys": block.get("intro_keys", {}),
 		"answer_keys": _answer_keys(answers),
 	}
+
+
+static func _dig(data: Dictionary, path: String) -> float:
+	return float(InvestigationEngine.dig(data, path, 0.0))
+
+
+## Clave de texto del resultado de una respuesta (INTERROGATION_OUTCOME_*).
+static func outcome_key(outcome: String) -> String:
+	return OUTCOME_KEY_PREFIX + outcome.to_upper()
 
 
 static func _answer_keys(answers: Array) -> Dictionary:
@@ -124,18 +140,21 @@ static func rule_deny(piece_weight: float, reputation: float, suspicion: float,
 			and suspicion <= float(rules["deny_discount_suspicion"])
 	if believed:
 		return _result(OUTCOME_PIECE_REMOVED, {"remove": true})
-	return _result(OUTCOME_DENIAL_REJECTED, {"suspicion_delta": int(rules["deny_fail_suspicion"])})
+	return _result(OUTCOME_DENIAL_REJECTED,
+			{"suspicion_delta": int(rules["deny_fail_suspicion"])})
 
 
 ## Explicar: exige coartada. Real → retira la pieza. Comprada o prestada → se verifica con la
 ## probabilidad de datos: si se descubre falsa, el peso de la pieza se duplica.
-static func rule_explain(alibi: Dictionary, verification_roll: float, rules: Dictionary) -> Dictionary:
+static func rule_explain(alibi: Dictionary, verification_roll: float,
+		rules: Dictionary) -> Dictionary:
 	if alibi.is_empty():
 		return _result(OUTCOME_REQUIREMENT_MISSING, {"consumes_turn": false})
 	if bool(alibi.get("genuine", false)) \
 			or verification_roll >= float(rules["alibi_verification_chance"]):
 		return _result(OUTCOME_ALIBI_ACCEPTED, {"remove": true})
-	return _result(OUTCOME_ALIBI_FALSE, {"weight_multiplier": float(rules["false_alibi_multiplier"])})
+	return _result(OUTCOME_ALIBI_FALSE,
+			{"weight_multiplier": float(rules["false_alibi_multiplier"])})
 
 
 ## Acusar a otro: traslada la pieza al acusado; agravio permanente y hostilidad de sus aliados.
@@ -181,7 +200,8 @@ func start() -> Dictionary:
 	if inv == null:
 		_ended = true
 		return {}
-	for piece: Dictionary in InvestigationEngine.pieces_against(inv, InvestigationEngine.SUBJECT_PLAYER):
+	var player: String = InvestigationEngine.SUBJECT_PLAYER
+	for piece: Dictionary in InvestigationEngine.pieces_against(inv, player):
 		_queue.append(str(piece.get("record_id", "")))
 	Security.begin_interrogation(case_id)
 	return {"tone": get_opening_tone(), "intro_key": get_opening_key(),

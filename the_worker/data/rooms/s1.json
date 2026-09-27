@@ -115,7 +115,7 @@
       "floor": -1,
       "wing": null,
       "clearance_required": 3,
-      "special_access": ["security"],
+      "special_access": ["guard"],
       "special_access_mode": "and",
       "art_band": "the_guts",
       "kit": "logistics",

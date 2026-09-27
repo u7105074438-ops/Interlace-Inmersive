@@ -4,7 +4,12 @@
 Checks whatever data files exist (rooms still being written are simply skipped or
 cross-checked against the manual §22 room catalogue):
   rooms      unique ids, catalogue (§22) coverage, connects_to / leads_to targets, owners
-  items      room contains/sells/items/produces/uniform and occupation tools use ITEM_IDS
+  items      room contains/sells/items/produces/uniform and occupation tools use ids of the
+             Database item catalogue (balance.json "objetos"); the 30 REQUIRED_ITEM_IDS of
+             §11.3 must exist in it. Info containers (npc_computer, computer, personnel_files)
+             hold information, not items, and are skipped (same rule as DataCrossCheck).
+  access     special_access tags of rooms, occupations and roles exist in
+             occupations.json _special_access_tags
   desks      named NPC desk_position == a seat they own in home_room (and vice versa);
              occupation desk_position == the seat the PLAYER gets in office_room
   occupations office_room/floor, promotion links, routine template, duties + waypoint sets
@@ -42,7 +47,8 @@ DATA = os.path.join(ROOT, "data")
 MANUAL = os.path.join(os.path.dirname(ROOT), "docs", "THE_WORKER_MANUAL_MAESTRO.md")
 STRINGS = os.path.join(ROOT, "locale", "strings.csv")
 
-ITEM_IDS = {
+# §11.3 / PASO 4 contract: these ids must exist in the catalogue (tests/cases/data_integrity_case.gd).
+REQUIRED_ITEM_IDS = {
     "keys_basic", "stamp", "phone", "own_card", "food_basic", "food_premium", "office_supplies",
     "product_pair", "product_box", "product_pallet_note", "foreign_document", "stolen_card",
     "cloned_card", "uniform_security", "uniform_cleaning", "uniform_maintenance", "balaclava",
@@ -50,6 +56,12 @@ ITEM_IDS = {
     "master_keys", "idea_copy", "cash_envelope", "delivery_note_forged", "safe_combination_note",
     "blackmail_file", "footage_copy", "sabotage_chemicals",
 }
+# Filled from balance.json "objetos" (id -> item dict) by load_item_catalogue().
+ITEMS = {}
+ITEM_IDS = set()
+# Containers whose "contains" is information read on screen, not inventory items.
+INFO_CONTAINERS = {"npc_computer", "computer", "personnel_files"}
+ACCESS_TAGS_KEY = "_special_access_tags"
 ITEM_LIST_KEYS = ("contains", "sells", "items", "produces")
 SEAT_TYPES = {"cubicle", "desk", "executive_desk", "reception_desk", "workbench", "counter", "bench"}
 SPECIAL_OWNERS = {"generated", "vacant", "player_start", "player"}
@@ -107,6 +119,21 @@ def manual_room_ids():
     return set(re.findall(r"^\| `([a-z0-9_]+)` \|", sect, re.M))
 
 
+def load_item_catalogue():
+    """The Database catalogue: balance.json "objetos" (key = id; "_" keys are comments)."""
+    doc = load("balance.json") or {}
+    cat = doc.get("objetos", {})
+    items = {}
+    if isinstance(cat, dict):
+        for k, v in cat.items():
+            if not k.startswith("_") and isinstance(v, dict):
+                items[k] = v
+    ITEMS.clear()
+    ITEMS.update(items)
+    ITEM_IDS.clear()
+    ITEM_IDS.update(items)
+
+
 # ─── Loading ────────────────────────────────────────────────────────────────
 
 class World:
@@ -125,6 +152,7 @@ class World:
                 self.room_file[rid] = rel
         self.occ_doc = load("occupations.json") or {}
         self.occs = {o["id"]: o for o in self.occ_doc.get("occupations", [])}
+        self.access_tags = {k for k in self.occ_doc.get(ACCESS_TAGS_KEY, {}) if not k.startswith("_")}
         self.named_doc = load("npcs_named.json") or {}
         self.named = {n["id"]: n for n in self.named_doc.get("npcs", [])}
         self.gen = load("npcs_generation.json") or {}
@@ -188,6 +216,7 @@ def check_rooms(w):
                 R.error([f], "%s.connects_to: unknown room '%s'" % (rid, target))
         if "owner" in r:
             check_owner(w, f, rid, "room", r["owner"], valid_owners)
+        check_access_tags(w, [f], rid, r.get("special_access", []))
         for sec in ("furniture", "interactables", "hiding_spots"):
             for i, e in enumerate(r.get(sec, [])):
                 where = "%s.%s[%d]" % (rid, sec, i)
@@ -210,18 +239,46 @@ def check_owner(w, f, rid, where, owner, valid):
 
 
 def check_item_fields(f, where, e):
-    for key in ITEM_LIST_KEYS:
-        if key not in e:
-            continue
-        val = e[key]
-        vals = val if isinstance(val, list) else [val]
-        for v in vals:
-            if v not in ITEM_IDS:
-                R.error([f], "%s.%s: '%s' is not an item id" % (where, key, v))
+    if e.get("type") not in INFO_CONTAINERS:
+        for key in ITEM_LIST_KEYS:
+            if key not in e:
+                continue
+            val = e[key]
+            vals = val if isinstance(val, list) else [val]
+            for v in vals:
+                if v not in ITEM_IDS:
+                    R.error([f], "%s.%s: '%s' is not in the item catalogue (balance.json objetos)"
+                            % (where, key, v))
     if "uniform" in e:
         u = e["uniform"]
-        if u not in ITEM_IDS or not str(u).startswith("uniform_"):
-            R.error([f], "%s.uniform: '%s' is not a uniform item id" % (where, u))
+        if u not in ITEM_IDS or ITEMS[u].get("kind", "uniform") != "uniform":
+            R.error([f], "%s.uniform: '%s' is not a uniform item id (kind 'uniform', e.g. uniform_security)"
+                    % (where, u))
+
+
+def check_access_tags(w, files, where, tags):
+    if not w.access_tags:
+        return
+    for t in tags if isinstance(tags, list) else [tags]:
+        if t not in w.access_tags:
+            R.error(files, "%s.special_access: '%s' is not in occupations.json %s"
+                    % (where, t, ACCESS_TAGS_KEY))
+
+
+# ─── Items ──────────────────────────────────────────────────────────────────
+
+def check_items(w):
+    f = "balance.json"
+    if not ITEMS:
+        R.error([f], "balance.json has no item catalogue 'objetos'")
+        return
+    for iid in sorted(REQUIRED_ITEM_IDS - ITEM_IDS):
+        R.error([f], "required item '%s' (§11.3) missing from balance.json objetos" % iid)
+    for iid, it in ITEMS.items():
+        if it.get("id", iid) != iid:
+            R.error([f], "objetos.%s: id field is '%s'" % (iid, it.get("id")))
+        if it.get("category") not in ("ordinary", "compromising"):
+            R.error([f], "objetos.%s: category '%s' is not ordinary/compromising" % (iid, it.get("category")))
 
 
 def check_seat_overlap(f, rid, r):
@@ -316,7 +373,8 @@ def check_occupations(w):
             R.error([f, "npcs_generation.json"], "%s.routine_template '%s' does not exist" % (oid, o.get("routine_template")))
         for t in o.get("tools", []):
             if t not in ITEM_IDS:
-                R.error([f], "%s.tools: '%s' is not an item id" % (oid, t))
+                R.error([f], "%s.tools: '%s' is not in the item catalogue (balance.json objetos)" % (oid, t))
+        check_access_tags(w, [f], oid, o.get("special_access", []))
         if w.seat_count(oid) == 0 and oid != "email_worker_3b":
             R.warn([f, "npcs_named.json", "npcs_generation.json"], "%s has no holder at the start of a run" % oid)
         check_occ_room(w, oid, o)
@@ -541,6 +599,8 @@ def check_shifts(w):
 def check_generation_refs(w):
     f = "npcs_generation.json"
     g = w.gen
+    for rid_, role in w.roles.items():
+        check_access_tags(w, [f, "occupations.json"], "role " + rid_, role.get("special_access", []))
     sup = g.get("link_generation", {}).get("hierarchy", {}).get("superior_by_room", {})
     for rid, who in sup.items():
         if not w.room_known(rid):
@@ -582,6 +642,9 @@ def check_loc(w):
         keys = {row[0] for row in csv.reader(fh) if row}
     files = ["occupations.json", "npcs_named.json", "npcs_generation.json", "duties.json"]
     files += sorted({w.room_file[r] for r in w.rooms})
+    missing = sorted({it.get("name_key", "") for it in ITEMS.values()} - keys)
+    if missing:
+        R.warn(["balance.json"], "%d item name keys missing from strings.csv: %s" % (len(missing), ", ".join(missing[:8]) + (" ..." if len(missing) > 8 else "")))
     for rel in files:
         doc = load(rel)
         missing = sorted({k for k in iter_keys(doc) if k not in keys})
@@ -614,8 +677,9 @@ def main(argv):
     show_warn = "--no-warnings" not in argv
     if "--scope" in argv:
         scope = set(argv[argv.index("--scope") + 1].split(","))
+    load_item_catalogue()
     w = World()
-    for fn in (check_rooms, check_named, check_occupations, check_duties, check_generation, check_loc):
+    for fn in (check_items, check_rooms, check_named, check_occupations, check_duties, check_generation, check_loc):
         fn(w)
     counted, per_file = 0, Counter()
     for level, files, msg in R.items:
@@ -628,8 +692,8 @@ def main(argv):
         print("%-20s [%s] %s" % (tag, ", ".join(files), msg))
         for fl in files:
             per_file[(fl, level)] += 1
-    print("\nSummary: %d rooms loaded (%d in §22), %d occupations, %d named NPCs, %d generation slots"
-          % (len(w.rooms), len(w.manual_ids), len(w.occs), len(w.named), len(w.slots)))
+    print("\nSummary: %d rooms loaded (%d in §22), %d occupations, %d named NPCs, %d generation slots, %d items"
+          % (len(w.rooms), len(w.manual_ids), len(w.occs), len(w.named), len(w.slots), len(ITEMS)))
     for (fl, level), n in sorted(per_file.items()):
         print("  %-28s %-5s %d" % (fl, level, n))
     total_err = sum(1 for lv, _, _ in R.items if lv == "ERROR")

@@ -86,6 +86,7 @@ var _confidence: Dictionary = {}
 var _last_reason: Dictionary = {}
 var _credibility_lost: bool = false
 var _activist_targets: Dictionary = {}
+var _loss_spent: Dictionary = {}
 var _bad_quarters_streak: int = 0
 var _presented_quarter: int = 0
 var _due_emitted_quarter: int = 0
@@ -614,6 +615,7 @@ func save_state() -> Dictionary:
 		"own_sentiment": _own_sentiment, "fraud_penalty": _fraud_multiple_penalty,
 		"confidence": _confidence.duplicate(), "last_reason": _last_reason.duplicate(),
 		"credibility_lost": _credibility_lost, "activist_targets": _activist_targets.duplicate(),
+		"loss_spent": _loss_spent.keys(),
 		"bad_streak": _bad_quarters_streak, "presented_quarter": _presented_quarter,
 		"due_emitted_quarter": _due_emitted_quarter,
 		"expected_profit": _expected_quarter_profit,
@@ -830,6 +832,7 @@ func _reset_investors() -> void:
 	_confidence.clear()
 	_last_reason.clear()
 	_activist_targets.clear()
+	_loss_spent.clear()
 	_credibility_lost = false
 	for inv: InvestorData in _investors:
 		_confidence[inv.id] = inv.initial_confidence
@@ -911,14 +914,18 @@ func is_credibility_lost() -> bool:
 
 
 ## Al cruzar a la baja umbral_perdida_confianza, el inversor ejecuta su on_confidence_loss:
-## impulso de sentimiento (× social_reach) y, el activista, campaña contra la dirección.
+## impulso de sentimiento (× social_reach) y, el activista, campaña contra la dirección. Se rearma
+## al recuperar umbral + rearme_perdida_confianza (evita desbandadas repetidas en torno al umbral).
 func _check_confidence_loss(investor_id: String, old_value: int, new_value: int) -> void:
 	var threshold: int = _bi("mercado.umbral_perdida_confianza")
-	if old_value < threshold or new_value >= threshold:
+	if new_value >= threshold + _bi("mercado.rearme_perdida_confianza"):
+		_loss_spent.erase(investor_id)
+	if old_value < threshold or new_value >= threshold or _loss_spent.has(investor_id):
 		return
 	var inv: InvestorData = _investor(investor_id)
 	if inv == null or inv.on_confidence_loss.is_empty():
 		return
+	_loss_spent[investor_id] = true
 	var reach: float = float(inv.extra.get("social_reach", 1.0))
 	var impulse: float = _bf("mercado.impulsos_perdida_confianza." + inv.on_confidence_loss)
 	_add_own_sentiment(impulse * reach)
@@ -940,6 +947,8 @@ func _load_investor_state(data: Dictionary) -> void:
 				_confidence[str(key)] = int((saved as Dictionary)[key])
 	_last_reason = (data.get("last_reason", {}) as Dictionary).duplicate()
 	_activist_targets = (data.get("activist_targets", {}) as Dictionary).duplicate()
+	for investor_id: Variant in data.get("loss_spent", []):
+		_loss_spent[str(investor_id)] = true
 	_credibility_lost = bool(data.get("credibility_lost", false))
 
 

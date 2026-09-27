@@ -230,6 +230,27 @@
      "rotation": 0
     },
     {
+     "type": "chair",
+     "pos": [
+      4,
+      12
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      4,
+      13
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "npc_lorna_vickers"
+    },
+    {
      "type": "piano",
      "pos": [
       18,
@@ -716,6 +737,27 @@
       2
      ],
      "owner": "inv_bobby_kerr"
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      7,
+      10
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "vacant"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      12
+     ],
+     "rotation": 180
     },
     {
      "type": "plant",

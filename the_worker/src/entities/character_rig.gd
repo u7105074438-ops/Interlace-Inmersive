@@ -21,6 +21,7 @@ const OBLIVIOUS_TIC := "headphones_never_turns_head"
 const STARE_TIC := "stares_at_anomalies"
 const RIGHT_HOLDS: Array[String] = ["right"]
 const BOTH_HOLDS: Array[String] = ["both", "both_up", "cart"]
+const HUG_HOLD := "hug"
 
 var tier: int = 1
 var appearance: Dictionary = {}
@@ -84,9 +85,10 @@ static func build(app: Dictionary, char_tier: int, pose: Dictionary) -> Characte
 	return r
 
 
-## Dirección de cámara: true si un punto de la cabeza con normal `n` (suelo) se ve.
-func faces_camera(n: Vector2) -> bool:
-	return n.y > -0.3
+## true si el brazo derecho (o izquierdo) queda en el lado lejano del cuerpo (se dibuja detrás).
+func arm_is_far(right: bool) -> bool:
+	var l: Vector2 = lat if right else -lat
+	return l.y < -0.05
 
 
 func _setup_basics(app: Dictionary, char_tier: int, pose: Dictionary) -> void:
@@ -185,6 +187,8 @@ func _setup_items() -> void:
 		held = unique
 	if held == "cart" or BOTH_HOLDS.has(unique_hold):
 		carry = ""
+	elif unique_hold == HUG_HOLD:
+		carry = "planner"
 	elif not held.is_empty() and carry == "box":
 		carry = "papers"
 	if bool(p["uses_hands"]):
@@ -203,9 +207,10 @@ func _setup_arms() -> void:
 	elbow_l = _elbow(sh_l, hand_l, -lat)
 
 
+## v = Vector3(delante, fuera, arriba); `out_dir` = lateral proyectado hacia fuera de ese brazo.
 func _hand(shoulder: Vector2, out_dir: Vector2, v: Vector3) -> Vector2:
-	var base: Vector2 = shoulder + Vector2(0.0, torso_h * HAND_DROP) + out_dir.normalized() * 1.5
-	return base + fwd * v.x + out_dir.normalized() * v.y * absf(out_dir.length()) + Vector2(0.0, -v.z)
+	var base: Vector2 = shoulder + Vector2(0.0, torso_h * HAND_DROP) + out_dir * 1.5
+	return base + fwd * v.x + out_dir * v.y + Vector2(0.0, -v.z)
 
 
 func _elbow(shoulder: Vector2, hand: Vector2, out_dir: Vector2) -> Vector2:
@@ -224,7 +229,7 @@ func _apply_item_grips() -> void:
 			var c: Vector2 = chest + fwd * 9.0
 			hand_l = c - lat * 9.0
 			hand_r = c + lat * 9.0
-		"folder":
+		"folder", "planner":
 			hand_l = shoulder_c.lerp(hip_c, 0.45) + fwd * 5.0 - lat * 2.0
 		"papers":
 			hand_l = hand_l.lerp(chest - lat * 4.0 + fwd * 6.0, 0.7)

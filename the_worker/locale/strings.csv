@@ -1467,3 +1467,49 @@ MONEY_REASON_SHARES_BOUGHT,Shares bought,Compra de acciones
 MONEY_REASON_SHARES_SOLD,Shares sold,Venta de acciones
 MONEY_REASON_BOARD_STAKE_BOUGHT,Board stake acquired,Adquisición del paquete accionarial
 MONEY_REASON_DIVIDENDS,Dividends,Dividendos
+NOTE_AURORA_MEETING_TODAY,"Aurora meeting today at %s, floor 12. Bring an idea. Anyone's.","Reunión Aurora hoy a las %s, planta 12. Trae una idea. De quien sea."
+NOTE_IDEA_PRESENTED,Aurora: idea presented. Merit +%d.,Aurora: idea presentada. Mérito +%d.
+NOTE_IDEA_CONTEST_WIN,Aurora: %s accused you of stealing the idea. Nobody believed them.,Aurora: %s te acusó de robarle la idea. Nadie le creyó.
+NOTE_IDEA_CONTEST_TIE,"Aurora: %s claimed the idea. The room could not decide, so nobody got anything.","Aurora: %s reclamó la idea. La sala no supo decidir, así que nadie se llevó nada."
+NOTE_IDEA_CONTEST_LOSS,Aurora: %s proved the idea was theirs. The room will remember.,Aurora: %s demostró que la idea era suya. La sala no lo olvidará.
+NOTE_IDEA_OWNER_PRESENTED,%s presented the idea first. Your copy is worthless now.,%s presentó la idea antes. Tu copia ya no vale nada.
+NOTE_DUTY_WARNING,Formal warning: you did not finish '%s'.,Amonestación formal: no terminaste «%s».
+NOTE_DUTY_DEMOTION,Demoted for failing '%s' once too often.,Descenso de categoría por incumplir «%s» una vez de más.
+NOTE_DUTY_EXPULSION,Dismissed for failing '%s'. Security will escort you out.,Despido por incumplir «%s». Seguridad te acompañará a la salida.
+NOTE_ASSIST_DETECTED,%s noticed the A.S.S.I.S.T. output was invented. It is in your file now.,%s notó que el resultado de A.S.S.I.S.T. era inventado. Ya consta en tu expediente.
+NOTE_DELEGATION_FAILED,%s botched the work you delegated. It is your fault now.,%s estropeó el trabajo que le delegaste. Ahora la culpa es tuya.
+ASSIST_RESULT_ACCEPTABLE,Acceptable. Nobody will read it anyway.,Aceptable. Nadie lo va a leer de todos modos.
+ASSIST_RESULT_EXCELLENT,Excellent. Suspiciously excellent.,Excelente. Sospechosamente excelente.
+ASSIST_RESULT_EVIDENT_FAILURE,"Evident failure: invented figures, incoherent jargon.","Fallo evidente: cifras inventadas, jerga incoherente."
+DUTY_ERR_UNKNOWN_DUTY,That duty is not on today's list.,Ese deber no figura en la lista de hoy.
+DUTY_ERR_ALREADY_RESOLVED,That duty is already closed for today.,Ese deber ya está cerrado por hoy.
+DUTY_ERR_NOT_AUTOMATABLE,A.S.S.I.S.T. cannot do this one. You will have to.,A.S.S.I.S.T. no puede hacer esto. Tendrás que hacerlo tú.
+DUTY_ERR_NOT_DELEGATABLE,This duty cannot be delegated.,Este deber no se puede delegar.
+DUTY_ERR_TIER_TOO_LOW,You have nobody below you to delegate to.,No tienes a nadie por debajo a quien delegar.
+DUTY_ERR_NOT_VIABLE,Nobody at this level does this alone. Someone else must produce it.,Nadie a este nivel hace esto en solitario. Otro tiene que producirlo.
+DUTY_ERR_NO_MATERIAL,You have no usable source material for this.,No tienes material de origen utilizable para esto.
+DUTY_ERR_WRONG_INTERFACE,This duty is done by walking the route.,Este deber se cumple recorriendo la ruta.
+DUTY_ERR_INVALID_SUBORDINATE,That person cannot take the work.,Esa persona no puede hacerse cargo del trabajo.
+BELIEF_FACT_BRIBE_ATTEMPT,Tried to bribe someone,Intentó sobornar a alguien
+BELIEF_FACT_CHAT_LOG,Chat log,Registro de chat
+SEARCH_OUTCOME_EVIDENCE_NOTED,Something turned up. It has been noted in your file.,Algo ha aparecido. Queda anotado en tu expediente.
+INCIDENT_MISSING_PERSON,Employee missing,Desaparición de un empleado
+EVIDENCE_SIGNED_EXPULSION,Signed dismissal,Expulsión firmada
+EVIDENCE_BOARD_MINUTES,Board minutes,Acta del consejo
+VERDICT_CLOSED_PERMANENTLY,Case closed for good,Caso cerrado definitivamente
+INTERROGATION_OUTCOME_PIECE_REMOVED,The investigator crosses that item off the list.,El investigador tacha esa prueba de la lista.
+INTERROGATION_OUTCOME_DENIAL_REJECTED,"Nobody believes you. The investigator writes something down, slowly.","Nadie te cree. El investigador anota algo, despacio."
+INTERROGATION_OUTCOME_ALIBI_ACCEPTED,Your alibi holds. That item no longer points at you.,Tu coartada se sostiene. Esa prueba ya no te señala.
+INTERROGATION_OUTCOME_ALIBI_FALSE,Your alibi has been checked. It was false. That item now weighs double.,Han verificado tu coartada. Era falsa. Esa prueba pesa ahora el doble.
+INTERROGATION_OUTCOME_PIECE_TRANSFERRED,The finger now points at someone else. They will not forget it.,El dedo señala ahora a otra persona. No lo olvidará.
+INTERROGATION_OUTCOME_SILENCE_KEPT,You say nothing. The silence is noted.,No dices nada. El silencio queda anotado.
+INTERROGATION_OUTCOME_CASE_FROZEN,Your lawyer arrives. The case is frozen for three days.,Llega tu abogado. El caso queda congelado tres jornadas.
+INTERROGATION_OUTCOME_REQUIREMENT_MISSING,You cannot answer that way.,No puedes responder así.
+INTERROGATION_SUCCESS,The investigator closes the folder. You may go.,El investigador cierra la carpeta. Puede marcharse.
+INTERROGATION_FAILURE,The investigator closes the folder. That is not good news.,El investigador cierra la carpeta. No son buenas noticias.
+ALERT_LEVEL_0,Security alert: calm,Alerta de seguridad: calma
+ALERT_LEVEL_1,Security alert: routine,Alerta de seguridad: rutina
+ALERT_LEVEL_2,Security alert: watchful,Alerta de seguridad: vigilante
+ALERT_LEVEL_3,Security alert: raised,Alerta de seguridad: elevada
+ALERT_LEVEL_4,Security alert: high,Alerta de seguridad: alta
+ALERT_LEVEL_5,Security alert: lockdown,Alerta de seguridad: máxima

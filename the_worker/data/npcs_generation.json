@@ -394,7 +394,7 @@
       "tier": 2,
       "clearance": 1,
       "daily_wage": 50,
-      "special_access": ["factory"]
+      "special_access": ["factory_floor"]
     },
     {
       "id": "stock_keeper",
@@ -402,7 +402,7 @@
       "tier": 1,
       "clearance": 1,
       "daily_wage": 36,
-      "special_access": ["factory"]
+      "special_access": ["factory_floor"]
     },
     {
       "id": "dock_worker",
@@ -410,7 +410,7 @@
       "tier": 1,
       "clearance": 1,
       "daily_wage": 36,
-      "special_access": ["factory"]
+      "special_access": ["factory_floor"]
     },
     {
       "id": "prototype_technician",

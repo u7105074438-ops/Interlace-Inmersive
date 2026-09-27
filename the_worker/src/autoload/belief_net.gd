@@ -14,6 +14,10 @@ extends Node
 ## - get_beliefs_about / count_credible_beliefs_about excluyen registros; get_records_about los da.
 ## - Dos creencias ordinarias con igual (holder, subject, fact, location) se fusionan: una fuente
 ##   directa refuerza (restablece la certeza de referencia y suma); un rumor solo eleva al máximo.
+## - npc_reported_player.weight son PUNTOS de sospecha (CaughtHandler, Blackmail); se guardan como
+##   peso de creencia con weight_for_suspicion_points. card_reader_logged solo lo emiten lecturas
+##   del jugador (card_owner ajeno = tarjeta robada: el registro señala al titular).
+## - Registros diferidos (creencias.registros_por_delito.retardo_dias) afloran en day_advanced.
 ## - Sin aleatoriedad: el sistema es determinista y no necesita RandomNumberGenerator.
 
 const PLAYER_ID := "player"
@@ -44,7 +48,9 @@ const FACT_REPORTED := "reported"
 const FACT_STEALS_IDEAS := "steals_ideas"
 const FACT_HARD_WORKER := "hard_worker"
 const FACT_COMPETENT := "competent"
-# Tipos de registro (§7.6).
+## Bribery: "bribe_attempt:<refused|insulting|remembered|overheard|witnessed>".
+const FACT_BRIBE_ATTEMPT := "bribe_attempt"
+# Tipos de registro (§7.6) más el registro digital de chat (§7.7 chat legible por IT; Bribery).
 const RECORD_BODY_FOUND := "body_found"
 const RECORD_SIGNED_EXPULSION := "signed_expulsion"
 const RECORD_FOOTAGE := "footage"
@@ -52,21 +58,24 @@ const RECORD_BOARD_MINUTES := "board_minutes"
 const RECORD_ACCOUNTING_ENTRY := "accounting_entry"
 const RECORD_CARD_LOG := "card_log"
 const RECORD_STAMPED_DOCUMENT := "stamped_document"
+const RECORD_CHAT_LOG := "chat_log"
 const RECORD_TYPES: Array[String] = [
 	RECORD_BODY_FOUND, RECORD_SIGNED_EXPULSION, RECORD_FOOTAGE, RECORD_BOARD_MINUTES,
-	RECORD_ACCOUNTING_ENTRY, RECORD_CARD_LOG, RECORD_STAMPED_DOCUMENT,
+	RECORD_ACCOUNTING_ENTRY, RECORD_CARD_LOG, RECORD_STAMPED_DOCUMENT, RECORD_CHAT_LOG,
 ]
 const KNOWN_FACT_TYPES: Array[String] = [
 	FACT_SEEN_PARTIALLY, FACT_CAUGHT_REDHANDED, FACT_REPORTED, FACT_STEALS_IDEAS,
-	FACT_HARD_WORKER, FACT_COMPETENT, RECORD_BODY_FOUND, RECORD_SIGNED_EXPULSION,
-	RECORD_FOOTAGE, RECORD_BOARD_MINUTES, RECORD_ACCOUNTING_ENTRY, RECORD_CARD_LOG,
-	RECORD_STAMPED_DOCUMENT,
+	FACT_HARD_WORKER, FACT_COMPETENT, FACT_BRIBE_ATTEMPT, RECORD_BODY_FOUND,
+	RECORD_SIGNED_EXPULSION, RECORD_FOOTAGE, RECORD_BOARD_MINUTES, RECORD_ACCOUNTING_ENTRY,
+	RECORD_CARD_LOG, RECORD_STAMPED_DOCUMENT, RECORD_CHAT_LOG,
 ]
-# crime_committed que destruyen registros y claves de details con las que se seleccionan.
+# crime_committed que destruyen registros (sala de monitores; servidores: registros digitales)
+# y claves de details con las que se seleccionan.
 const CRIME_FOOTAGE_DELETED := "footage_deleted"
 const CRIME_RECORDS_DELETED := "records_deleted"
 const DESTRUCTION_BY_CRIME: Dictionary = {
-	CRIME_FOOTAGE_DELETED: RECORD_FOOTAGE, CRIME_RECORDS_DELETED: RECORD_CARD_LOG,
+	CRIME_FOOTAGE_DELETED: [RECORD_FOOTAGE],
+	CRIME_RECORDS_DELETED: [RECORD_CARD_LOG, RECORD_CHAT_LOG],
 }
 const DETAIL_KEY_BY_RECORD: Dictionary = {
 	RECORD_FOOTAGE: "camera_id", RECORD_CARD_LOG: "reader_id",
@@ -273,11 +282,26 @@ func get_suspicion_breakdown() -> Array[Dictionary]:
 ## creencias.reputacion_portador_por_defecto (portadores no personaje, como RECORD_HOLDER).
 func get_credibility(holder: String) -> float:
 	var reputation: float = 0.0
-	if holder != RECORD_HOLDER and NPCDirector.has_method(NPC_REPUTATION_GETTER):
+	if not _is_generic_holder(holder) and NPCDirector.has_method(NPC_REPUTATION_GETTER):
 		reputation = float(NPCDirector.call(NPC_REPUTATION_GETTER, holder))
 	if reputation <= 0.0:
-		reputation = _bal_f(B_REP_DEFECTO)
+		return get_default_credibility()
 	return reputation * _bal_f(B_MOD_CREDIBILIDAD)
+
+
+## EXTRA: credibilidad de un portador sin reputación propia (registros, portadores genéricos).
+func get_default_credibility() -> float:
+	return _bal_f(B_REP_DEFECTO) * _bal_f(B_MOD_CREDIBILIDAD)
+
+
+## EXTRA: peso de una creencia directa de certeza `certainty` que, sostenida por un portador de
+## credibilidad por defecto, aporta exactamente `points` puntos de sospecha (sin reducciones).
+func weight_for_suspicion_points(points: float, certainty: float) -> float:
+	var per_weight: float = certainty * get_default_credibility() \
+			* get_source_weight(Belief.SOURCE_DIRECT) * SUSPICION_MAX
+	if per_weight <= 0.0:
+		return 0.0
+	return maxf(points, 0.0) * _bal_f(B_DIVISOR) / per_weight
 
 
 ## EXTRA: peso de un tipo de hecho en la sospecha (creencias.peso_tipo, "default" si falta).
@@ -422,25 +446,29 @@ func _on_card_reader_logged(reader_id: String, card_owner: String, day: int, _ho
 	_refresh_suspicion()
 
 
-## La denuncia es una creencia del denunciante con el peso que trae la señal (§12.2).
+## La denuncia es una creencia del denunciante. El `weight` de la señal son PUNTOS de sospecha
+## (§12.2: Security +20, superior +10; así la emiten CaughtHandler y Blackmail) y se convierte en
+## peso de creencia con weight_for_suspicion_points (20 puntos → peso 4,0, la «denuncia de un
+## testigo directo» de §12.3 con la calibración por defecto).
 func _on_npc_reported_player(npc_id: String, report_type: String, weight: float,
 		location: String) -> void:
-	_create(npc_id, PLAYER_ID, make_fact(FACT_REPORTED, report_type),
-			_bal_f(B_CERTEZA_DENUNCIA), Belief.SOURCE_DIRECT, location, weight)
+	var certainty: float = _bal_f(B_CERTEZA_DENUNCIA)
+	_create(npc_id, PLAYER_ID, make_fact(FACT_REPORTED, report_type), certainty,
+			Belief.SOURCE_DIRECT, location, weight_for_suspicion_points(weight, certainty))
 
 
 func _on_crime_committed(crime_type: String, room_id: String, details: Dictionary) -> void:
-	if DESTRUCTION_BY_CRIME.has(crime_type):
-		var method: String = str(details.get("method", crime_type))
-		var destroyed: int = 0
-		var record_type: String = str(DESTRUCTION_BY_CRIME[crime_type])
+	if not DESTRUCTION_BY_CRIME.has(crime_type):
+		_record_from_crime(crime_type, room_id, details)
+		return
+	var method: String = str(details.get("method", crime_type))
+	var destroyed: int = 0
+	for record_type: String in DESTRUCTION_BY_CRIME[crime_type]:
 		for id: String in _matching_record_ids(record_type, details):
 			if _destroy_record_silently(id, method):
 				destroyed += 1
-		if destroyed > 0:
-			_refresh_suspicion()
-		return
-	_record_from_crime(crime_type, room_id, details)
+	if destroyed > 0:
+		_refresh_suspicion()
 
 
 func _on_body_discovered(body_id: String, room_id: String) -> void:
@@ -661,7 +689,9 @@ func _matching_record_ids(record_type: String, details: Dictionary) -> Array[Str
 	var out: Array[String] = []
 	if details.has("record_ids"):
 		for id: Variant in details["record_ids"]:
-			out.append(str(id))
+			var b: Belief = get_belief(str(id))
+			if b != null and b.record_type == record_type:
+				out.append(b.id)
 		return out
 	var detail_key: String = DETAIL_KEY_BY_RECORD.get(record_type, "")
 	var filters: Array[String] = [detail_key, "room_id", "day", "subject"]
@@ -741,6 +771,11 @@ func _player_decay_multiplier() -> float:
 
 
 # ─── Internos: lecturas de otros sistemas y de balance ────────
+
+## Portadores que no son personajes (registros, "" de IdeaPresentation): no se consulta NPCDirector.
+func _is_generic_holder(holder: String) -> bool:
+	return holder.is_empty() or holder == RECORD_HOLDER
+
 
 func _today() -> int:
 	return GameClock.get_day()
