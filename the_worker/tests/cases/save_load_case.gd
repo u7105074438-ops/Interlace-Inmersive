@@ -10,7 +10,7 @@ const OTHER_SEED := 777
 const STORAGE_FORMAT := "user://test_save_load_%d"
 ## Los once sistemas con estado de partida (BUILD_NOTES §2), en el orden de project.godot.
 const EXPECTED_PERSISTENT: Array[String] = [
-	"GameClock", "PlayerState", "BeliefNet", "NPCDirector", "SocialGraph", "Security",
+	"Database", "GameClock", "PlayerState", "BeliefNet", "NPCDirector", "SocialGraph", "Security",
 	"Company", "Market", "NewsFeed", "IdeaPool", "Tracking",
 ]
 const BLOB_MARKER := "\"GameClock\":\""
@@ -32,6 +32,7 @@ func run_case() -> void:
 	var before: Dictionary = _states()
 	_test_save(before)
 	_test_load_into_fresh_run(before)
+	_test_scene_nodes_and_difficulty()
 	_test_atomic_write()
 	_test_recovery()
 	_test_corrupt_run_is_rejected()
@@ -79,7 +80,7 @@ func _play_a_little() -> void:
 
 func _test_save(before: Dictionary) -> void:
 	check_eq(SaveSystem.get_persistent_autoloads(), EXPECTED_PERSISTENT,
-			"the eleven state systems are saved, in project order (not EventBus, Database, SaveSystem)")
+			"the eleven state systems and Database's difficulty preset are saved, in project order (not EventBus, SaveSystem)")
 	check(SaveSystem.save_run(), "save_run() succeeds")
 	check(SaveSystem.run_exists(), "run.json exists after saving")
 	check(not FileAccess.file_exists(SaveSystem.get_run_path() + ".tmp"), "the atomic write leaves no .tmp")
@@ -115,6 +116,42 @@ func _test_load_into_fresh_run(before: Dictionary) -> void:
 	check(SaveSystem.is_run_active(), "a loaded run is the live run")
 	EventBus.run_started.emit(DEFAULT_SEED)
 	check(SaveSystem.run_exists(), "run_started after load_run() keeps the loaded run's file")
+
+
+## Nodos de escena con estado (grupo SCENE_GROUP) y preset de dificultad (Database) viajan en run.json.
+func _test_scene_nodes_and_difficulty() -> void:
+	new_run(DEFAULT_SEED)
+	check(Database.set_difficulty_preset("interno"), "precondition: 'interno' preset")
+	var node: Node = _scene_node("TestSceneNode", 7)
+	var expected: Array[String] = ["TestSceneNode"]
+	check_eq(SaveSystem.get_persistent_scene_nodes(), expected,
+			"a node in SaveSystemNode.SCENE_GROUP is saved with the run")
+	check(SaveSystem.save_run(), "save_run() with a scene node")
+	node.set("value", 99)
+	Database.set_difficulty_preset("auditoria")
+	check(SaveSystem.load_run(), "load_run()")
+	check_eq(int(node.get("value")), 7, "the scene node already in the tree gets its state back")
+	check_eq(Database.get_difficulty_preset(), "interno", "the run's difficulty preset is restored")
+	node.queue_free()
+	remove_child(node)
+	check(SaveSystem.load_run(), "load_run() with the node gone")
+	check_eq(SaveSystem.claim_scene_state("TestSceneNode"), {"value": 7},
+			"a node created later claims its pending state…")
+	check(SaveSystem.claim_scene_state("TestSceneNode").is_empty(), "…only once")
+	Database.set_difficulty_preset("estandar")
+
+
+## Nodo mínimo con save_state/load_state y get_save_key (el contrato de CaughtHandler/DutySystem).
+func _scene_node(key: String, value: int) -> Node:
+	var script: GDScript = GDScript.new()
+	script.source_code = "extends Node\nvar value: int = 0\nfunc get_save_key() -> String:\n\treturn \"%s\"\nfunc save_state() -> Dictionary:\n\treturn {\"value\": value}\nfunc load_state(d: Dictionary) -> void:\n\tvalue = int(d.get(\"value\", 0))\n" % key
+	script.reload()
+	var node: Node = Node.new()
+	node.set_script(script)
+	node.set("value", value)
+	node.add_to_group(SaveSystemNode.SCENE_GROUP)
+	add_child(node)
+	return node
 
 
 ## save_run() escribe SIEMPRE a través de run.json.tmp; un temporal dañado nunca sustituye al bueno.

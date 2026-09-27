@@ -1,4 +1,4 @@
-# personnel_app_case.gd — Cuerpo de test_personnel_app: tabla N1–N7 de §13.4, vías de acceso anticipado, filtros y orden, objetivos, notas, estudio (consume tiempo) y la ventana PERSONNEL.
+# personnel_app_case.gd — Cuerpo de test_personnel_app: tabla N1–N7 de §13.4, vías de acceso anticipado, filtros y orden (sin filtrar más de lo que muestra la ficha), objetivos, notas, estudio (consume tiempo, se guarda en PlayerState) y la ventana PERSONNEL (compacta incluida).
 # PROPIETARIO DE: nada.
 # ESCUCHA: notebook_entry_added (solo para comprobarla).
 extends TestCase
@@ -18,7 +18,6 @@ var _notes: Array[Array] = []
 
 func run_case() -> void:
 	check(new_run(), "database loaded and run created")
-	PersonnelApp.reset_session()
 	EventBus.notebook_entry_added.connect(func(cat: String, key: String, args: Array) -> void:
 		_notes.append([cat, key, args]))
 	_check_table()
@@ -105,8 +104,23 @@ func _check_levels_grow() -> void:
 
 func _check_early_access() -> void:
 	_set_post(N1_OCCUPATION)
+	_notes.clear()
 	check(PersonnelApp.open_full_file(SNITCH, PersonnelApp.REASON_HR_INTRUSION), "HR intrusion grants a file")
+	check(PersonnelApp.open_full_file(SNITCH, PersonnelApp.REASON_HR_INTRUSION), "a granted file stays open")
+	var file_notes: Array[Array] = []
+	for note: Array in _notes:
+		if str(note[1]) == "PERS_NOTE_FULL_FILE":
+			file_notes.append(note)
+	check_eq(file_notes.size(), 1, "the notebook hears about a granted file once")
+	check(file_notes.size() == 1 and (file_notes[0][2] as Array).has("PERS_REASON_HR_INTRUSION"),
+			"notebook args carry keys, not translated text")
+	check_eq(PersonnelApp.full_file_reason(SNITCH), PersonnelApp.REASON_HR_INTRUSION, "reason: HR break-in")
 	check_eq(PersonnelApp.effective_level(SNITCH), PersonnelApp.max_level(), "intruded file is complete")
+	var lasker: String = "npc_bernard_lasker"
+	if NPCDirector.get_npc(lasker) != null:
+		PersonnelApp.open_full_file(lasker, PersonnelApp.REASON_BLACKMAIL)
+		check_eq(PersonnelApp.full_file_reason(lasker), PersonnelApp.REASON_BLACKMAIL,
+				"a file opened by blackmail is labelled blackmail")
 	check_eq(PersonnelApp.effective_level(SUBJECT), 1, "other files stay at N1")
 	var claudia: String = "npc_claudia_reeves"
 	EventBus.blackmail_initiated.emit(claudia, claudia, "test_material")
@@ -147,6 +161,13 @@ func _check_filters_and_sort() -> void:
 	check(not bribable.is_empty(), "bribable category at N3")
 	check(not bribable.has(SNITCH), "the snitch is not bribable")
 	check(_ids({"category": PersonnelApp.CAT_DANGEROUS}).has(SNITCH), "the snitch is dangerous")
+	var greed_min: int = Database.get_balance_int("expedientes.sobornable_codicia_min")
+	var honest_bars: bool = true
+	for id: String in bribable:
+		var npc: NPCRuntime = NPCDirector.get_npc(id)
+		var exact: bool = PersonnelApp.effective_level(id) >= PersonnelApp.section_level(PersonnelApp.S_EXACT)
+		honest_bars = honest_bars and PersonnelApp.shown_value(npc.get_trait("greed"), exact) >= greed_min
+	check(honest_bars, "below N5 the bribable filter uses the approximate bars the file shows")
 	NPCDirector.add_debt(SUBJECT, 2)
 	check_eq(_ids({"category": PersonnelApp.CAT_DEBTORS}), [SUBJECT], "debtors category")
 	NPCDirector.add_debt(SUBJECT, -2)
@@ -165,7 +186,13 @@ func _check_targets_and_notes() -> void:
 	check(PersonnelApp.is_marked(SUBJECT), "target marked")
 	check(NPCDirector.get_full_lod_reasons(SUBJECT).has(PersonnelApp.LOD_REASON_TARGET), "marked target forced to LOD 0")
 	check_eq(PersonnelApp.list_npcs({"category": PersonnelApp.CAT_TARGETS}).size(), 1, "targets filter")
-	check(_notes.size() == 1 and str(_notes[0][1]) == "PERS_NOTE_TARGET_MARKED", "marking writes to the notebook")
+	# PlayerState.mark_target anuncia el objetivo (NPCDirector lo oye); mientras PERSONNEL repita su
+	# propia nota, el registro del cuaderno (PlayerState) funde las dos idénticas en una.
+	var marked_notes: Array = PlayerState.get_notebook_entries().filter(func(e: Dictionary) -> bool:
+		return e["text_key"] == "PERS_NOTE_TARGET_MARKED")
+	check(not _notes.is_empty() and _notes.all(func(n: Array) -> bool:
+		return str(n[1]) == "PERS_NOTE_TARGET_MARKED") and marked_notes.size() == 1,
+			"marking writes to the notebook (one log entry)")
 	PersonnelApp.set_marked(SUBJECT, false)
 	check(not PersonnelApp.is_marked(SUBJECT), "target cleared")
 	check(not NPCDirector.get_full_lod_reasons(SUBJECT).has(PersonnelApp.LOD_REASON_TARGET), "LOD released")
@@ -192,6 +219,7 @@ func _check_study() -> void:
 	check_eq(PersonnelApp.probability_word_key(0.0), "PERS_PROB_VERY_UNLIKELY", "0 → very unlikely")
 	check_eq(PersonnelApp.probability_word_key(0.95), "PERS_PROB_VERY_LIKELY", "0.95 → very likely")
 	check(PersonnelApp.get_studies(SNITCH).has(PersonnelApp.STUDY_REPORT), "study remembered in the file")
+	check(PlayerState.get_studies(SNITCH).has(PersonnelApp.STUDY_REPORT), "studies are saved by PlayerState")
 
 
 func _check_window() -> void:
@@ -207,6 +235,18 @@ func _check_window() -> void:
 	app.compare(SUBJECT, SNITCH)
 	await wait_frames(2)
 	check(app.is_comparing(), "comparison view open")
+	app.call("_on_mark_toggled", true)
+	await wait_frames(1)
+	check(app.is_comparing() and PersonnelApp.is_marked(SUBJECT), "marking while comparing keeps the comparison")
+	PersonnelApp.set_marked(SUBJECT, false)
+	app.set_filters({"query": ""})
+	app.size = Vector2(PersonnelApp.OsKit.px(PersonnelApp.COMPACT_EM * 0.6), app.size.y)
+	await wait_frames(2)
+	check(app.is_compact(), "a phone-width window switches to the compact layout")
+	app.show_list(true)
+	app.call("_on_row_picked", SNITCH)
+	await wait_frames(1)
+	check_eq(app.get_selected(), SNITCH, "compact: picking a row opens that file")
 	var closed: Array[bool] = [false]
 	app.close_requested.connect(func() -> void: closed[0] = true)
 	app.request_close()

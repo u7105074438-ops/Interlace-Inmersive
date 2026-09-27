@@ -9,6 +9,10 @@ extends VBoxContainer
 ## esta apertura. Un trato por chat lo ejecuta BribePanel con Bribery.offer(…, "mobile_chat"): el
 ## registro chat_log permanente (legible por el Director de IT) lo crea Bribery.
 ## El aviso de registro muestra cuántos registros chat_log sobre el jugador hay ya en el servidor.
+## Modo compacto (móvil apaisado): foto pequeña, aviso de registro en una sola línea y la lista de
+## mensajes con un alto mínimo, para que siempre se lea al menos el último mensaje entero.
+## «Responder a su exigencia» solo se ve mientras Blackmail.get_open_demand() siga abierta (PhoneOverlay
+## refresca la conversación al cerrarse el diálogo de chantaje).
 
 signal deal_requested(npc_id: String)
 signal blackmail_requested(npc_id: String)
@@ -18,6 +22,9 @@ const DIR_IN := "in"
 const DIR_OUT := "out"
 const DIR_NOTE := "note"
 const DIR_LOG := "log"
+const PHOTO_EMS := 1.7
+const PHOTO_EMS_COMPACT := 1.4
+const BUBBLES_MIN_EMS := 6.0
 const DEMAND_CHIP_KEYS: Dictionary = {
 	Blackmail.DEMAND_MONEY: "PHONE_DEMAND_CHIP_MONEY",
 	Blackmail.DEMAND_PROMOTION: "PHONE_DEMAND_CHIP_PROMOTION",
@@ -34,10 +41,14 @@ var _head_photo: PhoneOverlay.Portrait
 var _head_name: Label
 var _head_job: Label
 var _record_count: Label
+var _record_body: Label
+var _record_banner: PanelContainer
+var _compact: bool = false
 var _bubbles: VBoxContainer
 var _bubble_scroll: ScrollContainer
 var _deal_button: PhoneOverlay.IconButton
 var _demand_button: PhoneOverlay.IconButton
+var _composer: BoxContainer
 var _ignored_note: Label
 
 
@@ -59,6 +70,7 @@ func _init() -> void:
 	_bubble_scroll = ScrollContainer.new()
 	_bubble_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_bubble_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_bubble_scroll.theme_changed.connect(_fit_bubble_area)
 	_bubbles = VBoxContainer.new()
 	_bubbles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bubbles.add_theme_constant_override("separation", 8)
@@ -74,7 +86,7 @@ func _build_header() -> Control:
 	back.tooltip_text = tr("PHONE_BACK")
 	back.pressed.connect(close_thread)
 	head.add_child(back)
-	_head_photo = PhoneOverlay.Portrait.new(1.7)
+	_head_photo = PhoneOverlay.Portrait.new(PHOTO_EMS)
 	head.add_child(_head_photo)
 	var text: VBoxContainer = VBoxContainer.new()
 	text.add_theme_constant_override("separation", 0)
@@ -92,35 +104,43 @@ func _build_header() -> Control:
 ## Aviso diegético: el chat vive en el servidor de la empresa y lo lee IT.
 func _build_record_banner() -> Control:
 	var warn: Color = UITheme.color("warn")
-	var banner: PanelContainer = PhoneOverlay.card(Color(warn.darkened(0.7), 0.95), warn.darkened(0.2), 8, 10.0, 6.0)
+	_record_banner = PhoneOverlay.card(Color(warn.darkened(0.7), 0.95), warn.darkened(0.2), 8, 10.0, 6.0)
 	var row: HBoxContainer = HBoxContainer.new()
-	banner.add_child(row)
+	_record_banner.add_child(row)
 	var icon: PhoneOverlay.Glyph = PhoneOverlay.Glyph.new("server", "warn", 1.0)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(icon)
 	var text: VBoxContainer = VBoxContainer.new()
 	text.add_theme_constant_override("separation", 0)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
-	var body: Label = PhoneOverlay.label(tr("PHONE_CHAT_RECORD_WARNING"), UITheme.V_SMALL, true)
-	body.add_theme_color_override("font_color", warn.lightened(0.35))
-	text.add_child(body)
+	_record_body = PhoneOverlay.label(tr("PHONE_CHAT_RECORD_WARNING"), UITheme.V_SMALL, true)
+	_record_body.add_theme_color_override("font_color", warn.lightened(0.35))
+	text.add_child(_record_body)
 	_record_count = PhoneOverlay.label("", UITheme.V_CAPTION)
 	_record_count.add_theme_color_override("font_color", warn)
+	_record_count.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	text.add_child(_record_count)
-	return banner
+	return _record_banner
 
 
+## Botones de la conversación: uno encima de otro o, en modo compacto, en fila con rótulos cortos.
 func _build_composer() -> Control:
 	var column: VBoxContainer = VBoxContainer.new()
 	_ignored_note = PhoneOverlay.label(tr("PHONE_CHAT_IGNORED"), UITheme.V_SMALL, true)
 	_ignored_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_ignored_note)
+	_composer = BoxContainer.new()
+	_composer.vertical = true
+	column.add_child(_composer)
 	_demand_button = PhoneOverlay.IconButton.new(tr("PHONE_CHAT_ANSWER_DEMAND"), "hazard", UITheme.V_DANGER)
-	_demand_button.pressed.connect(func() -> void: blackmail_requested.emit(_thread))
-	column.add_child(_demand_button)
+	_demand_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_demand_button.pressed.connect(answer_demand)
+	_composer.add_child(_demand_button)
 	_deal_button = PhoneOverlay.IconButton.new(tr("PHONE_CHAT_OFFER_DEAL"), "coin", UITheme.V_PRIMARY)
+	_deal_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_deal_button.pressed.connect(func() -> void: deal_requested.emit(_thread))
-	column.add_child(_deal_button)
+	_composer.add_child(_deal_button)
 	return column
 
 
@@ -131,6 +151,35 @@ func refresh() -> void:
 		_rebuild_threads()
 	else:
 		_rebuild_thread()
+
+
+## Foto pequeña, aviso de registro en una línea y lista de mensajes con alto mínimo.
+func set_compact(on: bool) -> void:
+	_compact = on
+	_head_photo.set_ems(PHOTO_EMS_COMPACT if on else PHOTO_EMS)
+	_record_body.visible = not on
+	_composer.vertical = not on
+	_demand_button.set_label(tr("PHONE_CHAT_ANSWER_SHORT" if on else "PHONE_CHAT_ANSWER_DEMAND"))
+	_deal_button.set_label(tr("PHONE_ACTION_DEAL" if on else "PHONE_CHAT_OFFER_DEAL"))
+	_record_banner.add_theme_stylebox_override("panel", PhoneOverlay.box(
+			Color(UITheme.color("warn").darkened(0.7), 0.95), UITheme.color("warn").darkened(0.2), 8, 10.0,
+			3.0 if on else 6.0, 2))
+	_fit_bubble_area()
+	if not _thread.is_empty():
+		_rebuild_thread()
+
+
+func is_compact() -> bool:
+	return _compact
+
+
+func _fit_bubble_area() -> void:
+	_bubble_scroll.custom_minimum_size.y = PhoneOverlay.base_size(self) * BUBBLES_MIN_EMS
+
+
+## Alto visible de la lista de mensajes (pruebas de maquetación).
+func get_bubble_area_height() -> float:
+	return _bubble_scroll.size.y
 
 
 func open_thread(npc_id: String) -> void:
@@ -153,6 +202,16 @@ func close_thread() -> void:
 
 func get_thread() -> String:
 	return _thread
+
+
+## «Responder a su exigencia» (visible solo mientras haya exigencia abierta de este contacto).
+func can_answer_demand() -> bool:
+	return _demand_button.visible and not _thread.is_empty()
+
+
+func answer_demand() -> void:
+	if can_answer_demand():
+		blackmail_requested.emit(_thread)
 
 
 ## Mensajes de la conversación: [{dir, text, time, chip}].
@@ -300,7 +359,9 @@ func _rebuild_thread() -> void:
 	_head_photo.set_npc(npc)
 	_head_name.text = PhoneOverlay.npc_name(_thread)
 	_head_job.text = PhoneOverlay.job_text(npc)
-	_record_count.text = UITheme.trf("PHONE_CHAT_RECORD_COUNT", [server_record_count()]).to_upper()
+	var records: int = server_record_count()
+	_record_count.text = (UITheme.trf("PHONE_CHAT_RECORD_SHORT", [records]) if _compact
+			else UITheme.trf("PHONE_CHAT_RECORD_COUNT", [records])).to_upper()
 	PhoneOverlay.clear_children(_bubbles)
 	for message: Dictionary in messages_for(_thread):
 		_bubbles.add_child(_bubble(message))
@@ -361,9 +422,14 @@ func _bubble_width() -> float:
 	return maxf(width * 0.72, 40.0)
 
 
+## Al final de la conversación; si el último mensaje no cabe entero, se ve desde su principio.
 func _scroll_to_end() -> void:
-	if is_inside_tree():
-		_bubble_scroll.scroll_vertical = int(_bubble_scroll.get_v_scroll_bar().max_value)
+	if not is_inside_tree() or _bubbles.get_child_count() == 0:
+		return
+	var last: Control = _bubbles.get_child(_bubbles.get_child_count() - 1) as Control
+	var end: int = int(_bubble_scroll.get_v_scroll_bar().max_value - _bubble_scroll.size.y)
+	var top: int = int(last.position.y)
+	_bubble_scroll.scroll_vertical = mini(maxi(end, 0), top) if last.size.y > _bubble_scroll.size.y else maxi(end, 0)
 
 
 func _open_demand(npc_id: String) -> Dictionary:

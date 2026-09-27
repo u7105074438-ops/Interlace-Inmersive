@@ -28,6 +28,7 @@ var context: Dictionary = {}
 var pal: Dictionary = {}
 var base: int = 24
 var app_id: String = ""
+var _refresh_queued: bool = false
 
 
 ## Fila clicable de una lista (correo, archivos, cuaderno, menú de inicio): icono, título, subtítulo y etiqueta.
@@ -133,6 +134,21 @@ func build() -> void:
 ## Sobrescribir: vuelve a leer los sistemas.
 func refresh() -> void:
 	pass
+
+
+## Refresco coalescido para los oyentes de señales: como mucho uno por fotograma aunque lleguen
+## muchas (favour_added, grievance_added... pueden llegar a decenas en un tic horario).
+func request_refresh() -> void:
+	if _refresh_queued or not is_inside_tree():
+		return
+	_refresh_queued = true
+	_run_queued_refresh.call_deferred()
+
+
+func _run_queued_refresh() -> void:
+	_refresh_queued = false
+	if is_inside_tree():
+		refresh()
 
 
 ## Sobrescribir: antes de cerrar la ventana.
@@ -254,12 +270,9 @@ func make_badge(text: String, fill: Color) -> PanelContainer:
 	return p
 
 
-## Rótulo de sección en versalitas (cabeceras de columnas).
+## Rótulo de sección en versalitas con filete (cabeceras de columnas; estilo del aspecto).
 func make_section(text: String) -> Label:
-	var l: Label = make_label(text.to_upper(), OSTheme.V_SMALL)
-	l.add_theme_font_override("font", UITheme.spaced(UITheme.font(UITheme.FONT_BOLD)))
-	l.add_theme_color_override("font_color", c("muted"))
-	return l
+	return make_label(text.to_upper(), OSTheme.V_SECTION)
 
 
 func spacer(expand: bool = true) -> Control:

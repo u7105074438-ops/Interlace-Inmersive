@@ -30,8 +30,10 @@ extends Node
 ## campañas activistas nuevas de Market (escándalo sobre su objetivo).
 ## Eventos de mercado (§9.12): se sortean por trimestre con el RNG del sistema, se programan con
 ## 1-3 jornadas de antelación (visibles para R25+ vía Market.get_upcoming_news) y al publicarse
-## quedan activos con sus efectos sorteados: Company los lee con get_active_market_events() /
-## get_event_multiplier() / get_event_addition(); Market lee multiple_multiplier. Los eventos con
+## quedan activos con sus efectos sorteados: Company los lee con get_active_market_events() (sus
+## efectos en fundamentales, salvo el evento "strike", que Company modela con su propia huelga);
+## Market lee multiple_multiplier. El evento se ACTIVA antes de emitir el news_published de su
+## noticia (quien la oiga ya lo ve en get_active_market_events, con news_id = id de la noticia). Los eventos con
 ## duration_days (viralización: dos semanas) sostienen su sentimiento mientras duran. Las manos
 ## pueden terminarlos (resolve_market_event, ends_on/until_resolved), mitigarlos (cargo
 ## mitigable_by) o amplificarlos (cargo amplifiable_by).
@@ -453,7 +455,7 @@ func _quarter_of(day_number: int) -> int:
 
 
 func _publish(headline_id: String, sentiment: float, is_scandal: bool, subject: String,
-		source: String) -> String:
+		source: String, event_id: String = "") -> String:
 	var news_id: String = ID_PREFIX + str(_next_id)
 	_next_id += 1
 	_news.append({
@@ -461,7 +463,7 @@ func _publish(headline_id: String, sentiment: float, is_scandal: bool, subject: 
 		"initial_sentiment": sentiment, "is_scandal": is_scandal, "subject": subject,
 		"suspicion": _social_weight(is_scandal, subject), "day": _today, "age": 0,
 		"buried": false, "buried_by": "", "consolidated": false, "resurfaced": false,
-		"source": source, "event_id": "",
+		"source": source, "event_id": event_id,
 	})
 	EventBus.news_published.emit(news_id, sentiment, is_scandal)
 	return news_id
@@ -604,13 +606,14 @@ func _publish_due_scheduled() -> void:
 			remaining.append(item)
 	_scheduled = remaining
 	for item: Dictionary in due:
-		var from_event: bool = not str(item.get("event_id", "")).is_empty()
-		var news_id: String = _publish(str(item["headline_id"]), float(item["sentiment"]),
-				bool(item["is_scandal"]), SUBJECT_MARKET if from_event else SUBJECT_COMPANY,
-				SOURCE_EVENT if from_event else SOURCE_SCHEDULED)
-		if from_event:
-			_find(news_id)["event_id"] = str(item["event_id"])
-			_activate_event(str(item["event_id"]), item.get("effects", {}), news_id)
+		var event_id: String = str(item.get("event_id", ""))
+		if event_id.is_empty():
+			_publish(str(item["headline_id"]), float(item["sentiment"]), bool(item["is_scandal"]),
+					SUBJECT_COMPANY, SOURCE_SCHEDULED)
+			continue
+		_activate_event(event_id, item.get("effects", {}), ID_PREFIX + str(_next_id))
+		_publish(str(item["headline_id"]), float(item["sentiment"]), bool(item["is_scandal"]),
+				SUBJECT_MARKET, SOURCE_EVENT, event_id)
 
 
 func _catalogue_event(event_id: String) -> Dictionary:

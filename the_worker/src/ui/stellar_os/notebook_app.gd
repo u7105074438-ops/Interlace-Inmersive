@@ -1,5 +1,5 @@
 # notebook_app.gd — NOTEBOOK de StellarOS (§13.3, PASO 25): notas libres del jugador y registro automático de objetivos marcados, favores pendientes, casos abiertos, ideas vigiladas y avisos.
-# PROPIETARIO DE: nada persistente (las notas y el registro viven en PlayerState si expone su API; ver DECISIONES). Solo la pestaña visible y, sin esa API, los avisos recibidos con la ventana abierta.
+# PROPIETARIO DE: nada (el bloc, las anotaciones, los objetivos y el registro viven en PlayerState; lo demás se deriva de sus dueños). Solo la pestaña visible.
 # ESCUCHA: notebook_entry_added, favour_added, grievance_added, investigation_opened, investigation_resolved, idea_acquired (mientras está abierta, para refrescar).
 class_name NotebookApp
 extends OSApp
@@ -7,34 +7,32 @@ extends OSApp
 ## DECISIONES:
 ##  · «La memoria externa del jugador en una partida de veinte horas»: todo lo automático se
 ##    DERIVA de los sistemas dueños en cada apertura (sin estado oculto):
-##      objetivos → PlayerState.get_marked_targets() (o NPCDirector.get_marked_targets());
-##      favores  → registro de NPCDirector (deuda ≠ 0: quién te debe y a quién debes);
-##      casos    → Security (activos y fríos; «lista corta» si el jugador figura en ella);
-##      ideas    → IdeaPool (ideas en tu poder y personajes con la señal de idea);
-##      avisos   → PlayerState.get_notebook_entries() (todo notebook_entry_added de la partida).
-##  · Notas libres: PlayerState.get_notes()/set_notes(text) (guardadas con su save_state). Mientras
-##    PlayerState no las exponga (PETICIÓN abierta), el cuaderno lo avisa: las notas solo duran
-##    con la ventana abierta. Igual con los avisos: sin get_notebook_entries solo se ven los que
-##    llegan con el cuaderno abierto.
-##  · Tope de texto: ordenador.cuaderno_max_caracteres; entradas por pestaña:
-##    ordenador.cuaderno_max_entradas.
+##      objetivos   → PlayerState.get_marked_targets() (los marca PERSONNEL);
+##      favores     → registro de NPCDirector (deuda ≠ 0: quién te debe y a quién debes);
+##      casos       → Security (activos y fríos; «lista corta» si el jugador figura en ella);
+##      ideas       → IdeaPool (ideas en tu poder y personajes con la señal de idea);
+##      avisos      → PlayerState.get_notebook_entries() (todo notebook_entry_added de la partida);
+##      anotaciones → PlayerState.get_notes() (las notas sobre personajes que escribe PERSONNEL).
+##  · Bloc libre: PlayerState.get_notepad()/set_notepad(text), guardado con su save_state en cada
+##    pulsación (sobrevive a cerrar el ordenador y a guardar/cargar).
+##  · Tope de texto: ordenador.cuaderno_max_caracteres (PlayerState lo aplica también); entradas por
+##    pestaña: ordenador.cuaderno_max_entradas.
 
 const TAB_TARGETS := 0
 const TAB_FAVOURS := 1
 const TAB_CASES := 2
 const TAB_IDEAS := 3
 const TAB_LOG := 4
+const TAB_PEOPLE := 5
 const TAB_KEYS: Array[String] = ["NOTEBOOK_TAB_TARGETS", "NOTEBOOK_TAB_FAVOURS", "NOTEBOOK_TAB_CASES",
-		"NOTEBOOK_TAB_IDEAS", "NOTEBOOK_TAB_LOG"]
-const NOTES_GETTER := "get_notes"
-const NOTES_SETTER := "set_notes"
-const ENTRIES_GETTER := "get_notebook_entries"
-const TARGETS_GETTER := "get_marked_targets"
+		"NOTEBOOK_TAB_IDEAS", "NOTEBOOK_TAB_LOG", "NOTEBOOK_TAB_PEOPLE"]
 const B_MAX_CHARS := "ordenador.cuaderno_max_caracteres"
 const B_MAX_ENTRIES := "ordenador.cuaderno_max_entradas"
 const INCIDENT_KEY_FORMAT := "INCIDENT_%s"
+const INCIDENT_UNKNOWN_KEY := "NOTEBOOK_INCIDENT_UNKNOWN"
 const SEVERITY_KEY_FORMAT := "INV_SEVERITY_%d"
-const PERSONNEL_SCRIPT := "res://src/ui/stellar_os/personnel_app.gd"
+const NOTE_TEXT := "text"
+const NOTE_NPC := "npc_id"
 const CATEGORY_ICONS: Dictionary = {
 	"duties": "report", "ideas": "idea", "files": "folder", "career": "portal", "security": "warning",
 	"stash": "lock", "blackmail": "personal", "market": "market", "targets": "user",
@@ -48,8 +46,6 @@ var _tabs: TabBar
 var _list: VBoxContainer
 var _hint: Label
 var _tab: int = TAB_TARGETS
-var _live_entries: Array[Dictionary] = []
-var _local_notes: String = ""
 
 
 ## Bloc de notas amarillo con renglones y margen rojo (el TextEdit escribe encima).
@@ -83,16 +79,6 @@ class NotebookLegalPad extends Control:
 		draw_rect(r, OSTheme.col(pal, "shadow"), false, 1.5)
 
 
-# ─── Persistencia (PlayerState) ───────────────────────────────────
-
-static func notes_supported() -> bool:
-	return PlayerState.has_method(NOTES_GETTER) and PlayerState.has_method(NOTES_SETTER)
-
-
-static func log_supported() -> bool:
-	return PlayerState.has_method(ENTRIES_GETTER)
-
-
 # ─── Construcción ─────────────────────────────────────────────────
 
 func build() -> void:
@@ -101,12 +87,12 @@ func build() -> void:
 	add_child(h)
 	h.add_child(_notes_column())
 	h.add_child(_log_column())
-	EventBus.notebook_entry_added.connect(_on_entry_added)
-	EventBus.favour_added.connect(_on_world_changed.unbind(3))
-	EventBus.grievance_added.connect(_on_world_changed.unbind(3))
-	EventBus.investigation_opened.connect(_on_world_changed.unbind(3))
-	EventBus.investigation_resolved.connect(_on_world_changed.unbind(3))
-	EventBus.idea_acquired.connect(_on_world_changed.unbind(2))
+	EventBus.notebook_entry_added.connect(request_refresh.unbind(3))
+	EventBus.favour_added.connect(request_refresh.unbind(3))
+	EventBus.grievance_added.connect(request_refresh.unbind(3))
+	EventBus.investigation_opened.connect(request_refresh.unbind(3))
+	EventBus.investigation_resolved.connect(request_refresh.unbind(3))
+	EventBus.idea_acquired.connect(request_refresh.unbind(2))
 
 
 func _notes_column() -> VBoxContainer:
@@ -138,7 +124,7 @@ func _log_column() -> VBoxContainer:
 	col.size_flags_stretch_ratio = 1.1
 	col.add_child(make_section(t("NOTEBOOK_AUTO_LOG")))
 	_tabs = TabBar.new()
-	_tabs.clip_tabs = false
+	_tabs.clip_tabs = true
 	for key: String in TAB_KEYS:
 		_tabs.add_tab(t(key))
 	_tabs.tab_changed.connect(select_tab)
@@ -155,7 +141,7 @@ func _log_column() -> VBoxContainer:
 
 
 func _ready() -> void:
-	_paper.text = str(PlayerState.call(NOTES_GETTER)) if notes_supported() else _local_notes
+	_paper.text = PlayerState.get_notepad()
 	_update_saved_label()
 	refresh()
 
@@ -171,7 +157,7 @@ func on_closing() -> void:
 # ─── API ──────────────────────────────────────────────────────────
 
 func refresh() -> void:
-	var sections: Array = [targets(), favours(), cases(), ideas(), log_entries()]
+	var sections: Array = _sections()
 	for i: int in TAB_KEYS.size():
 		_tabs.set_tab_title(i, t("NOTEBOOK_TAB_COUNT", [t(TAB_KEYS[i]), (sections[i] as Array).size()]))
 	_tabs.current_tab = _tab
@@ -180,7 +166,7 @@ func refresh() -> void:
 
 
 func select_tab(index: int) -> void:
-	_tab = clampi(index, TAB_TARGETS, TAB_LOG)
+	_tab = clampi(index, TAB_TARGETS, TAB_KEYS.size() - 1)
 	refresh()
 
 
@@ -197,26 +183,27 @@ func set_notes_text(text: String) -> void:
 	_on_text_changed()
 
 
-## Guarda las notas en PlayerState (true si la API existe).
-func save_notes() -> bool:
-	_local_notes = _paper.text
-	if not notes_supported():
-		return false
-	PlayerState.call(NOTES_SETTER, _paper.text)
-	return true
+## Guarda el bloc en PlayerState (set_notepad; se guarda con la partida).
+func save_notes() -> void:
+	PlayerState.set_notepad(_paper.text)
+	_update_saved_label()
 
 
 ## Filas visibles de la pestaña actual: [{icon, title, sub, tag, tag_color}].
 func get_rows() -> Array:
-	return [targets(), favours(), cases(), ideas(), log_entries()][_tab]
+	return _sections()[_tab]
+
+
+func _sections() -> Array:
+	return [targets(), favours(), cases(), ideas(), log_entries(), annotations()]
 
 
 # ─── Secciones derivadas ──────────────────────────────────────────
 
 func targets() -> Array:
 	var out: Array = []
-	for npc_id: Variant in marked_target_ids():
-		var npc: NPCRuntime = NPCDirector.get_npc(str(npc_id))
+	for npc_id: String in PlayerState.get_marked_targets():
+		var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
 		if npc == null:
 			continue
 		var occ: OccupationData = Database.get_occupation(npc.occupation_id)
@@ -224,21 +211,6 @@ func targets() -> Array:
 		out.append(_entry("user", npc.name, t("NOTEBOOK_TARGET_SUB", [t(occ.name_key) if occ != null else "", where]),
 				"" if npc.alive else t("NOTEBOOK_TAG_GONE"), c("bad")))
 	return _capped(out)
-
-
-## Objetivos marcados: PlayerState (dueño previsto), NPCDirector o, mientras tanto, PERSONNEL.
-static func marked_target_ids() -> Array:
-	for owner: Node in [PlayerState, NPCDirector]:
-		if owner.has_method(TARGETS_GETTER):
-			var got: Variant = owner.call(TARGETS_GETTER)
-			return got if got is Array else []
-	if not ResourceLoader.exists(PERSONNEL_SCRIPT):
-		return []
-	var script: GDScript = load(PERSONNEL_SCRIPT) as GDScript
-	if script == null or not script.can_instantiate():
-		return []
-	var ids: Variant = script.call(TARGETS_GETTER)
-	return ids if ids is Array else []
 
 
 func favours() -> Array:
@@ -288,13 +260,10 @@ func ideas() -> Array:
 
 ## Avisos del cuaderno, del más reciente al más antiguo.
 func log_entries() -> Array:
-	var raw: Array = _live_entries
-	if log_supported():
-		var got: Variant = PlayerState.call(ENTRIES_GETTER)
-		raw = got if got is Array else []
+	var raw: Array[Dictionary] = PlayerState.get_notebook_entries()
 	var out: Array = []
 	for i: int in range(raw.size() - 1, -1, -1):
-		var e: Dictionary = raw[i] if raw[i] is Dictionary else {}
+		var e: Dictionary = raw[i]
 		var args: Array = []
 		for a: Variant in e.get("args", []):
 			args.append(tr(str(a)) if a is String else a)
@@ -302,6 +271,21 @@ func log_entries() -> Array:
 		out.append(_entry(str(CATEGORY_ICONS.get(category, "doc")), t(str(e.get("text_key", "")), args),
 				t("NOTEBOOK_LOG_WHEN", [int(e.get("day", 0)), UITheme.format_hour(int(e.get("hour", 0)),
 				int(e.get("minute", 0)))]), "", c("muted")))
+	return _capped(out)
+
+
+## Anotaciones sobre personajes (PERSONNEL → PlayerState.add_note), de la más reciente a la más antigua.
+func annotations() -> Array:
+	var notes: Array[Dictionary] = PlayerState.get_notes()
+	var out: Array = []
+	for i: int in range(notes.size() - 1, -1, -1):
+		var note: Dictionary = notes[i]
+		var npc_id: String = str(note.get(NOTE_NPC, ""))
+		var when: String = t("NOTEBOOK_LOG_WHEN", [int(note.get("day", 0)), UITheme.format_hour(int(note.get("hour", 0)),
+				int(note.get("minute", 0)))])
+		var sub: String = t("NOTEBOOK_NOTE_ABOUT", [npc_name(npc_id), when]) if not npc_id.is_empty() else when
+		out.append(_entry("personnel" if not npc_id.is_empty() else "notebook", str(note.get(NOTE_TEXT, "")), sub,
+				"", c("muted")))
 	return _capped(out)
 
 
@@ -341,7 +325,7 @@ func _last_favour(npc_id: String) -> String:
 func _incident_name(incident_type: String) -> String:
 	var key: String = INCIDENT_KEY_FORMAT % incident_type.to_upper()
 	var text: String = tr(key)
-	return text if text != key else incident_type.capitalize()
+	return text if text != key else t(INCIDENT_UNKNOWN_KEY)
 
 
 func _phase_name(phase: int) -> String:
@@ -359,8 +343,7 @@ func _room_name(room_id: String) -> String:
 
 
 func _update_saved_label() -> void:
-	_saved.text = t("NOTEBOOK_SAVED") if notes_supported() else t("NOTEBOOK_NOT_SAVED")
-	_saved.add_theme_color_override("font_color", c("muted") if notes_supported() else c("warn"))
+	_saved.text = t("NOTEBOOK_SAVED_COUNT", [_paper.text.length(), UITheme.tune_int(B_MAX_CHARS)])
 
 
 func _on_text_changed() -> void:
@@ -373,13 +356,3 @@ func _on_text_changed() -> void:
 	save_notes()
 
 
-func _on_entry_added(category: String, text_key: String, args: Array) -> void:
-	if not log_supported():
-		_live_entries.append({"day": GameClock.get_day(), "hour": GameClock.get_hour(),
-				"minute": GameClock.get_minute(), "category": category, "text_key": text_key, "args": args.duplicate()})
-	_on_world_changed()
-
-
-func _on_world_changed() -> void:
-	if is_inside_tree():
-		refresh.call_deferred()

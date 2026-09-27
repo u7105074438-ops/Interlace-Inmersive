@@ -7,10 +7,15 @@ extends PanelContainer
 ## Integración: game_root llama una vez a BlackmailDialog.install(ui_root). Con cada
 ## blackmail_demanded el Binder abre este diálogo (UIRoot.open_modal(…, true): pausa el reloj como
 ## cualquier diálogo); si hay una flagrancia abierta espera a que se cierre. El chat del móvil también
-## lo abre (BlackmailDialog.open_for(ui, npc_id)) mientras la exigencia siga abierta.
+## lo abre (BlackmailDialog.open_for(ui, npc_id, true)) mientras la exigencia siga abierta: entonces es
+## parte del móvil (superposición, meta ui_overlay): no pausa el reloj ni atenúa el mundo.
 ## Pagar = Blackmail.pay(npc, ctx) y negarse = Blackmail.refuse(npc, ctx), cada uno con confirmación
-## explícita (§13.7). «Decidir después» cierra sin responder: pasado chantaje.plazo_respuesta_dias,
-## Blackmail lo cuenta como negativa. Pagar dinero se deshabilita si no llega el capital.
+## explícita (§13.7; tras armar, el foco va a «Volver»: repetir la tecla no confirma). «Decidir después»
+## cierra sin responder: pasado chantaje.plazo_respuesta_dias, Blackmail lo cuenta como negativa.
+## Pagar dinero se deshabilita si no llega el capital.
+## La respuesta a una exigencia llegada por chat (no cara a cara) se escribe en el chat de la empresa:
+## pagar o negarse deja un registro chat_log permanente (BeliefNet.create_record, §13.5), y el diálogo
+## lo avisa antes de responder.
 
 signal closed
 
@@ -61,7 +66,10 @@ class Binder extends Node:
 
 var npc_resolver: Callable = Callable()
 var wallet: Bribery.Wallet = null
+## Id del registro chat_log que dejó la respuesta ("" si fue cara a cara o no hubo respuesta).
+var record_id: String = ""
 var _npc_id: String = ""
+var _by_chat: bool = true
 var _demand: Dictionary = {}
 var _state: String = STATE_DECIDING
 var _armed: String = ""
@@ -76,6 +84,8 @@ var _demand_glyph: PhoneOverlay.Glyph
 var _demand_value: Label
 var _demand_cost: Label
 var _deadline: Label
+var _record_line: Label
+var _back_button: PhoneOverlay.IconButton
 var _pay_button: PhoneOverlay.IconButton
 var _refuse_button: PhoneOverlay.IconButton
 var _later_button: PhoneOverlay.IconButton
@@ -158,6 +168,9 @@ func _build_demand() -> Control:
 	_deadline = PhoneOverlay.label("", UITheme.V_SMALL, true)
 	_deadline.add_theme_color_override("font_color", UITheme.color("warn"))
 	column.add_child(_deadline)
+	_record_line = PhoneOverlay.label(tr("BLACKMAILUI_CHAT_RECORD"), UITheme.V_SMALL, true)
+	_record_line.add_theme_color_override("font_color", UITheme.color("warn").lightened(0.3))
+	column.add_child(_record_line)
 	return panel
 
 
@@ -182,11 +195,11 @@ func _build_confirm() -> Control:
 	_confirm_box.add_child(_confirm_label)
 	var row: HBoxContainer = HBoxContainer.new()
 	_confirm_box.add_child(row)
-	var back: PhoneOverlay.IconButton = PhoneOverlay.IconButton.new(tr("CAUGHTUI_BACK"), "back")
-	back.focus_mode = Control.FOCUS_ALL
-	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	back.pressed.connect(back_out)
-	row.add_child(back)
+	_back_button = PhoneOverlay.IconButton.new(tr("CAUGHTUI_BACK"), "back")
+	_back_button.focus_mode = Control.FOCUS_ALL
+	_back_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_back_button.pressed.connect(back_out)
+	row.add_child(_back_button)
 	_confirm_button = PhoneOverlay.IconButton.new("", "check", UITheme.V_DANGER)
 	_confirm_button.focus_mode = Control.FOCUS_ALL
 	_confirm_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -208,14 +221,18 @@ static func install(ui: UIRoot) -> Node:
 	return binder
 
 
-## Abre el diálogo de la exigencia abierta del personaje (no hace nada si ya no hay exigencia).
-static func open_for(ui: UIRoot, npc_id: String) -> BlackmailDialog:
+## Abre el diálogo de la exigencia abierta del personaje (null si ya no hay exigencia). Desde el chat
+## del móvil (from_phone) es una superposición: no pausa el reloj ni atenúa el mundo.
+static func open_for(ui: UIRoot, npc_id: String, from_phone: bool = false) -> BlackmailDialog:
 	var dialog: BlackmailDialog = BlackmailDialog.new()
 	dialog.setup({"npc_id": npc_id})
 	if dialog.get_demand().is_empty():
 		dialog.free()
 		return null
-	ui.open_modal(dialog, true)
+	if from_phone:
+		dialog.set_meta(PhoneOverlay.META_OVERLAY, true)
+		dialog.set_meta(UIRoot.META_DIM, false)
+	ui.open_modal(dialog, not from_phone)
 	return dialog
 
 
@@ -259,6 +276,11 @@ func get_state() -> String:
 
 func get_result() -> Dictionary:
 	return _result.duplicate(true)
+
+
+## true si la respuesta irá por el chat de la empresa (y dejará registro chat_log).
+func replies_by_chat() -> bool:
+	return _by_chat
 
 
 func is_pay_enabled() -> bool:
@@ -305,6 +327,9 @@ func confirm() -> Dictionary:
 	if not bool(_result.get("ok", false)):
 		_confirm_label.text = tr(FAILED_KEY % str(_result.get("reason", Blackmail.REASON_NO_DEMAND)).to_upper())
 		return _result
+	if _by_chat:
+		record_id = BeliefNet.create_record(BeliefNetSystem.RECORD_CHAT_LOG, Bribery.PLAYER_ID, 0.0,
+				str(ctx["room_id"]))
 	_result_label.text = tr(str(_result.get("text_key", "")))
 	var tone: String = "gain" if _armed == ACTION_PAY else "danger"
 	_result_label.add_theme_color_override("font_color", UITheme.color(tone).lightened(0.2))
@@ -330,8 +355,10 @@ func _show_demand() -> void:
 	var demand_type: String = str(_demand.get("demand_type", Blackmail.DEMAND_MONEY))
 	var face: bool = str(_demand.get("kind", "")) == Blackmail.KIND_ASKED_MONEY
 	var keys: Dictionary = Blackmail.FACE_KEYS if face else Blackmail.PHONE_KEYS
+	_by_chat = not face
+	_record_line.visible = _by_chat
 	_kicker.text = tr("BLACKMAILUI_KICKER_FACE" if face else "BLACKMAILUI_KICKER").to_upper()
-	_kicker_glyph.set_glyph("person" if face else "phone")
+	_kicker_glyph.set_glyph("personal" if face else "phone")
 	_message.text = UITheme.trf("BLACKMAILUI_QUOTE", [tr(str(keys.get(demand_type, "")))])
 	_demand_glyph.set_glyph(str(DEMAND_GLYPHS.get(demand_type, "cash")))
 	var amount: String = UITheme.format_money(int(_demand.get("amount", 0)))
@@ -363,7 +390,7 @@ func _arm(action: String) -> void:
 			else "BLACKMAILUI_CONFIRM_REFUSE", [who])
 	_confirm_button.set_label(tr("BLACKMAILUI_YES_PAY") if action == ACTION_PAY else tr("BLACKMAILUI_YES_REFUSE"))
 	_set_state(STATE_CONFIRM)
-	_confirm_button.grab_focus.call_deferred()
+	_back_button.grab_focus.call_deferred()
 
 
 func _set_state(state: String) -> void:

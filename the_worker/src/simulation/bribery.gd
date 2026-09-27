@@ -535,7 +535,7 @@ static func offer_to(npc_id: String, amount: int, favour_id: String, channel_id:
 
 ## Expulsión inmediata: game_over con la causa de endings.json y el final que le corresponde.
 static func declare_game_over(cause: String) -> void:
-	EventBus.game_over.emit(cause, ending_for_cause(cause), Tracking.get_snapshot())
+	EventBus.game_over.emit(cause, ending_for_cause(cause), Tracking.get_snapshot_for_cause(cause))
 
 
 ## El final de endings.json para una causa terminal (lo decide Tracking con todas sus condiciones).

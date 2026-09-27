@@ -1,10 +1,10 @@
-# company.gd — Sillas, promoción del jugador, fundamentales, cifras reportadas, mecha de auditoría y descontento.
-# PROPIETARIO DE: sillas y titulares (también la del jugador), Rookies contratados, mérito reciente del jugador, fundamentales y sus entradas (marca, calidad, eficiencia, cuota, recorte, nómina, pérdidas por robo, escándalos, prensa negativa, rotación directiva, eliminaciones, historial trimestral y acumulado del trimestre en curso, productos en desarrollo), oferta de promoción vigente, cifras reportadas, mecha de auditoría, descontento y huelga (§19.8).
-# ESCUCHA: day_advanced, week_closed, quarter_closed, quarter_reported, npc_removed, occupation_changed, reputation_changed, news_published, news_buried, idea_presented, duty_completed, bribe_offered, bribe_result, crime_committed, strike_resolved.
+# company.gd — Sillas, promoción del jugador, fundamentales, cifras reportadas, mecha de auditoría, descontento, producción e inventario de fábrica, ventas a compradores y huelga.
+# PROPIETARIO DE: sillas y titulares (también la del jugador), Rookies contratados, mérito reciente del jugador, fundamentales y sus entradas (marca, calidad, eficiencia, cuota, recorte, nómina, pérdidas por robo, escándalos, prensa negativa, rotación directiva, eliminaciones, historial trimestral y acumulado del trimestre en curso, productos en desarrollo), oferta de promoción vigente, cifras reportadas, mecha de auditoría, descontento y huelga (§19.8); robos de fábrica sin recontar, albaranes falsificados de la semana, recuentos semanales de producto terminado, cartera y agenda de compradores con sus reclamaciones y su material de chantaje, fraudes de venta pendientes del cierre mensual, agitación laboral, líder de la huelga y prestigio laboral del jugador (PASO 41).
+# ESCUCHA: day_advanced, week_closed, month_closed, quarter_closed, quarter_reported, npc_removed, occupation_changed, reputation_changed, news_published, news_buried, idea_presented, duty_completed, bribe_offered, bribe_result, crime_committed, strike_resolved, investigation_resolved.
 class_name CompanySystem
 extends Node
 
-## Manual §6.1-§6.3, §9.2, §9.9, §9.10, §11.6, §11.7, §19.8; PASO 21 y PASO 32; BUILD_NOTES §2, §13.
+## Manual §6.1-§6.3, §9.2, §9.4, §9.9, §9.10, §11.5-§11.7, §19.8; PASO 21, 32 y 41; BUILD_NOTES §2, §13.
 ## Emite: seat_vacated, seat_filled, occupation_changed, promotion_available, promotion_declined,
 ## merit_gained, fundamentals_updated, audit_fuse_lit, audit_triggered, strike_discontent_changed,
 ## strike_started, strike_resolved ("appeased"), game_over, notebook_entry_added.
@@ -53,8 +53,10 @@ extends Node
 ##  · DESCENSOS (§6.1): demote_player(motivo) → primer demotes_to con vacante (si no, silla
 ##    temporal). En R0 → game_over("failed_at_r0"); en R33 por "board_pressure" → game_over(
 ##    "board_removal"). Company degrada por sí misma ante la presión del consejo (quarter_reported con
-##    Market.is_board_pressure_triggered()) y las cifras afloradas por la auditoría (salvo
-##    empresa.cargos_sin_descenso_por_cifras: ahí la consecuencia es la investigación de Security).
+##    Market.is_board_pressure_triggered()), las cifras afloradas por la auditoría (salvo
+##    empresa.cargos_sin_descenso_por_cifras: ahí la consecuencia es la investigación de Security) y
+##    el veredicto leve contra el jugador (§12.3: investigation_resolved(_, "player_minor", "player")
+##    → demote_player("credible_accusation"); la pérdida de acreditación sigue a la ocupación nueva).
 ##  · occupation_changed ajeno (depuración, tutorial): la silla del jugador se sincroniza EN SILENCIO.
 ##    fill_seat(occ, id) solo acepta personajes en plantilla (NPCDirector.is_active) o Rookies de
 ##    Company (is_hire); "player" mueve al jugador sin condiciones.
@@ -73,10 +75,17 @@ extends Node
 ##    ventana); riesgo = suma ponderada (market.json risk_factor_weights) de investigaciones
 ##    abiertas, prensa negativa viva, huelga y rotación directiva (salidas de sillas de escalón ≥
 ##    escalon_directivo, salvo traslados internos: promoted, player_promoted, player_lateral,
-##    reassigned) + eliminaciones × empresa.riesgo_por_eliminacion. Eficiencia y fuerza comercial
+##    reassigned) + eliminaciones × empresa.riesgo_por_eliminacion. EVENTOS DE MERCADO (§9.12,
+##    NewsFeed.get_active_market_events, salvo "strike": la huelga ya la modelan
+##    factor_unidades_huelga y el peso strike_active): production_multiplier → unidades;
+##    revenue_multiplier → ingresos; brand_strength_add → marca (acotada); costs_multiplier → cada
+##    línea de coste; legal_costs_per_day → línea legal; growth_expectation_multiplier → el factor de
+##    expectativa (1 + crecimiento) × mult − 1; risk_factor_add → riesgo. Un evento que se publica
+##    recalcula al instante (news_published de su noticia). Eficiencia y fuerza comercial
 ##    bajan con las vacantes de sus departamentos. Recalculo en cada day_advanced y al instante tras
-##    un robo o una llamada directa (modify_*, palancas, concesión salarial); el resto de señales
-##    esperan al día.
+##    un robo apuntado (recuento semanal, cierre mensual de ventas), una llamada directa (modify_*,
+##    palancas, concesión salarial) o el inicio / fin de una huelga; el resto de señales esperan
+##    al día.
 ##  · IRONÍA (§9.10). ROBO: Company escucha crime_committed y apunta como pérdida
 ##    details.company_loss o, si falta, details.value de un "theft_product" (misma regla que
 ##    Tracking). add_theft_loss(importe) es para pérdidas sin crime_committed; quien llame a
@@ -104,7 +113,36 @@ extends Node
 ##    descontento vuelve a ≤ umbral (apaciguar) Company la da por terminada y emite
 ##    strike_resolved("appeased"). Un strike_resolved ajeno (módulo Strike: traición...) también la
 ##    termina; para otra hay que volver a cruzar el umbral. Agitar, apaciguar, liderar y traicionar
-##    son del módulo Strike (modify_discontent / apply_labour_event).
+##    son del módulo Strike (modify_discontent / apply_labour_event / add_agitation / call_strike).
+##  · AGITACIÓN Y LIDERAZGO (§11.7, PASO 41): add_agitation(puntos) suma un impulso diario (tope
+##    huelga.agitacion_max) que Company aplica al empezar cada jornada (causa "agitation") y reduce
+##    en huelga.decaimiento_agitacion_diario: el descontento sube más deprisa. call_strike("player")
+##    exige descontento > umbral y que el jugador no la haya traicionado nunca: el jugador pasa a
+##    líder (y la huelga estalla si no estaba activa); prestigio laboral (get_labour_standing,
+##    0-100) de trabajadores y dirección = huelga.prestigio_liderar_*. strike_resolved("betrayed")
+##    con el jugador de líder = traición: prestigio huelga.prestigio_traicion_* y, para siempre,
+##    el de los trabajadores no pasa de prestigio_traicion_trabajadores (are_workers_betrayed).
+##    Las reputaciones y los registros de los personajes los aplica el módulo Strike.
+##  · FÁBRICA (§11.6, §9.4 «semanal: primera señal visible de los robos»): FactoryTheft apunta cada
+##    robo con register_factory_theft y emite crime_committed con loss_booked = true: en el acto
+##    no hay pérdida en costes ni incidente. RECUENTO SEMANAL (week_closed, run_inventory_count,
+##    idempotente por semana): FactoryTheft.build_count_report sobre los robos de la semana; la
+##    pérdida (pares × precio medio) entra entonces en theft_losses; hasta
+##    fabrica.tolerancia_recuento_pares es merma absorbida; por encima, descuadre que se queda
+##    en el informe hasta que las manos lo entregan a Security (take_unreported_mismatches;
+##    FactoryTheft.report_mismatches, conectado a week_closed). Albaranes falsificados
+##    (set_forged_delivery_target) desvían el descuadre de ESA semana al superior. Informe:
+##    get_inventory_reports() (stock esperado y contado, pares que faltan, pérdida, escala,
+##    a quién apunta, si el CFO lo vio en los márgenes).
+##  · COMPRADORES (§11.5): cartera (Buyers.generate_roster, semilla de partida) y agenda por
+##    jornada (Buyers.generate_visits, semilla de partida + jornada) en la sala de demostraciones;
+##    get_buyers_today(). Las operaciones las ejecuta el módulo Buyers y cierran la visita
+##    (close_buyer_visit). Reclamaciones (schedule_buyer_claim): al llegar su jornada Company emite
+##    npc_reported_player(comprador, compradores.canal_queja, 0, sala) — el comprador se queja al
+##    superior — y lo anota. Venta fantasma y descuento con mordida (register_sales_fraud): la
+##    pérdida aflora en el cierre mensual (month_closed) en theft_losses; el fraude contable lo
+##    destapa Security con el crime_committed("fraud") de la operación. El material de chantaje de
+##    un comprador vive en su ficha (add_buyer_material, get_buyer_leverage).
 
 const PLAYER_ID := "player"
 const HIRE_ID_FORMAT := "npc_hire_%03d"
@@ -154,7 +192,8 @@ const CAUSE_RETIRED := "retired"
 const CAUSE_REASSIGNED := "reassigned"
 const DISMISSAL_CAUSES: Array[String] = ["expelled", "expulsion", "fired", "framed"]
 const ELIMINATION_CAUSES: Array[String] = ["eliminated", "elimination"]
-## Espejo de NPCDirector.PLAYER_CAUSED_VACANCIES (+ player_lateral): favor a quien ocupe la silla.
+## Causas de vacante atribuidas al jugador (favor a quien ocupe la silla). Lista ÚNICA: NPCDirector
+## la usa también (is_player_cause) para los agravios.
 const PLAYER_CAUSES: Array[String] = [
 	"expelled", "expulsion", "fired", "framed", "eliminated", "elimination", "demoted",
 	"demotion", "player_promoted", "player_lateral", "displaced_by_player",
@@ -179,6 +218,19 @@ const REASON_ASSIGNED := "assigned"
 # Descensos y fin de partida.
 const DEMOTION_BOARD := "board_pressure"
 const DEMOTION_FIGURES := "figures_surfaced"
+const DEMOTION_ACCUSATION := "credible_accusation"
+const VERDICT_PLAYER_MINOR := "player_minor"
+
+# Efectos de los eventos de mercado (§9.12, market_events.json) sobre los fundamentales.
+const STRIKE_EVENT_ID := NewsFeedSystem.STRIKE_EVENT_ID
+const FX_PRODUCTION := "production_multiplier"
+const FX_REVENUE := "revenue_multiplier"
+const FX_COSTS := "costs_multiplier"
+const FX_GROWTH := "growth_expectation_multiplier"
+const FX_LEGAL := "legal_costs_per_day"
+const FX_RISK := "risk_factor_add"
+const FX_BRAND := "brand_strength_add"
+const FX_MULTIPLIER_SUFFIX := "_multiplier"
 const CAUSE_FAILED_AT_R0 := "failed_at_r0"
 const CAUSE_BOARD_REMOVAL := "board_removal"
 
@@ -209,6 +261,34 @@ const CAUSE_EXCESSIVE_QUOTA := "excessive_quota"
 const CAUSE_DEGRADED_FACTORY := "degraded_factory"
 const CAUSE_MOOD := "workforce_mood"
 const STRIKE_APPEASED := "appeased"
+# Huelga: acciones del jugador (PASO 41; claves del módulo Strike).
+const STRIKE_BETRAYED := Strike.RESOLUTION_BETRAYED
+const CAUSE_AGITATION := Strike.CAUSE_AGITATION
+const STANDING_WORKERS := Strike.STANDING_WORKERS
+const STANDING_MANAGEMENT := Strike.STANDING_MANAGEMENT
+const STANDING_GROUPS: Array[String] = [STANDING_WORKERS, STANDING_MANAGEMENT]
+
+# Fábrica (§11.6): robos sin recontar y recuento semanal (claves de FactoryTheft).
+const THEFT_ID_FORMAT := "ftheft_%d"
+const T_SCALE := FactoryTheft.T_SCALE
+const T_PAIRS := FactoryTheft.T_PAIRS
+const T_LOSS := FactoryTheft.T_LOSS
+const T_ROOM := FactoryTheft.T_ROOM
+const R_MISMATCH := FactoryTheft.R_MISMATCH
+const R_REPORTED := FactoryTheft.R_REPORTED
+const R_MISSING := FactoryTheft.R_MISSING
+const R_FRAMED_TO := FactoryTheft.R_FRAMED_TO
+
+# Compradores (§11.5): visitas y reclamaciones (claves de Buyers).
+const BUYER_SALT := "company_buyers"
+const V_BUYER := Buyers.V_BUYER
+const V_STATUS := Buyers.V_STATUS
+const V_OPERATION := Buyers.V_OPERATION
+const V_OUTCOME := Buyers.V_OUTCOME
+const V_PAIRS := Buyers.V_PAIRS
+const C_DUE_DAY := "due_day"
+const BUYER_MATERIAL := "material"
+const BUYER_TRAITS := "traits"
 
 # Cuaderno.
 const NOTE_CATEGORY := "career"
@@ -219,6 +299,13 @@ const NOTE_BY_REASON: Dictionary = {
 }
 const NOTE_DECLINED := "NOTE_CAREER_DECLINED"
 const NOTE_FUSE_LIT := "NOTE_AUDIT_FUSE_LIT"
+const NOTE_CATEGORY_FACTORY := "factory"
+const NOTE_INVENTORY_MISMATCH := "NOTE_INVENTORY_MISMATCH"
+const NOTE_INVENTORY_FRAMED := "NOTE_INVENTORY_MISMATCH_FRAMED"
+const NOTE_CATEGORY_SALES := "sales"
+const NOTE_BUYERS_TODAY := "NOTE_BUYERS_TODAY"
+const NOTE_BUYER_CLAIM := "NOTE_BUYER_CLAIM"
+const NOTE_MONTH_SALES := "NOTE_MONTH_SALES_MISMATCH"
 
 # Fundamentales.
 ## Cifras reportables (y las que miden la divergencia, §9.2 «toda divergencia»).
@@ -311,6 +398,21 @@ const B_FACTORY_DAILY := "descontento.por_condiciones_fabrica"
 const B_MOOD_DAILY := "descontento.por_animo_diario"
 const B_AFFECTED_TIER := "descontento.escalon_max_afectado"
 const B_HISTORY_MAX := "descontento.historial_max"
+const B_AGITATION_MAX := "huelga.agitacion_max"
+const B_AGITATION_DECAY := "huelga.decaimiento_agitacion_diario"
+const B_STANDING_START := "huelga.prestigio_inicial"
+const B_STANDING_LEAD := "huelga.prestigio_liderar_%s"
+const B_STANDING_BETRAY := "huelga.prestigio_traicion_%s"
+## Grupo del prestigio laboral → sufijo de sus claves de balance.
+const STANDING_SUFFIX: Dictionary = {
+	STANDING_WORKERS: "trabajadores", STANDING_MANAGEMENT: "direccion",
+}
+const B_STOCK_BASE := "fabrica.stock_base_pares"
+const B_REPORTS_MAX := "fabrica.informes_max"
+const B_RESPONSIBLE_POSTS := "fabrica.ocupaciones_responsables_inventario"
+const B_CFO_OCCUPATION := "fabrica.ocupacion_cfo"
+const B_BUYER_ROOM := "compradores.sala"
+const B_CLAIM_CHANNEL := "compradores.canal_queja"
 
 var _active: bool = false
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -369,6 +471,42 @@ var _discontent: int = 0
 var _strike_active: bool = false
 ## [{day, delta, cause}] (últimas descontento.historial_max entradas).
 var _discontent_history: Array[Dictionary] = []
+# Huelga: acciones del jugador (§11.7).
+## Impulso diario de la agitación (puntos de descontento por jornada).
+var _agitation: int = 0
+## npc_id → jornada de su última agitación.
+var _agitated: Dictionary = {}
+## "" | "player" | otro líder: quien encabeza la huelga en curso.
+var _strike_leader: String = ""
+## Prestigio laboral del jugador, 0-100: {workers, management}.
+var _standing: Dictionary = {}
+var _workers_betrayed: bool = false
+
+# Fábrica (§11.6).
+## Robos sin recontar: [{id, day, scale, pairs, loss, room_id}] (nadie los ha detectado aún).
+var _factory_thefts: Array[Dictionary] = []
+var _theft_seq: int = 0
+## Superior al que apuntan los albaranes falsificados de la semana en curso ("" = ninguno).
+var _forged_target: String = ""
+## Últimos recuentos semanales de producto terminado (FactoryTheft.build_count_report).
+var _inventory_reports: Array[Dictionary] = []
+var _counted_week: int = 0
+## Unidades producidas desde el último recuento.
+var _week_produced: float = 0.0
+
+# Compradores (§11.5).
+## Cartera: [{id, first_name, last_name, firm_key, traits, portrait_seed, material}].
+var _buyers: Array[Dictionary] = []
+## Visitas de la jornada _visits_day: [{buyer_id, day, hour, pairs, unit_price, order_value,
+## status, operation, outcome}].
+var _visits: Array[Dictionary] = []
+var _visits_day: int = NO_DAY
+## Reclamaciones pendientes: [{buyer_id, amount, day, due_day, operation}].
+var _buyer_claims: Array[Dictionary] = []
+## Fraudes de venta que afloran en el cierre mensual: [{day, buyer_id, operation, pairs, loss}].
+var _sales_frauds: Array[Dictionary] = []
+## Último cierre mensual con descuadre de ventas: {month, day, pairs, loss, operations}.
+var _last_month_report: Dictionary = {}
 
 # Caché de datos (se reconstruye en reset/load; no se guarda).
 var _base: Dictionary = {}
@@ -384,6 +522,7 @@ func _ready() -> void:
 func _connect_signals() -> void:
 	EventBus.day_advanced.connect(_on_day_advanced)
 	EventBus.week_closed.connect(_on_week_closed)
+	EventBus.month_closed.connect(_on_month_closed)
 	EventBus.quarter_closed.connect(_on_quarter_closed)
 	EventBus.quarter_reported.connect(_on_quarter_reported)
 	EventBus.npc_removed.connect(_on_npc_removed)
@@ -397,6 +536,7 @@ func _connect_signals() -> void:
 	EventBus.bribe_result.connect(_on_bribe_result)
 	EventBus.crime_committed.connect(_on_crime_committed)
 	EventBus.strike_resolved.connect(_on_strike_resolved)
+	EventBus.investigation_resolved.connect(_on_investigation_resolved)
 
 
 ## Partida nueva (BUILD_NOTES §2): tras PlayerState y NPCDirector. No emite señales.
@@ -410,6 +550,8 @@ func reset_for_new_run() -> void:
 	_active = true
 	_fundamentals = _compute_fundamentals()
 	_accumulate_day(GameClock.get_day())
+	_buyers = Buyers.generate_roster(_buyer_rng(NO_DAY))
+	_refresh_buyer_visits(GameClock.get_day(), false)
 
 
 func _load_config() -> void:
@@ -449,6 +591,35 @@ func _clear_state() -> void:
 	_discontent = DISCONTENT_MIN
 	_strike_active = false
 	_discontent_history.clear()
+	_clear_labour_state()
+	_clear_plant_state()
+
+
+## Agitación, liderazgo y prestigio laboral (§11.7, PASO 41).
+func _clear_labour_state() -> void:
+	_agitation = 0
+	_agitated.clear()
+	_strike_leader = ""
+	_workers_betrayed = false
+	_standing = {}
+	for group: String in STANDING_GROUPS:
+		_standing[group] = _bf(B_STANDING_START)
+
+
+## Fábrica y compradores (§11.5, §11.6, PASO 41).
+func _clear_plant_state() -> void:
+	_factory_thefts.clear()
+	_theft_seq = 0
+	_forged_target = ""
+	_inventory_reports.clear()
+	_counted_week = 0
+	_week_produced = 0.0
+	_buyers.clear()
+	_visits.clear()
+	_visits_day = NO_DAY
+	_buyer_claims.clear()
+	_sales_frauds.clear()
+	_last_month_report = {}
 
 
 func _clear_fundamentals_state() -> void:
@@ -949,6 +1120,261 @@ func get_discontent_history() -> Array[Dictionary]:
 	return _discontent_history.duplicate(true)
 
 
+# ═══ Huelga: agitación y liderazgo (§11.7, PASO 41) ═══════════════════
+
+## Extra (Strike): suma impulso de agitación (puntos de descontento por jornada, tope
+## huelga.agitacion_max); con npc_id, anota la jornada de su última agitación.
+func add_agitation(points: int, npc_id: String) -> void:
+	if not _active or points <= 0:
+		return
+	_agitation = mini(_agitation + points, Database.get_balance_int(B_AGITATION_MAX))
+	if not npc_id.is_empty():
+		_agitated[npc_id] = GameClock.get_day()
+
+
+## Extra: impulso diario de la agitación.
+func get_agitation() -> int:
+	return _agitation
+
+
+## Extra: jornada de la última agitación de ese personaje (NO_DAY si nunca).
+func get_last_agitation_day(npc_id: String) -> int:
+	return int(_agitated.get(npc_id, NO_DAY))
+
+
+## Extra (Strike, «liderar», §11.7): exige descontento > umbral y, si el líder es el jugador, que
+## nunca haya traicionado una huelga. Pasa a encabezarla; si no estaba activa, estalla.
+func call_strike(leader: String) -> bool:
+	if not _active or leader.is_empty() or _discontent <= get_strike_threshold():
+		return false
+	if leader == PLAYER_ID and _workers_betrayed:
+		return false
+	_strike_leader = leader
+	if leader == PLAYER_ID:
+		_set_standing(B_STANDING_LEAD)
+	if not _strike_active:
+		_start_strike()
+	return true
+
+
+## Extra: quien encabeza la huelga en curso ("" si nadie o si no hay huelga).
+func get_strike_leader() -> String:
+	return _strike_leader if _strike_active else ""
+
+
+## Extra: prestigio laboral del jugador (0-100) ante "workers" (escalones bajos) o "management".
+func get_labour_standing(group: String) -> float:
+	return float(_standing.get(group, 0.0))
+
+
+## Extra: el jugador convocó una huelga y la traicionó (irreversible).
+func are_workers_betrayed() -> bool:
+	return _workers_betrayed
+
+
+# ═══ Fábrica: robos, albaranes y recuento semanal (§11.6, §9.4) ══════
+
+## Extra (FactoryTheft): apunta un robo de producto que nadie ha detectado aún. Devuelve su id
+## ("" si no hay partida o no hay pares).
+func register_factory_theft(scale: String, pairs: int, loss: float, room_id: String) -> String:
+	if not _active or pairs <= 0:
+		return ""
+	_theft_seq += 1
+	var id: String = THEFT_ID_FORMAT % _theft_seq
+	_factory_thefts.append({L_ID: id, L_DAY: GameClock.get_day(), T_SCALE: scale, T_PAIRS: pairs,
+			T_LOSS: maxf(loss, 0.0), T_ROOM: room_id})
+	return id
+
+
+## Extra: robos aún sin recontar (copias).
+func get_pending_factory_thefts() -> Array[Dictionary]:
+	return _factory_thefts.duplicate(true)
+
+
+## Extra: robos de fábrica apuntados en la partida (FactoryTheft siembra su sorteo con él).
+func get_factory_theft_count() -> int:
+	return _theft_seq
+
+
+## Extra (FactoryTheft): los albaranes falsificados hacen que el recuento de ESTA semana apunte a
+## ese personaje ("" los anula).
+func set_forged_delivery_target(npc_id: String) -> void:
+	if _active:
+		_forged_target = npc_id
+
+
+func get_forged_delivery_target() -> String:
+	return _forged_target
+
+
+## Extra: existencias físicas de producto terminado (base − pares robados sin recontar).
+func get_finished_goods_stock() -> int:
+	var missing: int = 0
+	for theft: Dictionary in _factory_thefts:
+		missing += int(theft[T_PAIRS])
+	return maxi(Database.get_balance_int(B_STOCK_BASE) - missing, 0)
+
+
+## Extra: recuento semanal (§9.4). Company lo hace al oír week_closed; idempotente por semana (las
+## manos pueden pedirlo antes de entregar los descuadres). Devuelve el informe ({} si ya estaba).
+func run_inventory_count(week: int) -> Dictionary:
+	if not _active or week <= _counted_week:
+		return {}
+	_counted_week = week
+	var report: Dictionary = FactoryTheft.build_count_report(_factory_thefts, _count_context(week))
+	_factory_thefts.clear()
+	_forged_target = ""
+	_week_produced = 0.0
+	_inventory_reports.append(report)
+	while _inventory_reports.size() > maxi(Database.get_balance_int(B_REPORTS_MAX), 1):
+		_inventory_reports.pop_front()
+	_book_theft_loss(float(report[FactoryTheft.R_LOSS]))
+	if bool(report[R_MISMATCH]):
+		_note_mismatch(report)
+	return report.duplicate(true)
+
+
+## Extra: los últimos recuentos semanales (FactoryTheft.build_count_report; copias).
+func get_inventory_reports() -> Array[Dictionary]:
+	return _inventory_reports.duplicate(true)
+
+
+## Extra (FactoryTheft.report_mismatches): descuadres aún no entregados a Security (copias); quedan
+## marcados como entregados.
+func take_unreported_mismatches() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for report: Dictionary in _inventory_reports:
+		if bool(report[R_MISMATCH]) and not bool(report[R_REPORTED]):
+			report[R_REPORTED] = true
+			out.append(report.duplicate(true))
+	return out
+
+
+# ═══ Compradores (§11.5) ══════════════════════════════════════════════
+
+## Visitas de hoy a la sala de demostraciones con la ficha de su comprador (Buyers.visit_view):
+## {buyer_id, day, hour, pairs, unit_price, order_value, status, operation, outcome, name,
+## first_name, last_name, firm_key, traits, portrait_seed, holds_material}.
+func get_buyers_today() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if _visits_day != GameClock.get_day():
+		return out
+	for visit: Dictionary in _visits:
+		out.append(Buyers.visit_view(visit, _buyer_of(str(visit[V_BUYER]))))
+	return out
+
+
+## Extra: la visita de hoy de ese comprador con su ficha ({} si hoy no viene).
+func get_buyer_visit(buyer_id: String) -> Dictionary:
+	var visit: Dictionary = _visit_of(buyer_id)
+	return {} if visit.is_empty() else Buyers.visit_view(visit, _buyer_of(buyer_id))
+
+
+## Extra: ficha de un comprador de la cartera (copia; {} si no existe).
+func get_buyer(buyer_id: String) -> Dictionary:
+	return _buyer_of(buyer_id).duplicate(true)
+
+
+## Extra: la cartera completa de compradores (copias).
+func get_buyer_roster() -> Array[Dictionary]:
+	return _buyers.duplicate(true)
+
+
+## Extra: la agenda trae compradores ese día (compradores.dias_visita_semana).
+func is_buyer_visit_day(day: int) -> bool:
+	return Buyers.is_visit_day(day)
+
+
+## Extra (depuración F1, escenas, pruebas): trae hoy, fuera de agenda, a un comprador de la cartera
+## (pairs 0 = pedido sorteado). false si no existe o ya vino hoy.
+func schedule_buyer_visit(buyer_id: String, pairs: int = 0) -> bool:
+	if not _active or _buyer_of(buyer_id).is_empty() or not _visit_of(buyer_id).is_empty():
+		return false
+	if _visits_day != GameClock.get_day():
+		_visits.clear()
+		_visits_day = GameClock.get_day()
+	var amount: int = pairs if pairs > 0 else Buyers.roll_pairs(_buyer_rng(buyer_id))
+	_visits.append(Buyers.make_visit(buyer_id, _visits_day, GameClock.get_hour(), amount,
+			_unit_price()))
+	return true
+
+
+## Extra (depuración F1 y pruebas): fija rasgos de un comprador (solo los seis estándar, 0-100).
+func set_buyer_traits(buyer_id: String, traits: Dictionary) -> bool:
+	var buyer: Dictionary = _buyer_of(buyer_id)
+	if buyer.is_empty():
+		return false
+	var own: Dictionary = buyer[BUYER_TRAITS]
+	for key: Variant in traits:
+		if own.has(str(key)):
+			own[str(key)] = clampi(int(traits[key]), Validate.TRAIT_MIN, Validate.TRAIT_MAX)
+	return true
+
+
+## Extra (Buyers): cierra la visita de hoy con su operación y su resultado. false si no esperaba.
+func close_buyer_visit(buyer_id: String, operation: String, outcome: String) -> bool:
+	var visit: Dictionary = _visit_of(buyer_id)
+	if visit.is_empty() or str(visit[V_STATUS]) != Buyers.STATUS_WAITING:
+		return false
+	visit[V_STATUS] = Buyers.STATUS_CLOSED
+	visit[V_OPERATION] = operation
+	visit[V_OUTCOME] = outcome
+	return true
+
+
+## Extra (Buyers): el comprador reclamará (sobreprecio) en la jornada due_day.
+func schedule_buyer_claim(buyer_id: String, amount: int, due_day: int, operation: String) -> void:
+	if _active and not _buyer_of(buyer_id).is_empty():
+		_buyer_claims.append({V_BUYER: buyer_id, L_AMOUNT: amount, L_DAY: GameClock.get_day(),
+				C_DUE_DAY: due_day, V_OPERATION: operation})
+
+
+## Extra: reclamaciones aún por llegar [{buyer_id, amount, day, due_day, operation}].
+func get_pending_buyer_claims() -> Array[Dictionary]:
+	return _buyer_claims.duplicate(true)
+
+
+## Extra (Buyers): el comprador guarda material de chantaje contra el jugador ({type, amount...}).
+func add_buyer_material(buyer_id: String, material: Dictionary) -> void:
+	var buyer: Dictionary = _buyer_of(buyer_id)
+	if buyer.is_empty():
+		return
+	var entry: Dictionary = material.duplicate(true)
+	if not entry.has(L_DAY):
+		entry[L_DAY] = GameClock.get_day()
+	(buyer[BUYER_MATERIAL] as Array).append(entry)
+
+
+## Extra: compradores con material de chantaje: [{buyer_id, name, firm_key, material}].
+func get_buyer_leverage() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for buyer: Dictionary in _buyers:
+		if not (buyer[BUYER_MATERIAL] as Array).is_empty():
+			out.append({V_BUYER: str(buyer[Buyers.B_ID]), "name": Buyers.display_name(buyer),
+					Buyers.B_FIRM: str(buyer[Buyers.B_FIRM]),
+					BUYER_MATERIAL: (buyer[BUYER_MATERIAL] as Array).duplicate(true)})
+	return out
+
+
+## Extra (Buyers): pérdida de una venta fantasma o de un descuento con mordida; aflora en el
+## cierre mensual (theft_losses) con el descuadre de ventas.
+func register_sales_fraud(buyer_id: String, operation: String, pairs: int, loss: float) -> void:
+	if _active and loss > 0.0:
+		_sales_frauds.append({L_DAY: GameClock.get_day(), V_BUYER: buyer_id,
+				V_OPERATION: operation, V_PAIRS: pairs, L_AMOUNT: loss})
+
+
+## Extra: fraudes de venta pendientes del cierre mensual (copias).
+func get_pending_sales_frauds() -> Array[Dictionary]:
+	return _sales_frauds.duplicate(true)
+
+
+## Extra: el último cierre mensual con descuadre de ventas {month, day, pairs, amount,
+## operations} ({} si no hubo).
+func get_last_month_report() -> Dictionary:
+	return _last_month_report.duplicate(true)
+
+
 # ═══ Persistencia ═════════════════════════════════════════════════════
 
 func save_state() -> Dictionary:
@@ -965,6 +1391,7 @@ func save_state() -> Dictionary:
 		"fuse": _fuse.duplicate(), "last_audit": _last_audit.duplicate(),
 		"discontent": _discontent, "strike_active": _strike_active,
 		"discontent_history": _discontent_history.duplicate(true),
+		"labour": _save_labour(), "plant": _save_plant(),
 	}
 
 
@@ -989,9 +1416,13 @@ func load_state(data: Dictionary) -> void:
 	_discontent = clampi(int(data.get("discontent", 0)), DISCONTENT_MIN, DISCONTENT_MAX)
 	_strike_active = bool(data.get("strike_active", false))
 	_discontent_history = _entries(data.get("discontent_history", []), ["delta"])
+	_load_labour(_as_dict(data.get("labour", {})))
+	_load_plant(_as_dict(data.get("plant", {})))
 	_active = true
 	if _fundamentals.is_empty():
 		_fundamentals = _compute_fundamentals()
+	if _buyers.is_empty():
+		_buyers = Buyers.generate_roster(_buyer_rng(NO_DAY))
 
 
 # ═══ Privado: construcción y consulta de sillas ═══════════════════════
@@ -1367,7 +1798,8 @@ func _refresh_promotion_offer(day_start: bool = false) -> void:
 
 func _declare_game_over(cause: String) -> void:
 	_game_over_sent = true
-	EventBus.game_over.emit(cause, Bribery.ending_for_cause(cause), Tracking.get_snapshot())
+	EventBus.game_over.emit(cause, Tracking.evaluate_ending_for_cause(cause),
+			Tracking.get_snapshot_for_cause(cause))
 
 
 func _note_career(reason: String, occupation_id: String) -> void:
@@ -1385,39 +1817,67 @@ func _note(text_key: String, args: Array) -> void:
 
 func _compute_fundamentals() -> Dictionary:
 	var day: int = GameClock.get_day()
+	var fx: Dictionary = _event_effects()
 	var efficiency: float = _factory_efficiency * _staffing(B_FACTORY_DEPTS, B_FACTORY_WEIGHT)
 	var sales_force: float = _staffing(B_SALES_DEPTS, B_SALES_WEIGHT)
 	var units: float = float(_base.get(K_UNITS, 0.0)) * efficiency * _product_quality \
-			* sales_force * _production_quota
+			* sales_force * _production_quota * float(fx.get(FX_PRODUCTION, NEUTRAL))
 	if _strike_active:
 		units *= _bf(B_STRIKE_UNITS)
 	var price: float = float(_base.get(K_PRICE, 0.0))
-	var revenue: float = units * price * _brand_strength
-	var out: Dictionary = _compute_costs(units, day)
+	var brand: float = clampf(_brand_strength + float(fx.get(FX_BRAND, 0.0)), _bf(B_BRAND_MIN),
+			_bf(B_BRAND_MAX))
+	var revenue: float = units * price * brand * float(fx.get(FX_REVENUE, NEUTRAL))
+	var out: Dictionary = _compute_costs(units, day, fx)
 	var costs: float = 0.0
 	for key: String in COST_KEYS:
 		costs += float(out[key])
+	var growth_factor: float = (NEUTRAL + _compute_growth(day)) * float(fx.get(FX_GROWTH, NEUTRAL))
 	out.merge({
 		"revenue": revenue, "costs": costs, "profit": revenue - costs,
-		K_GROWTH: _compute_growth(day), K_RISK: _compute_risk(day), K_UNITS: units,
-		K_PRICE: price, K_BRAND: _brand_strength, K_QUALITY: _product_quality,
+		K_GROWTH: growth_factor - NEUTRAL, K_RISK: _compute_risk(day) + float(fx.get(FX_RISK, 0.0)),
+		K_UNITS: units, K_PRICE: price, K_BRAND: brand, K_QUALITY: _product_quality,
 		"factory_efficiency": efficiency, "sales_force": sales_force,
 	})
 	return out
 
 
-func _compute_costs(units: float, day: int) -> Dictionary:
+## Efectos combinados de los eventos de mercado activos (§9.12): *_multiplier se multiplican, el
+## resto se suman. Sin el evento "strike" (la huelga es de Company: factor de unidades y riesgo).
+func _event_effects() -> Dictionary:
+	var out: Dictionary = {}
+	for ev: Dictionary in NewsFeed.get_active_market_events():
+		if str(ev.get("id", "")) == STRIKE_EVENT_ID:
+			continue
+		var effects: Dictionary = _as_dict(ev.get("effects", {}))
+		for key: Variant in effects:
+			var value: float = float(effects[key])
+			if str(key).ends_with(FX_MULTIPLIER_SUFFIX):
+				out[key] = float(out.get(key, NEUTRAL)) * value
+			else:
+				out[key] = float(out.get(key, 0.0)) + value
+	return out
+
+
+## Líneas de coste diarias; costs_multiplier (encarecimiento del cuero) las escala todas y
+## legal_costs_per_day (demanda judicial) se suma a la legal.
+func _compute_costs(units: float, day: int, fx: Dictionary) -> Dictionary:
 	var base_units: float = float(_base.get(K_UNITS, 0.0))
 	var ratio: float = units / base_units if base_units > 0.0 else NEUTRAL
 	var window: float = float(maxi(_window(), 1))
-	return {
+	var lines: Dictionary = {
 		K_MATERIALS: float(_base[K_MATERIALS]) * ratio * (NEUTRAL - _cost_cutting),
 		K_PAYROLL: float(_base[K_PAYROLL]) * _payroll_factor,
 		K_OVERHEADS: float(_base[K_OVERHEADS]),
-		K_LEGAL: float(_base[K_LEGAL]) + _bf(B_LEGAL_PER_CASE) * _open_investigations(),
+		K_LEGAL: float(_base[K_LEGAL]) + _bf(B_LEGAL_PER_CASE) * _open_investigations()
+				+ float(fx.get(FX_LEGAL, 0.0)),
 		K_THEFT: _window_sum(_theft_log, day) / window,
 		K_SCANDAL: _window_sum(_scandal_log, day) / window,
 	}
+	var scale: float = float(fx.get(FX_COSTS, NEUTRAL))
+	for key: Variant in lines:
+		lines[key] = float(lines[key]) * scale
+	return lines
 
 
 ## Tendencia media de los últimos trimestres + productos en desarrollo (§9.2).
@@ -1522,14 +1982,20 @@ func _apply_talent_loss(tier: int, cause: String) -> void:
 # ═══ Privado: descontento ═════════════════════════════════════════════
 
 ## Estalla al SUPERAR el umbral ("superior a 70") desde ≤ umbral; apaciguada al volver a ≤ umbral.
+## La producción se detiene (o se reanuda) en el acto.
 func _check_strike(old_value: int) -> void:
 	var threshold: int = get_strike_threshold()
 	if _strike_active and _discontent <= threshold:
 		_strike_active = false
 		EventBus.strike_resolved.emit(STRIKE_APPEASED)
 	elif not _strike_active and old_value <= threshold and _discontent > threshold:
-		_strike_active = true
-		EventBus.strike_started.emit()
+		_start_strike()
+
+
+func _start_strike() -> void:
+	_strike_active = true
+	EventBus.strike_started.emit()
+	recalculate_fundamentals()
 
 
 func _apply_daily_discontent() -> void:
@@ -1538,6 +2004,14 @@ func _apply_daily_discontent() -> void:
 	if is_factory_degraded():
 		modify_discontent(Database.get_balance_int(B_FACTORY_DAILY), CAUSE_DEGRADED_FACTORY)
 	modify_discontent(get_mood_discontent_delta(), CAUSE_MOOD)
+	if _agitation > 0:
+		modify_discontent(_agitation, CAUSE_AGITATION)
+		_agitation = maxi(_agitation - Database.get_balance_int(B_AGITATION_DECAY), 0)
+
+
+func _set_standing(format: String) -> void:
+	for group: String in STANDING_GROUPS:
+		_standing[group] = _bf(format % str(STANDING_SUFFIX[group]))
 
 
 # ═══ Oyentes ══════════════════════════════════════════════════════════
@@ -1551,15 +2025,41 @@ func _on_day_advanced(day_number: int) -> void:
 	_apply_daily_discontent()
 	recalculate_fundamentals()
 	_accumulate_day(day_number)
+	_week_produced += float(_fundamentals.get(K_UNITS, 0.0))
+	_refresh_buyer_visits(day_number, true)
+	_process_buyer_claims(day_number)
 	_refresh_promotion_offer(true)
 
 
-func _on_week_closed(_week_number: int) -> void:
-	if not _active or _fuse.is_empty():
+## Recuento semanal de producto terminado (§9.4) y cuenta atrás de la mecha de auditoría.
+func _on_week_closed(week_number: int) -> void:
+	if not _active:
+		return
+	run_inventory_count(week_number)
+	if _fuse.is_empty():
 		return
 	_fuse[F_WEEKS] = int(_fuse[F_WEEKS]) - 1
 	if int(_fuse[F_WEEKS]) <= 0:
 		_run_audit()
+
+
+## Cierre mensual (§9.4 «afloran los fraudes»): el descuadre de las ventas fantasma y los
+## descuentos con mordida entra en costes (theft_losses).
+func _on_month_closed(month_number: int) -> void:
+	if not _active or _sales_frauds.is_empty():
+		return
+	var pairs: int = 0
+	var loss: float = 0.0
+	var operations: Array[String] = []
+	for entry: Dictionary in _sales_frauds:
+		pairs += int(entry[V_PAIRS])
+		loss += float(entry[L_AMOUNT])
+		operations.append(str(entry[V_OPERATION]))
+	_sales_frauds.clear()
+	_last_month_report = {"month": month_number, L_DAY: GameClock.get_day(), V_PAIRS: pairs,
+			L_AMOUNT: loss, "operations": operations}
+	_book_theft_loss(loss)
+	_note_in(NOTE_CATEGORY_SALES, NOTE_MONTH_SALES, [roundi(loss)])
 
 
 ## El trimestre entra en la tendencia con su beneficio diario MEDIO (no la foto del último día).
@@ -1629,12 +2129,30 @@ func _on_reputation_changed(_old_value: float, _new_value: float) -> void:
 
 
 func _on_news_published(headline_id: String, sentiment_delta: float, is_scandal: bool) -> void:
-	if not _active or (not is_scandal and sentiment_delta >= 0.0):
+	if not _active:
+		return
+	if _is_market_event_news(headline_id):
+		recalculate_fundamentals()
+	if not is_scandal and sentiment_delta >= 0.0:
 		return
 	var day: int = GameClock.get_day()
 	_negative_press[headline_id] = day
 	if is_scandal:
 		_scandal_log.append({L_DAY: day, L_AMOUNT: _bf(B_SCANDAL_COST), L_ID: headline_id})
+
+
+## La noticia es la de un evento de mercado recién activado (NewsFeed lo activa antes de emitir).
+func _is_market_event_news(news_id: String) -> bool:
+	for ev: Dictionary in NewsFeed.get_active_market_events():
+		if str(ev.get("news_id", "")) == news_id:
+			return true
+	return false
+
+
+## §12.3 veredicto leve: descenso de rango y, con él, pérdida de acreditación.
+func _on_investigation_resolved(_case_id: String, verdict: String, culprit: String) -> void:
+	if _active and verdict == VERDICT_PLAYER_MINOR and culprit == PLAYER_ID:
+		demote_player(DEMOTION_ACCUSATION)
 
 
 func _on_news_buried(headline_id: String, _by_whom: String) -> void:
@@ -1685,8 +2203,14 @@ func _on_bribe_result(npc_id: String, accepted: bool, _outcome: String) -> void:
 		register_merit(MERIT_RECOMMENDATION, Database.get_balance_int(B_RECOMMEND_MERIT))
 
 
-func _on_strike_resolved(_resolution: String) -> void:
+## Cualquier resolución termina la huelga; "betrayed" con el jugador de líder es la traición (§11.7).
+func _on_strike_resolved(resolution: String) -> void:
 	_strike_active = false
+	if resolution == STRIKE_BETRAYED and _strike_leader == PLAYER_ID:
+		_workers_betrayed = true
+		_set_standing(B_STANDING_BETRAY)
+	_strike_leader = ""
+	recalculate_fundamentals()
 
 
 # ═══ Privado: robo ════════════════════════════════════════════════════
@@ -1719,6 +2243,94 @@ func _duty_type(duty_id: String) -> String:
 			if str(definition.get(DUTY_ID_KEY, "")) == duty_id:
 				return str(definition.get(DUTY_TYPE_KEY, ""))
 	return ""
+
+
+# ═══ Privado: fábrica y compradores (PASO 41) ═════════════════════════
+
+## Contexto del recuento (FactoryTheft.build_count_report): albaranes vigentes (su destinatario
+## sigue en plantilla), si el jugador responde del inventario y el CFO que mira los márgenes.
+func _count_context(week: int) -> Dictionary:
+	var forged: String = _forged_target if NPCDirector.is_active(_forged_target) else ""
+	var cfo: String = get_seat_holder(str(Database.get_balance(B_CFO_OCCUPATION)))
+	var responsible: bool = _string_list(Database.get_balance(B_RESPONSIBLE_POSTS)) \
+			.has(_player_occupation_id())
+	return {
+		FactoryTheft.C_WEEK: week, FactoryTheft.C_DAY: GameClock.get_day(),
+		FactoryTheft.C_STOCK: Database.get_balance_int(B_STOCK_BASE),
+		FactoryTheft.C_PRODUCED: roundi(_week_produced), FactoryTheft.C_FORGED: forged,
+		FactoryTheft.C_RESPONSIBLE: responsible, FactoryTheft.C_CFO: "" if cfo == PLAYER_ID else cfo,
+	}
+
+
+func _note_mismatch(report: Dictionary) -> void:
+	var framed: String = str(report[R_FRAMED_TO])
+	var missing: int = int(report[R_MISSING])
+	if framed.is_empty():
+		_note_in(NOTE_CATEGORY_FACTORY, NOTE_INVENTORY_MISMATCH, [missing])
+		return
+	var npc: NPCRuntime = NPCDirector.get_npc(framed)
+	_note_in(NOTE_CATEGORY_FACTORY, NOTE_INVENTORY_FRAMED, [missing,
+			npc.name if npc != null else framed])
+
+
+## La agenda de la jornada (sin nota al empezar la partida: reset no emite señales).
+func _refresh_buyer_visits(day: int, announce: bool) -> void:
+	if _visits_day == day:
+		return
+	_visits_day = day
+	_visits = Buyers.generate_visits(day, _buyers, _buyer_rng(day), _unit_price())
+	if announce and not _visits.is_empty():
+		_note_in(NOTE_CATEGORY_SALES, NOTE_BUYERS_TODAY, [_visits.size()])
+
+
+## Reclamaciones vencidas: el comprador se queja al superior (§11.5 «puede reclamar semanas
+## después»); BeliefNet y Security lo tratan como una denuncia por el canal indicado.
+func _process_buyer_claims(day: int) -> void:
+	var room: String = str(Database.get_balance(B_BUYER_ROOM))
+	var channel: String = str(Database.get_balance(B_CLAIM_CHANNEL))
+	for claim: Dictionary in _buyer_claims.duplicate():
+		if int(claim[C_DUE_DAY]) > day:
+			continue
+		_buyer_claims.erase(claim)
+		var buyer: Dictionary = _buyer_of(str(claim[V_BUYER]))
+		EventBus.npc_reported_player.emit(str(claim[V_BUYER]), channel, 0.0, room)
+		_note_in(NOTE_CATEGORY_SALES, NOTE_BUYER_CLAIM, [Buyers.display_name(buyer),
+				str(buyer.get(Buyers.B_FIRM, ""))])
+
+
+## Precio de un par para los pedidos de los compradores (precio medio de los fundamentales).
+func _unit_price() -> float:
+	return float(_fundamentals.get(K_PRICE, _base.get(K_PRICE, 0.0)))
+
+
+## RNG propio de la agenda de compradores: semilla de partida + clave (jornada o comprador), sin
+## tocar el RNG de Company (las tiradas de auditoría no cambian).
+func _buyer_rng(key: Variant) -> RandomNumberGenerator:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = hash([BUYER_SALT, GameClock.get_run_seed(), key])
+	return rng
+
+
+## Referencia (no copia) a la ficha del comprador ({} si no existe).
+func _buyer_of(buyer_id: String) -> Dictionary:
+	for buyer: Dictionary in _buyers:
+		if str(buyer[Buyers.B_ID]) == buyer_id:
+			return buyer
+	return {}
+
+
+## Referencia a la visita de hoy de ese comprador ({} si hoy no viene).
+func _visit_of(buyer_id: String) -> Dictionary:
+	if _visits_day != GameClock.get_day():
+		return {}
+	for visit: Dictionary in _visits:
+		if str(visit[V_BUYER]) == buyer_id:
+			return visit
+	return {}
+
+
+func _note_in(category: String, text_key: String, args: Array) -> void:
+	EventBus.notebook_entry_added.emit(category, text_key, args)
 
 
 # ═══ Privado: utilidades ══════════════════════════════════════════════
@@ -1894,6 +2506,55 @@ func _load_logs(d: Dictionary) -> void:
 	_elimination_log = _entries(d.get("elimination", []), [])
 	_product_log = _entries(d.get("product", []), [])
 	_negative_press = _int_values(_as_dict(d.get("negative_press", {})))
+
+
+func _save_labour() -> Dictionary:
+	return {
+		"agitation": _agitation, "agitated": _agitated.duplicate(), "leader": _strike_leader,
+		"standing": _standing.duplicate(), "betrayed": _workers_betrayed,
+	}
+
+
+func _load_labour(d: Dictionary) -> void:
+	_agitation = int(d.get("agitation", 0))
+	_agitated = _int_values(_as_dict(d.get("agitated", {})))
+	_strike_leader = str(d.get("leader", ""))
+	_workers_betrayed = bool(d.get("betrayed", false))
+	var standing: Dictionary = _as_dict(d.get("standing", {}))
+	for group: String in STANDING_GROUPS:
+		if standing.has(group):
+			_standing[group] = float(standing[group])
+
+
+func _save_plant() -> Dictionary:
+	return {
+		"thefts": _factory_thefts.duplicate(true), "theft_seq": _theft_seq,
+		"forged_target": _forged_target, "reports": _inventory_reports.duplicate(true),
+		"counted_week": _counted_week, "week_produced": _week_produced,
+		"buyers": _buyers.duplicate(true), "visits": _visits.duplicate(true),
+		"visits_day": _visits_day, "claims": _buyer_claims.duplicate(true),
+		"sales_frauds": _sales_frauds.duplicate(true),
+		"last_month": _last_month_report.duplicate(true),
+	}
+
+
+## JSON devuelve los enteros como float: cada colección vuelve a sus tipos.
+func _load_plant(d: Dictionary) -> void:
+	_factory_thefts = _entries(d.get("thefts", []), [T_PAIRS])
+	_theft_seq = int(d.get("theft_seq", 0))
+	_forged_target = str(d.get("forged_target", ""))
+	_inventory_reports = _entries(d.get("reports", []), FactoryTheft.REPORT_INT_KEYS)
+	_counted_week = int(d.get("counted_week", 0))
+	_week_produced = float(d.get("week_produced", 0.0))
+	_buyers.clear()
+	for raw: Variant in d.get("buyers", []):
+		if raw is Dictionary:
+			_buyers.append(Buyers.normalize_buyer(raw as Dictionary))
+	_visits = _entries(d.get("visits", []), Buyers.VISIT_INT_KEYS)
+	_visits_day = int(d.get("visits_day", NO_DAY))
+	_buyer_claims = _entries(d.get("claims", []), [L_AMOUNT, C_DUE_DAY])
+	_sales_frauds = _entries(d.get("sales_frauds", []), [V_PAIRS])
+	_last_month_report = _as_dict(d.get("last_month", {})).duplicate(true)
 
 
 func _load_fuse(d: Dictionary) -> Dictionary:

@@ -1,5 +1,5 @@
 # npc_director.gd — Estado completo de los personajes: población, rutinas, ánimo, registro, LOD y cuerpos.
-# PROPIETARIO DE: personajes (NPCRuntime) y perfiles de puesto, ubicación estadística y rutinas, ánimo, mérito, registro de relaciones (§7.9), material de chantaje, cuerpos y nivel de detalle (§19.5, §20).
+# PROPIETARIO DE: personajes (NPCRuntime) y perfiles de puesto, ubicación estadística y rutinas, ánimo, mérito, registro de relaciones (§7.9), material de chantaje, cuerpos, nivel de detalle (§19.5, §20) y estado de saqueo de los domicilios (§4.3).
 # ESCUCHA: day_advanced, time_band_changed, hour_passed, room_entered, floor_changed, belief_created, belief_decayed, bribe_offered, bribe_result, npc_reported_player, seat_vacated, seat_filled, investigation_resolved, suspect_list_formed, case_went_cold, idea_acquired, idea_presented, blackmail_initiated, body_hidden, notebook_entry_added.
 class_name NPCDirectorSystem
 extends Node
@@ -81,6 +81,13 @@ extends Node
 ##  · Reputación del personaje: además resta la prensa viva que lo señala
 ##    (NewsFeed.get_suspicion_about(id) × npc.reputacion_por_peso_prensa: escándalo fabricado o
 ##    campaña activista contra un rival, §9.8/§7.11), lo que también rebaja su credibilidad.
+##  · Domicilio (§4.3, NightOps): get_home_address() = npc.home_address (tipo de vivienda exterior).
+##    is_at_home(): en plantilla, con domicilio, fuera del edificio según su agenda de ahora
+##    (get_location_at vacío, sin nodo del mundo que lo sitúe) y con hora >=
+##    noche.hora_llegada_domicilio o < tiempo.hora_inicio_jornada. El saqueo de su casa es estado
+##    del personaje: mark_house_container_looted() (manos: NightOps) deja ese contenedor vacío
+##    noche.dias_reposicion_botin jornadas (is_house_container_looted); get_house_loot_state() lo
+##    expone con los robos sufridos. Se guarda con la partida.
 
 const PLAYER_ID := "player"
 const FLOOR_NONE := NPCRoutinePlanner.NO_FLOOR
@@ -205,6 +212,12 @@ const B_LOD_MAX_MEDIUM := "lod.max_agentes_medio"
 const B_LOD_MAX_TOTAL := "lod.max_agentes_total"
 const B_LOD_MEDIUM_SECONDS := "lod.intervalo_medio_segundos"
 const B_LOD_STAT_SECONDS := "lod.intervalo_estadistico_segundos"
+const B_HOME_ARRIVAL := "noche.hora_llegada_domicilio"
+const B_DAY_START := "tiempo.hora_inicio_jornada"
+const B_LOOT_RESTOCK := "noche.dias_reposicion_botin"
+const HOUSE_LOOTED := "looted"
+const HOUSE_BURGLARIES := "burglaries"
+const HOUSE_LAST_DAY := "last_day"
 
 ## id → NPCRuntime (todos, también retirados).
 var _npcs: Dictionary = {}
@@ -228,6 +241,8 @@ var _last_decision: Dictionary = {}
 var _lod_pins: Dictionary = {}
 ## belief_id → true: creencias que ya provocaron la reacción de certeza completa.
 var _escalated: Dictionary = {}
+## npc_id → {looted: {container_id: jornada}, burglaries: int, last_day: int} (§4.3).
+var _house_loot: Dictionary = {}
 var _player_room: String = ""
 var _player_floor: int = 0
 var _day: int = 0
@@ -310,6 +325,7 @@ func _clear_population() -> void:
 	_last_decision.clear()
 	_lod_pins.clear()
 	_escalated.clear()
+	_house_loot.clear()
 	_world_located.clear()
 	_plans.clear()
 	_planner = null
@@ -910,6 +926,76 @@ func _check_bodies() -> void:
 				body["discovered_by"] = other.id
 				EventBus.body_discovered.emit(str(body["body_id"]), room)
 				break
+
+
+# ─── Domicilio y robos nocturnos (§4.3, NightOps) ─────────────
+
+## Extra: tipo de vivienda exterior del personaje (sala npc_house_*); "" si no tiene.
+func get_home_address(npc_id: String) -> String:
+	var npc: NPCRuntime = get_npc(npc_id)
+	return npc.home_address if npc != null else ""
+
+
+## Extra: en plantilla, con domicilio, fuera del edificio según su agenda de ahora y en la franja
+## doméstica (hora >= noche.hora_llegada_domicilio o < tiempo.hora_inicio_jornada).
+func is_at_home(npc_id: String) -> bool:
+	var npc: NPCRuntime = get_npc(npc_id)
+	if npc == null or not _is_active(npc) or npc.home_address.is_empty() \
+			or _world_located.has(npc_id):
+		return false
+	var hour: int = GameClock.get_hour()
+	if hour < Database.get_balance_int(B_HOME_ARRIVAL) \
+			and hour >= Database.get_balance_int(B_DAY_START):
+		return false
+	return get_location_at(npc_id, hour, GameClock.get_minute()).is_empty()
+
+
+## Extra: {looted: {container_id: jornada}, burglaries, last_day} (copia; {} si nunca le robaron).
+func get_house_loot_state(npc_id: String) -> Dictionary:
+	return (_house_loot.get(npc_id, {}) as Dictionary).duplicate(true)
+
+
+## Extra: el contenedor de la casa del personaje sigue vacío (saqueado hace menos de
+## noche.dias_reposicion_botin jornadas).
+func is_house_container_looted(npc_id: String, container_id: String) -> bool:
+	var looted: Dictionary = (_house_loot.get(npc_id, {}) as Dictionary).get(HOUSE_LOOTED, {})
+	if not looted.has(container_id):
+		return false
+	var age: int = GameClock.get_day() - int(looted[container_id])
+	return age < Database.get_balance_int(B_LOOT_RESTOCK)
+
+
+## Extra (manos: NightOps): vacía ese contenedor de la casa del personaje hoy. Cuenta un robo
+## sufrido por jornada.
+func mark_house_container_looted(npc_id: String, container_id: String) -> void:
+	if get_npc(npc_id) == null or container_id.is_empty():
+		return
+	var state: Dictionary = _house_loot.get(npc_id, {HOUSE_LOOTED: {}, HOUSE_BURGLARIES: 0,
+			HOUSE_LAST_DAY: 0})
+	if int(state[HOUSE_LAST_DAY]) != GameClock.get_day():
+		state[HOUSE_BURGLARIES] = int(state[HOUSE_BURGLARIES]) + 1
+		state[HOUSE_LAST_DAY] = GameClock.get_day()
+	(state[HOUSE_LOOTED] as Dictionary)[container_id] = GameClock.get_day()
+	_house_loot[npc_id] = state
+
+
+static func _typed_house_loot(raw: Variant) -> Dictionary:
+	var out: Dictionary = {}
+	if not raw is Dictionary:
+		return out
+	for npc_id: Variant in raw:
+		var entry: Variant = raw[npc_id]
+		if not entry is Dictionary:
+			continue
+		var looted: Dictionary = {}
+		var raw_looted: Variant = (entry as Dictionary).get(HOUSE_LOOTED, {})
+		if raw_looted is Dictionary:
+			for container_id: Variant in raw_looted:
+				looted[str(container_id)] = int(raw_looted[container_id])
+		out[str(npc_id)] = {HOUSE_LOOTED: looted,
+				HOUSE_BURGLARIES: int(entry.get(HOUSE_BURGLARIES, 0)),
+				HOUSE_LAST_DAY: int(entry.get(HOUSE_LAST_DAY, 0))}
+	return out
 
 
 # ─── Nivel de detalle (§20, PASO 40) ──────────────────────────
@@ -1764,7 +1850,7 @@ func save_state() -> Dictionary:
 		"player_vacancies": _player_vacancies.duplicate(true),
 		"last_report": _last_report.duplicate(true), "player_room": _player_room,
 		"last_decision": _last_decision.duplicate(true), "lod_pins": _lod_pins.duplicate(),
-		"escalated_beliefs": _escalated.keys(),
+		"escalated_beliefs": _escalated.keys(), "house_loot": _house_loot.duplicate(true),
 		"player_floor": _player_floor, "day": _day,
 		"rng_seed": str(_rng.seed), "rng_state": str(_rng.state),
 	}
@@ -1785,6 +1871,7 @@ func load_state(data: Dictionary) -> void:
 	_lod_pins = _int_map(data.get("lod_pins", {}))
 	for belief_id: Variant in data.get("escalated_beliefs", []):
 		_escalated[str(belief_id)] = true
+	_house_loot = _typed_house_loot(data.get("house_loot", {}))
 	var decisions: Variant = data.get("last_decision", {})
 	_last_decision = NPCPopulationGenerator.json_ints(decisions) if decisions is Dictionary else {}
 	_player_room = str(data.get("player_room", ""))

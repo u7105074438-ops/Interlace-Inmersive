@@ -4,8 +4,10 @@
 extends Node
 
 ## tools/screenshot.sh /tmp/shots_map map
-## Capturas: map_cut_n1, map_cut_n1_layers, map_zoom_p3_layers, map_zoom_p3, map_cut_n7, map_zoom_p20,
-## map_cut_n1_disguised, map_cut_es, map_zoom_p3_es, map_cut_contrast, map_phone_cut, map_phone_zoom.
+## Capturas: map_cut_n1, map_cut_n1_layers, map_zoom_p3_layers, map_zoom_p3, map_zoom_pb_layers,
+## map_zoom_roof_layers, map_zoom_factory_layers, map_zoom_p11_layers, map_cut_n7, map_zoom_p20,
+## map_cut_n1_disguised, map_cut_hr_file, map_cut_es, map_zoom_p3_es, map_cut_contrast,
+## map_cut_large_text, map_phone_cut, map_phone_zoom.
 ## Partida nueva con semilla fija (orden de ciclo de vida de BUILD_NOTES §2), planta 3 cargada detrás
 ## con el jugador en el ala 3B y dos objetivos marcados; después el jugador asciende a N7 (CEO).
 
@@ -120,6 +122,10 @@ func _shots_n1_layers(pilot: Autopilot, map: MapView) -> void:
 	await _shot(pilot, "map_cut_n1_layers")
 	map.zoom_to_floor(START_FLOOR)
 	await _shot(pilot, "map_zoom_p3_layers")
+	for extra: Array in [[0, "map_zoom_pb_layers"], [21, "map_zoom_roof_layers"], [100, "map_zoom_factory_layers"], [11, "map_zoom_p11_layers"]]:
+		map.zoom_to_floor(int(extra[0]))
+		await _shot(pilot, str(extra[1]))
+	map.zoom_to_floor(START_FLOOR)
 	for layer: String in MapView.LAYERS:
 		map.set_layer(layer, false)
 	await _shot(pilot, "map_zoom_p3")
@@ -147,6 +153,18 @@ func _shots_n7(pilot: Autopilot, map: MapView) -> void:
 	await _shot(pilot, "map_cut_n1_disguised")
 	map.set_layer(MapView.LAYER_ROUTES, false)
 	PlayerState.set_disguise("")
+	await _shot_hr_file(pilot, map)
+
+
+## Intrusión en RRHH: el expediente completo del objetivo de planta alta desbloquea su rutina
+## (punto en su sala actual, sin «puesto habitual»).
+func _shot_hr_file(pilot: Autopilot, map: MapView) -> void:
+	if _targets.is_empty():
+		return
+	PlayerState.grant_full_file(_targets[0], PlayerStateSystem.REASON_HR_INTRUSION)
+	map.refresh()
+	map.select_floor(START_FLOOR)
+	await _shot(pilot, "map_cut_hr_file")
 
 
 func _shot_spanish(pilot: Autopilot, map: MapView) -> void:
@@ -165,6 +183,9 @@ func _shot_contrast(pilot: Autopilot, map: MapView) -> void:
 	_ui.set_text_options(UITheme.TEXT_MEDIUM, true)
 	map.select_floor(START_FLOOR)
 	await _shot(pilot, "map_cut_contrast")
+	_ui.set_text_options(UITheme.TEXT_LARGE, false)
+	map.select_floor(12)
+	await _shot(pilot, "map_cut_large_text")
 	_ui.set_text_options(UITheme.TEXT_MEDIUM, false)
 
 

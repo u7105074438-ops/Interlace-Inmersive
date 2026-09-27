@@ -1,4 +1,4 @@
-# caught_window_case.gd — Cuerpo de test_caught_window: testigos que vetan la eliminación (también por código), confirmación, contraoferta, fondos, inacción, integración con UIRoot y chantaje.
+# caught_window_case.gd — Cuerpo de test_caught_window: testigos que vetan la eliminación (también por código), confirmación, contraoferta, fondos, inacción (reloj apagado), cola de flagrancias sin apilar, avisos, game over, integración con UIRoot y chantaje.
 # PROPIETARIO DE: nada.
 # ESCUCHA: npc_removed, crime_committed, npc_reported_player, bribe_offered, npc_decided (registro durante el caso).
 extends TestCase
@@ -26,6 +26,8 @@ func run_case() -> void:
 	await _check_no_funds()
 	await _check_timeout_inaction()
 	await _check_with_ui_root()
+	await _check_queue_does_not_stack()
+	await _check_game_over_closes()
 	await _check_blackmail_dialog()
 	await _check_blackmail_binder()
 	_log.stop()
@@ -155,6 +157,8 @@ func _check_counteroffer() -> void:
 	check_eq(str(second.get("outcome", "")), Bribery.OUTCOME_ACCEPTED, "paying what they ask is accepted")
 	check_eq(_wallet.money, money - asked, "the counteroffer price was paid")
 	check_eq(window.get_state(), CaughtWindow.STATE_RESULT, "the window shows the result")
+	check(window.get_dial().is_finished() and window.get_dial().done_tone == "gain",
+			"…and the dial turns into the outcome icon instead of the remaining seconds")
 	await _close(window)
 
 
@@ -188,6 +192,8 @@ func _check_timeout_inaction() -> void:
 	check_eq(str(window.get_reaction().get("reaction", "")), CaughtHandler.REACTION_SECURITY,
 			"…with the witness's reaction (hardliner goes to Security)")
 	check_eq(_log.count("npc_reported_player"), 1, "the NPC acted on timeout")
+	check(window.get_dial().is_finished() and window.get_dial().seconds == 0,
+			"with the reaction on screen the countdown is switched off (no frozen seconds)")
 	await get_tree().create_timer(PhoneOverlay.tune(CaughtWindow.B_RESULT_S) + 0.3).timeout
 	check(closed[0], "after showing the reaction the window asks to close")
 	window.queue_free()
@@ -208,6 +214,13 @@ func _check_with_ui_root() -> void:
 	check(not PhoneOverlay.is_open(get_tree()), "…and the phone is put away")
 	check(not ui.is_clock_paused_by_ui() and _handler.is_time_slowed(),
 			"time slows (CaughtHandler) but the clock is not paused by the UI")
+	ui.toast("UI_CAUGHT_TITLE")
+	ui.toast("UI_CAUGHT_TITLE")
+	await get_tree().create_timer(0.6).timeout
+	var card: Control = (ui.get_top_modal() as CaughtWindow).get("_card") as Control
+	var toasts: Rect2 = ui.get_toasts().get_global_rect()
+	check(card.get_global_rect().position.y >= toasts.end.y,
+			"toasts do not cover the window: the card slides below them when there is room")
 	(ui.get_top_modal() as CaughtWindow).request_close()
 	await wait_frames(2)
 	check(ui.get_top_modal() is CaughtWindow, "Esc cannot dismiss the flagrancy window")
@@ -235,6 +248,48 @@ func _dialog_for(npc: NPCRuntime, money: int) -> BlackmailDialog:
 	return dialog
 
 
+## Dos flagrancias seguidas: la segunda no se apila encima de la reacción de la primera.
+func _check_queue_does_not_stack() -> void:
+	var ui: UIRoot = UIRoot.new()
+	add_child(ui)
+	await wait_frames(2)
+	var binder: CaughtWindow.Binder = CaughtWindow.install(ui, _handler) as CaughtWindow.Binder
+	check(binder != null and binder.ui == ui, "install() re-binds the handler's binder to a new UIRoot")
+	EventBus.player_caught_redhanded.emit(_npc("oblivious").id, CRIME, 1)
+	EventBus.player_caught_redhanded.emit(_npc("coward").id, CRIME, 1)
+	await wait_frames(2)
+	var first: CaughtWindow = ui.get_top_modal() as CaughtWindow
+	check(first != null and _handler.get_queue_size() == 1, "second flagrancy waits in the handler's queue")
+	_handler.resolve_inaction(0.9)
+	await wait_frames(2)
+	check(ui.get_modal_count() == 1 and ui.get_top_modal() == first and binder.is_waiting(),
+			"the next flagrancy does not stack on top of the first witness's reaction")
+	await get_tree().create_timer(PhoneOverlay.tune(CaughtWindow.B_QUEUE_S) + 0.3).timeout
+	var second: CaughtWindow = ui.get_top_modal() as CaughtWindow
+	check(second != null and second != first and ui.get_modal_count() == 1,
+			"…it opens once the reaction (shortened to flagrancia_resultado_cola_segundos) is gone")
+	check(second != null and second.get_seconds_left() <= float(_handler.get_options()["seconds_left"]) + 0.05,
+			"…with the countdown the handler really has left")
+	_handler.resolve_inaction(0.9)
+	await get_tree().create_timer(PhoneOverlay.tune(CaughtWindow.B_RESULT_S) + 0.3).timeout
+	check(not ui.has_modal(), "both windows are gone once resolved")
+	binder.queue_free()
+	ui.queue_free()
+	await wait_frames(2)
+
+
+func _check_game_over_closes() -> void:
+	var window: CaughtWindow = await _open_window(_npc("climber").id, 1)
+	var closed: Array[bool] = [false]
+	window.closed.connect(func() -> void: closed[0] = true)
+	EventBus.game_over.emit("test", "test", {})
+	await wait_frames(1)
+	check(closed[0], "game over closes the flagrancy window")
+	window.queue_free()
+	_handler.reset_for_new_run()
+	await wait_frames(1)
+
+
 func _check_blackmail_dialog() -> void:
 	var payer: NPCRuntime = _npc("burnout")
 	_demand_from(payer, Blackmail.DEMAND_MONEY)
@@ -243,6 +298,9 @@ func _check_blackmail_dialog() -> void:
 	await wait_frames(2)
 	check(not dialog.get_demand().is_empty() and dialog.is_pay_enabled(), "the blackmail demand is shown, payable")
 	check(dialog.press_pay() and dialog.get_state() == BlackmailDialog.STATE_CONFIRM, "Pay asks for confirmation")
+	await wait_frames(2)
+	check(get_viewport().gui_get_focus_owner() == dialog.get("_back_button"),
+			"after arming, focus sits on Back: pressing the same key twice never commits (§13.7)")
 	check_eq((dialog.wallet as Fixtures.FakeWallet).money, amount + 1, "…and has not paid yet")
 	var paid: Dictionary = dialog.confirm()
 	check(bool(paid.get("ok", false)) and str(paid.get("event", "")) == Blackmail.EVENT_PAID, "Blackmail.pay() runs")

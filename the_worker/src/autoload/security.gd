@@ -37,9 +37,13 @@ extends Node
 ##     nunca donde está el cuerpo.
 ##   - player_searched(n > 0): cierra en contra del jugador SU caso (lista corta) o uno nuevo.
 ##   - investigation_resolved(caso, veredicto, culpable): "other_guilty" → NPCDirector expulsa;
-##     "player_minor" → Company/PlayerState aplican descenso y pérdida de acreditación (Security
-##     solo marca: sospecha efectiva máxima unas semanas); "player_major" → game_over THE FILE
-##     con get_case_report() en el snapshot; "cold" → case_went_cold; "closed_permanently".
+##     "player_minor" → Company degrada al jugador (demote_player "credible_accusation"; la
+##     acreditación sigue a la ocupación nueva) y Security solo marca: sospecha efectiva máxima unas
+##     semanas; "player_major" → game_over con la causa de investigations.json
+##     (investigation_conclusive), el final que decide Tracking.evaluate_ending_for_cause (THE FILE,
+##     salvo que otro final preceda: THE OWNER IN EXILE con los documentos) y
+##     Tracking.get_snapshot_for_cause + get_case_report() en el snapshot; "cold" →
+##     case_went_cold; "closed_permanently".
 
 const PLAYER := InvestigationEngine.SUBJECT_PLAYER
 const CASE_ID_FORMAT := "case_%d"
@@ -363,7 +367,8 @@ func register_camera_footage(room_id: String, day: int, hour: int) -> String:
 	return str(entry["id"])
 
 
-## Solo desde sala de monitores.
+## Solo desde sala de monitores. crime_committed("footage_deleted") lleva cámara, sala, jornada,
+## hora y sujeto de la grabación: BeliefNet destruye exactamente su registro gemelo.
 func delete_footage(footage_id: String) -> bool:
 	var monitor_room: String = str(Database.get_balance(B_MONITOR_ROOM))
 	if InvestigationEngine.base_room(_current_player_room()) != monitor_room:
@@ -376,6 +381,7 @@ func delete_footage(footage_id: String) -> bool:
 	EventBus.record_destroyed.emit(footage_id, DESTROY_METHOD_MONITOR)
 	EventBus.crime_committed.emit(CRIME_FOOTAGE_DELETED, monitor_room, {
 		"camera_id": entry["camera_id"], "room_id": entry["room_id"], "day": entry["day"],
+		"hour": entry["hour"], "subject": entry["subject"],
 		"footage_id": footage_id, "method": DESTROY_METHOD_MONITOR})
 	return true
 
@@ -1345,9 +1351,9 @@ func _conclude(inv: Investigation) -> void:
 
 
 ## Aplica un veredicto (fase 5): "cold" archiva el caso (frío, no cerrado); "other_guilty"
-## (NPCDirector expulsa al culpable al oír investigation_resolved); "player_minor" (un oyente de
-## la fase Mundo aplica descenso y pérdida de acreditación; Security marca al jugador con alerta
-## máxima unas semanas); "player_major" → game_over THE FILE.
+## (NPCDirector expulsa al culpable al oír investigation_resolved); "player_minor" (Company aplica
+## el descenso al oírlo; Security marca al jugador con sospecha máxima unas semanas);
+## "player_major" → game_over (final según Tracking: THE FILE por defecto).
 func resolve_investigation(case_id: String, verdict: String, culprit: String) -> void:
 	var inv: Investigation = get_investigation(case_id)
 	if inv == null or not inv.is_active() or not InvestigationEngine.VERDICTS.has(verdict):
@@ -1392,11 +1398,15 @@ func _mark_player() -> void:
 
 func _emit_game_over(inv: Investigation) -> void:
 	var data: Dictionary = _verdict_data(InvestigationEngine.VERDICT_PLAYER_MAJOR)
-	var snapshot: Dictionary = Tracking.get_snapshot().duplicate(true)
+	var cause: String = str(data.get("game_over_cause", ""))
+	var ending: String = Tracking.evaluate_ending_for_cause(cause)
+	if ending.is_empty():
+		ending = str(data.get("ending_id", ""))
+	var snapshot: Dictionary = Tracking.get_snapshot_for_cause(cause).duplicate(true)
+	snapshot["ending_id"] = ending
 	snapshot["case_id"] = inv.id
 	snapshot["case_report"] = get_case_report(inv.id)
-	EventBus.game_over.emit(str(data.get("game_over_cause", "")), str(data.get("ending_id", "")),
-			snapshot)
+	EventBus.game_over.emit(cause, ending, snapshot)
 
 
 func _verdict_data(verdict: String) -> Dictionary:

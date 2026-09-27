@@ -1,5 +1,5 @@
 # assist_app.gd — A.S.S.I.S.T. de StellarOS (§10.4, PASO 22): elige un deber automatizable, lanza la lotería de DutySystem y muestra el trabajo «generado», con su rastro digital.
-# PROPIETARIO DE: nada (la lotería, sus efectos y el registro de usos son de DutySystem; aquí solo el texto mostrado y la animación de escritura).
+# PROPIETARIO DE: nada de juego (la lotería, sus efectos y el registro de usos son de DutySystem; aquí solo el texto mostrado, la animación de escritura y una caché de solo lectura subtipo → nombre de deber).
 # ESCUCHA: duty_completed, duty_failed, day_advanced (mientras está abierta, para refrescar la lista).
 class_name AssistApp
 extends OSApp
@@ -14,6 +14,10 @@ extends OSApp
 ##    jornada y número de uso: el mismo uso produce el mismo texto.
 ##  · La escritura progresiva va a ordenador.asistente_caracteres_por_segundo_por_nivel: la IA
 ##    del R1 teclea despacio; la del R33 escupe el informe de golpe.
+##  · El rastro digital (get_assist_log) guarda el subtipo del deber y la hora en punto: se muestra
+##    con el nombre traducido del deber (task_name) y la hora como «10 h», sin inventar minutos.
+##  · Columna izquierda desplazable: en móvil la lista de deberes conserva su altura (hasta
+##    LIST_MAX_ROWS filas completas) y la mascota se encoge o desaparece antes que ella.
 
 const ACCEPTABLE := DutySystem.ASSIST_ACCEPTABLE
 const EXCELLENT := DutySystem.ASSIST_EXCELLENT
@@ -29,6 +33,8 @@ const EX_POINTS := 6
 const FAIL_SENTENCES := 6
 const LOG_SHOWN := 4
 const QUIP_COUNT := 4
+const LIST_MIN_ROWS := 1
+const LIST_MAX_ROWS := 4
 const EXCELLENT_COLOR := Color("#d9a53a")
 const PERCENT := 100.0
 
@@ -48,6 +54,11 @@ var _typing: float = 0.0
 var _last_result: Dictionary = {}
 var _working: bool = false
 var _mascot: AssistMascot
+var _duty_scroll: ScrollContainer
+
+## subtipo de deber → clave de nombre (primer deber de occupations.json con ese subtipo). Caché de
+## datos de solo lectura.
+static var _task_names: Dictionary = {}
 
 
 ## La mascota de A.S.S.I.S.T. con su bocadillo (la frase cambia con el resultado).
@@ -60,17 +71,18 @@ class AssistMascot extends Control:
 		pal = p
 		base = base_px
 		size_flags_vertical = Control.SIZE_EXPAND_FILL
-		size_flags_stretch_ratio = 1.3
-		custom_minimum_size = Vector2(0, base * 5.0)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func say(text: String) -> void:
 		quip = text
 		queue_redraw()
 
+	## Sin sitio (móvil) la mascota se calla antes que quitarle altura a la lista de deberes.
 	func _draw() -> void:
+		if size.y < base * 3.5:
+			return
 		var side: float = minf(size.y * 0.72, base * 6.5)
-		var bot: Rect2 = Rect2(Vector2(base * 0.4, size.y - side - base * 0.3), Vector2(side, side))
+		var bot: Rect2 = Rect2(Vector2(base * 0.4, (size.y - side) * 0.6), Vector2(side, side))
 		OSTheme.draw_icon(self, "assist", bot, pal)
 		var f: Font = UITheme.font(UITheme.FONT_SEMIBOLD)
 		var fs: int = roundi(base * 0.8)
@@ -88,6 +100,38 @@ class AssistMascot extends Control:
 		draw_line(tail[0] + Vector2(1.5, 0), tail[1] - Vector2(1.5, 0), OSTheme.col(pal, "field"), 3.0)
 		draw_multiline_string(f, bubble.position + Vector2(base * 0.5, base * 0.35 + fs), quip, HORIZONTAL_ALIGNMENT_LEFT,
 				width - base, fs, 4, OSTheme.col(pal, "text"))
+
+
+## Barra de la lotería §10.4: tres tramos proporcionales a deberes.assist_prob_* con su porcentaje.
+class AssistOdds extends Control:
+	var pal: Dictionary = {}
+	var base: int = 24
+
+	func _init(p: Dictionary, base_px: int) -> void:
+		pal = p
+		base = base_px
+		custom_minimum_size = Vector2(0, base * 1.35)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var weights: Array[float] = [Database.get_balance_float(DutySystem.B_ASSIST_P_OK),
+				Database.get_balance_float(DutySystem.B_ASSIST_P_EXCELLENT),
+				Database.get_balance_float(DutySystem.B_ASSIST_P_FAILURE)]
+		var colors: Array[Color] = [OSTheme.col(pal, "good"), AssistApp.EXCELLENT_COLOR, OSTheme.col(pal, "bad")]
+		var total: float = maxf(weights[0] + weights[1] + weights[2], 0.001)
+		var r: Rect2 = Rect2(Vector2.ZERO, size)
+		OSTheme.draw_bevel(self, r, pal, true, base)
+		var inner: Rect2 = r.grow(-OSTheme.bevel_width(base) * 1.5)
+		var x: float = inner.position.x
+		var f: Font = UITheme.font(UITheme.FONT_BOLD)
+		var fs: int = roundi(base * OSTheme.RATIO_SMALL)
+		for i: int in weights.size():
+			var w: float = inner.size.x * weights[i] / total
+			draw_rect(Rect2(x, inner.position.y, w, inner.size.y), colors[i])
+			var label: String = "%d%%" % roundi(weights[i] / total * AssistApp.PERCENT)
+			draw_string(f, Vector2(x, inner.get_center().y + fs * 0.36), label, HORIZONTAL_ALIGNMENT_CENTER, w, fs,
+					UITheme.readable_on(colors[i]))
+			x += w
 
 
 # ─── Texto generado (puro) ────────────────────────────────────────
@@ -154,18 +198,35 @@ func build() -> void:
 	var h: HBoxContainer = HBoxContainer.new()
 	h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(h)
+	var left_scroll: ScrollContainer = ScrollContainer.new()
+	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_scroll.size_flags_stretch_ratio = 0.8
+	h.add_child(left_scroll)
 	var left: VBoxContainer = VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.size_flags_stretch_ratio = 0.8
-	h.add_child(left)
+	left.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left_scroll.add_child(left)
 	left.add_child(_brand())
 	left.add_child(make_section(t("ASSIST_PICK_TASK")))
-	var scroll: ScrollContainer = make_scroll_list()
-	_duty_list = scroll.get_child(0) as VBoxContainer
-	left.add_child(scroll)
+	_duty_scroll = make_scroll_list()
+	_duty_scroll.size_flags_vertical = Control.SIZE_FILL
+	_duty_list = _duty_scroll.get_child(0) as VBoxContainer
+	left.add_child(_duty_scroll)
 	_mascot = AssistMascot.new(pal, base)
 	_mascot.say(t("ASSIST_QUIP_IDLE_%d" % (GameClock.get_day() % QUIP_COUNT + 1)))
 	left.add_child(_mascot)
+	_build_controls(left)
+	h.add_child(_output_panel())
+	EventBus.duty_completed.connect(_on_duty_event.unbind(3))
+	EventBus.duty_failed.connect(_on_duty_event.unbind(2))
+	EventBus.day_advanced.connect(_on_duty_event.unbind(1))
+
+
+## Probabilidades, aviso de riesgo, botón y rastro digital (pie de la columna izquierda).
+func _build_controls(left: VBoxContainer) -> void:
+	left.add_child(make_section(t("ASSIST_ODDS")))
+	left.add_child(AssistOdds.new(pal, base))
 	_risk = make_label("", OSTheme.V_SMALL, true)
 	_risk.add_theme_color_override("font_color", c("bad"))
 	left.add_child(_risk)
@@ -173,10 +234,6 @@ func build() -> void:
 	_generate.custom_minimum_size.y = base * 2.2
 	left.add_child(_generate)
 	left.add_child(_trace_panel())
-	h.add_child(_output_panel())
-	EventBus.duty_completed.connect(_on_duty_event.unbind(3))
-	EventBus.duty_failed.connect(_on_duty_event.unbind(2))
-	EventBus.day_advanced.connect(_on_duty_event.unbind(1))
 
 
 func _brand() -> HBoxContainer:
@@ -260,7 +317,21 @@ func refresh() -> void:
 		_add_duty_row(ds, duty, candidates.has(str(duty.get("id", ""))))
 	if _rows.is_empty():
 		_duty_list.add_child(make_label(t("ASSIST_NO_DUTIES"), OSTheme.V_MUTED, true))
+	_fit_duty_list()
 	_refresh_controls(ds)
+
+
+## La lista mide sus filas (entre LIST_MIN_ROWS y LIST_MAX_ROWS): nunca se aplasta a una rendija.
+func _fit_duty_list() -> void:
+	var sep: float = float(_duty_list.get_theme_constant("separation"))
+	var h: float = 0.0
+	var shown: int = 0
+	for child: Node in _duty_list.get_children():
+		if shown >= LIST_MAX_ROWS:
+			break
+		h += (child as Control).get_combined_minimum_size().y + (sep if shown > 0 else 0.0)
+		shown += 1
+	_duty_scroll.custom_minimum_size.y = maxf(h, base * 2.4 * LIST_MIN_ROWS)
 
 
 ## Deberes de hoy pendientes que A.S.S.I.S.T. puede hacer.
@@ -290,6 +361,20 @@ func get_last_result() -> Dictionary:
 
 func get_output_text() -> String:
 	return _output.text
+
+
+## Texto del panel de rastro digital (pruebas).
+func get_trace_text() -> String:
+	return _trace.text + "\n" + _log.text
+
+
+## Alto real de la lista de deberes y de su primera fila (pruebas de maquetación en móvil).
+func get_duty_list_height() -> float:
+	return _duty_scroll.size.y
+
+
+func get_duty_row_height() -> float:
+	return (_duty_list.get_child(0) as Control).get_combined_minimum_size().y if _duty_list.get_child_count() > 0 else 0.0
 
 
 ## Lanza la lotería sobre el deber seleccionado (forced: resultado impuesto, solo QA). Devuelve el
@@ -398,14 +483,26 @@ func _refresh_controls(ds: DutySystem) -> void:
 		entries = ds.get_assist_log()
 	for i: int in range(entries.size() - 1, maxi(entries.size() - LOG_SHOWN, 0) - 1, -1):
 		var e: Dictionary = entries[i]
-		lines.append(t("ASSIST_LOG_LINE", [int(e.get("day", 0)), UITheme.format_hour(int(e.get("hour", 0))),
-				str(e.get("task_type", "")), t("ASSIST_BADGE_" + str(e.get("result", "")).to_upper())]))
+		lines.append(t("ASSIST_LOG_LINE", [int(e.get("day", 0)), int(e.get("hour", 0)),
+				task_name(str(e.get("task_type", ""))), t("ASSIST_BADGE_" + str(e.get("result", "")).to_upper())]))
 	_log.text = "\n".join(lines) if not lines.is_empty() else t("ASSIST_LOG_EMPTY")
 
 
 func _is_automatable(session: Dictionary) -> bool:
 	return bool(session.get("automatable", false)) and int(session.get("assist_cost", -1)) > 0 \
 			and not str(session.get("status", "")) in [STATUS_COMPLETED, STATUS_FAILED]
+
+
+## Nombre traducido de un tipo de tarea del rastro (subtipo de deber: "emails" → «Contestar correos»).
+static func task_name(task_type: String) -> String:
+	if _task_names.is_empty():
+		for occ: OccupationData in Database.get_all_occupations():
+			for duty: Dictionary in occ.duties:
+				var subtype: String = str(duty.get("subtype", ""))
+				if not subtype.is_empty() and not _task_names.has(subtype):
+					_task_names[subtype] = str(duty.get("name_key", ""))
+	var key: String = str(_task_names.get(task_type, ""))
+	return t(key) if not key.is_empty() else t("ASSIST_TASK_UNKNOWN")
 
 
 func _duty_name(duty_id: String) -> String:
@@ -428,5 +525,5 @@ func _on_generate() -> void:
 
 
 func _on_duty_event() -> void:
-	if is_inside_tree() and not _working:
-		refresh.call_deferred()
+	if not _working:
+		request_refresh()

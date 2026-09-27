@@ -1,6 +1,6 @@
 # personnel_app.gd — PERSONNEL de StellarOS: expedientes de personal escalados por acreditación N1–N7, búsqueda, filtros, objetivos, comparación, notas y estudio (§13.4, PASO 20).
-# PROPIETARIO DE: el estado de la ventana (búsqueda, filtros, orden, selección, comparación) y, mientras PlayerState no los guarde, los expedientes completos anticipados, los objetivos marcados, las notas y los estudios de la sesión.
-# ESCUCHA: nada (lee los autoloads al refrescar; emite notebook_entry_added).
+# PROPIETARIO DE: el estado de la ventana (búsqueda, filtros, orden, selección, comparación, vista compacta); objetivos, expedientes anticipados, notas y estudios los guarda PlayerState.
+# ESCUCHA: nada (lee los autoloads al refrescar; emite notebook_entry_added para expedientes y estudios).
 class_name PersonnelApp
 extends OSApp
 
@@ -20,19 +20,25 @@ extends OSApp
 ##    N6 = N7 (la tabla los agrupa). El arquetipo es parte de «carácter» (N2).
 ##  · Acceso completo anticipado = nivel máximo para ese personaje: puesto con special_access
 ##    personnel_files_full (RR. HH., permanente), agravio "blackmailed" en su registro (chantaje del
-##    jugador) u open_full_file(id, "hr_intrusion") (intrusión en RR. HH.). Director de IT
-##    (digital_records): sección extra de comunicaciones privadas (registro de chat de SocialGraph).
-##  · Objetivos marcados: NPCDirector.force_full_lod(id, "marked_target") + lista. La lista y los
-##    expedientes concedidos se delegan en PlayerState si expone mark_target/unmark_target/
-##    get_marked_targets/grant_full_file/has_full_file; si no, y siempre para notas y estudios,
-##    viven en esta clase durante la sesión (se vacían al cambiar la semilla de partida); las
-##    notas y los estudios también van al cuaderno (notebook_entry_added), que los conserva.
+##    jugador) o PlayerState.grant_full_file (open_full_file(id, "hr_intrusion" | "blackmail"…));
+##    el motivo mostrado es PlayerState.get_full_file_reason. Director de IT (digital_records):
+##    sección extra de comunicaciones privadas (registro de chat de SocialGraph).
+##  · Memoria externa en PlayerState (se guarda con la partida): mark_target/unmark_target (ya
+##    escriben el cuaderno; NPCDirector sincroniza su LOD 0 y aquí se fuerza también con
+##    force_full_lod por si el expediente se abre antes), add_note/get_notes_about (ya escribe
+##    PERS_NOTE_ENTRY), grant_full_file y record_study/get_studies. Esta clase solo emite
+##    PERS_NOTE_FULL_FILE (si se concedió de verdad) y PERS_NOTE_STUDY, con CLAVES como argumentos
+##    (el cuaderno las traduce al mostrarlas: sobreviven a un cambio de idioma).
 ##  · Filtros visibles solo con la información: arquetipo (N de «character»), sobornables y
-##    peligrosos y orden por rasgos (N de «traits»); deudores (te deben) y objetivos siempre.
+##    peligrosos y orden por rasgos (N de «traits»); deudores (te deben) y objetivos siempre. Por
+##    debajo de exact_figures las categorías usan los valores APROXIMADOS que muestra la ficha.
 ##  · Estudio: GameClock.advance_minutes(15–30, determinista por partida, jornada, personaje y
-##    acción). Predicción: soborno = Bribery.acceptance_probability con el precio justo del favor
-##    expedientes.estudio_favor_soborno; confrontar/denunciar = softmax (temperatura_estudio) de
-##    las utilidades de UtilityAI ante una flagrancia hipotética (NPCDirector.build_context).
+##    acción; el botón muestra el coste). Predicción: soborno = Bribery.acceptance_probability con
+##    el precio justo del favor expedientes.estudio_favor_soborno; confrontar/denunciar = softmax
+##    (temperatura_estudio) de las utilidades de UtilityAI ante una flagrancia hipotética.
+##  · Vista compacta (móvil, ancho < COMPACT_EM): filtros plegados tras un botón y lista ↔ ficha
+##    alternas con botón «volver». Las filas dejan pasar el arrastre al ScrollContainer (táctil) y
+##    se eligen al soltar sin haberse movido (TapTracker).
 
 const APP_ID := "personnel"
 const TITLE_KEY := "PERS_APP_TITLE"
@@ -89,11 +95,6 @@ const NOTE_CAT_PERSONNEL := "personnel"
 const NOTE_CAT_TARGETS := "targets"
 const NOTE_CAT_STUDY := "study"
 
-const PS_MARK := "mark_target"
-const PS_UNMARK := "unmark_target"
-const PS_TARGETS := "get_marked_targets"
-const PS_GRANT := "grant_full_file"
-const PS_HAS_FULL := "has_full_file"
 
 const B_SECTION_LEVELS := "expedientes.nivel_seccion"
 const B_MAX_LEVEL := "expedientes.nivel_maximo"
@@ -119,15 +120,16 @@ const B_DENOUNCE_LOYALTY := "sobornos.umbral_denuncia_lealtad"
 const B_FACTORY_FLOOR := "mundo.planta_fabrica"
 const B_EXTERIOR_FLOOR := "mundo.planta_exterior"
 const B_TRAIT_BUCKETS := "expedientes.tramos_valor_aproximado"
+## Maquetación (em de la aplicación): vista compacta por debajo de COMPACT_EM de ancho; foto y
+## tarjeta de acreditación de la cabecera.
+const COMPACT_EM := 62.0
+const PHOTO_EM := 8.5
+const PHOTO_COMPACT_EM := 6.0
+const PHOTO_RATIO := 1.24
+const LEVEL_CARD_EM := 12.0
 ## Contenido: claves PERS_STREET_1..8 y números de portal del domicilio inventado.
 const STREET_KEYS := 8
 const HOUSE_NUMBER_MAX := 120
-
-static var _store_seed: int = -1
-static var _full_files: Dictionary = {}
-static var _targets: Array[String] = []
-static var _notes: Dictionary = {}
-static var _studies: Dictionary = {}
 
 var _standalone: bool = false
 var _in_ui_root: bool = false
@@ -154,49 +156,44 @@ var _detail_box: VBoxContainer
 var _note_edit: LineEdit
 var _mark_btn: Button
 var _compare_btn: Button
+var _back_btn: Button
+var _filters_btn: Button
+var _filter_grid: GridContainer
+var _side: VBoxContainer
+var _detail_col: VBoxContainer
+var _rows: Dictionary = {}
+var _study_btns: Dictionary = {}
+var _compact: bool = false
+var _filters_open: bool = false
+var _show_list: bool = true
 var _built: bool = false
 
 
-# ═══ Almacén de sesión (delegable en PlayerState) ══════════════════════
-
-## Vacía el almacén de sesión (tests y partida nueva).
-static func reset_session() -> void:
-	_store_seed = GameClock.get_run_seed()
-	_full_files.clear()
-	_targets.clear()
-	_notes.clear()
-	_studies.clear()
-
-
-static func _sync_store() -> void:
-	if _store_seed != GameClock.get_run_seed():
-		reset_session()
-
+# ═══ Memoria externa (PlayerState) ════════════════════════════════════
 
 ## Vías de acceso anticipado (§13.4): intrusión en RR. HH., chantaje… El expediente queda completo.
+## true si el expediente del personaje es (ya) completo; la nota del cuaderno sale solo la primera vez.
 static func open_full_file(npc_id: String, reason: String) -> bool:
 	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
 	if npc == null:
 		return false
-	_sync_store()
-	if PlayerState.has_method(PS_GRANT):
-		PlayerState.call(PS_GRANT, npc_id, reason)
-	else:
-		_full_files[npc_id] = reason
-	EventBus.notebook_entry_added.emit(NOTE_CAT_PERSONNEL, "PERS_NOTE_FULL_FILE",
-			[npc.name, UITheme.trf("PERS_REASON_" + reason.to_upper())])
-	return true
+	if PlayerState.grant_full_file(npc_id, reason):
+		EventBus.notebook_entry_added.emit(NOTE_CAT_PERSONNEL, "PERS_NOTE_FULL_FILE",
+				[npc.name, reason_key(reason)])
+	return PlayerState.has_full_file(npc_id)
+
+
+static func reason_key(reason: String) -> String:
+	return "PERS_REASON_" + reason.to_upper()
 
 
 ## Motivo del acceso completo a ese expediente ("" si no lo hay).
 static func full_file_reason(npc_id: String) -> String:
-	_sync_store()
 	if player_has_access(ACCESS_FULL_FILES):
 		return REASON_HR_POST
-	if PlayerState.has_method(PS_HAS_FULL) and bool(PlayerState.call(PS_HAS_FULL, npc_id)):
-		return REASON_HR_INTRUSION
-	if _full_files.has(npc_id):
-		return str(_full_files[npc_id])
+	var granted: String = PlayerState.get_full_file_reason(npc_id)
+	if not granted.is_empty():
+		return granted
 	for grievance: Variant in NPCDirector.get_ledger(npc_id).get("grievances", []):
 		if grievance is Dictionary \
 				and str(grievance.get("type", "")) == NPCDirectorSystem.GRIEVANCE_BLACKMAILED:
@@ -205,66 +202,46 @@ static func full_file_reason(npc_id: String) -> String:
 
 
 static func get_marked_targets() -> Array[String]:
-	_sync_store()
-	var out: Array[String] = []
-	if PlayerState.has_method(PS_TARGETS):
-		out.assign(PlayerState.call(PS_TARGETS))
-	else:
-		out.assign(_targets)
-	return out
+	return PlayerState.get_marked_targets()
 
 
 static func is_marked(npc_id: String) -> bool:
-	return get_marked_targets().has(npc_id)
+	return PlayerState.is_marked(npc_id)
 
 
-## Marca o desmarca un objetivo (§13.4): LOD completo, lista para mapa/HUD y nota en el cuaderno.
+## Marca o desmarca un objetivo (§13.4): PlayerState guarda la lista y escribe el cuaderno;
+## LOD completo en NPCDirector para el mapa y el HUD.
 static func set_marked(npc_id: String, marked: bool) -> void:
-	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
-	if npc == null or marked == is_marked(npc_id):
+	if NPCDirector.get_npc(npc_id) == null or marked == is_marked(npc_id):
 		return
 	if marked:
-		if PlayerState.has_method(PS_MARK):
-			PlayerState.call(PS_MARK, npc_id)
-		else:
-			_targets.append(npc_id)
+		PlayerState.mark_target(npc_id)
 		NPCDirector.force_full_lod(npc_id, LOD_REASON_TARGET)
 	else:
-		if PlayerState.has_method(PS_UNMARK):
-			PlayerState.call(PS_UNMARK, npc_id)
-		else:
-			_targets.erase(npc_id)
+		PlayerState.unmark_target(npc_id)
 		NPCDirector.release_full_lod(npc_id, LOD_REASON_TARGET)
-	var key: String = "PERS_NOTE_TARGET_MARKED" if marked else "PERS_NOTE_TARGET_CLEARED"
-	EventBus.notebook_entry_added.emit(NOTE_CAT_TARGETS, key, [npc.name])
 
 
-## Nota del jugador vinculada al cuaderno. false si el texto está vacío.
+## Nota del jugador vinculada al cuaderno (PlayerState.add_note). false si el texto está vacío.
 static func add_note(npc_id: String, text: String) -> bool:
-	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
 	var clean: String = text.strip_edges()
-	if npc == null or clean.is_empty():
+	if NPCDirector.get_npc(npc_id) == null or clean.is_empty():
 		return false
-	_sync_store()
-	if not _notes.has(npc_id):
-		_notes[npc_id] = []
-	(_notes[npc_id] as Array).append({"day": GameClock.get_day(),
-			"time": GameClock.get_time_string(), "text": clean})
-	EventBus.notebook_entry_added.emit(NOTE_CAT_PERSONNEL, "PERS_NOTE_ENTRY", [npc.name, clean])
-	return true
+	return PlayerState.add_note(clean, npc_id) >= 0
 
 
+## Notas del expediente: [{day, time, text}] de la más antigua a la última.
 static func get_notes(npc_id: String) -> Array[Dictionary]:
-	_sync_store()
 	var out: Array[Dictionary] = []
-	out.assign(_notes.get(npc_id, []))
+	for note: Dictionary in PlayerState.get_notes_about(npc_id):
+		out.append({"day": int(note.get("day", 0)), "text": str(note.get("text", "")),
+				"time": UITheme.format_hour(int(note.get("hour", 0)), int(note.get("minute", 0)))})
 	return out
 
 
 ## Estudios hechos sobre el personaje: {acción: resultado de study()}.
 static func get_studies(npc_id: String) -> Dictionary:
-	_sync_store()
-	return (_studies.get(npc_id, {}) as Dictionary).duplicate(true)
+	return PlayerState.get_studies(npc_id)
 
 
 # ═══ Niveles y expediente (§13.4) ═════════════════════════════════════
@@ -656,16 +633,24 @@ static func comms_of(npc: NPCRuntime) -> Array[String]:
 
 # ═══ Búsqueda, filtros y orden ════════════════════════════════════════
 
-static func list_npcs(filters: Dictionary) -> Array[NPCRuntime]:
+## Plantilla filtrada y ordenada. El nivel efectivo de cada ficha se calcula UNA vez por llamada y
+## queda en `levels` ({npc_id: nivel} de las fichas que pasan el filtro) para quien lo necesite.
+static func list_npcs(filters: Dictionary, levels: Dictionary = {}) -> Array[NPCRuntime]:
 	var out: Array[NPCRuntime] = []
 	for npc: NPCRuntime in NPCDirector.get_all_npcs():
-		if matches(npc, filters):
+		var level: int = effective_level(npc.id)
+		if matches_at(npc, filters, level):
 			out.append(npc)
-	sort_npcs(out, str(filters.get("sort", SORT_NAME)))
+			levels[npc.id] = level
+	sort_npcs(out, str(filters.get("sort", SORT_NAME)), levels)
 	return out
 
 
 static func matches(npc: NPCRuntime, filters: Dictionary) -> bool:
+	return matches_at(npc, filters, effective_level(npc.id))
+
+
+static func matches_at(npc: NPCRuntime, filters: Dictionary, level: int) -> bool:
 	var query: String = str(filters.get("query", "")).strip_edges().to_lower()
 	if not query.is_empty() and not npc.name.to_lower().contains(query):
 		return false
@@ -677,18 +662,27 @@ static func matches(npc: NPCRuntime, filters: Dictionary) -> bool:
 		return false
 	var archetype: String = str(filters.get("archetype", ""))
 	if not archetype.is_empty() \
-			and (npc.archetype != archetype or not can_see(npc.id, S_CHARACTER)):
+			and (npc.archetype != archetype or level < section_level(S_CHARACTER)):
 		return false
-	return matches_category(npc, str(filters.get("category", "")))
+	return matches_category_at(npc, str(filters.get("category", "")), level)
 
 
 static func matches_category(npc: NPCRuntime, category: String) -> bool:
+	return matches_category_at(npc, category, effective_level(npc.id))
+
+
+## Las categorías de rasgos solo con los rasgos a la vista y con los valores que muestra la ficha.
+static func matches_category_at(npc: NPCRuntime, category: String, level: int) -> bool:
 	match category:
-		CAT_BRIBABLE:
-			return can_see(npc.id, S_TRAITS) and not Bribery.is_npc_unbribable(npc) \
-					and npc.get_trait("greed") >= Database.get_balance_int(B_BRIBABLE_GREED)
-		CAT_DANGEROUS:
-			return can_see(npc.id, S_TRAITS) and is_dangerous(npc)
+		CAT_BRIBABLE, CAT_DANGEROUS:
+			if level < section_level(S_TRAITS):
+				return false
+			var shown: Dictionary = shown_traits(npc, level >= section_level(S_EXACT))
+			if category == CAT_DANGEROUS:
+				return is_dangerous_traits(shown)
+			return not Bribery.is_unbribable_archetype(npc.archetype) \
+					and not Bribery.is_unbribable(shown) \
+					and int(shown["greed"]) >= Database.get_balance_int(B_BRIBABLE_GREED)
 		CAT_DEBTORS:
 			return NPCDirector.get_debt(npc.id) > 0
 		CAT_TARGETS:
@@ -696,34 +690,51 @@ static func matches_category(npc: NPCRuntime, category: String) -> bool:
 	return true
 
 
-## Peligroso: perspicaz o de los que denuncian un soborno (umbrales de §8.2).
+## Rasgos tal como los muestra la ficha: exactos con N5; si no, el centro de su tramo.
+static func shown_traits(npc: NPCRuntime, exact: bool) -> Dictionary:
+	var out: Dictionary = {}
+	for trait_name: String in Validate.TRAIT_NAMES:
+		out[trait_name] = shown_value(npc.get_trait(trait_name), exact)
+	return out
+
+
+## Peligroso: perspicaz o de los que denuncian un soborno (umbrales de §8.2), con valores exactos.
 static func is_dangerous(npc: NPCRuntime) -> bool:
-	return npc.get_trait("perception") >= Database.get_balance_int(B_DANGER_PERCEPTION) \
-			or npc.get_trait("courage") > Database.get_balance_int(B_DENOUNCE_COURAGE) \
-			or npc.get_trait("loyalty") > Database.get_balance_int(B_DENOUNCE_LOYALTY)
+	return is_dangerous_traits(npc.traits)
+
+
+static func is_dangerous_traits(traits: Dictionary) -> bool:
+	return int(traits.get("perception", 0)) >= Database.get_balance_int(B_DANGER_PERCEPTION) \
+			or int(traits.get("courage", 0)) > Database.get_balance_int(B_DENOUNCE_COURAGE) \
+			or int(traits.get("loyalty", 0)) > Database.get_balance_int(B_DENOUNCE_LOYALTY)
 
 
 ## Orden por nombre, rango, planta o un rasgo (los expedientes sin rasgos visibles, al final).
-static func sort_npcs(list: Array[NPCRuntime], key: String) -> void:
+## `levels` = {npc_id: nivel efectivo} ya calculado (si falta, se calcula aquí una vez por ficha).
+static func sort_npcs(list: Array[NPCRuntime], key: String, levels: Dictionary = {}) -> void:
+	var keys: Dictionary = {}
+	for npc: NPCRuntime in list:
+		keys[npc.id] = _sort_key(npc, key, int(levels.get(npc.id, 0)) if levels.has(npc.id) \
+				else effective_level(npc.id))
+	var descending: bool = key == SORT_RANK or Validate.TRAIT_NAMES.has(key)
+	list.sort_custom(func(a: NPCRuntime, b: NPCRuntime) -> bool:
+		var ka: int = int(keys[a.id])
+		var kb: int = int(keys[b.id])
+		if ka != kb:
+			return ka > kb if descending else ka < kb
+		return a.name < b.name)
+
+
+static func _sort_key(npc: NPCRuntime, key: String, level: int) -> int:
 	if Validate.TRAIT_NAMES.has(key):
-		list.sort_custom(func(a: NPCRuntime, b: NPCRuntime) -> bool:
-			return _trait_sort_value(a, key) > _trait_sort_value(b, key) \
-					or (_trait_sort_value(a, key) == _trait_sort_value(b, key) and a.name < b.name))
-	elif key == SORT_RANK:
-		list.sort_custom(func(a: NPCRuntime, b: NPCRuntime) -> bool:
-			return npc_rank(a) > npc_rank(b) or (npc_rank(a) == npc_rank(b) and a.name < b.name))
-	elif key == SORT_FLOOR:
-		list.sort_custom(func(a: NPCRuntime, b: NPCRuntime) -> bool:
-			return npc_floor(a) < npc_floor(b) or (npc_floor(a) == npc_floor(b) and a.name < b.name))
-	else:
-		list.sort_custom(func(a: NPCRuntime, b: NPCRuntime) -> bool: return a.name < b.name)
-
-
-static func _trait_sort_value(npc: NPCRuntime, trait_name: String) -> int:
-	var level: int = effective_level(npc.id)
-	if level < section_level(S_TRAITS):
-		return -1
-	return shown_value(npc.get_trait(trait_name), level >= section_level(S_EXACT))
+		if level < section_level(S_TRAITS):
+			return -1
+		return shown_value(npc.get_trait(key), level >= section_level(S_EXACT))
+	if key == SORT_RANK:
+		return npc_rank(npc)
+	if key == SORT_FLOOR:
+		return npc_floor(npc)
+	return 0
 
 
 # ═══ Estudio (§13.4) ══════════════════════════════════════════════════
@@ -792,13 +803,9 @@ static func study(npc_id: String, action: String) -> Dictionary:
 	var result: Dictionary = {"npc_id": npc_id, "action": action, "minutes": minutes,
 			"probability": probability, "word_key": probability_word_key(probability),
 			"day": GameClock.get_day(), "time": GameClock.get_time_string()}
-	_sync_store()
-	if not _studies.has(npc_id):
-		_studies[npc_id] = {}
-	_studies[npc_id][action] = result
+	PlayerState.record_study(npc_id, action, result)
 	EventBus.notebook_entry_added.emit(NOTE_CAT_STUDY, "PERS_NOTE_STUDY",
-			[npc.name, UITheme.trf("PERS_STUDY_Q_" + action.to_upper()),
-			UITheme.trf(str(result["word_key"]))])
+			[npc.name, "PERS_STUDY_Q_" + action.to_upper(), str(result["word_key"])])
 	return result
 
 
@@ -850,6 +857,12 @@ func _ready() -> void:
 	if not _built:
 		setup(context)
 	_refresh_status.call_deferred()
+	_update_layout.call_deferred()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED:
+		_update_layout()
 
 
 func _draw() -> void:
@@ -864,18 +877,22 @@ func build() -> void:
 	var split: HBoxContainer = HBoxContainer.new()
 	split.add_theme_constant_override("separation", OsKit.px(0.6))
 	_frame().add_child(split)
-	split.add_child(_build_sidebar())
-	split.add_child(_build_detail())
+	_side = _build_sidebar()
+	split.add_child(_side)
+	_detail_col = _build_detail()
+	split.add_child(_detail_col)
 	_built = true
 	_refresh_filters()
 	_refresh_list()
 	_apply_context()
+	_apply_compact()
 
 
 ## OSApp: la carcasa la llama al traer la ventana al frente.
 func refresh() -> void:
 	if not _built:
 		return
+	OsKit.use(pal, int(context.get("base", 0)))
 	_refresh_filters()
 	_refresh_list()
 	if is_comparing():
@@ -904,31 +921,87 @@ func _apply_context() -> void:
 		wanted = list[0].id if not list.is_empty() else ""
 	if not wanted.is_empty():
 		select(wanted)
+		_show_list = OsKit.requested(context, "npc_id", "file_npc_id").is_empty()
 	var other: String = OsKit.requested(context, "compare_with", "compare_with")
 	if not other.is_empty():
 		compare(_selected, other)
 
 
-func _build_sidebar() -> Control:
+# ─── Vista compacta (móvil) ───────────────────────────────────────────
+
+## Vista compacta cuando la ventana es más estrecha que COMPACT_EM (pantalla de teléfono).
+func is_compact() -> bool:
+	return _compact
+
+
+func _update_layout() -> void:
+	if not _built:
+		return
+	var compact: bool = size.x > 0.0 and size.x < OsKit.px(COMPACT_EM)
+	if compact == _compact:
+		return
+	_compact = compact
+	_apply_compact()
+	if is_comparing():
+		compare(_selected, _compare_with)
+	elif not _selected.is_empty():
+		_render_file()
+
+
+## Compacta: una sola columna (lista o ficha) y filtros plegados tras un botón.
+func _apply_compact() -> void:
+	if not _built:
+		return
+	_side.custom_minimum_size.x = 0 if _compact else OsKit.px(OsKit.SIDEBAR_EM)
+	_side.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _compact else Control.SIZE_FILL
+	_side.visible = not _compact or _show_list
+	_detail_col.visible = not _compact or not _show_list
+	_filters_btn.visible = _compact
+	_filters_btn.set_pressed_no_signal(_filters_open)
+	_filter_grid.visible = not _compact or _filters_open
+	_back_btn.visible = _compact
+
+
+## Compacta: muestra la lista (true) o la ficha (false).
+func show_list(on: bool) -> void:
+	_show_list = on
+	_apply_compact()
+
+
+func _on_filters_toggled(on: bool) -> void:
+	_filters_open = on
+	_apply_compact()
+
+
+func _build_sidebar() -> VBoxContainer:
 	var side: VBoxContainer = VBoxContainer.new()
 	side.custom_minimum_size.x = OsKit.px(OsKit.SIDEBAR_EM)
 	side.add_theme_constant_override("separation", OsKit.px(0.35))
+	var top: HBoxContainer = HBoxContainer.new()
+	top.add_theme_constant_override("separation", OsKit.px(0.3))
 	_search = LineEdit.new()
 	_search.placeholder_text = tr("PERS_SEARCH_HINT")
 	_search.clear_button_enabled = true
+	_search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_search.text_changed.connect(_on_search_changed)
-	side.add_child(_search)
-	var grid: GridContainer = GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", OsKit.px(0.4))
-	grid.add_theme_constant_override("v_separation", OsKit.px(0.25))
-	_floor_opt = _filter_row(grid, "PERS_FILTER_FLOOR")
-	_tier_opt = _filter_row(grid, "PERS_FILTER_RANK")
-	_arch_opt = _filter_row(grid, "PERS_FILTER_TYPE")
-	_cat_opt = _filter_row(grid, "PERS_FILTER_CATEGORY")
-	_sort_opt = _filter_row(grid, "PERS_FILTER_SORT")
-	side.add_child(grid)
+	top.add_child(_search)
+	_filters_btn = OsKit.button(tr("PERS_FILTERS"), "chevron_down")
+	_filters_btn.toggle_mode = true
+	_filters_btn.toggled.connect(_on_filters_toggled)
+	top.add_child(_filters_btn)
+	side.add_child(top)
+	_filter_grid = GridContainer.new()
+	_filter_grid.columns = 2
+	_filter_grid.add_theme_constant_override("h_separation", OsKit.px(0.4))
+	_filter_grid.add_theme_constant_override("v_separation", OsKit.px(0.25))
+	_floor_opt = _filter_row(_filter_grid, "PERS_FILTER_FLOOR")
+	_tier_opt = _filter_row(_filter_grid, "PERS_FILTER_TIER")
+	_arch_opt = _filter_row(_filter_grid, "PERS_FILTER_TYPE")
+	_cat_opt = _filter_row(_filter_grid, "PERS_FILTER_CATEGORY")
+	_sort_opt = _filter_row(_filter_grid, "PERS_FILTER_SORT")
+	side.add_child(_filter_grid)
 	_count_label = OsKit.label("", OsKit.V_SMALL)
+	_count_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	side.add_child(_count_label)
 	side.add_child(_build_list())
 	return side
@@ -959,7 +1032,7 @@ func _build_list() -> Control:
 	return frame
 
 
-func _build_detail() -> Control:
+func _build_detail() -> VBoxContainer:
 	var col: VBoxContainer = VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", OsKit.px(0.35))
@@ -983,6 +1056,9 @@ func _build_toolbar() -> Control:
 	var bar: HFlowContainer = HFlowContainer.new()
 	bar.add_theme_constant_override("h_separation", OsKit.px(0.35))
 	bar.add_theme_constant_override("v_separation", OsKit.px(0.25))
+	_back_btn = OsKit.button(tr("PERS_BACK_TO_LIST"), GlyphButton.GLYPH_BACK)
+	_back_btn.pressed.connect(show_list.bind(true))
+	bar.add_child(_back_btn)
 	_mark_btn = OsKit.button(tr("PERS_ACT_MARK"), "target")
 	_mark_btn.toggle_mode = true
 	_mark_btn.toggled.connect(_on_mark_toggled)
@@ -997,12 +1073,31 @@ func _build_toolbar() -> Control:
 	var study: Label = OsKit.label(tr("PERS_STUDY_LABEL"), OsKit.V_HEADING)
 	study.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.add_child(study)
+	var tip: String = tr("PERS_STUDY_TIP") % [Database.get_balance_int(B_STUDY_MIN),
+			Database.get_balance_int(B_STUDY_MAX)]
 	for action: String in STUDY_ACTIONS:
 		var btn: Button = OsKit.button(tr("PERS_STUDY_BTN_" + action.to_upper()), "clock")
-		btn.tooltip_text = tr("PERS_STUDY_TIP")
+		btn.tooltip_text = tip
 		btn.pressed.connect(_on_study_pressed.bind(action))
 		bar.add_child(btn)
+		_study_btns[action] = btn
 	return bar
+
+
+## Botones de estudio con su coste en minutos de juego (irreversible: el tiempo no vuelve).
+func _update_study_buttons() -> void:
+	for action: String in STUDY_ACTIONS:
+		var btn: Button = _study_btns[action]
+		btn.disabled = _selected.is_empty()
+		var label: String = tr("PERS_STUDY_BTN_" + action.to_upper())
+		btn.text = label if _selected.is_empty() \
+				else tr("PERS_STUDY_BTN_FMT") % [label, study_minutes(_selected, action)]
+
+
+func _update_mark_button() -> void:
+	var marked: bool = not _selected.is_empty() and is_marked(_selected)
+	_mark_btn.set_pressed_no_signal(marked)
+	_mark_btn.text = tr("PERS_ACT_UNMARK") if marked else tr("PERS_ACT_MARK")
 
 
 # ─── Filtros ──────────────────────────────────────────────────────────
@@ -1103,20 +1198,33 @@ func get_visible_npc_ids() -> Array[String]:
 	return out
 
 
-# ─── Lista ────────────────────────────────────────────────────────────
+# ─── Lista (las filas se reutilizan: filtrar solo reordena y oculta) ────
 
 func _refresh_list() -> void:
-	for child: Node in _list_box.get_children():
-		child.queue_free()
-	var list: Array[NPCRuntime] = list_npcs(_filters)
-	var targets: Array[String] = get_marked_targets()
+	var levels: Dictionary = {}
+	var list: Array[NPCRuntime] = list_npcs(_filters, levels)
+	var shown: Dictionary = {}
+	var full_files: bool = player_level() < max_level()
 	for i: int in list.size():
-		_list_box.add_child(_make_row(list[i], i, targets))
+		var row: NpcRow = _row_for(list[i])
+		row.zebra = i % 2 == 1
+		row.marked = is_marked(row.npc_id)
+		row.full_file = full_files and int(levels.get(row.npc_id, 0)) >= max_level()
+		row.selected = row.npc_id == _selected or row.npc_id == _compare_with
+		row.visible = true
+		_list_box.move_child(row, i)
+		row.queue_redraw()
+		shown[row.npc_id] = true
+	for npc_id: String in _rows:
+		(_rows[npc_id] as NpcRow).visible = shown.has(npc_id)
 	_count_label.text = tr("PERS_COUNT_FMT") % [list.size(), NPCDirector.get_all_npcs().size()]
 	_refresh_status()
 
 
-func _make_row(npc: NPCRuntime, index: int, targets: Array[String]) -> NpcRow:
+## Fila de un personaje (se crea una vez con los datos que no cambian mientras está abierta).
+func _row_for(npc: NPCRuntime) -> NpcRow:
+	if _rows.has(npc.id):
+		return _rows[npc.id]
 	var row: NpcRow = NpcRow.new()
 	row.npc_id = npc.id
 	row.title = npc.name
@@ -1125,11 +1233,9 @@ func _make_row(npc: NPCRuntime, index: int, targets: Array[String]) -> NpcRow:
 	row.chip = tr("PERS_RANK_CHIP") % rank if rank >= 0 else "—"
 	row.floor_label = floor_text(npc_floor(npc))
 	row.chip_color = UITheme.band_accent_for_floor(npc_floor(npc))
-	row.marked = targets.has(npc.id)
-	row.full_file = not full_file_reason(npc.id).is_empty()
-	row.zebra = index % 2 == 1
-	row.selected = npc.id == _selected or npc.id == _compare_with
 	row.picked.connect(_on_row_picked)
+	_list_box.add_child(row)
+	_rows[npc.id] = row
 	return row
 
 
@@ -1138,15 +1244,15 @@ func _on_row_picked(npc_id: String) -> void:
 		compare(_selected, npc_id)
 	else:
 		select(npc_id)
+	show_list(false)
 
 
 func _sync_row_selection() -> void:
-	for child: Node in _list_box.get_children():
-		var row: NpcRow = child as NpcRow
-		if row != null:
-			row.selected = row.npc_id == _selected or row.npc_id == _compare_with
-			row.marked = is_marked(row.npc_id)
-			row.queue_redraw()
+	for npc_id: String in _rows:
+		var row: NpcRow = _rows[npc_id]
+		row.selected = npc_id == _selected or npc_id == _compare_with
+		row.marked = is_marked(npc_id)
+		row.queue_redraw()
 
 
 # ─── Expediente ───────────────────────────────────────────────────────
@@ -1178,6 +1284,8 @@ func compare(a_id: String, b_id: String) -> void:
 	if not _built:
 		return
 	_compare_btn.set_pressed_no_signal(true)
+	_update_mark_button()
+	_update_study_buttons()
 	_clear_detail()
 	var view: CompareView = CompareView.new()
 	view.set_files(build_file(a_id, effective_level(a_id)), build_file(b_id, effective_level(b_id)),
@@ -1193,6 +1301,7 @@ func is_comparing() -> bool:
 
 func _clear_detail() -> void:
 	for child: Node in _detail_box.get_children():
+		_detail_box.remove_child(child)
 		child.queue_free()
 
 
@@ -1201,28 +1310,35 @@ func _render_file() -> void:
 	var file: Dictionary = build_file(_selected, effective_level(_selected))
 	if file.is_empty():
 		return
-	_mark_btn.set_pressed_no_signal(is_marked(_selected))
+	_update_mark_button()
+	_update_study_buttons()
 	_detail_box.add_child(_file_header(file))
 	_detail_box.add_child(_notes_strip())
-	var columns: HBoxContainer = HBoxContainer.new()
-	columns.add_theme_constant_override("separation", OsKit.px(1.0))
-	var left: VBoxContainer = _column(columns)
-	var right: VBoxContainer = _column(columns)
-	_detail_box.add_child(columns)
+	var columns: Array[VBoxContainer] = _file_columns()
 	var sections: Dictionary = file["sections"]
 	for section: String in [S_CHARACTER, S_TRAITS, S_LINKS, S_POLITICS, S_COMMS]:
 		if sections.has(section):
-			left.add_child(_section_block(section, sections[section], bool(file["exact"])))
+			columns[0].add_child(_section_block(section, sections[section], bool(file["exact"])))
 	for section: String in [S_ROUTINE, S_WEAKNESS, S_BRIBE, S_HISTORY, S_SECRETS, S_HOME, S_DISCIPLINE]:
 		if sections.has(section):
-			right.add_child(_section_block(section, sections[section], bool(file["exact"])))
+			columns[1].add_child(_section_block(section, sections[section], bool(file["exact"])))
 	var locked: Array = file["locked"]
 	if not locked.is_empty():
 		_detail_box.add_child(_locked_block(locked))
 	_refresh_status()
 
 
-func _column(parent: HBoxContainer) -> VBoxContainer:
+## Dos columnas de secciones; en la vista compacta, una sola (las dos entradas son la misma).
+func _file_columns() -> Array[VBoxContainer]:
+	var holder: BoxContainer = VBoxContainer.new() if _compact else HBoxContainer.new()
+	holder.add_theme_constant_override("separation", OsKit.px(0.8 if _compact else 1.0))
+	_detail_box.add_child(holder)
+	var out: Array[VBoxContainer] = [_column(holder)]
+	out.append(out[0] if _compact else _column(holder))
+	return out
+
+
+func _column(parent: BoxContainer) -> VBoxContainer:
 	var col: VBoxContainer = VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", OsKit.px(0.8))
@@ -1233,23 +1349,27 @@ func _column(parent: HBoxContainer) -> VBoxContainer:
 func _file_header(file: Dictionary) -> Control:
 	var identity: Dictionary = file["sections"][S_IDENTITY]
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", OsKit.px(1.0))
+	row.add_theme_constant_override("separation", OsKit.px(0.8 if _compact else 1.0))
 	var photo: Photo = Photo.new()
 	photo.appearance = identity["photo"]
 	photo.badge = "%05d" % (absi(hash(file["npc_id"])) % 100000)
 	photo.stamp = tr("PERS_STAMP_TARGET") if is_marked(file["npc_id"]) else ""
-	photo.custom_minimum_size = Vector2(OsKit.px(8.5), OsKit.px(10.5))
+	var photo_em: float = PHOTO_COMPACT_EM if _compact else PHOTO_EM
+	photo.custom_minimum_size = Vector2(OsKit.px(photo_em), OsKit.px(photo_em * PHOTO_RATIO))
 	row.add_child(photo)
 	var info: VBoxContainer = VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_theme_constant_override("separation", OsKit.px(0.2))
 	info.add_child(OsKit.label(tr("PERS_FILE_KICKER"), OsKit.V_HEADING))
-	info.add_child(OsKit.label(str(identity["name"]), OsKit.V_BIG))
+	info.add_child(OsKit.wrap_label(str(identity["name"]), OsKit.V_BIG))
 	for pair: Array in [["PERS_FIELD_POST", identity["post"]], ["PERS_FIELD_FLOOR", identity["floor"]],
 			["PERS_FIELD_WING", identity["wing"]]]:
 		info.add_child(OsKit.field_row(tr(pair[0]), str(pair[1])))
 	row.add_child(info)
-	row.add_child(_level_card(file))
+	if _compact:
+		info.add_child(_level_line(file))
+	else:
+		row.add_child(_level_card(file))
 	return row
 
 
@@ -1259,17 +1379,26 @@ func _level_card(file: Dictionary) -> Control:
 	card.max_level = max_level()
 	card.level_name = tr("PERS_LEVEL_NAME_%d" % card.level)
 	var reason: String = str(file.get("full_reason", ""))
-	card.note = tr("PERS_FULL_FILE_FMT") % tr("PERS_REASON_" + reason.to_upper()) if not reason.is_empty() else ""
+	card.note = tr("PERS_FULL_FILE_FMT") % tr(reason_key(reason)) if not reason.is_empty() else ""
 	card.hint = tr("PERS_LEVEL_HINT")
-	card.custom_minimum_size = Vector2(OsKit.px(12.0), OsKit.px(7.0))
+	card.custom_minimum_size = Vector2(OsKit.px(LEVEL_CARD_EM), OsKit.px(LevelCard.MIN_H_EM))
 	return card
+
+
+## Vista compacta: la acreditación en una línea bajo los datos (sin tarjeta).
+func _level_line(file: Dictionary) -> Control:
+	var level: int = int(file["level"])
+	var chip: Chip = Chip.new()
+	chip.text = tr("PERS_STATUS_LEVEL") % [level, tr("PERS_LEVEL_NAME_%d" % level)]
+	chip.color = OsKit.teal()
+	return chip
 
 
 func _notes_strip() -> Control:
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override("separation", OsKit.px(0.2))
 	for note: Dictionary in get_notes(_selected):
-		box.add_child(OsKit.label(tr("PERS_NOTE_LINE") % [int(note["day"]), str(note["time"]),
+		box.add_child(OsKit.wrap_label(tr("PERS_NOTE_LINE") % [int(note["day"]), str(note["time"]),
 				str(note["text"])], OsKit.V_NOTE))
 	var studies: Dictionary = get_studies(_selected)
 	for action: String in STUDY_ACTIONS:
@@ -1289,8 +1418,8 @@ func _notes_strip() -> Control:
 
 
 func _study_line(result: Dictionary) -> Control:
-	var line: HBoxContainer = HBoxContainer.new()
-	line.add_theme_constant_override("separation", OsKit.px(0.5))
+	var line: HFlowContainer = HFlowContainer.new()
+	line.add_theme_constant_override("h_separation", OsKit.px(0.5))
 	var text: String = tr("PERS_STUDY_RESULT") % [tr("PERS_STUDY_Q_" + str(result["action"]).to_upper()),
 			int(result["minutes"])]
 	line.add_child(OsKit.label(text, OsKit.V_NOTE))
@@ -1411,7 +1540,7 @@ func _locked_block(locked: Array) -> Control:
 	head.text = tr("PERS_SEC_CLASSIFIED")
 	box.add_child(head)
 	var grid: GridContainer = GridContainer.new()
-	grid.columns = 2
+	grid.columns = 1 if _compact else 2
 	grid.add_theme_constant_override("h_separation", OsKit.px(0.8))
 	grid.add_theme_constant_override("v_separation", OsKit.px(0.4))
 	for entry: Dictionary in locked:
@@ -1431,21 +1560,27 @@ func _on_mark_toggled(on: bool) -> void:
 	if _selected.is_empty():
 		return
 	set_marked(_selected, on)
-	_render_file()
+	if is_comparing():
+		compare(_selected, _compare_with)
+	else:
+		_render_file()
 	_sync_row_selection()
 
 
 func _on_compare_toggled(on: bool) -> void:
-	if on:
-		_picking_compare = true
-		_compare_with = ""
-		_clear_detail()
-		var hint: Label = OsKit.wrap_label(tr("PERS_COMPARE_HINT") % other_name(_selected),
-				OsKit.V_STRONG)
-		_detail_box.add_child(hint)
-		_refresh_status()
-	else:
+	if not on:
 		select(_selected)
+		return
+	_picking_compare = true
+	_compare_with = ""
+	_clear_detail()
+	var hint: String = tr("PERS_COMPARE_HINT") % other_name(_selected)
+	_detail_box.add_child(OsKit.wrap_label(hint, OsKit.V_STRONG))
+	if _compact:
+		_count_label.text = hint
+		show_list(true)
+	_sync_row_selection()
+	_refresh_status()
 
 
 func _on_study_pressed(action: String) -> void:
@@ -1500,7 +1635,6 @@ class OsKit extends RefCounted:
 	const V_WINDOW := "PnWindow"
 	const V_PRIMARY := OSTheme.V_PRIMARY
 	const V_DANGER := OSTheme.V_DANGER
-	const HAZARD := Color("#f2c230")
 	## Proporciones de diseño respecto al tamaño base de la carcasa (maquetación, no balance).
 	const RATIO_BODY := 0.78
 	const SIDEBAR_EM := 21.0
@@ -1602,8 +1736,9 @@ class OsKit extends RefCounted:
 	static func accent() -> Color:
 		return c("accent")
 
+	## Amarillo de peligro de UITheme (sigue el alto contraste).
 	static func hazard() -> Color:
-		return HAZARD
+		return UITheme.color("hazard")
 
 	## Tamaño de letra base de las aplicaciones (sigue el ajuste de tamaño de texto §13.10).
 	static func base_size() -> int:
@@ -1853,6 +1988,9 @@ class OsKit extends RefCounted:
 
 ## Botón con glifo vectorial de UITheme a la izquierda del texto (el hueco lo reserva un icono vacío).
 class GlyphButton extends Button:
+	## Glifo propio (UITheme no tiene flecha a la izquierda): «volver».
+	const GLYPH_BACK := "back"
+
 	var glyph: String = ""
 	var glyph_color: Color = OsKit.ink()
 
@@ -1871,6 +2009,11 @@ class GlyphButton extends Button:
 		var s: float = float(OsKit.px(0.95))
 		var r: Rect2 = Rect2(box.get_margin(SIDE_LEFT), (size.y - s) * 0.5, s, s)
 		var color: Color = glyph_color if not disabled else Color(glyph_color, 0.45)
+		if glyph == GLYPH_BACK:
+			draw_polyline(PackedVector2Array([r.position + Vector2(s * 0.62, s * 0.18),
+					r.position + Vector2(s * 0.3, s * 0.5), r.position + Vector2(s * 0.62, s * 0.82)]),
+					color, maxf(s * 0.14, 2.0), true)
+			return
 		UITheme.draw_icon(self, glyph, r, color, maxf(s * 0.1, 1.5))
 
 
@@ -1974,6 +2117,10 @@ class Photo extends Control:
 	var badge: String = ""
 	var stamp: String = ""
 
+	## Solo dibujo: deja pasar el arrastre al ScrollContainer (táctil).
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
+
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
 		draw_rect(Rect2(r.position + Vector2(5, 6), r.size), Color(0, 0, 0, 0.2))
@@ -1997,7 +2144,7 @@ class Photo extends Control:
 		var pts: PackedVector2Array = PackedVector2Array([at + Vector2(0, h), at, at + Vector2(w, 0),
 				at + Vector2(w, h * 0.8), at + Vector2(w * 0.25, h * 0.8), at + Vector2(w * 0.25, h * 0.2)])
 		draw_polyline(pts, OsKit.ink(), 4.0)
-		draw_polyline(pts, Color("#b9bcc2"), 2.0)
+		draw_polyline(pts, OsKit.face_mid().lerp(OsKit.face_hi(), 0.5), 2.0)
 
 	func _draw_stamp(photo: Rect2) -> void:
 		var fsize: int = OsKit.px(1.05)
@@ -2026,10 +2173,12 @@ class NpcRow extends Control:
 	var selected: bool = false
 	var zebra: bool = false
 	var _hover: bool = false
+	var _tap: TapTracker = TapTracker.new()
 
+	## PASS: el arrastre llega al ScrollContainer (desplazamiento táctil); se elige al soltar.
 	func _init() -> void:
 		custom_minimum_size.y = OsKit.px(2.55)
-		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		mouse_entered.connect(func() -> void: _set_hover(true))
 		mouse_exited.connect(func() -> void: _set_hover(false))
 
@@ -2038,7 +2187,7 @@ class NpcRow extends Control:
 		queue_redraw()
 
 	func _gui_input(event: InputEvent) -> void:
-		if UITheme.is_primary_press(event):
+		if _tap.feed(event, self):
 			picked.emit(npc_id)
 			accept_event()
 
@@ -2082,6 +2231,7 @@ class SectionHead extends Control:
 	var level: int = 0
 
 	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		custom_minimum_size.y = OsKit.px(1.45)
 
 	func _draw() -> void:
@@ -2102,6 +2252,7 @@ class TraitBar extends Control:
 	var exact: bool = false
 
 	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		custom_minimum_size.y = OsKit.px(1.35)
 
 	func _draw() -> void:
@@ -2129,11 +2280,8 @@ class TraitBar extends Control:
 
 ## Vínculo social: tipo (color), persona, fuerza.
 class LinkRow extends Control:
-	const TYPE_COLORS: Dictionary = {
-		"friendship": Color("#3a7a3e"), "couple": Color("#c0457a"), "rivalry": Color("#b23a2c"),
-		"hierarchy": Color("#2b5b98"), "department": Color("#7a7466"), "debt": Color("#d4912a"),
-		"nepotism": Color("#7b4aa0"),
-	}
+	## Colores por tipo de vínculo: balance expedientes.colores_vinculo (datos).
+	const B_COLORS := "expedientes.colores_vinculo"
 	var who: String = ""
 	var kind: String = ""
 	var link_type: String = ""
@@ -2144,12 +2292,13 @@ class LinkRow extends Control:
 	var show_arrow: bool = false
 
 	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		custom_minimum_size.y = OsKit.px(1.35)
 
 	func _draw() -> void:
 		var fsize: int = OsKit.px(0.88)
 		var mid: float = size.y * 0.5 + fsize * 0.35
-		var color: Color = TYPE_COLORS.get(link_type, OsKit.ink_soft())
+		var color: Color = type_color(link_type)
 		draw_circle(Vector2(OsKit.px(0.4), size.y * 0.5), OsKit.px(0.3), color)
 		draw_arc(Vector2(OsKit.px(0.4), size.y * 0.5), OsKit.px(0.3), 0, TAU, 16, OsKit.ink(), 1.5)
 		var x: float = float(OsKit.px(1.0))
@@ -2167,11 +2316,23 @@ class LinkRow extends Control:
 			OsKit.text(self, Vector2(bar.end.x + OsKit.px(0.25), mid), "%.2f" % strength, OsKit.font_mono(),
 					OsKit.px(0.78), OsKit.ink(), OsKit.px(1.9))
 
+	## Color del tipo (datos); en alto contraste, aclarado para leerse sobre negro.
+	static func type_color(type_id: String) -> Color:
+		var colors: Variant = Database.get_balance(B_COLORS)
+		var color: Color = OsKit.ink_soft()
+		if colors is Dictionary and (colors as Dictionary).has(type_id):
+			color = Color(str(colors[type_id]))
+		return color.lightened(0.35) if OsKit.is_contrast() else color
+
 
 ## Etiqueta de color («PROBABLE», «INSOBORNABLE»).
 class Chip extends Control:
 	var text: String = ""
 	var color: Color = OsKit.teal()
+
+	## Solo dibujo: deja pasar el arrastre al ScrollContainer (táctil).
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
 
 	func _ready() -> void:
 		var fsize: int = OsKit.px(0.78)
@@ -2194,6 +2355,7 @@ class Redacted extends Control:
 	var seed_value: int = 0
 
 	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		custom_minimum_size.y = OsKit.px(3.1)
 
 	func _draw() -> void:
@@ -2224,24 +2386,59 @@ class Redacted extends Control:
 			y += line_h * 1.7
 
 
-## Tarjeta de acreditación: nivel N1–N7 con pips y motivo del acceso completo.
+## Tarjeta de acreditación: nivel N1–N7 con pips y motivo del acceso completo. Su alto sale del
+## texto medido (la pista se lee entera en cualquier idioma).
 class LevelCard extends Control:
+	const MIN_H_EM := 7.0
+	const FRAME_EM := 0.35
+	const PAD_EM := 0.5
+	const SMALL_EM := 0.72
+	const BIG_EM := 2.4
+	const NAME_STEP_EM := 1.1
+	const NOTE_STEP_EM := 1.0
+
 	var level: int = 1
 	var max_level: int = 7
 	var level_name: String = ""
 	var note: String = ""
 	var hint: String = ""
 
+	## Solo dibujo: deja pasar el arrastre al ScrollContainer (táctil).
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			_fit_height()
+
+	func _text_top() -> float:
+		var top: float = OsKit.px(FRAME_EM) + OsKit.px(PAD_EM) + OsKit.px(SMALL_EM) + OsKit.px(BIG_EM) * 1.35
+		top += OsKit.px(NAME_STEP_EM)
+		return top + (OsKit.px(NOTE_STEP_EM) if not note.is_empty() else 0.0)
+
+	func _hint_width() -> float:
+		return size.x - OsKit.px(FRAME_EM) * 2.0 - OsKit.px(PAD_EM) * 2.0
+
+	func _fit_height() -> void:
+		if size.x <= 0.0:
+			return
+		var hint_h: float = OsKit.font_regular().get_multiline_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT,
+				_hint_width(), OsKit.px(SMALL_EM)).y
+		var need: float = maxf(_text_top() + hint_h + OsKit.px(PAD_EM) + OsKit.px(FRAME_EM),
+				OsKit.px(MIN_H_EM))
+		if absf(custom_minimum_size.y - need) > 1.0:
+			custom_minimum_size.y = need
+
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
 		OsKit.draw_bevel(self, r, OsKit.face(), false)
-		var inner: Rect2 = r.grow(-OsKit.px(0.35))
+		var inner: Rect2 = r.grow(-OsKit.px(FRAME_EM))
 		draw_rect(inner, OsKit.teal(), false, 2.0)
-		var pad: float = float(OsKit.px(0.5))
-		var small: int = OsKit.px(0.72)
+		var pad: float = float(OsKit.px(PAD_EM))
+		var small: int = OsKit.px(SMALL_EM)
 		OsKit.text(self, inner.position + Vector2(pad, pad + small), TranslationServer.translate("PERS_CLEARANCE").to_upper(),
 				OsKit.font_black(), small, OsKit.teal(), inner.size.x - pad * 2.0)
-		var big: int = OsKit.px(2.4)
+		var big: int = OsKit.px(BIG_EM)
 		OsKit.text(self, inner.position + Vector2(pad, pad + small + big * 0.95), TranslationServer.translate("PERS_LEVEL_CHIP") % level, OsKit.font_black(),
 				big, OsKit.ink(), inner.size.x * 0.45)
 		var pip: float = (inner.size.x * 0.5 - pad) / float(max_level)
@@ -2253,14 +2450,57 @@ class LevelCard extends Control:
 		var y: float = inner.position.y + pad + small + big * 1.35
 		OsKit.text(self, Vector2(inner.position.x + pad, y), level_name, OsKit.font_bold(), OsKit.px(0.85),
 				OsKit.ink(), inner.size.x - pad * 2.0)
-		y += OsKit.px(1.1)
+		y += OsKit.px(NAME_STEP_EM)
 		if not note.is_empty():
 			OsKit.text(self, Vector2(inner.position.x + pad, y), note, OsKit.font_bold(), small, OsKit.red(),
 					inner.size.x - pad * 2.0)
-			y += OsKit.px(1.0)
+			y += OsKit.px(NOTE_STEP_EM)
 		draw_multiline_string(OsKit.font_regular(), Vector2(inner.position.x + pad, y), hint,
-				HORIZONTAL_ALIGNMENT_LEFT, inner.size.x - pad * 2.0, small, maxi(floori((inner.end.y - y) / (small * 1.25)), 0),
-				OsKit.soft())
+				HORIZONTAL_ALIGNMENT_LEFT, inner.size.x - pad * 2.0, small, -1, OsKit.soft())
+
+
+## Toque o clic «limpio»: pulsar y soltar sin arrastrar. Las filas y tarjetas dentro de un
+## ScrollContainer usan MOUSE_FILTER_PASS y no aceptan la pulsación, así el arrastre desplaza la
+## lista en pantallas táctiles; la elección llega al soltar si el dedo no se ha movido.
+class TapTracker extends RefCounted:
+	## Holgura de movimiento (em) que aún cuenta como toque.
+	const SLOP_EM := 0.6
+
+	var _down: bool = false
+	var _origin: Vector2 = Vector2.ZERO
+
+	## true cuando `event` completa un toque sobre `control`.
+	func feed(event: InputEvent, control: Control) -> bool:
+		if UITheme.is_primary_press(event):
+			_down = true
+			_origin = _global(event, control)
+			return false
+		if not _down:
+			return false
+		var moved: bool = _global(event, control).distance_to(_origin) > OsKit.px(SLOP_EM)
+		if _is_release(event):
+			_down = false
+			return not moved
+		if (event is InputEventMouseMotion or event is InputEventScreenDrag) and moved:
+			_down = false
+		return false
+
+	## Posición global (la fila se desplaza con el dedo: la local no delata el arrastre).
+	static func _global(event: InputEvent, control: Control) -> Vector2:
+		var local: Vector2 = Vector2.ZERO
+		if event is InputEventMouse:
+			local = (event as InputEventMouse).position
+		elif event is InputEventScreenTouch:
+			local = (event as InputEventScreenTouch).position
+		elif event is InputEventScreenDrag:
+			local = (event as InputEventScreenDrag).position
+		return control.get_global_transform() * local
+
+	static func _is_release(event: InputEvent) -> bool:
+		if event is InputEventScreenTouch:
+			return not (event as InputEventScreenTouch).pressed and not UITheme.touch_emulates_mouse()
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		return mb != null and not mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
 
 
 ## Comparación de dos expedientes: cabeceras enfrentadas, rasgos en espejo y filas de datos.
@@ -2276,6 +2516,10 @@ class CompareView extends Control:
 	var _link_type: String = ""
 	var _link_strength: float = 0.0
 	var _rows: Array[Array] = []
+
+	## Solo dibujo: deja pasar el arrastre al ScrollContainer (táctil).
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
 
 	func set_files(a: Dictionary, b: Dictionary, link_type: String, strength: float) -> void:
 		_a = a

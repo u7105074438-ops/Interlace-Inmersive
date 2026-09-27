@@ -305,6 +305,15 @@ func create_record(record_type: String, subject: String,
 
 # ─── Consulta ─────────────────────────────────────────────────
 
+## EXTRA (SocialGraph.kill_rumour): creencias de origen rumor que afirman `fact` (un recorrido).
+func count_rumours(fact: String) -> int:
+	var count: int = 0
+	for b: Belief in _beliefs.values():
+		if b.source == Belief.SOURCE_RUMOR and b.fact == fact:
+			count += 1
+	return count
+
+
 ## Creencias ordinarias (no registros) sobre `subject`, en orden de creación.
 func get_beliefs_about(subject: String) -> Array[Belief]:
 	var out: Array[Belief] = []

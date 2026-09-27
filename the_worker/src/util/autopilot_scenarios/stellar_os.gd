@@ -18,7 +18,8 @@ const AWAY_ROOM := "p3_pantry"
 const PHONE_WINDOW := Vector2i(1170, 540)
 const DESKTOP_WINDOW := Vector2i(1600, 900)
 const PLAYER_NAME := "Morgan"
-const PERSONNEL_SCRIPT := "res://src/ui/stellar_os/personnel_app.gd"
+const CFO := "npc_maurice_sandbell"
+const IT_POST := "it_technician"
 
 var _ui: UIRoot
 var _ds: DutySystem
@@ -35,6 +36,7 @@ func run(pilot: Autopilot) -> void:
 	await _shot_assist(pilot)
 	await _shot_notebook(pilot)
 	await _shot_files(pilot)
+	await _shot_shared(pilot)
 	await _shot_phone(pilot)
 	await _shot_spanish(pilot)
 	await _shot_contrast(pilot)
@@ -158,7 +160,7 @@ func _shot_mail(pilot: Autopilot) -> void:
 	await pilot.frames(4)
 	await _shot(pilot, "os_mail_replied_wrong")
 	await _close()
-	for tier: int in [5, 8]:
+	for tier: int in [3, 5, 8]:
 		_ui.open_computer({"tier": tier, "instant": true, "app": StellarOS.APP_MAIL})
 		await pilot.frames(6)
 		await _shot(pilot, "os_mail_tier%d" % tier)
@@ -212,6 +214,13 @@ func _shot_notebook(pilot: Autopilot) -> void:
 	nb.select_tab(NotebookApp.TAB_CASES)
 	await pilot.frames(4)
 	await _shot(pilot, "os_notebook_cases")
+	nb.select_tab(NotebookApp.TAB_PEOPLE)
+	await pilot.frames(4)
+	await _shot(pilot, "os_notebook_people")
+	await _close()
+	_ui.open_computer({"tier": 8, "instant": true, "app": StellarOS.APP_NOTEBOOK})
+	await pilot.frames(6)
+	await _shot(pilot, "os_notebook_tier8_reopened")
 	await _close()
 
 
@@ -223,11 +232,10 @@ func _prepare_notebook_world() -> void:
 	Security.open_investigation("object_missing", 2, "wing_3b")
 	Security.open_investigation("inventory_mismatch", 3, "p3_pantry")
 	IdeaPool.generate_idea(OWNER, NPCDirector.get_npc(OWNER).department)
-	if ResourceLoader.exists(PERSONNEL_SCRIPT):
-		var script: GDScript = load(PERSONNEL_SCRIPT) as GDScript
-		if script != null and script.can_instantiate():
-			script.call("set_marked", TARGET, true)
-			script.call("set_marked", OWNER, true)
+	PlayerState.mark_target(TARGET)
+	PlayerState.mark_target(OWNER)
+	PlayerState.add_note(tr("OSQA_NOTE_PEOPLE_1"), DEBTOR)
+	PlayerState.add_note(tr("OSQA_NOTE_PEOPLE_2"), OWNER)
 
 
 func _shot_files(pilot: Autopilot) -> void:
@@ -257,9 +265,36 @@ func _shot_files(pilot: Autopilot) -> void:
 	await pilot.frames(4)
 	var own: FilesApp = _computer().get_open_app() as FilesApp
 	if own != null:
+		await _shot(pilot, "os_files_own_reports_empty")
 		own.open_folder(FilesApp.FOLDER_IDEAS)
 		await pilot.frames(4)
 		await _shot(pilot, "os_files_own_ideas")
+	await _close()
+
+
+## Dos documentos del CFO copiados (cada uno su copia) y la unidad compartida de IT (§13.3).
+func _shot_shared(pilot: Autopilot) -> void:
+	_new_run()
+	StellarOS.open_intrusion(CFO, {"instant": true})
+	var files: FilesApp = await _wait_app(pilot, StellarOS.APP_FILES, 3.0) as FilesApp
+	if files != null:
+		files.open_folder(FilesApp.FOLDER_DOCUMENTS)
+		await files.copy_file("doc_real_fundamentals")
+		await files.copy_file("doc_reported_figures")
+		await pilot.frames(4)
+		await _shot(pilot, "os_files_cfo_two_copies")
+	await _close()
+	PlayerState.set_occupation(IT_POST, "preview")
+	_ui.open_computer({"tier": 3, "instant": true, "app": StellarOS.APP_FILES})
+	await pilot.frames(4)
+	var own: FilesApp = _computer().get_open_app() as FilesApp
+	if own != null:
+		own.open_folder(FilesApp.FOLDER_DOCUMENTS)
+		await pilot.frames(4)
+		await _shot(pilot, "os_files_own_documents")
+		own.open_folder(FilesApp.FOLDER_SHARED)
+		await pilot.frames(4)
+		await _shot(pilot, "os_files_shared_drive_it")
 	await _close()
 
 
@@ -276,6 +311,13 @@ func _shot_phone(pilot: Autopilot) -> void:
 	await pilot.frames(6)
 	await _shot(pilot, "os_phone_assist")
 	await _close()
+	PlayerState.set_occupation("billing_clerk", "preview")
+	_ds.reset_for_new_run()
+	for app_id: String in [StellarOS.APP_ASSIST, StellarOS.APP_FILES, StellarOS.APP_NOTEBOOK]:
+		_ui.open_computer({"tier": 1, "instant": true, "app": app_id})
+		await pilot.frames(6)
+		await _shot(pilot, "os_phone_" + app_id + "_r5")
+		await _close()
 
 
 ## Español (idioma localizado): los textos más largos deben caber.
@@ -300,6 +342,13 @@ func _shot_contrast(pilot: Autopilot) -> void:
 	_ui.open_computer({"tier": 1, "instant": true, "app": StellarOS.APP_MAIL})
 	await pilot.frames(6)
 	await _shot(pilot, "os_high_contrast_mail")
+	await _close()
+	_ui.open_computer({"tier": 1, "instant": true})
+	await pilot.frames(6)
+	await _shot(pilot, "os_high_contrast_desktop")
+	_ui.set_text_options(UITheme.TEXT_LARGE, false)
+	await pilot.frames(6)
+	await _shot(pilot, "os_settings_changed_live")
 	await _close()
 	_ui.set_text_options(UITheme.TEXT_MEDIUM, false)
 

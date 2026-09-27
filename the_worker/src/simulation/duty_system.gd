@@ -89,6 +89,7 @@ const ERR_WRONG_INTERFACE := "wrong_interface"
 const ERR_INVALID_SUBORDINATE := "invalid_subordinate"
 const ERROR_KEY_FORMAT := "DUTY_ERR_%s"
 const GROUP := "duty_system"
+const SAVE_KEY := "DutySystem"
 const PLAYER_ID := "player"
 const CAUSE_EXPULSION := "duty_failure_expulsion"
 const CAUSE_FAILED_AT_R0 := "failed_at_r0"
@@ -183,6 +184,15 @@ func _ready() -> void:
 	EventBus.run_loaded.connect(_on_run_loaded)
 	EventBus.game_over.connect(_on_game_over)
 	reset_for_new_run()
+	add_to_group(SaveSystemNode.SCENE_GROUP)
+	var saved: Dictionary = SaveSystem.claim_scene_state(SAVE_KEY)
+	if not saved.is_empty():
+		load_state(saved)
+
+
+## Clave con la que SaveSystem guarda este nodo en la partida (grupo SaveSystemNode.SCENE_GROUP).
+func get_save_key() -> String:
+	return SAVE_KEY
 
 
 func reset_for_new_run() -> void:
@@ -587,7 +597,7 @@ func execute_consequence(duty_id: String, consequence: String) -> String:
 		_game_over_sent = true
 		var cause: String = CAUSE_FAILED_AT_R0 if PlayerState.get_rank() == 0 else CAUSE_EXPULSION
 		EventBus.game_over.emit(cause, Tracking.evaluate_ending_for_cause(cause),
-				Tracking.get_snapshot())
+				Tracking.get_snapshot_for_cause(cause))
 	return consequence
 
 
@@ -642,7 +652,7 @@ func get_viability_report(duty_ids: Array[String] = []) -> Dictionary:
 	}
 
 
-# ─── Persistencia (game_root la incluye en la partida) ────────
+# ─── Persistencia (SaveSystem la incluye en la partida: grupo SCENE_GROUP) ────────
 
 func save_state() -> Dictionary:
 	return {
@@ -974,7 +984,7 @@ func _take_material(source_id: String) -> float:
 		return -1.0
 	if not (kinds as Array).has(item.extra.get(KIND_KEY, "")):
 		return -1.0
-	if not PlayerState.has_item(source_id) or not PlayerState.remove_item(source_id):
+	if not PlayerState.is_carrying(source_id) or not PlayerState.remove_item(source_id):
 		return -1.0
 	return Database.get_balance_float(B_MATERIAL_QUALITY)
 

@@ -77,10 +77,11 @@ func _test_notebook_log() -> void:
 	EventBus.notebook_entry_added.emit("duties", "NOTE_TEST_ONE", [3])
 	GameClock.advance_minutes(1.0)
 	EventBus.notebook_entry_added.emit("duties", "NOTE_TEST_ONE", [3])
-	var log: Array[Dictionary] = PlayerState.get_notebook_entries()
-	check_eq(log.size(), 2, "every notebook entry is kept; an identical one in the same minute counts once")
-	check(log[0]["category"] == "duties" and log[0]["text_key"] == "NOTE_TEST_ONE"
-			and log[0]["args"] == [3] and log[0]["hour"] == WORK_HOUR and log[1]["minute"] == 1,
+	var entries: Array[Dictionary] = PlayerState.get_notebook_entries()
+	check_eq(entries.size(), 2, "every notebook entry is kept; an identical one in the same minute counts once")
+	check(entries[0]["category"] == "duties" and entries[0]["text_key"] == "NOTE_TEST_ONE"
+			and entries[0]["args"] == [3] and entries[0]["hour"] == WORK_HOUR
+			and entries[1]["minute"] == 1,
 			"entries carry category, key, args and the game time")
 
 
@@ -120,22 +121,27 @@ func _test_proximity_contacts() -> void:
 	new_run(DEFAULT_SEED)
 	GameClock.set_time(WORK_DAY, WORK_HOUR, 0)
 	EventBus.room_entered.emit(OFFICE, true)
-	NPCDirector.set_current_location(DEBBIE, OFFICE)
-	NPCDirector.set_current_location(CLAUDIA, "cafeteria")
 	var needed: int = Database.get_balance_int("movil.horas_proximidad_contacto")
 	for i: int in needed - 1:
-		EventBus.hour_passed.emit(WORK_HOUR + i, WORK_DAY)
+		_pin_and_tick(WORK_HOUR + i)
 	check(not PlayerState.has_contact(DEBBIE) and PlayerState.get_proximity_hours(DEBBIE) == needed - 1,
 			"%d shared working hours are not enough yet" % (needed - 1))
-	EventBus.hour_passed.emit(WORK_HOUR + needed, WORK_DAY)
+	_pin_and_tick(WORK_HOUR + needed)
 	check_eq(PlayerState.get_contact_source(DEBBIE), "proximity",
 			"after %d hours working in the same room the colleague gives the number" % needed)
 	check(not PlayerState.has_contact(CLAUDIA), "someone in another room does not")
 	GameClock.set_time(WORK_DAY, 21, 0)
-	NPCDirector.set_current_location(GEORGE, OFFICE)
 	for i: int in needed:
+		NPCDirector.set_current_location(GEORGE, OFFICE)
 		EventBus.hour_passed.emit(21, WORK_DAY)
 	check(not PlayerState.has_contact(GEORGE), "hours outside the working day do not count")
+
+
+## PlayerState oye hour_passed antes que NPCDirector: las salas fijadas justo antes son las que ve.
+func _pin_and_tick(hour: int) -> void:
+	NPCDirector.set_current_location(DEBBIE, OFFICE)
+	NPCDirector.set_current_location(CLAUDIA, "cafeteria")
+	EventBus.hour_passed.emit(hour, WORK_DAY)
 
 
 func _test_hr_department() -> void:
@@ -161,7 +167,8 @@ func _test_marked_targets() -> void:
 	check(PlayerState.mark_target(CLAUDIA), "mark_target")
 	check(not PlayerState.mark_target(CLAUDIA) and not PlayerState.mark_target("npc_nobody"),
 			"marking twice or a stranger does nothing")
-	check(PlayerState.is_marked(CLAUDIA) and PlayerState.get_marked_targets() == [CLAUDIA] as Array[String],
+	var expected: Array[String] = [CLAUDIA]
+	check(PlayerState.is_marked(CLAUDIA) and PlayerState.get_marked_targets() == expected,
 			"the target list")
 	check(_entries.has(["targets", "PERS_NOTE_TARGET_MARKED", [_name(CLAUDIA)]]),
 			"the notebook records the new target")

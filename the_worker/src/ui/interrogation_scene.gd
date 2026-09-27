@@ -1,5 +1,5 @@
 # interrogation_scene.gd — Interrogatorio en la sala de P15 (§12.5, PASO 29): el investigador presenta las piezas de una en una, cinco respuestas, el peso del caso contra la línea de 7,0 y el detalle de tono (disculpa o portazo).
-# PROPIETARIO DE: la sesión Interrogation en curso (la crea la escena), el paso de la escena, la pieza mostrada y el resultado final mostrado.
+# PROPIETARIO DE: la sesión Interrogation en curso (la crea la escena), el paso de la escena, la pieza mostrada, el resultado final mostrado y el registro de efectos de sonido pedidos.
 # ESCUCHA: nada.
 class_name InterrogationScene
 extends Control
@@ -8,15 +8,23 @@ extends Control
 ## si host es UIRoot; si no, hija de host). context es el de Interrogation.new (reputation,
 ## suspicion, alibi, has_legal_contact, verification_roll): vacío en el juego, forzado en QA/tests.
 ## Pasos: STEP_INTRO (tono de §12.5: reputación > 85 → disculpa con café y luz cálida; sospecha > 70
-## → la puerta se cierra de golpe: animación, sacudida y AudioDirector.play_sfx) → STEP_PIECE (la
-## pieza sobre la mesa espera respuesta) ⇄ STEP_REACT → STEP_END (Interrogation.finish(): éxito si
-## el peso < 7,0; veredicto o caso congelado) → leave() → closed().
+## → la puerta se cierra de golpe: animación, sacudida y sonido) → STEP_PIECE (la pieza sobre la
+## mesa espera respuesta) ⇄ STEP_REACT → STEP_END (Interrogation.finish(): éxito si el peso < 7,0;
+## veredicto o caso congelado) → leave() → closed().
 ## Cada respuesta llama a Interrogation.answer(), que aplica los efectos (Security, NPCDirector,
 ## BeliefNet) y emite interrogation_answered; la escena solo lo representa y emite answered().
-## DECISIONES: no se puede salir a mitad (Esc solo salta animaciones o cierra el selector); si la
-## escena se retira sin terminar, Security caduca el interrogatorio abandonado. «Acusar a otro»
-## abre un selector: sospechosos del caso, quien ronda la sala del incidente y colegas que conocen
-## al jugador (máx. escenas.max_acusables); sin población, nominados del catálogo.
+## Maquetación: la sala a la izquierda (cámara), la ficha de la pieza junto a la mesa y el panel
+## lateral (SceneStage.Dock) con el medidor del caso fijo arriba y, debajo, las respuestas, la
+## reacción o el final. El medidor crece su escala si el peso supera la inicial (coartada falsa ×2).
+## Esc: adelanta hasta el siguiente punto de lectura (la reacción a cada respuesta, la pieza
+## siguiente), cierra el selector o, al final, sale.
+## DECISIONES: no se puede salir a mitad; si la escena se retira sin terminar, Security caduca el
+## interrogatorio abandonado. «Acusar a otro» cambia el panel por un selector (las respuestas no
+## quedan pulsables detrás): sospechosos del caso, quien ronda la sala del incidente y colegas que
+## conocen al jugador (máx. escenas.max_acusables); sin población, nominados del catálogo. Si nadie
+## ocupa Auditoría o Seguridad (Security no da investigador, o el suyo ya no está), interroga un
+## vigilante sin nombre. Portazo: se pide "door_slam" a SfxBank; mientras no exista, suena el golpe
+## seco con el hilo musical cortado y la escena publica su propio subtítulo de la puerta.
 
 signal closed()
 signal answered(answer_id: String, result: Dictionary)
@@ -26,7 +34,6 @@ const STEP_PIECE := "piece"
 const STEP_REACT := "react"
 const STEP_END := "end"
 const PLAYER := SceneStage.PLAYER_ID
-const INVESTIGATOR_FALLBACK := "security_staff"
 const PRESENT_PREFIX := "INTERROGATION_PRESENT_"
 const REACT_PREFIX := "INTERROGATION_REACT_"
 const SAY_KEYS: Dictionary = {
@@ -40,13 +47,29 @@ const SAY_ANIMS: Dictionary = {
 	Interrogation.ANSWER_ACCUSE: "point", Interrogation.ANSWER_SILENCE: "sit",
 	Interrogation.ANSWER_LAWYER: "phone",
 }
-## Color de cada tipo de pieza (paleta de la interfaz): tarjeta y segmento del medidor.
+## Presentación de cada tipo de pieza (color de la paleta de interfaz e icono), como los iconos de
+## UITheme por tipo de interactivo; un tipo nuevo cae en el acento y el icono de documento.
 const TYPE_COLORS: Dictionary = {
 	"direct_witness": "warn", "partial_witness": "det_partial", "camera_footage": "sus",
 	"card_log": "rep", "compromising_item": "danger", "accounting_trail": "gain",
 	"unsourced_rumour": "muted", "body_found": "det_flagrant", "forged_document": "hazard",
 }
-const SFX_SLAM: Array[String] = ["door_slam", "caught_thud"]
+const TYPE_ICONS: Dictionary = {
+	"direct_witness": "eye", "partial_witness": "eye_partial", "camera_footage": "camera",
+	"card_log": "card", "unsourced_rumour": "rumour", "accounting_trail": "ledger",
+}
+## Sello de cada resultado: texto y color de la paleta de interfaz (tinta sobre el papel de la ficha).
+const STAMPS: Dictionary = {
+	Interrogation.OUTCOME_PIECE_REMOVED: ["INTERROGATION_STAMP_STRUCK", "gain"],
+	Interrogation.OUTCOME_ALIBI_ACCEPTED: ["INTERROGATION_STAMP_CLEARED", "gain"],
+	Interrogation.OUTCOME_ALIBI_FALSE: ["INTERROGATION_STAMP_DOUBLED", "loss"],
+	Interrogation.OUTCOME_PIECE_TRANSFERRED: ["INTERROGATION_STAMP_MOVED", "rep"],
+	Interrogation.OUTCOME_CASE_FROZEN: ["INTERROGATION_STAMP_FROZEN", "rep"],
+}
+const STAMP_DEFAULT: Array = ["INTERROGATION_STAMP_NOTED", "loss"]
+const SFX_DOOR := "door_slam"
+const SFX_DOOR_FALLBACK := "caught_thud"
+const SUB_DOOR := "INTERROGATION_SUB_DOOR_SLAM"
 const SFX_GOOD: Array[String] = ["ui_confirm"]
 const SFX_BAD: Array[String] = ["ui_error"]
 const B_PAUSE := "escenas.pausa_segundos"
@@ -61,15 +84,19 @@ const PERCENT := 100.0
 const CARD_SIZE := Vector2(400, 268)
 ## Los ids de caso son "case_<n>" (Security.CASE_ID_FORMAT): la cabecera muestra el número.
 const CASE_ID_SEPARATOR := "_"
-## Rapidez con que la tarjeta en reposo sigue su sitio si el panel cambia de alto (1/s).
+## Rapidez con que la ficha en reposo sigue su sitio si la cámara se mueve (1/s).
 const CARD_FOLLOW := 12.0
-## Presentación (no ajustes de juego): la tarjeta nace pequeña sobre la mesa y queda algo inclinada;
-## el medidor deja margen sobre el peso inicial; el rechazo sacude la tarjeta a pasos cortos.
+## Presentación (no ajustes de juego): la ficha nace pequeña sobre la mesa y queda algo inclinada;
+## el medidor deja margen sobre el peso; el rechazo sacude la ficha a pasos cortos; la tinta de los
+## sellos se oscurece para leerse sobre papel.
 const CARD_START_SCALE := 0.3
 const CARD_TILT := -0.05
 const CARD_SHAKE_STEP := 0.05
+const STAMP_INK_DARKEN := 0.3
 const METER_HEADROOM := 1.18
 const SLAM_POP_FROM := 0.2
+const PICKER_COLUMNS := 2
+const HEADER_GAP := 12.0
 ## Saltar animaciones: un paso de tween mayor que cualquier animación de la escena; las que nacen al
 ## terminar otra (el portazo lanza la onomatopeya) se completan en pasadas sucesivas.
 const FORWARD_STEP := 1000.0
@@ -85,28 +112,32 @@ var _tone: String = Interrogation.TONE_NEUTRAL
 var _investigator: String = ""
 var _step: String = STEP_INTRO
 var _stage: SceneStage
+var _dock: SceneStage.Dock
 var _timeline: SceneStage.Timeline = SceneStage.Timeline.new()
 var _tweens: Array[Tween] = []
 var _card_layer: Control
 var _card: EvidenceCard
 var _meter: CaseMeter
+var _header: PanelContainer
+var _header_sub: Label
 var _caption_panel: PanelContainer
 var _caption: Label
-var _panel: PanelContainer
-var _panel_box: VBoxContainer
-var _picker: PanelContainer
-var _header_sub: Label
+var _caption_text: String = ""
+var _notice: Label
 var _piece: Dictionary = {}
+var _weight_before: float = 0.0
 var _last_result: Dictionary = {}
 var _end_result: Dictionary = {}
 var _end_title: String = ""
 var _end_lines: Array[String] = []
+var _sfx_requests: Array[String] = []
 var _door_slammed: bool = false
 var _card_resting: bool = false
+var _picker_open: bool = false
 var _done: bool = false
 
 
-## Tarjeta de la pieza: tipo, peso, certeza y lo que cuenta (peso × certeza), con sello.
+## Ficha de la pieza: tipo, peso, certeza y lo que cuenta (peso × certeza), con sello.
 class EvidenceCard extends Control:
 	var type_id: String = ""
 	var type_name: String = ""
@@ -116,7 +147,7 @@ class EvidenceCard extends Control:
 	var accent: Color = Color.GRAY
 	var captions: Array[String] = ["", "", ""]
 	var stamp: String = ""
-	var stamp_color: Color = Color("#c0392b")
+	var stamp_color: Color = Color.RED
 
 	func _init() -> void:
 		custom_minimum_size = InterrogationScene.CARD_SIZE
@@ -125,25 +156,23 @@ class EvidenceCard extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		var ink: Color = SceneStage.C_INK
+		var ink: Color = SceneStage.ink()
 		var body: Rect2 = Rect2(Vector2.ZERO, size)
-		draw_colored_polygon(SceneStage.rounded_rect(Rect2(Vector2(7, 9), size), 12.0), Color(0, 0, 0, 0.35))
-		draw_colored_polygon(SceneStage.rounded_rect(body, 12.0), SceneStage.C_PAPER)
+		draw_colored_polygon(SceneStage.rounded_rect(Rect2(Vector2(7, 9), size), 12.0), UITheme.color("shadow"))
+		draw_colored_polygon(SceneStage.rounded_rect(body, 12.0), SceneStage.C_SHEET)
 		draw_rect(Rect2(3, 3, size.x - 6, 46), accent)
 		var loop: PackedVector2Array = SceneStage.rounded_rect(body, 12.0)
 		loop.append(loop[0])
 		draw_polyline(loop, ink, 3.0, true)
 		var bold: Font = UITheme.font(UITheme.FONT_BOLD)
 		var semi: Font = UITheme.font(UITheme.FONT_SEMIBOLD)
-		draw_string(bold, Vector2(18, 34), exhibit, HORIZONTAL_ALIGNMENT_LEFT, size.x - 90, 18,
-				SceneStage.C_PAPER if accent.get_luminance() < 0.55 else ink)
+		draw_string(bold, Vector2(18, 34), exhibit, HORIZONTAL_ALIGNMENT_LEFT, size.x - 90, 18, UITheme.readable_on(accent))
 		_draw_clip(Vector2(size.x - 52, -12))
 		InterrogationScene.draw_evidence_icon(self, type_id, Rect2(18, 64, 72, 72), accent)
 		draw_multiline_string(bold, Vector2(106, 90), type_name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 124, 25, 2, ink)
 		draw_line(Vector2(18, 156), Vector2(size.x - 18, 156), Color(ink, 0.25), 2.0)
 		var values: Array[String] = [SceneStage.decimal(weight),
-				"%d%%" % roundi(certainty * InterrogationScene.PERCENT),
-				SceneStage.decimal(weight * certainty)]
+				"%d%%" % roundi(certainty * InterrogationScene.PERCENT), SceneStage.decimal(weight * certainty)]
 		var col_w: float = (size.x - 36.0) / 3.0
 		for i: int in 3:
 			var x: float = 18.0 + col_w * float(i)
@@ -156,40 +185,41 @@ class EvidenceCard extends Control:
 	func _draw_clip(at: Vector2) -> void:
 		var pts: PackedVector2Array = SceneStage.rounded_rect(Rect2(at, Vector2(22, 54)), 11.0)
 		pts.append(pts[0])
-		draw_polyline(pts, Color("#8a9097"), 4.0, true)
+		draw_polyline(pts, SceneStage.C_STEEL, 4.0, true)
 
 	func _draw_stamp(font: Font) -> void:
 		if stamp.is_empty():
 			return
 		var fs: int = 38
-		var w: float = font.get_string_size(stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var w: float = minf(font.get_string_size(stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, size.x - 60.0)
 		draw_set_transform(size * 0.5 + Vector2(0, -6), -0.18, Vector2.ONE)
 		var box: Rect2 = Rect2(-w * 0.5 - 18, -34, w + 36, 58)
 		draw_rect(box, Color(stamp_color, 0.12))
 		draw_rect(box, stamp_color, false, 5.0)
-		draw_string(font, Vector2(-w * 0.5, 12), stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, stamp_color)
+		draw_string(font, Vector2(-w * 0.5, 12), stamp, HORIZONTAL_ALIGNMENT_LEFT, w, fs, stamp_color)
 		draw_set_transform(Vector2.ZERO)
 
 
 ## Medidor del peso del caso contra el jugador: una barra por pieza (peso × certeza), las
-## circunstancias (acceso, móvil, último en salir) rayadas y la línea de éxito (7,0).
+## circunstancias (acceso, móvil, último en salir) rayadas y la línea de éxito (7,0). Su escala
+## crece (animada) si el total supera la que tenía: nada se sale de la barra.
 class CaseMeter extends Control:
 	var segments: Array[Dictionary] = []
 	var bonus: float = 0.0
 	var bonus_shown: float = 0.0
 	var threshold: float = 7.0
 	var span: float = 14.0
+	var span_target: float = 14.0
 	var rate: float = 10.0
 	var highlight: String = ""
 	var title: String = ""
 	var line_text: String = ""
 	var extra_text: String = ""
-	var k: float = 1.0
 
 	func _init() -> void:
-		k = SceneStage.ui_scale()
-		custom_minimum_size = Vector2(700, 108) * k
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		custom_minimum_size.y = 104.0 * SceneStage.ui_scale()
 
 	## pieces: [{id, value, color}] en orden; los que faltan se encogen hasta desaparecer.
 	func set_targets(pieces: Array[Dictionary], p_bonus: float) -> void:
@@ -208,6 +238,7 @@ class CaseMeter extends Control:
 		for seg: Dictionary in segments:
 			seg["shown"] = seg["target"]
 		bonus_shown = bonus
+		span = span_target
 		queue_redraw()
 
 	func total_shown() -> float:
@@ -230,8 +261,9 @@ class CaseMeter extends Control:
 
 	func _process(delta: float) -> void:
 		var step: float = rate * delta
-		var moved: bool = not is_equal_approx(bonus_shown, bonus)
+		var moved: bool = not is_equal_approx(bonus_shown, bonus) or not is_equal_approx(span, span_target)
 		bonus_shown = move_toward(bonus_shown, bonus, step)
+		span = move_toward(span, span_target, step)
 		for seg: Dictionary in segments:
 			moved = moved or not is_equal_approx(float(seg["shown"]), float(seg["target"]))
 			seg["shown"] = move_toward(float(seg["shown"]), float(seg["target"]), step)
@@ -239,37 +271,37 @@ class CaseMeter extends Control:
 			queue_redraw()
 
 	func _draw() -> void:
+		var k: float = SceneStage.ui_scale()
 		var bold: Font = UITheme.font(UITheme.FONT_BOLD)
 		var semi: Font = UITheme.font(UITheme.FONT_SEMIBOLD)
-		var bar: Rect2 = Rect2(0, 42 * k, size.x, 30 * k)
+		var bar: Rect2 = Rect2(0, 42 * k, size.x, 28 * k)
 		var per: float = size.x / maxf(span, 0.001)
 		var line_x: float = threshold * per
 		draw_rect(Rect2(bar.position, Vector2(line_x, bar.size.y)), UITheme.color("gain").darkened(0.62))
-		draw_rect(Rect2(bar.position.x + line_x, bar.position.y, bar.size.x - line_x, bar.size.y),
-				UITheme.color("sus_track"))
+		draw_rect(Rect2(bar.position.x + line_x, bar.position.y, bar.size.x - line_x, bar.size.y), UITheme.color("sus_track"))
 		var x: float = _draw_segments(bar, per)
-		_draw_bonus(bar, per, x)
+		_draw_bonus(bar, per, x, k)
 		draw_rect(bar, UITheme.color("line"), false, 2.0)
 		draw_line(Vector2(line_x, bar.position.y - 8), Vector2(line_x, bar.end.y + 8), UITheme.color("paper"), 4.0)
-		var fs: int = roundi(18 * k)
-		draw_string(semi, Vector2(0, 28 * k), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITheme.color("muted"))
+		var fs: int = roundi(17 * k)
+		draw_string(semi, Vector2(0, 26 * k), title, HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.7, fs, UITheme.color("muted"))
 		var total: float = total_shown()
 		var total_text: String = SceneStage.decimal(total)
-		var big: int = roundi(36 * k)
+		var big: int = roundi(34 * k)
 		var tw: float = bold.get_string_size(total_text, HORIZONTAL_ALIGNMENT_LEFT, -1, big).x
 		draw_string(bold, Vector2(size.x - tw, 32 * k), total_text, HORIZONTAL_ALIGNMENT_LEFT, -1, big,
 				UITheme.color("gain") if total < threshold else UITheme.color("loss"))
 		var lw: float = semi.get_string_size(line_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(semi, Vector2(clampf(line_x - lw * 0.5, 0, size.x - lw), bar.end.y + 28 * k), line_text,
+		draw_string(semi, Vector2(clampf(line_x - lw * 0.5, 0, size.x - lw), bar.end.y + 26 * k), line_text,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITheme.color("paper"))
 
 	func _draw_segments(bar: Rect2, per: float) -> float:
 		var x: float = bar.position.x
 		for seg: Dictionary in segments:
-			var w: float = float(seg["shown"]) * per
+			var w: float = minf(float(seg["shown"]) * per, bar.end.x - x)
 			if w <= 0.5:
 				continue
-			var r: Rect2 = Rect2(x, bar.position.y + 3, minf(w, bar.end.x - x), bar.size.y - 6)
+			var r: Rect2 = Rect2(x, bar.position.y + 3, w, bar.size.y - 6)
 			var col: Color = seg["color"]
 			draw_rect(r, col if str(seg["id"]) == highlight else col.darkened(0.3))
 			draw_rect(r, UITheme.color("ink"), false, 2.0)
@@ -278,18 +310,18 @@ class CaseMeter extends Control:
 			x += w
 		return x
 
-	func _draw_bonus(bar: Rect2, per: float, x: float) -> void:
-		var w: float = bonus_shown * per
+	func _draw_bonus(bar: Rect2, per: float, x: float, k: float) -> void:
+		var w: float = minf(bonus_shown * per, bar.end.x - x)
 		if w <= 0.5:
 			return
-		var r: Rect2 = Rect2(x, bar.position.y + 3, minf(w, bar.end.x - x), bar.size.y - 6)
+		var r: Rect2 = Rect2(x, bar.position.y + 3, w, bar.size.y - 6)
 		draw_rect(r, UITheme.color("faint"))
 		for i: int in int(r.size.x / 9.0):
 			var hx: float = r.position.x + 4.0 + i * 9.0
-			draw_line(Vector2(hx, r.end.y), Vector2(hx + 7, r.position.y), Color(1, 1, 1, 0.3), 2.0)
+			draw_line(Vector2(hx, r.end.y), Vector2(hx + 7, r.position.y), Color(UITheme.color("paper"), 0.3), 2.0)
 		var semi: Font = UITheme.font(UITheme.FONT_SEMIBOLD)
-		draw_string(semi, Vector2(0, bar.end.y + 28 * k), extra_text, HORIZONTAL_ALIGNMENT_LEFT, -1,
-				roundi(16 * k), UITheme.color("muted"))
+		draw_string(semi, Vector2(0, bar.end.y + 26 * k), extra_text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+				roundi(15 * k), UITheme.color("muted"))
 
 
 static func open(host: Node, p_case_id: String, context: Dictionary = {}) -> InterrogationScene:
@@ -314,18 +346,30 @@ func _init(p_case_id: String = "", context: Dictionary = {}) -> void:
 	_card_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_card_layer)
-	_build_layout()
+	_header = _build_header()
+	add_child(_header)
+	_caption_panel = _build_caption()
+	add_child(_caption_panel)
+	_dock = SceneStage.Dock.new()
+	_meter = CaseMeter.new()
+	_dock.fixed_top.add_child(_meter)
+	add_child(_dock)
 
 
 func _ready() -> void:
 	SceneStage.ensure_theme(self)
-	resized.connect(_fit_panel)
+	_dock.instant = instant
+	_dock.layout_changed.connect(_relayout)
+	resized.connect(_relayout)
+	_header.resized.connect(_relayout)
+	_caption_panel.resized.connect(_place_caption)
 	_stage.configure(SceneStage.SET_INTERROGATION)
 	_session = Interrogation.new(case_id, _context)
 	_intro = _session.start()
 	_investigator = _pick_investigator()
 	_cast()
 	_dress()
+	_relayout()
 	if _intro.is_empty():
 		_show_no_case()
 		return
@@ -334,10 +378,25 @@ func _ready() -> void:
 	_play_intro()
 
 
+## Al salir del árbol se detienen las animaciones propias (ninguna llama a la escena ya retirada).
+func _exit_tree() -> void:
+	for t: Tween in _tweens:
+		if t != null and t.is_valid():
+			t.kill()
+	_tweens.clear()
+
+
 func _process(delta: float) -> void:
 	_timeline.tick(delta)
 	if _card_resting and _card != null:
 		_card.position = _card.position.lerp(_card_target(), minf(delta * CARD_FOLLOW, 1.0))
+	if SceneStage.refresh_theme(self):
+		_relayout()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_THEME_CHANGED and is_node_ready():
+		_relayout.call_deferred()
 
 
 # ─── API ──────────────────────────────────────────────────────
@@ -348,6 +407,10 @@ func get_step() -> String:
 
 func get_stage() -> SceneStage:
 	return _stage
+
+
+func get_dock() -> SceneStage.Dock:
+	return _dock
 
 
 func get_session() -> Interrogation:
@@ -374,17 +437,28 @@ func has_door_slammed() -> bool:
 	return _door_slammed
 
 
+## Efectos de sonido pedidos por la escena, en orden (el primero de cada petición).
+func get_sfx_requests() -> Array[String]:
+	return _sfx_requests.duplicate()
+
+
 ## La pieza que está sobre la mesa ({} si ninguna).
 func get_shown_piece() -> Dictionary:
 	return _piece.duplicate()
+
+
+func get_card() -> EvidenceCard:
+	return _card
 
 
 func get_card_stamp() -> String:
 	return _card.stamp if _card != null else ""
 
 
+## Lo que la escena narra ahora: el tono de apertura, el resultado de la última respuesta o un
+## rechazo por requisito ("" mientras la pieza espera respuesta).
 func get_caption() -> String:
-	return _caption.text if _caption_panel.visible else ""
+	return _caption_text
 
 
 func get_last_result() -> Dictionary:
@@ -412,6 +486,10 @@ func get_meter_weight() -> float:
 	return _meter.total_target()
 
 
+func get_meter() -> CaseMeter:
+	return _meter
+
+
 func get_visible_texts() -> Array[String]:
 	var out: Array[String] = []
 	SceneStage.collect_texts(self, out)
@@ -426,11 +504,16 @@ func is_finished() -> bool:
 	return _step == STEP_END
 
 
+func is_picker_open() -> bool:
+	return _picker_open
+
+
 ## Responde a la pieza sobre la mesa con Interrogation.answer(). `accused` solo para acusar.
 func answer(answer_id: String, accused: String = "") -> Dictionary:
 	if _step != STEP_PIECE:
 		return {}
 	var piece: Dictionary = _piece.duplicate()
+	_weight_before = get_case_weight()
 	var result: Dictionary = _session.answer(answer_id, accused)
 	_last_result = result
 	answered.emit(answer_id, result.duplicate())
@@ -438,15 +521,15 @@ func answer(answer_id: String, accused: String = "") -> Dictionary:
 		_requirement_missing(result)
 		return result
 	_step = STEP_REACT
-	_close_picker()
-	_clear_panel()
+	_picker_open = false
 	var line: String = tr(str(SAY_KEYS.get(answer_id, "")))
 	if answer_id == Interrogation.ANSWER_ACCUSE:
 		line = line % IdeaPool.get_npc_display_name(accused)
+	_show_waiting(answer_id)
 	_stage.set_anim(PLAYER, str(SAY_ANIMS.get(answer_id, "sit")), _player_gesture_facing(answer_id))
 	_stage.say(PLAYER, line)
-	_timeline.then(SceneStage.reading_time(line), _react.bind(answer_id, accused, result, piece))
-	_timeline.then(SceneStage.reading_time(tr(Interrogation.outcome_key(str(result["outcome"])))), _next)
+	_timeline.then(SceneStage.reading_time(line), _react.bind(answer_id, accused, result, piece), true)
+	_timeline.then(SceneStage.reading_time(_outcome_text(str(result["outcome"]))), _next)
 	_settle()
 	return result
 
@@ -472,13 +555,29 @@ func accuse_candidates() -> Array[String]:
 	return out
 
 
+## El panel pasa a ser el selector de acusados (las respuestas dejan de estar a la vista).
 func open_accuse_picker() -> void:
 	if _step != STEP_PIECE:
 		return
-	_close_picker()
-	_picker = _build_picker(accuse_candidates())
-	add_child(_picker)
-	UITheme.center_fitted(_picker)
+	_picker_open = true
+	var candidates: Array[String] = accuse_candidates()
+	var box: VBoxContainer = _dock.open(tr("INTERROGATION_ACCUSE_TITLE"))
+	var body: String = "INTERROGATION_ACCUSE_BODY" if not candidates.is_empty() else "INTERROGATION_ACCUSE_NOBODY"
+	box.add_child(SceneStage.ui_label(tr(body), "", true))
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = PICKER_COLUMNS
+	for id: String in candidates:
+		grid.add_child(_candidate_tile(id))
+	box.add_child(grid)
+	_dock.add_buttons([SceneStage.ui_button(tr("INTERROGATION_CANCEL"), "", close_picker)])
+
+
+func close_picker() -> void:
+	if not _picker_open:
+		return
+	_picker_open = false
+	if _step == STEP_PIECE:
+		_show_answers()
 
 
 ## QA/tests: hace avanzar la línea de tiempo `seconds` sin depender del reloj real.
@@ -486,27 +585,29 @@ func advance(seconds: float) -> void:
 	_timeline.tick(seconds)
 
 
+## Adelanta hasta el siguiente punto de lectura (Esc): termina animaciones y ejecuta golpes hasta la
+## reacción a la respuesta o la pieza siguiente, sin saltárselas.
+func skip_ahead() -> void:
+	_timeline.skip()
+	_stage.finish_moves()
+	_finish_tweens()
+
+
+## Todo de golpe (modo instantáneo, tests): golpes, animaciones, medidor y cámara.
 func fast_forward() -> void:
 	_timeline.flush()
 	_stage.finish_moves()
-	for _pass: int in MAX_FORWARD_PASSES:
-		if _tweens.is_empty():
-			break
-		var running: Array[Tween] = _tweens.duplicate()
-		_tweens.clear()
-		for t: Tween in running:
-			if t != null and t.is_valid() and t.is_running():
-				t.custom_step(FORWARD_STEP)
-	if _meter != null:
-		_meter.snap()
+	_finish_tweens()
+	_meter.snap()
+	_stage.snap_camera()
 
 
-## Esc: salta la animación, cierra el selector o, al final, sale. A mitad no se puede salir.
+## Esc: adelanta la animación, cierra el selector o, al final, sale. A mitad no se puede salir.
 func request_close() -> void:
-	if _timeline.is_busy() or _stage.is_moving():
-		fast_forward()
-	elif _picker != null:
-		_close_picker()
+	if _is_animating():
+		skip_ahead()
+	elif _picker_open:
+		close_picker()
 	elif _step == STEP_END:
 		leave()
 
@@ -526,86 +627,73 @@ func cancel() -> void:
 	_done = true
 
 
+## Investigador de la sesión: el que da Security si sigue en plantilla; si no hay (nadie ocupa
+## Auditoría o Seguridad) o ya no está, el vigilante genérico (SceneStage.GUARD_ID).
+static func choose_investigator(candidate: String) -> String:
+	if candidate.is_empty() or candidate == PLAYER:
+		return SceneStage.GUARD_ID
+	var npc: NPCRuntime = NPCDirector.get_npc(candidate)
+	if npc != null:
+		return candidate if NPCDirector.is_active(candidate) else SceneStage.GUARD_ID
+	return candidate if Database.get_named_npc(candidate) != null else SceneStage.GUARD_ID
+
+
 # ─── Montaje ──────────────────────────────────────────────────
 
-func _build_layout() -> void:
-	var margin: MarginContainer = MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 20)
-	add_child(margin)
-	var column: VBoxContainer = VBoxContainer.new()
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(column)
-	column.add_child(_build_top_row())
-	_caption_panel = PanelContainer.new()
-	_caption_panel.theme_type_variation = UITheme.V_SUBTITLE
-	_caption_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_caption_panel.visible = false
-	_caption = SceneStage.ui_label("", UITheme.V_STRONG, true)
-	_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_caption.custom_minimum_size.x = 760
-	_caption_panel.add_child(_caption)
-	column.add_child(_caption_panel)
-	var spacer: Control = Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(spacer)
-	_panel = PanelContainer.new()
-	_panel.theme_type_variation = UITheme.V_MODAL
-	_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_panel.visible = false
-	column.add_child(_panel)
-	_panel_box = VBoxContainer.new()
-	_panel.add_child(_panel_box)
-
-
-func _build_top_row() -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+func _build_header() -> PanelContainer:
 	var pill: PanelContainer = PanelContainer.new()
 	pill.theme_type_variation = UITheme.V_PANEL
-	pill.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pill.position = Vector2(SceneStage.Dock.MARGIN, SceneStage.Dock.MARGIN)
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
 	pill.add_child(box)
 	box.add_child(SceneStage.ui_label(tr("INTERROGATION_HEADER"), UITheme.V_HEADING))
 	_header_sub = SceneStage.ui_label("", UITheme.V_CAPTION)
 	box.add_child(_header_sub)
-	row.add_child(pill)
-	var gap: Control = Control.new()
-	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(gap)
-	var meter_panel: PanelContainer = PanelContainer.new()
-	meter_panel.theme_type_variation = UITheme.V_PANEL
-	_meter = CaseMeter.new()
-	meter_panel.add_child(_meter)
-	row.add_child(meter_panel)
-	return row
+	return pill
 
 
-func _fit_panel() -> void:
-	_panel.custom_minimum_size.x = minf(1440.0, maxf(size.x - 80.0, 600.0))
+func _build_caption() -> PanelContainer:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.theme_type_variation = UITheme.V_SUBTITLE
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.visible = false
+	_caption = SceneStage.ui_label("", UITheme.V_STRONG, true)
+	_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(_caption)
+	return panel
+
+
+## Zona libre de la sala = pantalla menos la cabecera y el panel lateral.
+func _relayout() -> void:
+	if size.x <= 0.0 or size.y <= 0.0:
+		return
+	_header.reset_size()
+	_dock.fit_width(size)
+	_stage.set_safe_rect(_dock.free_rect(size, _header.get_rect().end.y + HEADER_GAP))
+	_place_caption()
+
+
+## Narración arriba y al centro de la zona libre (no tapa cabeceras ni panel).
+func _place_caption() -> void:
+	var safe: Rect2 = _stage.safe_rect()
+	_caption.custom_minimum_size.x = minf(safe.size.x * 0.8, 760.0 * SceneStage.ui_scale())
+	_caption_panel.reset_size()
+	_caption_panel.position = Vector2(safe.get_center().x - _caption_panel.size.x * 0.5, safe.position.y)
 
 
 func _pick_investigator() -> String:
 	var id: String = str(_intro.get("interrogator", ""))
-	if id.is_empty():
+	if _intro.is_empty():
 		id = Security.get_interrogator(case_id)
-	if id.is_empty():
-		id = str(InvestigationEngine.dig(Database.get_investigation_params(),
-				"interrogation.default_interrogator", ""))
-	return id if not id.is_empty() else INVESTIGATOR_FALLBACK
+	return choose_investigator(id)
 
 
 func _cast() -> void:
 	var spots: Dictionary = SceneStage.interrogation_spots()
-	var member: Dictionary = SceneStage.cast_member(_investigator)
-	if _investigator == INVESTIGATOR_FALLBACK:
-		(member["appearance"] as Dictionary)["uniform"] = "security"
-	_stage.add_actor(_investigator, member, {"pos": spots["investigator"], "facing": Vector2.DOWN,
-			"seated": true, "chair_style": SceneStage.CHAIR_LEATHER})
+	_stage.add_actor(_investigator, SceneStage.cast_member(_investigator), {"pos": spots["investigator"],
+			"facing": Vector2.DOWN, "seated": true, "chair_style": SceneStage.CHAIR_LEATHER})
 	_stage.add_actor(PLAYER, SceneStage.cast_member(PLAYER), {"pos": spots["player"],
 			"facing": Vector2.UP, "seated": true, "chair_style": SceneStage.CHAIR_STEEL})
 
@@ -617,9 +705,10 @@ func _dress() -> void:
 	_stage.set_prop("slam_text", tr("INTERROGATION_SLAM"))
 	_stage.set_prop("door", 0.0)
 	var inv: Investigation = Security.get_investigation(case_id)
-	var incident: String = ""
+	var incident: String = tr("EVIDENCE_GENERIC")
 	if inv != null:
-		incident = tr(InvestigationEngine.evidence_name_key(Database.get_investigation_params(), inv.incident_type))
+		var key: String = InvestigationEngine.evidence_name_key(Database.get_investigation_params(), inv.incident_type)
+		incident = tr(key) if not key.is_empty() else incident
 	_header_sub.text = tr("INTERROGATION_HEADER_CASE") % [case_id.get_slice(CASE_ID_SEPARATOR, 1), incident]
 	var rules: Dictionary = _session.get_rules()
 	_meter.threshold = float(rules.get("success_below", 0.0))
@@ -632,8 +721,11 @@ func _show_no_case() -> void:
 	_stage.set_prop("lamp", SceneStage.LAMP_NEUTRAL)
 	_end_title = tr("INTERROGATION_NO_CASE")
 	_stage.set_anim(_investigator, "check_watch", Vector2.DOWN, "sit")
-	_open_panel(_end_title)
-	_button_row([SceneStage.ui_button(tr("INTERROGATION_LEAVE"), UITheme.V_PRIMARY, leave)])
+	_meter.visible = false
+	_stage.frame(SceneStage.FRAME_INTERROGATION_TABLE)
+	_stage.snap_camera()
+	_dock.open(_end_title)
+	_dock.add_buttons([SceneStage.ui_button(tr("INTERROGATION_LEAVE"), UITheme.V_PRIMARY, leave)])
 
 
 # ─── Tono de apertura (§12.5) ─────────────────────────────────
@@ -647,15 +739,18 @@ func _play_intro() -> void:
 		Interrogation.TONE_DOOR_SLAM:
 			_intro_door_slam(text)
 		_:
+			_stage.frame(SceneStage.FRAME_INTERROGATION)
 			_stage.set_prop("lamp", SceneStage.LAMP_NEUTRAL)
 			_stage.set_anim(_investigator, "chat")
 			_stage.say(_investigator, text)
-			_timeline.then(SceneStage.reading_time(text), _present_piece)
+			_timeline.then(SceneStage.reading_time(text), _present_piece, true)
+	_stage.snap_camera()
 	_settle()
 
 
-## Reputación > 85: el investigador se levanta, se disculpa y te ha servido un café.
+## Reputación > 85: el investigador se levanta, se disculpa y te ha servido un café (primer plano).
 func _intro_apology(text: String) -> void:
+	_stage.frame(SceneStage.FRAME_INTERROGATION_CLOSE)
 	_stage.set_prop("lamp", SceneStage.LAMP_WARM)
 	_stage.set_prop("coffee", true)
 	_stage.set_seated(_investigator, false)
@@ -667,17 +762,18 @@ func _intro_apology(text: String) -> void:
 	_timeline.then(read, _stage.walk_to.bind(_investigator, _stage.seat_point(_investigator), _pause(),
 			Vector2.DOWN, "idle"))
 	_timeline.then(_pause(), _stage.set_seated.bind(_investigator, true))
-	_timeline.then(0.0, _present_piece)
+	_timeline.then(0.0, _present_piece, true)
 
 
 ## Sospecha > 70: la puerta abierta se cierra de golpe (animación, sacudida y sonido).
 func _intro_door_slam(text: String) -> void:
+	_stage.frame(SceneStage.FRAME_INTERROGATION_DOOR)
 	_stage.set_prop("lamp", SceneStage.LAMP_HARSH)
 	_stage.set_prop("door", 1.0)
 	_stage.set_anim(_investigator, "sit")
 	_timeline.then(Database.get_balance_float(B_SLAM_WAIT), _slam_door)
-	_timeline.then(_pause(), _set_caption.bind(text))
-	_timeline.then(SceneStage.reading_time(text), _present_piece)
+	_timeline.then(_pause(), _narrate.bind(text), true)
+	_timeline.then(SceneStage.reading_time(text), _present_piece, true)
 
 
 func _slam_door() -> void:
@@ -692,12 +788,25 @@ func _on_door_shut() -> void:
 	_door_slammed = true
 	_stage.set_prop("door", 0.0)
 	_stage.shake(Database.get_balance_float(B_SHAKE_PX), Database.get_balance_float(B_SHAKE_S))
-	SceneStage.play_sfx(self, SFX_SLAM)
+	_slam_sound()
 	_stage.set_anim(PLAYER, "startle", Vector2.UP, "sit")
 	var t: Tween = _tween_prop("slam", SLAM_POP_FROM, 1.0, Database.get_balance_float(B_SLAM))
 	if t != null:
 		t.tween_interval(Database.get_balance_float(B_SHAKE_S))
 		t.tween_method(func(v: float) -> void: _stage.set_prop("slam", v), 1.0, 0.0, _pause())
+
+
+## El portazo suena con "door_slam" si SfxBank lo tiene; si no, golpe seco con el hilo musical
+## cortado (su subtítulo es cierto) y el subtítulo propio de la puerta (§13.10).
+func _slam_sound() -> void:
+	_sfx_requests.append(SFX_DOOR)
+	var door: Array[String] = [SFX_DOOR]
+	if not SceneStage.play_sfx(self, door).is_empty():
+		return
+	var thud: Array[String] = [SFX_DOOR_FALLBACK]
+	if not SceneStage.play_sfx(self, thud).is_empty():
+		SceneStage.cut_music(self, Database.get_balance_float(B_SHAKE_S))
+	SceneStage.post_subtitle(self, SUB_DOOR)
 
 
 func _tween_prop(prop: String, from: float, to: float, seconds: float) -> Tween:
@@ -710,15 +819,22 @@ func _tween_prop(prop: String, from: float, to: float, seconds: float) -> Tween:
 	return t
 
 
+func _sfx(ids: Array[String]) -> void:
+	if not ids.is_empty():
+		_sfx_requests.append(ids[0])
+	SceneStage.play_sfx(self, ids)
+
+
 # ─── Piezas ───────────────────────────────────────────────────
 
 func _present_piece() -> void:
-	_set_caption("")
+	_narrate("")
 	_piece = _session.current_piece()
 	if _piece.is_empty() or _session.is_finished():
 		_end()
 		return
 	_step = STEP_PIECE
+	_stage.frame(SceneStage.FRAME_INTERROGATION_TABLE)
 	var type_id: String = str(_piece.get("type", ""))
 	var key: String = PRESENT_PREFIX + type_id.to_upper()
 	var line: String = tr(key) if tr(key) != key else tr(PRESENT_PREFIX + "GENERIC")
@@ -734,6 +850,7 @@ func _present_piece() -> void:
 
 
 func _show_card(piece: Dictionary) -> void:
+	_finish_tweens()
 	if _card != null:
 		_card.queue_free()
 	_card = EvidenceCard.new()
@@ -754,16 +871,15 @@ func _show_card(piece: Dictionary) -> void:
 	_animate_card(_card_target(), Vector2(k, k), CARD_TILT, 1.0)
 
 
-## Posición (sin escalar, pivote en el centro) que deja la tarjeta a la izquierda de la mesa, por
-## encima del panel de respuestas.
+## Posición (sin escalar, pivote en el centro) de la ficha junto a la mesa, dentro de la zona libre.
 func _card_target() -> Vector2:
 	var k: float = SceneStage.ui_scale()
-	var height: float = CARD_SIZE.y * k
-	var y: float = maxf(size.y * 0.5 - height * 0.62, 150.0 * k)
-	var panel_h: float = _panel.size.y if _panel.visible else 0.0
-	if panel_h > 0.0:
-		y = minf(y, size.y - 20.0 - panel_h - height - 28.0)
-	return Vector2(40.0, maxf(y, 120.0)) - CARD_SIZE * 0.5 * (1.0 - k)
+	var shown: Vector2 = CARD_SIZE * k
+	var safe: Rect2 = _stage.safe_rect()
+	var top_left: Vector2 = _stage.to_screen(SceneStage.interrogation_spots()["card"]) - shown * 0.5
+	top_left.x = clampf(top_left.x, safe.position.x, maxf(safe.end.x - shown.x, safe.position.x))
+	top_left.y = clampf(top_left.y, safe.position.y, maxf(safe.end.y - shown.y, safe.position.y))
+	return top_left - CARD_SIZE * 0.5 * (1.0 - k)
 
 
 func _animate_card(pos: Vector2, card_scale: Vector2, rot: float, alpha: float) -> void:
@@ -790,7 +906,7 @@ func _type_name(type_id: String) -> String:
 	var key: String = InvestigationEngine.evidence_name_key(Database.get_investigation_params(), type_id)
 	if key.is_empty():
 		key = "EVIDENCE_" + type_id.to_upper()
-	return tr(key) if tr(key) != key else type_id.capitalize()
+	return tr(key) if tr(key) != key else tr("EVIDENCE_GENERIC")
 
 
 static func type_color(type_id: String) -> Color:
@@ -807,11 +923,14 @@ func _refresh_meter(first: bool) -> void:
 			sum += value
 			pieces.append({"id": str(piece.get("record_id", "")), "value": value,
 					"color": type_color(str(piece.get("type", "")))})
-	var extra: float = maxf(get_case_weight() - sum, 0.0)
+	var total: float = get_case_weight()
+	var extra: float = maxf(total - sum, 0.0)
 	_meter.extra_text = tr("INTERROGATION_METER_EXTRA") % SceneStage.decimal(extra) if extra > 0.0 else ""
+	var need: float = maxf(total, _meter.threshold) * METER_HEADROOM
+	if first or need > _meter.span_target:
+		_meter.span_target = need
 	if first:
-		_meter.span = maxf(get_case_weight(), _meter.threshold) * METER_HEADROOM
-		_meter.rate = _meter.span / maxf(Database.get_balance_float(B_METER), 0.001)
+		_meter.rate = need / maxf(Database.get_balance_float(B_METER), 0.001)
 	_meter.set_targets(pieces, extra)
 	if first or instant:
 		_meter.snap()
@@ -820,18 +939,18 @@ func _refresh_meter(first: bool) -> void:
 # ─── Respuestas ───────────────────────────────────────────────
 
 func _show_answers() -> void:
-	_open_panel(tr("INTERROGATION_PROMPT"))
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
+	var box: VBoxContainer = _dock.open(tr("INTERROGATION_PROMPT"))
+	_notice = SceneStage.ui_label("", UITheme.V_STRONG, true, UITheme.color("warn"))
+	_notice.visible = false
+	box.add_child(_notice)
 	var usable: Array[String] = _session.available_answers()
 	for id: String in Interrogation.ANSWERS:
-		row.add_child(_answer_tile(id, usable.has(id)))
-	_panel_box.add_child(row)
+		box.add_child(_answer_row(id, usable.has(id)))
 
 
-func _answer_tile(answer_id: String, usable: bool) -> Control:
+func _answer_row(answer_id: String, usable: bool) -> Control:
 	var box: VBoxContainer = VBoxContainer.new()
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 2)
 	var action: Callable = answer.bind(answer_id)
 	if answer_id == Interrogation.ANSWER_ACCUSE:
 		action = open_accuse_picker
@@ -839,11 +958,10 @@ func _answer_tile(answer_id: String, usable: bool) -> Control:
 	var b: Button = SceneStage.ui_button(tr(_session.get_answer_key(answer_id)), variation, action)
 	b.disabled = not usable
 	b.name = "Answer_" + answer_id
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box.add_child(b)
-	var hint: Label = SceneStage.ui_label(_hint(answer_id, usable), UITheme.V_SMALL, true,
-			UITheme.color("paper" if usable else "warn"))
-	hint.custom_minimum_size.x = 230 * SceneStage.ui_scale()
-	box.add_child(hint)
+	box.add_child(SceneStage.ui_label(_hint(answer_id, usable), UITheme.V_SMALL, true,
+			UITheme.color("muted" if usable else "warn")))
 	return box
 
 
@@ -859,18 +977,27 @@ func _hint(answer_id: String, usable: bool) -> String:
 			return tr("INTERROGATION_HINT_ACCUSE")
 		Interrogation.ANSWER_SILENCE:
 			return tr("INTERROGATION_HINT_SILENCE") % int(rules["silence_suspicion"])
-	return tr("INTERROGATION_HINT_LAWYER") % int(rules["freeze_days"]) if usable \
-			else tr("INTERROGATION_REQ_LAWYER")
+	return tr("INTERROGATION_HINT_LAWYER") % _freeze_days() if usable else tr("INTERROGATION_REQ_LAWYER")
+
+
+func _freeze_days() -> int:
+	return int(_session.get_rules().get("freeze_days", 0))
 
 
 func _requirement_missing(result: Dictionary) -> void:
-	_set_caption(tr(Interrogation.outcome_key(str(result.get("outcome", "")))))
-	SceneStage.play_sfx(self, SFX_BAD)
-	if _card != null and not instant:
-		var t: Tween = create_tween()
-		for dx: float in [12.0, -12.0, 8.0, -8.0, 0.0]:
-			t.tween_property(_card, "position:x", _card_target().x + dx, CARD_SHAKE_STEP)
-		_tweens.append(t)
+	_caption_text = _outcome_text(str(result.get("outcome", "")))
+	if _notice != null and is_instance_valid(_notice):
+		_notice.text = _caption_text
+		_notice.visible = true
+	_sfx(SFX_BAD)
+	if _card == null or instant:
+		return
+	_card_resting = false
+	var t: Tween = create_tween()
+	for dx: float in [12.0, -12.0, 8.0, -8.0, 0.0]:
+		t.tween_property(_card, "position:x", _card_target().x + dx, CARD_SHAKE_STEP)
+	t.tween_callback(func() -> void: _card_resting = true)
+	_tweens.append(t)
 
 
 func _player_gesture_facing(answer_id: String) -> Vector2:
@@ -887,67 +1014,77 @@ func _add_candidate(out: Array[String], id: String, limit: int) -> void:
 	out.append(id)
 
 
-func _build_picker(candidates: Array[String]) -> PanelContainer:
-	var panel: PanelContainer = PanelContainer.new()
-	panel.theme_type_variation = UITheme.V_MODAL
-	var box: VBoxContainer = VBoxContainer.new()
-	panel.add_child(box)
-	box.add_child(SceneStage.ui_label(tr("INTERROGATION_ACCUSE_TITLE"), UITheme.V_TITLE))
-	var body: String = "INTERROGATION_ACCUSE_BODY" if not candidates.is_empty() else "INTERROGATION_ACCUSE_NOBODY"
-	box.add_child(SceneStage.ui_label(tr(body), "", true))
-	var grid: GridContainer = GridContainer.new()
-	grid.columns = 4
-	box.add_child(grid)
-	for id: String in candidates:
-		grid.add_child(_candidate_tile(id))
-	var row: HBoxContainer = HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_END
-	row.add_child(SceneStage.ui_button(tr("INTERROGATION_CANCEL"), "", _close_picker))
-	box.add_child(row)
-	return panel
-
-
 func _candidate_tile(npc_id: String) -> Control:
 	var member: Dictionary = SceneStage.cast_member(npc_id)
 	var box: VBoxContainer = VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var photo: SceneStage.PortraitBox = SceneStage.PortraitBox.new(member["appearance"],
-			Vector2(150, 150) * SceneStage.ui_scale())
+			Vector2(120, 120) * SceneStage.ui_scale())
 	photo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(photo)
-	var b: Button = SceneStage.ui_button(str(member["name"]), "",
-			answer.bind(Interrogation.ANSWER_ACCUSE, npc_id))
-	b.custom_minimum_size.x = 200 * SceneStage.ui_scale()
+	var b: Button = SceneStage.ui_button(str(member["name"]), "", answer.bind(Interrogation.ANSWER_ACCUSE, npc_id))
+	b.clip_text = true
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(b)
 	return box
 
 
-func _close_picker() -> void:
-	if _picker != null:
-		_picker.queue_free()
-		_picker = null
+## Mientras el jugador habla, el panel muestra su respuesta y al investigador tomando nota.
+func _show_waiting(answer_id: String) -> void:
+	var box: VBoxContainer = _dock.open(tr(_session.get_answer_key(answer_id)))
+	var who: String = str(_stage.get_actor(_investigator).get("name", ""))
+	box.add_child(SceneStage.ui_label(tr("INTERROGATION_WAITING") % who, UITheme.V_SMALL, true))
 
 
 # ─── Reacción y final ─────────────────────────────────────────
 
+func _outcome_text(outcome: String) -> String:
+	if outcome == Interrogation.OUTCOME_CASE_FROZEN:
+		return tr("INTERROGATION_CAPTION_CASE_FROZEN") % _freeze_days()
+	return tr(Interrogation.outcome_key(outcome))
+
+
 func _react(answer_id: String, accused: String, result: Dictionary, piece: Dictionary) -> void:
 	var outcome: String = str(result.get("outcome", ""))
-	_set_caption(tr(Interrogation.outcome_key(outcome)))
-	var react: String = tr(REACT_PREFIX + outcome.to_upper())
-	if outcome == Interrogation.OUTCOME_PIECE_TRANSFERRED:
-		react = react % IdeaPool.get_npc_display_name(accused)
+	_caption_text = _outcome_text(outcome)
 	_stage.say(PLAYER, "")
 	_stage.set_anim(PLAYER, "sit", Vector2.UP)
 	_stage.set_anim(_investigator, _investigator_anim(outcome), Vector2.DOWN, "sit")
-	_stage.say(_investigator, react)
+	_stage.say(_investigator, _react_line(outcome, accused))
 	_stamp_card(outcome, accused, piece)
 	var delta: int = int(result.get("suspicion_delta", 0))
 	if delta > 0:
 		_stage.badge(PLAYER, tr("INTERROGATION_SUSPICION_BADGE") % delta, UITheme.color("sus"))
 	var good: bool = outcome in [Interrogation.OUTCOME_PIECE_REMOVED, Interrogation.OUTCOME_ALIBI_ACCEPTED]
-	SceneStage.play_sfx(self, SFX_GOOD if good else SFX_BAD)
+	_sfx(SFX_GOOD if good else SFX_BAD)
 	_refresh_meter(false)
+	_show_reaction(good, delta)
 	if answer_id == Interrogation.ANSWER_LAWYER:
 		_stage.set_prop("lamp", SceneStage.LAMP_NEUTRAL)
+
+
+func _react_line(outcome: String, accused: String) -> String:
+	var react: String = tr(REACT_PREFIX + outcome.to_upper())
+	match outcome:
+		Interrogation.OUTCOME_PIECE_TRANSFERRED:
+			return react % IdeaPool.get_npc_display_name(accused)
+		Interrogation.OUTCOME_CASE_FROZEN:
+			return react % _freeze_days()
+	return react
+
+
+## Panel de la reacción: el resultado, el cambio de peso y de sospecha, y «Siguiente».
+func _show_reaction(good: bool, suspicion: int) -> void:
+	var box: VBoxContainer = _dock.open("")
+	box.add_child(SceneStage.ui_label(_caption_text, UITheme.V_HEADING, true,
+			UITheme.color("gain") if good else UITheme.color("loss")))
+	box.add_child(SceneStage.ui_label(tr("INTERROGATION_WEIGHT_CHANGE") % [SceneStage.decimal(_weight_before),
+			SceneStage.decimal(get_case_weight())], UITheme.V_STRONG, true))
+	if suspicion > 0:
+		box.add_child(SceneStage.ui_label(tr("INTERROGATION_SUSPICION_BADGE") % suspicion, UITheme.V_SMALL, true,
+				UITheme.color("sus")))
+	var key: String = "INTERROGATION_NEXT" if not _session.is_finished() else "INTERROGATION_TO_VERDICT"
+	_dock.add_buttons([SceneStage.ui_button(tr(key), UITheme.V_PRIMARY, skip_ahead)])
 
 
 func _investigator_anim(outcome: String) -> String:
@@ -964,27 +1101,17 @@ func _investigator_anim(outcome: String) -> String:
 func _stamp_card(outcome: String, accused: String, piece: Dictionary) -> void:
 	if _card == null:
 		return
-	var loss: Color = Color("#c0392b")
+	var stamp: Array = STAMPS.get(outcome, STAMP_DEFAULT)
+	var text: String = tr(str(stamp[0]))
 	match outcome:
-		Interrogation.OUTCOME_PIECE_REMOVED:
-			_set_stamp(tr("INTERROGATION_STAMP_STRUCK"), Color("#2e7d4f"))
-		Interrogation.OUTCOME_ALIBI_ACCEPTED:
-			_set_stamp(tr("INTERROGATION_STAMP_CLEARED"), Color("#2e7d4f"))
 		Interrogation.OUTCOME_ALIBI_FALSE:
 			var factor: float = float(_session.get_rules().get("false_alibi_multiplier", 1.0))
 			_card.weight = float(piece.get("weight", 0.0)) * factor
-			_set_stamp(tr("INTERROGATION_STAMP_DOUBLED") % SceneStage.decimal(factor), loss)
+			text = text % SceneStage.decimal(factor)
 		Interrogation.OUTCOME_PIECE_TRANSFERRED:
-			_set_stamp(tr("INTERROGATION_STAMP_MOVED") % IdeaPool.get_npc_display_name(accused), Color("#2f5fa8"))
-		Interrogation.OUTCOME_CASE_FROZEN:
-			_set_stamp(tr("INTERROGATION_STAMP_FROZEN"), Color("#2a8fb8"))
-		_:
-			_set_stamp(tr("INTERROGATION_STAMP_NOTED"), loss)
-
-
-func _set_stamp(text: String, color: Color) -> void:
+			text = text % IdeaPool.get_npc_display_name(accused)
 	_card.stamp = text
-	_card.stamp_color = color
+	_card.stamp_color = UITheme.color(str(stamp[1])).darkened(STAMP_INK_DARKEN)
 	_card.queue_redraw()
 
 
@@ -996,15 +1123,15 @@ func _next() -> void:
 		var away: Vector2 = Vector2(-CARD_SIZE.x * 1.2, _card.position.y + 60.0)
 		_animate_card(away, Vector2(0.8, 0.8), -0.3, 0.0)
 	if _session.is_finished():
-		_timeline.then(_pause(), _end)
+		_timeline.then(_pause(), _end, true)
 	else:
-		_timeline.then(_pause(), _present_piece)
+		_timeline.then(_pause(), _present_piece, true)
 
 
 func _end() -> void:
 	_step = STEP_END
 	_piece = {}
-	_set_caption("")
+	_narrate("")
 	_meter.highlight = ""
 	_end_result = _session.finish()
 	var frozen: bool = str(_last_result.get("outcome", "")) == Interrogation.OUTCOME_CASE_FROZEN
@@ -1017,11 +1144,11 @@ func _end() -> void:
 	_stage.set_anim(PLAYER, "sit" if success or frozen else "caught", Vector2.UP)
 	if success and not frozen:
 		_stage.set_prop("lamp", SceneStage.LAMP_WARM)
-	_open_panel(_end_title)
+	var box: VBoxContainer = _dock.open(_end_title)
 	for line: String in _end_lines:
-		_panel_box.add_child(SceneStage.ui_label(line, UITheme.V_STRONG, true,
-				UITheme.color("gain") if success else UITheme.color("loss")))
-	_button_row([SceneStage.ui_button(tr("INTERROGATION_LEAVE"), UITheme.V_PRIMARY, leave)])
+		box.add_child(SceneStage.ui_label(line, UITheme.V_STRONG, true,
+				UITheme.color("gain") if success or frozen else UITheme.color("loss")))
+	_dock.add_buttons([SceneStage.ui_button(tr("INTERROGATION_LEAVE"), UITheme.V_PRIMARY, leave)])
 
 
 func _compose_end_lines(frozen: bool) -> Array[String]:
@@ -1035,7 +1162,7 @@ func _compose_end_lines(frozen: bool) -> Array[String]:
 	if _session.get_suspicion_delta() > 0:
 		out.append(tr("INTERROGATION_END_SUSPICION") % _session.get_suspicion_delta())
 	if frozen:
-		out.append(tr("INTERROGATION_END_FROZEN_HINT"))
+		out.append(tr("INTERROGATION_END_FROZEN_HINT") % _freeze_days())
 	return out
 
 
@@ -1046,33 +1173,33 @@ static func _verdict_key(verdict: String) -> String:
 	return str(entry.get("name_key", "VERDICT_" + verdict.to_upper()))
 
 
-# ─── Paneles y ritmo ──────────────────────────────────────────
+# ─── Ritmo ────────────────────────────────────────────────────
 
-func _clear_panel() -> void:
-	SceneStage.clear_children(_panel_box)
-	_panel.visible = false
-
-
-func _open_panel(title: String) -> void:
-	_clear_panel()
-	_panel.visible = true
-	_fit_panel()
-	_panel_box.add_child(SceneStage.ui_label(title, UITheme.V_TITLE, true))
-
-
-func _button_row(buttons: Array[Button]) -> void:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_END
-	for b: Button in buttons:
-		row.add_child(b)
-	_panel_box.add_child(row)
-	if not buttons.is_empty():
-		MenuKit.focus_later(buttons.back())
-
-
-func _set_caption(text: String) -> void:
+func _narrate(text: String) -> void:
+	_caption_text = text
 	_caption.text = text
 	_caption_panel.visible = not text.is_empty()
+	_place_caption()
+
+
+func _is_animating() -> bool:
+	if _timeline.is_busy() or _stage.is_moving():
+		return true
+	for t: Tween in _tweens:
+		if t != null and t.is_valid() and t.is_running():
+			return true
+	return false
+
+
+func _finish_tweens() -> void:
+	for _pass: int in MAX_FORWARD_PASSES:
+		if _tweens.is_empty():
+			break
+		var running: Array[Tween] = _tweens.duplicate()
+		_tweens.clear()
+		for t: Tween in running:
+			if t != null and t.is_valid() and t.is_running():
+				t.custom_step(FORWARD_STEP)
 
 
 func _settle() -> void:
@@ -1087,20 +1214,20 @@ func _pause() -> float:
 # ─── Iconos de las piezas (vector) ────────────────────────────
 
 static func draw_evidence_icon(ci: CanvasItem, type_id: String, r: Rect2, accent: Color) -> void:
-	var ink: Color = SceneStage.C_INK
+	var ink: Color = SceneStage.ink()
 	var c: Vector2 = r.get_center()
 	ci.draw_circle(c, r.size.x * 0.5, accent.lightened(0.55))
 	ci.draw_arc(c, r.size.x * 0.5, 0.0, TAU, 36, ink, 3.0, true)
-	match type_id:
-		"direct_witness", "partial_witness":
-			_icon_eye(ci, c, r.size.x * 0.34, ink, type_id == "partial_witness")
-		"camera_footage":
+	match str(TYPE_ICONS.get(type_id, "")):
+		"eye", "eye_partial":
+			_icon_eye(ci, c, r.size.x * 0.34, ink, str(TYPE_ICONS[type_id]) == "eye_partial")
+		"camera":
 			_icon_camera(ci, c, ink)
-		"card_log":
+		"card":
 			_icon_card(ci, c, ink, accent)
-		"unsourced_rumour":
+		"rumour":
 			_icon_rumour(ci, c, ink)
-		"accounting_trail":
+		"ledger":
 			_icon_ledger(ci, c, ink)
 		_:
 			_icon_document(ci, c, ink, accent)
@@ -1111,38 +1238,38 @@ static func _icon_eye(ci: CanvasItem, c: Vector2, w: float, ink: Color, partial:
 	for i: int in 24:
 		var t: float = TAU * float(i) / 24.0
 		pts.append(c + Vector2(cos(t) * w, sin(t) * w * 0.55 * absf(sin(t)) + sin(t) * w * 0.1))
-	ci.draw_colored_polygon(pts, SceneStage.C_PAPER)
+	ci.draw_colored_polygon(pts, SceneStage.C_SHEET)
 	pts.append(pts[0])
 	ci.draw_polyline(pts, ink, 3.0, true)
 	ci.draw_circle(c, w * 0.32, ink)
-	ci.draw_circle(c + Vector2(-3, -3), w * 0.1, SceneStage.C_PAPER)
+	ci.draw_circle(c + Vector2(-3, -3), w * 0.1, SceneStage.C_SHEET)
 	if partial:
 		ci.draw_rect(Rect2(c.x - w, c.y - w * 0.7, w * 2.0, w * 0.55), Color(ink, 0.55))
 
 
 static func _icon_camera(ci: CanvasItem, c: Vector2, ink: Color) -> void:
 	var body: Rect2 = Rect2(c + Vector2(-20, -12), Vector2(32, 24))
-	ci.draw_rect(body, Color("#3b4247"))
+	ci.draw_rect(body, SceneStage.C_STEEL_DARK)
 	ci.draw_rect(body, ink, false, 3.0)
 	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(12, -6), c + Vector2(24, -12),
-			c + Vector2(24, 12), c + Vector2(12, 6)]), Color("#3b4247"))
-	ci.draw_circle(c + Vector2(-6, 0), 6.0, Color("#9fd8f0"))
+			c + Vector2(24, 12), c + Vector2(12, 6)]), SceneStage.C_STEEL_DARK)
+	ci.draw_circle(c + Vector2(-6, 0), 6.0, SceneStage.C_SCREEN_GLOW)
 	ci.draw_circle(c + Vector2(-16, -16), 4.0, SceneStage.C_RED_LED)
 
 
 static func _icon_card(ci: CanvasItem, c: Vector2, ink: Color, accent: Color) -> void:
 	var card: Rect2 = Rect2(c + Vector2(-22, -15), Vector2(44, 30))
-	ci.draw_rect(card, SceneStage.C_PAPER)
+	ci.draw_rect(card, SceneStage.C_SHEET)
 	ci.draw_rect(Rect2(card.position, Vector2(card.size.x, 8)), accent)
 	ci.draw_rect(card, ink, false, 3.0)
-	ci.draw_rect(Rect2(card.position + Vector2(5, 12), Vector2(12, 13)), Color("#c8a079"))
+	ci.draw_rect(Rect2(card.position + Vector2(5, 12), Vector2(12, 13)), SceneStage.C_CARDBOARD.lightened(0.2))
 	for i: int in 2:
 		ci.draw_line(card.position + Vector2(21, 15 + i * 7), card.position + Vector2(39, 15 + i * 7), ink, 2.0)
 
 
 static func _icon_rumour(ci: CanvasItem, c: Vector2, ink: Color) -> void:
 	var bubble: PackedVector2Array = SceneStage.rounded_rect(Rect2(c + Vector2(-22, -16), Vector2(44, 28)), 10.0)
-	ci.draw_colored_polygon(bubble, SceneStage.C_PAPER)
+	ci.draw_colored_polygon(bubble, SceneStage.C_SHEET)
 	bubble.append(bubble[0])
 	ci.draw_polyline(bubble, ink, 3.0, true)
 	for i: int in 3:
@@ -1151,17 +1278,17 @@ static func _icon_rumour(ci: CanvasItem, c: Vector2, ink: Color) -> void:
 
 static func _icon_ledger(ci: CanvasItem, c: Vector2, ink: Color) -> void:
 	var page: Rect2 = Rect2(c + Vector2(-18, -22), Vector2(36, 44))
-	ci.draw_rect(page, SceneStage.C_PAPER)
+	ci.draw_rect(page, SceneStage.C_SHEET)
 	ci.draw_rect(page, ink, false, 3.0)
 	for i: int in 4:
 		ci.draw_line(page.position + Vector2(6, 10 + i * 9), page.position + Vector2(30, 10 + i * 9), ink, 2.0)
-	ci.draw_circle(c + Vector2(16, 16), 9.0, Color("#d8b04a"))
+	ci.draw_circle(c + Vector2(16, 16), 9.0, SceneStage.C_GOLD)
 	ci.draw_arc(c + Vector2(16, 16), 9.0, 0.0, TAU, 18, ink, 2.0, true)
 
 
 static func _icon_document(ci: CanvasItem, c: Vector2, ink: Color, accent: Color) -> void:
 	var page: Rect2 = Rect2(c + Vector2(-17, -22), Vector2(34, 44))
-	ci.draw_rect(page, SceneStage.C_PAPER)
+	ci.draw_rect(page, SceneStage.C_SHEET)
 	ci.draw_rect(page, ink, false, 3.0)
 	for i: int in 3:
 		ci.draw_line(page.position + Vector2(6, 10 + i * 8), page.position + Vector2(28, 10 + i * 8), ink, 2.0)

@@ -2230,7 +2230,7 @@ AURORA_PREP_ASSIST_HINT,×%s · leaves a digital trace. Sometimes it invents the
 AURORA_PREP_REAL,Real preparation,Preparación real
 AURORA_PREP_REAL_HINT,×%s · costs %d minutes of your day,×%s · cuesta %d minutos de tu jornada
 AURORA_PREP_READY,Ready: you prepared it earlier,Lista: la preparaste antes
-AURORA_PREP_NO_TIME,No time left: the meeting ends at %s,No queda tiempo: la reunión acaba a las %s
+AURORA_PREP_NO_TIME,No time: a real deck takes %d min and the meeting ends at %s. Rehearse here before it starts.,No da tiempo: una presentación de verdad lleva %d min y la reunión acaba a las %s. Ensaya aquí antes de que empiece.
 AURORA_PREP_MERIT,Merit %d,Mérito %d
 AURORA_PREP_CHOOSE,Choose,Elegir
 AURORA_BACK,Back,Volver
@@ -2245,7 +2245,7 @@ AURORA_CLASH_YOU,You,Tú
 AURORA_CLASH_REPUTATION,Reputation %d,Reputación %d
 AURORA_CLASH_ALLIES,Allies present ×%d: +%d,Aliados presentes ×%d: +%d
 AURORA_CLASH_SUSPICION,Suspicion %d: −%d,Sospecha %d: −%d
-AURORA_CLASH_BELIEVERS,Know it's theirs ×%d: +%d,Saben que es suya ×%d: +%d
+AURORA_CLASH_BELIEVERS,Know it's theirs ×%d (%d here): +%d,Saben que es suya ×%d (%d aquí): +%d
 AURORA_CLASH_TIE_BAND,±%d: nobody wins,±%d: no gana nadie
 AURORA_CLASH_SIDE_ACCUSER,%s wins,Gana %s
 AURORA_CLASH_SIDE_YOU,You win,Ganas tú
@@ -2329,7 +2329,7 @@ INTERROGATION_FROZEN_TITLE,Case frozen,Caso congelado
 INTERROGATION_END_WEIGHT,Final weight %s · walk free below %s,Peso final %s · libre por debajo de %s
 INTERROGATION_END_SUSPICION,Suspicion added in this room: +%d,Sospecha sumada en esta sala: +%d
 INTERROGATION_END_VERDICT,Verdict: %s,Veredicto: %s
-INTERROGATION_END_FROZEN_HINT,Three days. Use them wisely. Or unwisely.,Tres jornadas. Úsalas con cabeza. O sin ella.
+INTERROGATION_END_FROZEN_HINT,%d days. Use them wisely. Or unwisely.,%d jornadas. Úsalas con cabeza. O sin ella.
 INTERROGATION_SAY_DENY,I've never been there in my life.,No he estado ahí en mi vida.
 INTERROGATION_SAY_EXPLAIN,I can explain. I was somewhere else. There are records.,Puedo explicarlo. Estaba en otro sitio. Hay registros.
 INTERROGATION_SAY_ACCUSE,Have you asked %s? Just saying.,¿Le habéis preguntado a %s? Solo digo.
@@ -2351,7 +2351,7 @@ INTERROGATION_REACT_ALIBI_ACCEPTED,That checks out. Annoyingly.,Cuadra. Por desg
 INTERROGATION_REACT_ALIBI_FALSE,We called them. They had never heard of you.,Les hemos llamado. No te conocen de nada.
 INTERROGATION_REACT_PIECE_TRANSFERRED,Interesting. I'll have a word with %s.,Interesante. Hablaré con %s.
 INTERROGATION_REACT_SILENCE_KEPT,Silence is also an answer.,El silencio también es una respuesta.
-INTERROGATION_REACT_CASE_FROZEN,Your lawyer is here. We'll continue in three days.,Ha llegado tu abogado. Seguiremos dentro de tres días.
+INTERROGATION_REACT_CASE_FROZEN,Your lawyer is here. We'll continue in %d days.,Ha llegado tu abogado. Seguiremos dentro de %d jornadas.
 INTERROGATION_REACT_REQUIREMENT_MISSING,Try again.,Inténtalo otra vez.
 OS_CLOSE,Close,Cerrar
 PERS_APP_TITLE,PERSONNEL — Human Capital Records System v3.1,PERSONNEL — Sistema de Registro de Capital Humano v3.1
@@ -2477,7 +2477,7 @@ PERS_STUDY_Q_BRIBE,Would take a fair bribe,Aceptaría un soborno justo
 PERS_STUDY_Q_CONFRONT,Would confront you if they caught you,Te confrontaría si te pillara
 PERS_STUDY_Q_REPORT,Would report you if they caught you,Te denunciaría si te pillara
 PERS_STUDY_RESULT,%s (studied for %d min):,%s (estudiado %d min):
-PERS_STUDY_TIP,Studying someone costs 15 to 30 minutes of game time.,Estudiar a alguien cuesta entre 15 y 30 minutos de juego.
+PERS_STUDY_TIP,"Studying someone costs %d to %d minutes of game time, shown on each button. The clock does not give them back.",Estudiar a alguien cuesta entre %d y %d minutos de juego (los indica cada botón). El reloj no los devuelve.
 PERS_TRAIT_AMBITION,Ambition,Ambición
 PERS_TRAIT_LOYALTY,Loyalty,Lealtad
 PERS_TRAIT_GREED,Greed,Codicia
@@ -2835,7 +2835,7 @@ ASSIST_TAG_FAILED,FAILED,FALLADO
 ASSIST_TAG_MINUTES,~%d min,~%d min
 ASSIST_HIGH_RISK,Warning: this task is complex. A.S.S.I.S.T. may produce very confident nonsense.,Aviso: esta tarea es compleja. A.S.S.I.S.T. puede producir disparates muy seguros de sí mismos.
 ASSIST_TRACE,Digital trace: %d use(s) logged · readable by the IT Director,Rastro digital: %d uso(s) registrado(s) · legible por el Director de IT
-ASSIST_LOG_LINE,D%d %s  %s → %s,D%d %s  %s → %s
+ASSIST_LOG_LINE,D%d %02dh  %s → %s,D%d %02d h  %s → %s
 ASSIST_LOG_EMPTY,No uses logged yet. Your conscience is clean (for now).,Aún no hay usos registrados. Tu conciencia está limpia (por ahora).
 NOTEBOOK_TAB_TARGETS,Targets,Objetivos
 NOTEBOOK_TAB_FAVOURS,Favours,Favores
@@ -3068,12 +3068,12 @@ RPRES_LEAVE,Leave the stage,Bajar del estrado
 RPRES_LEVEL_HINT_NONE,You walk on with nothing but confidence.,Sales con lo puesto y mucha seguridad.
 RPRES_LEVEL_HINT_ASSIST,Generated now. Usually fine. Occasionally catastrophic.,"Generado ahora. Suele salir bien. A veces, catastrófico."
 RPRES_LEVEL_HINT_STOLEN_COO_REPORT,Needs the COO's report in your hands.,Necesitas el informe del COO en tus manos.
-RPRES_LEVEL_HINT_REAL_WORK,Needs the quarterly report done properly today.,Necesitas el informe trimestral hecho como es debido hoy.
+RPRES_LEVEL_HINT_REAL_WORK,"Needs the quarterly report done properly today. Step away, finish it, and come back.","Necesitas el informe trimestral hecho como es debido hoy. Sal un momento, termínalo y vuelve."
 RPRES_NOT_AUTHORISED,"Only the CFO, the B10 director or the CEO can touch these numbers.","Solo el CFO, el director del B10 o el consejero delegado pueden tocar estas cifras."
 RPRES_NOT_TODAY,The stage is closed. Results day is day %d.,El estrado está cerrado. El día de resultados es el día %d.
-RPRES_PART_ALLIES,0.3 × allies in the room (%.2f),"0,3 × aliados en la sala (%.2f)"
-RPRES_PART_PREP,0.4 × preparation (%.2f),"0,4 × preparación (%.2f)"
-RPRES_PART_REP,0.3 × your reputation (%.2f),"0,3 × tu reputación (%.2f)"
+RPRES_PART_ALLIES,%.1f × allies in the room (%.2f),%.1f × aliados en la sala (%.2f)
+RPRES_PART_PREP,%.1f × preparation (%.2f),%.1f × preparación (%.2f)
+RPRES_PART_REP,%.1f × your reputation (%.2f),%.1f × tu reputación (%.2f)
 RPRES_PREPARATION,How was the report produced?,¿Cómo se hizo el informe?
 RPRES_PRESENT,Take the stage,Salir al estrado
 RPRES_QUALITY,Presentation quality: %.2f,Calidad de la presentación: %.2f
@@ -3144,3 +3144,272 @@ CONTACT_SOURCE_FAVOUR,Owes a favour,Me debe un favor
 CONTACT_SOURCE_HR,HR file,Ficha de RR. HH.
 CONTACT_SOURCE_PURCHASE,Bought the number,Número comprado
 CONTACT_SOURCE_MESSAGED,Wrote to you first,Te escribió primero
+LEDGER_FAVOUR_BLACKMAIL_MONEY,You paid their blackmail,Le pagaste el chantaje
+LEDGER_FAVOUR_BLACKMAIL_PROMOTION,You got them the promotion they extorted,Le conseguiste el ascenso que te exigió
+LEDGER_FAVOUR_BLACKMAIL_FAVOUR,You did the favour they extorted,Le hiciste el favor que te exigió
+LEDGER_GRIEVANCE_BLACKMAIL_REFUSED,You refused their blackmail,Rechazaste su chantaje
+LEDGER_GRIEVANCE_ACCUSED_IN_INTERROGATION,You blamed them in an interrogation,Le culpaste en un interrogatorio
+LEDGER_GRIEVANCE_ALLY_ACCUSED,You blamed a friend of theirs,Culpaste a un amigo suyo
+LEDGER_GRIEVANCE_OVERWORKED,You dumped your work on them,Le cargaste con tu trabajo
+PHONE_EXPO_SHORT_SUPERIORS,Superiors watching: %d,Superiores mirando: %d
+PHONE_EXPO_SHORT_LISTENERS,Within earshot: %d,Pueden oírte: %d
+PHONE_EXPO_SHORT_PRIVATE,Private spot,Sitio privado
+PHONE_EXPO_SHORT_ALONE,Nobody around,Nadie cerca
+PHONE_CHAT_RECORD_SHORT,IT reads it · %d on file,IT lo lee · %d archivados
+PHONE_BRIBE_BLIND_SHORT,Price unknown: you are guessing (an N%d file shows it).,Precio desconocido: vas a ciegas (lo muestra un expediente N%d).
+PHONE_BRIBE_COUNTER_NO_FUNDS,They want %s. You only have %s.,Pide %s. Solo tienes %s.
+PHONE_PRIVACY_SAFE_SPOT,This is one of the safe spots.,Es uno de los sitios seguros.
+BLACKMAILUI_CHAT_RECORD,Your answer goes through the company chat: IT keeps a permanent copy.,Tu respuesta va por el chat de la empresa: IT guarda una copia permanente.
+NOTEBOOK_TAB_PEOPLE,People,Personas
+NOTEBOOK_HINT_5,"Notes you wrote on colleagues' files in PERSONNEL, newest first.","Anotaciones que escribiste en los expedientes de PERSONAL, la más reciente primero."
+NOTEBOOK_EMPTY_5,No notes on anyone yet. Write some in PERSONNEL: memory is a career skill.,Aún no has anotado nada sobre nadie. Hazlo en PERSONAL: la memoria es una competencia profesional.
+NOTEBOOK_NOTE_ABOUT,About %s · %s,Sobre %s · %s
+NOTEBOOK_SAVED_COUNT,Saved to your file automatically · %d/%d characters,Se guarda automáticamente en tu expediente · %d/%d caracteres
+NOTEBOOK_INCIDENT_UNKNOWN,Unclassified incident,Incidente sin clasificar
+ASSIST_ODDS,Today's odds,Probabilidades de hoy
+ASSIST_TASK_UNKNOWN,Unidentified task,Tarea sin identificar
+FILES_FOLDER_SHARED,Shared drive,Unidad compartida
+FILES_SHARED_META,%s · %s,%s · %s
+FILES_SHARED_WORKSTATION,Unassigned workstation,Puesto sin asignar
+FILES_SHARED_DOC_BODY,Stored on that computer (%s). Read-only from the shared drive: to take a copy you have to sit at that desk.,Guardado en ese ordenador (%s). Solo lectura desde la unidad compartida: para llevarte una copia tienes que sentarte en ese puesto.
+FILES_SHARED_IDEA_NAME,draft_proposal_%s.doc,borrador_propuesta_%s.doc
+FILES_SHARED_IDEA_META,%s · quality %d · %d day(s) of freshness,%s · calidad %d · %d día(s) de frescura
+FILES_SHARED_IDEA_BODY,A draft idea saved by %s. The shared drive only shows the title page: the rest lives on their workstation.,Un borrador de idea guardado por %s. La unidad compartida solo enseña la portada: el resto vive en su puesto.
+FILES_TAG_READ_ONLY,READ-ONLY,SOLO LECTURA
+FILES_DOC_META_SOURCE,%s · from %s,%s · de %s
+FILES_DISK_LABEL,Local disk (S:),Disco local (S:)
+FILES_DISK_FREE,%s MB free of %s MB,%s MB libres de %s MB
+FILES_DISK_UNLIMITED,Unlimited storage. Like the expense account.,Almacenamiento ilimitado. Como la cuenta de gastos.
+FILES_EMPTY_REPORTS,No reports yet today. Productivity is a state of mind.,Aún no hay informes hoy. La productividad es un estado mental.
+FILES_EMPTY_IDEAS,No ideas here. Have you tried borrowing one?,Aquí no hay ideas. ¿Has probado a pedir una prestada?
+FILES_EMPTY_DOCUMENTS,No documents. Paper is the enemy of plausible deniability.,No hay documentos. El papel es enemigo de la negación plausible.
+FILES_EMPTY_SHARED,"Nothing shared. Your team trusts no one, wisely.","No hay nada compartido. Tu equipo no se fía de nadie, y hace bien."
+FILES_EMPTY_TRASH,The bin is empty. Suspiciously empty.,La papelera está vacía. Sospechosamente vacía.
+FILES_EMPTY_IDEAS_GUEST,No ideas on this computer. Its owner thinks as little as possible.,No hay ideas en este ordenador. Su dueño piensa lo justo.
+FILES_EMPTY_DOCUMENTS_GUEST,Nothing confidential here. Just 400 unread newsletters.,Nada confidencial aquí. Solo 400 boletines sin leer.
+FILES_EMPTY_PERSONAL_GUEST,Nothing personal. Strictly business.,Nada personal. Estrictamente negocios.
+PERS_FILTERS,Filters,Filtros
+PERS_BACK_TO_LIST,List,Lista
+PERS_ACT_UNMARK,Unmark target,Quitar objetivo
+PERS_STUDY_BTN_FMT,%s · %d min,%s · %d min
+PERS_FILTER_TIER,Tier,Escalón
+OSQA_NOTE_PEOPLE_1,Takes long lunches on Thursdays. Tell nobody. Yet.,Los jueves come largo. No se lo digas a nadie. Todavía.
+OSQA_NOTE_PEOPLE_2,Keeps her drafts on the desktop. Password: her cat.,Guarda los borradores en el escritorio. Contraseña: su gato.
+PORTAL_BACK_TO_CHART,Org chart,Organigrama
+PORTAL_FIELD_LEADS_TO,Leads to,Lleva a
+PHONE_CHAT_ANSWER_SHORT,Answer,Responder
+MARKET_DEALS,Deals,Tratos
+MARKET_ACT_TIP,Sell a tip (+%s),Venderle un soplo (+%s)
+MARKET_ACT_BRIBE,Buy a friendly question (%s),Comprar una pregunta amable (%s)
+MARKET_ACT_BLACKMAIL,Blackmail with your material,Chantajear con tu material
+MARKET_ACT_NO_LEVERAGE,Blackmail (you need compromising material),Chantaje (necesitas material comprometedor)
+MARKET_ACT_CAMPAIGN,Aim the campaign,Dirigir la campaña
+MARKET_ACT_CAMPAIGN_AT,Aim the campaign at %s,Dirigir la campaña contra %s
+MARKET_ACT_NO_RIVALS,Nobody stands in your way yet,Aún no hay nadie en tu camino
+MARKET_DEAL_TITLE,Confirm deal,Confirmar trato
+MARKET_DEAL_YES,Make the call,Hacer la llamada
+MARKET_CONFIRM_TIP,"Tell %s what the market does not know yet, for %s? Every tip is evidence of insider trading, and the tip cannot be taken back.","¿Contarle a %s lo que el mercado aún no sabe, por %s? Cada soplo es una prueba de uso de información privilegiada, y no se puede retirar."
+MARKET_CONFIRM_BRIBE,"Phone %s and offer %s for a friendly question at the results presentation? If they say no, they will remember the call, and anyone in the room with you may hear it.","¿Llamar a %s y ofrecerle %s por una pregunta amable en la presentación de resultados? Si dice que no, recordará la llamada, y quien esté en la sala contigo puede oírla."
+MARKET_CONFIRM_BLACKMAIL,"Put %s on %s's desk? They will be on your side this quarter, and they will never forget it.",¿Poner %s sobre la mesa de %s? Estará de tu lado este trimestre y no lo olvidará jamás.
+MARKET_CONFIRM_CAMPAIGN,Point %s's activist campaign at %s? It runs for weeks and cannot be called off.,¿Dirigir la campaña activista de %s contra %s? Dura semanas y no se puede detener.
+MARKET_MSG_TIP_OK,%s pays %s for the tip. Confidence %+d.,%s paga %s por el soplo. Confianza %+d.
+MARKET_MSG_TIP_FAIL,%s is not buying tips.,%s no compra soplos.
+MARKET_MSG_DEAL_FMT,%s: %s,%s: %s
+MARKET_MSG_BLACKMAIL_OK,%s will ask the right questions this quarter.,%s hará las preguntas adecuadas este trimestre.
+MARKET_MSG_BLACKMAIL_FAIL,%s does not scare that easily.,A %s no se le asusta tan fácilmente.
+MARKET_MSG_CAMPAIGN_OK,%s is now campaigning against %s.,%s ya está en campaña contra %s.
+MARKET_MSG_CAMPAIGN_FAIL,%s will not move against %s.,%s no se moverá contra %s.
+MARKET_MSG_WITHDRAW,Withdrew %s to your pocket.,Has retirado %s al bolsillo.
+MARKET_MSG_BUY_OK,Bought %d shares.,Compradas %d acciones.
+MARKET_MSG_BUY_FAIL,Order rejected: you need %s in cash or in the broker account.,Orden rechazada: necesitas %s en efectivo o en la cuenta de valores.
+MARKET_MSG_SELL_OK,Sold %d shares. The money is in your pocket.,Vendidas %d acciones. El dinero está en tu bolsillo.
+MARKET_MSG_SELL_FAIL,Order rejected: you do not hold %d shares.,Orden rechazada: no tienes %d acciones.
+MARKET_MSG_STAKE_OK,The board stake is yours. You vote now.,El paquete accionarial es tuyo. Ahora votas.
+MARKET_MSG_STAKE_FAIL,Rejected: the board stake needs rank R%d and %s.,Rechazada: el paquete accionarial exige rango R%d y %s.
+MARKET_INV_ALLY,Ally this quarter,Aliado este trimestre
+MARKET_INV_COERCED,Coerced,Bajo coacción
+MARKET_INV_CAMPAIGN,Campaigning vs %s,En campaña contra %s
+MARKET_PATTERN_QUIET,Quiet,Tranquilo
+MARKET_PATTERN_NOTICED,Noticed,Llama la atención
+MARKET_PATTERN_HOT,Under scrutiny,En el punto de mira
+MARKET_CAL_TODAY,Day %d · today,Día %d · hoy
+MARKET_CAL_IN_DAYS,Day %d · in %d d,Día %d · en %d d
+MAP_METHOD_ROOM_KEY,Room key,Llave de la sala
+MAP_HINT_ZOOM_TOUCH,Tap a room to inspect it · use the arrows to change floor,Toca una sala para inspeccionarla · usa las flechas para cambiar de planta
+MAP_LAYER_ROUTES_SHORT,Routes,Rutas
+MAP_TARGETS_TITLE,Marked targets,Objetivos marcados
+MAP_FOOTHOLD,Foothold only,Solo punto de apoyo
+MAP_FOOTHOLD_DESC,only the shared service closet can be reached,solo se alcanza el cuarto de servicio compartido
+MAP_LEGEND_FOOTHOLD,Foothold only (service closet),Solo punto de apoyo (cuarto de servicio)
+MAP_LEGEND_CAMERA,Camera and field of view,Cámara y campo de visión
+MAP_LEGEND_ROUTE,Alternative route,Ruta alternativa
+MAP_LEGEND_PEOPLE,People in the shift,Personas en la franja
+CARD_KNOWS_YOU,Knows you,Te conoce
+CARD_CLOSE,Close,Cerrar
+CARD_SLACKING,slacking off,escaqueándose
+CARD_NOW_FMT,Now: %s,Ahora: %s
+CARD_BRIBE_FMT,%s: about %s,%s: unos %s
+CARD_LOCKED_FMT,Clearance N%d reveals: %s,La acreditación N%d revela: %s
+RPRES_CONFIRM_TITLE,Point of no return,Sin vuelta atrás
+RPRES_CONFIRM_LOCK_REAL,"Lock the real figures and walk on stage? Once the market hears them, they are the figures.","¿Cerrar las cifras reales y salir a escena? En cuanto el mercado las oiga, esas son las cifras."
+RPRES_CONFIRM_LOCK_INFLATED,"Report revenue %d%% above reality? The audit fuse lights now: Internal Audit checks in about %d week(s), with a %d%% chance of spotting it. The figures cannot be recalled.","¿Comunicar unos ingresos un %d%% por encima de la realidad? La mecha de auditoría se enciende ya: Auditoría interna revisará en unas %d semana(s), con un %d%% de probabilidad de detectarlo. Las cifras no se pueden retirar."
+RPRES_CONFIRM_LOCK_YES,Lock the figures,Cerrar las cifras
+RPRES_CONFIRM_PRESENT,"Take the stage? Preparation: %s (quality %.2f). Every investor's confidence moves the moment you finish, and there is only one presentation per quarter.","¿Salir al estrado? Preparación: %s (calidad %.2f). La confianza de cada inversor se moverá en cuanto termines, y solo hay una presentación por trimestre."
+RPRES_CONFIRM_PRESENT_YES,Walk on stage,Salir a escena
+RPRES_STEP_AWAY,Step away for now,Salir un momento
+RPRES_STEP_AWAY_TIP,Nothing is committed yet. Come back to the results hall before the day ends.,Todavía no se ha comprometido nada. Vuelve a la sala de resultados antes de que acabe el día.
+RPRES_STAGE_CLOSED_TITLE,The stage is closed,El estrado está cerrado
+RPRES_STAGE_CLOSED_BODY,"Results day is day %d. You can study the numbers now, but they can only be locked on the day.","El día de resultados es el día %d. Puedes estudiar las cifras ahora, pero solo se cierran ese día."
+RPRES_STAGE_DONE,This quarter has already been presented.,Este trimestre ya se ha presentado.
+RPRES_ROOM,Who is in the room,Quién hay en la sala
+RPRES_ROOM_SUB,Friendly questions weigh %d%% of the presentation quality. A phone call and the right amount can buy one.,Las preguntas amables pesan un %d%% en la calidad de la presentación. Una llamada y la cantidad justa pueden comprar una.
+RPRES_CONFIDENCE_FMT,Confidence %d,Confianza %d
+RPRES_DEAL_BRIBE,Bribe · %s,Sobornar · %s
+RPRES_DEAL_BRIBE_TIP,"A phone call now: the fair price for a friendly question. They may say no, and remember it.","Una llamada ahora: el precio justo por una pregunta amable. Puede decir que no, y recordarlo."
+RPRES_DEAL_BLACKMAIL,Blackmail,Chantajear
+RPRES_DEAL_NEED_MATERIAL,You need compromising material on you (a blackmail file).,Necesitas llevar material comprometedor (un expediente de chantaje).
+RPRES_DEAL_ALLY,In your pocket ✓,En el bolsillo ✓
+RPRES_DEAL_NONE,Cannot be bought,No se deja comprar
+RPRES_Q_INV_BOBBY_KERR,Can I tweet that? I'm going to tweet that.,¿Puedo tuitearlo? Voy a tuitearlo.
+RPRES_QUIP_UP_VALUE,Nods slowly and writes something down.,Asiente despacio y apunta algo.
+RPRES_QUIP_DOWN_VALUE,Closes the folder. Quietly.,Cierra la carpeta. Sin ruido.
+RPRES_QUIP_FLAT_VALUE,Underlines a footnote. Twice.,Subraya una nota al pie. Dos veces.
+RPRES_QUIP_UP_MOMENTUM,Already on the phone to their broker.,Ya está al teléfono con su bróker.
+RPRES_QUIP_DOWN_MOMENTUM,Checks the exit. Then their phone.,"Mira la salida. Luego, el móvil."
+RPRES_QUIP_FLAT_MOMENTUM,Scrolls something more exciting.,Desliza algo más emocionante en el móvil.
+RPRES_QUIP_UP_RETAIL,Films a thumbs-up for four million followers.,Graba un pulgar arriba para cuatro millones de seguidores.
+RPRES_QUIP_DOWN_RETAIL,Livestreams his disappointment.,Retransmite su decepción en directo.
+RPRES_QUIP_FLAT_RETAIL,Posts a shrug emoji. It trends anyway.,Publica un emoji encogiéndose de hombros. Es tendencia igual.
+RPRES_QUIP_UP_INFO_HUNTER,Smiles like someone who already knew.,Sonríe como quien ya lo sabía.
+RPRES_QUIP_DOWN_INFO_HUNTER,Leaves early. Somebody told him something.,Se va antes. Alguien le ha contado algo.
+RPRES_QUIP_FLAT_INFO_HUNTER,Takes notes nobody else can read.,Toma notas que nadie más sabe leer.
+RPRES_QUIP_UP_ACTIVIST,Puts the pen down. For now.,Deja el bolígrafo. Por ahora.
+RPRES_QUIP_DOWN_ACTIVIST,Starts drafting a letter to the board.,Empieza a redactar una carta al consejo.
+RPRES_QUIP_FLAT_ACTIVIST,Stares at the management slide for a long time.,Mira la diapositiva de la dirección durante mucho rato.
+RPRES_QUIP_UP_PASSIVE,Rebalances nothing. Approvingly.,No reequilibra nada. Con aprobación.
+RPRES_QUIP_DOWN_PASSIVE,Asks about the index weighting. Ominously.,Pregunta por la ponderación en el índice. Mal asunto.
+RPRES_QUIP_FLAT_PASSIVE,"Unmoved, as per their mandate.","Impasible, como marca su mandato."
+AURORA_HEADER_SUB_EMPTY,Empty room · %s,Sala vacía · %s
+AURORA_REHEARSE_TITLE,Rehearse in the empty room,Ensayar en la sala vacía
+AURORA_REHEARSE_BODY,"%s. A properly rehearsed idea is presented at ×%s, and the rehearsal keeps until you present it.","%s. Una idea bien ensayada se presenta a ×%s, y el ensayo vale hasta que la presentes."
+AURORA_REHEARSE_NONE,"Nothing to rehearse. You have no ideas, yours or anyone else's.","Nada que ensayar. No tienes ideas, ni tuyas ni ajenas."
+AURORA_REHEARSE_REAL,Rehearse (%d min),Ensayar (%d min)
+AURORA_REHEARSE_ASSIST,Ask A.S.S.I.S.T.,Pedírselo a A.S.S.I.S.T.
+AURORA_REHEARSE_STATUS_NONE,Not prepared: it would go out at ×%s,Sin preparar: saldría a ×%s
+AURORA_REHEARSE_STATUS_REAL,Rehearsed: ready at ×%s,Ensayada: lista a ×%s
+AURORA_REHEARSE_STATUS_ASSIST,A.S.S.I.S.T. deck ready: ×%s,Presentación de A.S.S.I.S.T. lista: ×%s
+AURORA_REHEARSE_MUTTER,Okay. Confident. Visionary. Not sweaty.,Vale. Seguridad. Visión. Nada de sudar.
+AURORA_REHEARSE_LINE,"…and that, ladies and gentlemen, is synergy. Pause for applause.","…y eso, señoras y señores, es sinergia. Pausa para aplausos."
+AURORA_REHEARSE_MEETING_NOW,It's %s. The weekly meeting has started.,Son las %s. La reunión semanal ha empezado.
+AURORA_TAKE_SEAT,Take your seat,Ocupar tu sitio
+AURORA_SCREEN_REHEARSAL,AURORA · REHEARSAL,AURORA · ENSAYO
+AURORA_SCREEN_NEXT,Next meeting: day %d · %s,Próxima reunión: jornada %d · %s
+AURORA_SCREEN_DRAFT,DRAFT v7 — FINAL (2),BORRADOR v7 — DEFINITIVO (2)
+AURORA_CLASH_VS,— vs —,— contra —
+AURORA_STATUS_GENERIC,something got in the way,algo se interpuso
+AURORA_IDEA_UNTITLED,An idea with no name yet,Una idea aún sin nombre
+AURORA_FLIP_THEIRS,THEIRS,SUYAS
+AURORA_FLIP_MINE,MINE,MÍAS
+AURORA_FLIP_MID,(same thing),(lo mismo)
+SCENE_UNKNOWN_COLLEAGUE,A colleague,Un colega
+EVIDENCE_GENERIC,Evidence,Prueba
+INTERROGATION_SUB_DOOR_SLAM,[The door slams shut behind you],[La puerta se cierra de golpe a tu espalda]
+INTERROGATION_CAPTION_CASE_FROZEN,Your lawyer arrives. The case is frozen for %d days.,Llega tu abogado. El caso queda congelado %d jornadas.
+INTERROGATION_WAITING,%s writes something down.,%s anota algo.
+INTERROGATION_WEIGHT_CHANGE,Case weight: %s → %s,Peso del caso: %s → %s
+INTERROGATION_NEXT,Next exhibit,Siguiente prueba
+INTERROGATION_TO_VERDICT,Hear the verdict,Escuchar el veredicto
+MARKET_DEALS_NONE,"Nothing on offer: not for sale, not for blackmail.",Nada que ofrecer: ni se vende ni se deja chantajear.
+MARKET_DEALS_TIP,"Tips, bribes, blackmail. Every deal asks for confirmation and leaves a trace.","Soplos, sobornos, chantajes. Todo trato pide confirmación y deja rastro."
+QA_NPCS_LEGEND_TITLE,Detection indicator — the four states,Indicador de detección — los cuatro estados
+QA_NPCS_ROW_NORMAL,Normal,Normal
+QA_NPCS_ROW_CONTRAST,High contrast,Alto contraste
+QA_NPCS_STATE_NONE,No contact (hidden),Sin contacto (oculto)
+QA_NPCS_STATE_PROGRESS,In progress,En progreso
+QA_NPCS_STATE_PARTIAL,Partial perception,Percepción parcial
+QA_NPCS_STATE_FLAGRANT,Caught red-handed,Flagrancia
+RPRES_CLEAN_TITLE,Clean books,Libros limpios
+RPRES_CLEAN_BODY,"The real figures: nothing for Internal Audit to find, whatever the market thinks of them.","Las cifras reales: nada que encuentre Auditoría interna, piense lo que piense el mercado."
+POLICE_NOTE_DISPATCHED,Sirens. Somebody called the police.,Sirenas. Alguien ha llamado a la policía.
+POLICE_NOTE_EVADED,The police gave up the search. For tonight.,La policía abandona la búsqueda. Por esta noche.
+POLICE_NOTE_IDENTIFIED,%s saw your face.,%s te ha visto la cara.
+SUB_POLICE_SIREN,Police sirens approaching,Sirenas de policía que se acercan
+SUB_HOUSE_ALARM,A house alarm shrieks,Chilla la alarma de una casa
+NIGHT_NOTE_FOLLOWED,You followed %s home.,Seguiste a %s hasta su casa.
+NIGHT_NOTE_BURGLARY,You burgled %s's home: %d € in loot.,Robaste en casa de %s: %d € de botín.
+NIGHT_NOTE_ELIMINATED,%s will not be coming to work tomorrow.,%s no irá a trabajar mañana.
+NIGHT_ERR_BUSY,You are already on a night job.,Ya estás en plena operación nocturna.
+NIGHT_ERR_UNKNOWN_NPC,There is nobody by that name on the payroll.,No hay nadie con ese nombre en plantilla.
+NIGHT_ERR_NO_HOME,You have no idea where this person sleeps.,No tienes ni idea de dónde duerme esta persona.
+NIGHT_ERR_ADDRESS_UNKNOWN,You do not know their address. A full personnel file would help.,No conoces su domicilio. Un expediente completo ayudaría.
+NIGHT_ERR_WRONG_TIME,They are still at the office. Wait until they leave.,Sigue en la oficina. Espera a que salga.
+NIGHT_ERR_NO_OPERATION,You are not at anyone's house.,No estás en casa de nadie.
+NIGHT_ERR_ALREADY_INSIDE,You are already inside.,Ya estás dentro.
+NIGHT_ERR_BAD_ENTRY,That way in does not exist here.,Por ahí no se puede entrar.
+NIGHT_ERR_NO_TOOL,You need something to force the lock.,Necesitas algo para forzar la cerradura.
+NIGHT_ERR_NOT_INSIDE,You have to get inside first.,Primero tienes que entrar.
+NIGHT_ERR_UNKNOWN_CONTAINER,There is nothing like that in this house.,En esta casa no hay nada parecido.
+NIGHT_ERR_EMPTY,Already emptied.,Ya está vacío.
+NIGHT_ERR_LOCKED,It is locked. You lack the right tool or the combination.,Está cerrado. Te falta la herramienta o la combinación.
+NIGHT_ERR_NOT_HOME,The owner is not at home.,El dueño no está en casa.
+NIGHT_ERR_WITNESSES,Somebody is watching.,Alguien está mirando.
+HOME_NOTE_HUNGRY,You went to bed hungry. %d more day like this and you will not get up.,Te acostaste sin comer. %d día más así y no te levantarás.
+HOME_NOTE_RENT_UNPAID,Rent unpaid: %d € short.,Alquiler sin pagar: faltan %d €.
+HOME_ERR_NOT_HOME,You can only sleep in your own bed.,Solo puedes dormir en tu cama.
+HOME_ERR_NOT_NIGHT,It is too early to go to bed.,Es demasiado pronto para acostarse.
+HOME_ERR_POLICE,Not with the police on your heels.,No con la policía pisándote los talones.
+HOME_ERR_GAME_OVER,It is over.,Se acabó.
+HOME_ERR_NOT_SOLD,They do not sell that here.,Aquí no venden eso.
+HOME_ERR_INSUFFICIENT_FUNDS,You cannot afford it.,No te llega el dinero.
+HOME_ERR_INVENTORY_FULL,Your pockets are full.,Llevas los bolsillos llenos.
+HOME_ERR_NO_FOOD_SOURCE,There is no food to take here.,Aquí no hay comida que llevarse.
+BUYER_FIRM_1,Pedalis Retail,Pedalis Retail
+BUYER_FIRM_2,Northgate Footwear,Calzados Northgate
+BUYER_FIRM_3,Brightstep Outlets,Outlets Brightstep
+BUYER_FIRM_4,Cobble & Heel,Cobble & Heel
+BUYER_FIRM_5,Meridian Department Stores,Grandes Almacenes Meridian
+BUYER_FIRM_6,Solemate Wholesale,Mayorista Solemate
+BUYER_OP_HONEST_SALE,Honest sale,Venta honesta
+BUYER_OP_OVERPRICE,Overcharge,Sobreprecio
+BUYER_OP_PHANTOM_SALE,Phantom sale,Venta fantasma
+BUYER_OP_KICKBACK_DISCOUNT,Discount with a kickback,Descuento con mordida
+BUYER_OUTCOME_SOLD,Deal closed,Trato cerrado
+BUYER_OUTCOME_DETECTED,The buyer saw through the price and complained to your superior,El comprador ha calado el precio y se ha quejado a tu superior
+BUYER_OUTCOME_REFUSED,The buyer declined,El comprador ha declinado
+BUYER_OUTCOME_REPORTED,The buyer declined and complained to your superior,El comprador ha declinado y se ha quejado a tu superior
+BUYER_REASON_UNKNOWN_OPERATION,That is not something you can do with a buyer,Eso no es algo que puedas hacer con un comprador
+BUYER_REASON_NOT_VISITING,That buyer is not in the building today,Ese comprador no está hoy en el edificio
+BUYER_REASON_ALREADY_SERVED,That buyer has already been dealt with today,A ese comprador ya se le ha atendido hoy
+BUYER_REASON_NOT_A_SELLER,Your post does not let you close sales,Tu puesto no te permite cerrar ventas
+BUYER_REASON_NOT_IN_ROOM,Buyers are only received in the demonstration room,A los compradores solo se les recibe en la sala de demostraciones
+FACTORY_SCALE_POCKET,A pair in the pocket,Un par al bolsillo
+FACTORY_SCALE_BOX,A box on the cart,Una caja en el carrito
+FACTORY_SCALE_PALLET,A whole pallet,Un palé entero
+FACTORY_MISSING_SCALE,There is nothing like that to take,No hay nada así que llevarse
+FACTORY_MISSING_LOCATION,You have to be inside the factory,Tienes que estar dentro de la nave
+FACTORY_MISSING_RANK,Your rank does not get you close enough to the goods,Tu rango no te acerca lo suficiente a la mercancía
+FACTORY_MISSING_OCCUPATION,Only the foreman or the factory director can move a pallet,Solo el capataz o el director de fábrica pueden mover un palé
+FACTORY_MISSING_CART,You need a cart or access to the freight elevator,Necesitas un carrito o acceso al montacargas
+FACTORY_MISSING_ACCOMPLICE,No haulier owes you enough to look the other way,Ningún transportista te debe lo bastante como para mirar hacia otro lado
+NOTE_INVENTORY_MISMATCH,Weekly count: %d pairs are missing from finished goods. Somebody will have to explain the gap.,Recuento semanal: faltan %d pares de producto terminado. Alguien tendrá que explicar el descuadre.
+NOTE_INVENTORY_MISMATCH_FRAMED,Weekly count: %d pairs missing. The delivery notes carry the signature of %s.,Recuento semanal: faltan %d pares. Los albaranes llevan la firma de %s.
+NOTE_BUYERS_TODAY,Sales: %d buyer(s) expected in the P11 demonstration room today.,Ventas: hoy se espera a %d comprador(es) en la sala de demostraciones de la P11.
+NOTE_BUYER_CLAIM,%s (%s) has complained about an old invoice. Your superior has the file.,%s (%s) ha reclamado por una factura antigua. Tu superior tiene el expediente.
+NOTE_MONTH_SALES_MISMATCH,Month close: the sales ledger is %d € short of the goods that left.,Cierre mensual: al libro de ventas le faltan %d € de la mercancía que salió.
+NOTE_STRIKE_LED,You are leading the strike. The shop floor chants your name; the top floors write it down.,Encabezas la huelga. La nave corea tu nombre; las plantas altas lo apuntan.
+NOTE_STRIKE_BETRAYED,You called the strike and never turned up. Management calls it leadership.,Convocaste la huelga y no te presentaste. La dirección lo llama liderazgo.
+STRIKE_REASON_UNKNOWN_NPC,That person is not on the staff,Esa persona no está en plantilla
+STRIKE_REASON_NOT_LOW_TIER,They are too high up to care about the shop floor,Está demasiado arriba para que le importe la nave
+STRIKE_REASON_NOT_DISCONTENTED,They have no complaints worth stirring,No tiene quejas que valga la pena remover
+STRIKE_REASON_COOLDOWN,You already worked on them recently,Ya le has calentado la cabeza hace poco
+STRIKE_REASON_WORKERS_BETRAYED,Nobody on the floor listens to the one who sold out the strike,Nadie en la nave escucha a quien vendió la huelga
+STRIKE_REASON_NO_AUTHORITY,Your post does not have that authority,Tu puesto no tiene esa autoridad
+STRIKE_REASON_NOT_MANAGEMENT,Firing a worker would only make it worse,Despedir a un trabajador solo lo empeoraría
+STRIKE_REASON_BELOW_THRESHOLD,The discontent is not high enough for a strike,El descontento no basta para una huelga
+STRIKE_REASON_ALREADY_LEADING,You are already leading the strike,Ya encabezas la huelga
+STRIKE_REASON_NOT_LEADER,You are not the one who called this strike,No eres quien convocó esta huelga
+STRIKE_REASON_RUMOUR_FAILED,The rumour does not catch on,El rumor no prende
+LEDGER_GRIEVANCE_STRIKE_BETRAYED,You called the strike and left them standing alone,Convocaste la huelga y los dejaste tirados
+BELIEF_FACT_MANAGEMENT_ABUSE,Management is squeezing the staff,La dirección exprime a la plantilla
+LABOUR_STANDING_WORKERS,Standing on the shop floor,Prestigio en la nave
+LABOUR_STANDING_MANAGEMENT,Standing with management,Prestigio ante la dirección

@@ -1,12 +1,15 @@
 # caught_window.gd — Ventana de flagrancia (§12.2, PASO 19): tiempo ralentizado, OFRECER DINERO o SILENCIARLO PARA SIEMPRE, cuenta atrás de la inacción y contraoferta.
-# PROPIETARIO DE: la vista de la ventana abierta (opciones mostradas, opción armada a la espera de confirmación, segundos que se muestran, resultado que se enseña al cerrar).
-# ESCUCHA: CaughtHandler.decision_window_opened/_updated/_closed (el Binder), npc_decided, money_changed, game_over.
+# PROPIETARIO DE: la vista de la ventana abierta (opciones mostradas, opción armada a la espera de confirmación, segundos que se muestran, resultado que se enseña al cerrar); el Binder, la ventana en pantalla y si otra flagrancia espera turno.
+# ESCUCHA: CaughtHandler.decision_window_opened (el Binder), decision_window_updated/_closed, npc_decided, money_changed, game_over.
 class_name CaughtWindow
 extends Control
 
 ## Integración: game_root llama una vez a CaughtWindow.install(ui_root, caught_handler). El Binder
 ## abre una CaughtWindow en UIRoot.open_modal(ventana, false) con cada decision_window_opened (sin
 ## pausar: CaughtHandler ya ralentiza el reloj, flagrancia.multiplicador_tiempo) y cierra el móvil.
+## Flagrancias en cola: si al abrirse la siguiente la anterior aún enseña la reacción del testigo, el
+## Binder no las apila: acorta esa reacción a interfaz.flagrancia_resultado_cola_segundos y abre la
+## nueva cuando la anterior sale del árbol, con las opciones vivas del handler (segundos reales).
 ## DECISIONES:
 ##  · Las opciones salen de CaughtHandler.get_options(); la ventana nunca decide precios ni testigos.
 ##  · SILENCIARLO PARA SIEMPRE con testigos: botón deshabilitado, sin foco, que ignora el ratón,
@@ -15,7 +18,10 @@ extends Control
 ##  · Toda opción pide confirmación explícita (§13.7): press_*() arma, confirm() ejecuta.
 ##  · La cuenta atrás es la del CaughtHandler (seconds_left); al agotarse, el handler resuelve la
 ##    inacción y la ventana muestra la reacción (npc_decided) durante interfaz.flagrancia_resultado_segundos.
-##  · Esc no la cierra (request_close no hace nada): solo el handler cierra la ventana.
+##  · Esc no la cierra (request_close no hace nada): solo el handler cierra la ventana (o game_over).
+##  · Con la reacción en pantalla la cuenta atrás se apaga (gris, con el icono del desenlace).
+##  · La tarjeta se coloca por debajo de los avisos (ToastStack) si cabe; en pantallas bajas, foto
+##    y reloj se encogen.
 ##  · Teclado: 1 = dinero, 2 = eliminación (la misma tecla otra vez confirma; el foco queda en
 ##    «Volver»), Retroceso = volver.
 
@@ -30,13 +36,21 @@ const B_RESULT_S := "interfaz.flagrancia_resultado_segundos"
 const B_PULSE_HZ := "interfaz.flagrancia_pulso_hz"
 const B_WARN_S := "interfaz.flagrancia_aviso_segundos"
 const B_DIM := "interfaz.flagrancia_ralentizacion_visual"
+const B_QUEUE_S := "interfaz.flagrancia_resultado_cola_segundos"
 const CRIME_KEY := "CAUGHTUI_CRIME_%s"
 const CRIME_GENERIC := "CAUGHTUI_CRIME_GENERIC"
 const REACTION_KEY := "CAUGHTUI_REACTION_%s"
 const OUTCOME_KEY := "CAUGHTUI_OUTCOME_%s"
 const CARD_WIDTH_EMS := 16.0
 const PORTRAIT_EMS := 7.0
+const PORTRAIT_EMS_SHORT := 4.2
 const DIAL_EMS := 6.0
+const DIAL_EMS_SHORT := 4.4
+## Pantalla baja: menos de estas líneas de texto de alto.
+const SHORT_SCREEN_EMS := 34.0
+const CARD_TOAST_GAP := 10.0
+const CARD_EDGE := 8.0
+const CARD_EASE := 10.0
 const VIGNETTE_FRACTION := 0.2
 const HATCH_STEP := 18.0
 const REACTING_OUTCOMES: Array[String] = [CaughtHandler.OUTCOME_INACTION, Bribery.OUTCOME_NEUTRAL]
@@ -44,12 +58,15 @@ const OUTCOME_TONES: Dictionary = {
 	Bribery.OUTCOME_ACCEPTED: "gain", Bribery.OUTCOME_DENOUNCED: "danger",
 	CaughtHandler.OUTCOME_ELIMINATED: "danger", CaughtHandler.OUTCOME_VOID: "muted",
 }
+const TONE_GLYPHS: Dictionary = {"gain": "check", "danger": "hazard", "muted": "cross", "warn": "eye"}
 
 
-## Conecta las señales del CaughtHandler y abre una ventana por flagrancia.
+## Conecta las señales del CaughtHandler y abre una ventana por flagrancia, de una en una.
 class Binder extends Node:
 	var handler: CaughtHandler
 	var ui: UIRoot
+	var current: CaughtWindow = null
+	var waiting: bool = false
 
 	func _init(p_ui: UIRoot, p_handler: CaughtHandler) -> void:
 		name = "CaughtWindowBinder"
@@ -57,24 +74,53 @@ class Binder extends Node:
 		handler = p_handler
 		handler.decision_window_opened.connect(_on_opened)
 
-	func _on_opened(npc_id: String, options: Dictionary) -> void:
+	func _on_opened(npc_id: String, _options: Dictionary) -> void:
 		if not is_instance_valid(ui) or not ui.is_inside_tree():
 			return
-		var phone: Control = ui.get_top_modal()
-		if phone is PhoneOverlay:
+		if is_instance_valid(current) and current.is_inside_tree() and not current.is_queued_for_deletion():
+			if current.get_state() == CaughtWindow.STATE_RESULT:
+				waiting = true
+				current.hurry_result()
+				return
+			ui.close_modal_control(current)
+		_open(npc_id)
+
+	func _open(npc_id: String) -> void:
+		var phone: PhoneOverlay = ui.get_top_modal() as PhoneOverlay
+		if phone != null:
 			ui.close_modal_control(phone)
 		var window: CaughtWindow = CaughtWindow.new()
-		window.attach(handler, npc_id, options)
+		window.attach(handler, npc_id, handler.get_options())
 		window.set_meta(UIRoot.META_DIM, false)
+		window.tree_exited.connect(_on_window_gone.bind(window), CONNECT_ONE_SHOT)
+		current = window
 		ui.open_modal(window, false)
 
+	func _on_window_gone(window: CaughtWindow) -> void:
+		if window == current:
+			current = null
+		if waiting:
+			_open_waiting.call_deferred()
 
-## Anillo de cuenta atrás con los segundos en el centro.
+	## La flagrancia que esperaba turno, con los segundos que le queden de verdad.
+	func _open_waiting() -> void:
+		waiting = false
+		if is_instance_valid(ui) and ui.is_inside_tree() and handler.is_window_open():
+			_open(str(handler.get_options().get("npc_id", "")))
+
+	func is_waiting() -> bool:
+		return waiting
+
+
+## Anillo de cuenta atrás con los segundos en el centro; apagado (gris, icono del desenlace) al terminar.
 class Dial extends Control:
 	var fraction: float = 1.0
 	var seconds: int = 0
 	var urgent: bool = false
 	var pulse: float = 0.0
+	var done_glyph: String = ""
+	var done_tone: String = "muted"
+	var ems: float = CaughtWindow.DIAL_EMS
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -82,8 +128,23 @@ class Dial extends Control:
 
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_THEME_CHANGED:
-			var side: float = PhoneOverlay.base_size(self) * CaughtWindow.DIAL_EMS
-			custom_minimum_size = Vector2(side, side)
+			set_ems(ems)
+
+	func set_ems(p_ems: float) -> void:
+		ems = p_ems
+		var side: float = PhoneOverlay.base_size(self) * ems
+		custom_minimum_size = Vector2(side, side)
+
+	func finish(glyph: String, tone: String) -> void:
+		done_glyph = glyph
+		done_tone = tone
+		fraction = 0.0
+		seconds = 0
+		pulse = 0.0
+		queue_redraw()
+
+	func is_finished() -> bool:
+		return not done_glyph.is_empty()
 
 	func _draw() -> void:
 		var c: Vector2 = size * 0.5
@@ -93,6 +154,12 @@ class Dial extends Control:
 		var col: Color = UITheme.color("danger" if urgent else "hazard")
 		draw_circle(c, r + 3.0, CharacterStyle.OUTLINE)
 		draw_circle(c, r, UITheme.color("ink"))
+		if is_finished():
+			var tone: Color = UITheme.color(done_tone)
+			draw_arc(c, r * 0.8, 0.0, TAU, 48, Color(UITheme.color("faint"), 0.5), r * 0.22, true)
+			PhoneOverlay.draw_glyph(self, done_glyph, Rect2(c - Vector2(r, r) * 0.52, Vector2(r, r) * 1.04), tone,
+					maxf(r * 0.11, 2.0))
+			return
 		draw_arc(c, r * 0.8, 0.0, TAU, 48, Color(col, 0.18), r * 0.22, true)
 		if fraction > 0.0:
 			draw_arc(c, r * 0.8, -PI * 0.5, -PI * 0.5 + TAU * fraction, 48, col, r * 0.22, true)
@@ -119,6 +186,8 @@ class OptionCard extends Button:
 	var armed: bool = false
 	var hotkey: String = ""
 	var pulse: float = 0.0
+	var _cache: Dictionary = {}
+	var _cache_key: String = ""
 
 	func _init() -> void:
 		focus_mode = Control.FOCUS_NONE
@@ -130,6 +199,8 @@ class OptionCard extends Button:
 			refresh_size()
 
 	func set_texts(p_title: String, p_detail: String) -> void:
+		if p_title == title and p_detail == detail:
+			return
 		title = p_title
 		detail = p_detail
 		refresh_size()
@@ -137,11 +208,19 @@ class OptionCard extends Button:
 
 	func refresh_size() -> void:
 		var base: float = PhoneOverlay.base_size(self)
-		var m: Dictionary = _metrics(base, maxf(size.x, base * CaughtWindow.CARD_WIDTH_EMS))
+		var m: Dictionary = metrics(base, maxf(size.x, base * CaughtWindow.CARD_WIDTH_EMS))
 		var h: float = base * 1.8 + float(m["title_h"]) + base * 0.3 + float(m["detail_h"])
 		var wanted: Vector2 = Vector2(base * CaughtWindow.CARD_WIDTH_EMS, ceilf(maxf(h, base * 5.0)))
 		if not wanted.is_equal_approx(custom_minimum_size):
 			custom_minimum_size = wanted
+
+	## Medidas del texto envuelto, recalculadas solo si cambian el texto, el tamaño base o el ancho.
+	func metrics(base: float, width: float) -> Dictionary:
+		var key: String = "%s|%s|%d|%d" % [title, detail, roundi(base * 100.0), roundi(width)]
+		if key != _cache_key:
+			_cache_key = key
+			_cache = _metrics(base, width)
+		return _cache
 
 	func _metrics(base: float, width: float) -> Dictionary:
 		var side: float = base * 2.0
@@ -196,7 +275,7 @@ class OptionCard extends Button:
 	func _draw_text(base: float, col: Color) -> void:
 		var ink: Color = UITheme.color("faint") if disabled and not flagged_red else UITheme.color("paper")
 		var accent: Color = col.lightened(0.3) if not disabled or flagged_red else ink
-		var m: Dictionary = _metrics(base, size.x)
+		var m: Dictionary = metrics(base, size.x)
 		var side: float = float(m["side"])
 		var icon_r: Rect2 = Rect2(base * 0.9, base * 0.9, side, side)
 		PhoneOverlay.draw_glyph(self, "lock" if flagged_red else glyph, icon_r, accent, maxf(side * 0.08, 2.0))
@@ -237,6 +316,10 @@ var _outcome: String = ""
 var _reaction: Dictionary = {}
 var _result_left: float = 0.0
 var _clock: float = 0.0
+var _closed_sent: bool = false
+var _placed: bool = false
+var _fitted: bool = false
+var _short: bool = false
 var _card: PanelContainer
 var _badge: PhoneOverlay.Glyph
 var _title: Label
@@ -266,7 +349,10 @@ func _init() -> void:
 	_card.add_theme_stylebox_override("panel", PhoneOverlay.box(UITheme.color("ink"),
 			UITheme.color("danger"), 18, 30.0, 24.0, 3))
 	add_child(_card)
-	UITheme.center_fitted(_card)
+	_card.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_card.grow_vertical = Control.GROW_DIRECTION_END
+	UITheme.keep_fitted(_card)
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
 	_card.add_child(column)
@@ -368,11 +454,13 @@ func _build_result() -> Control:
 	return _result_panel
 
 
+## Una sola vez por CaughtHandler; si ya tenía Binder (UIRoot nueva tras cambiar de escena), lo reata.
 static func install(ui: UIRoot, caught_handler: CaughtHandler) -> Node:
 	if ui == null or caught_handler == null:
 		return null
 	for child: Node in caught_handler.get_children():
 		if child is Binder:
+			(child as Binder).ui = ui
 			return child
 	var binder: Binder = Binder.new(ui, caught_handler)
 	caught_handler.add_child(binder)
@@ -392,17 +480,25 @@ func attach(p_handler: CaughtHandler, npc_id: String, options: Dictionary) -> vo
 func _ready() -> void:
 	EventBus.npc_decided.connect(_on_npc_decided)
 	EventBus.money_changed.connect(_on_money_changed)
+	EventBus.game_over.connect(_on_game_over)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED or what == NOTIFICATION_THEME_CHANGED:
+		_fit_to_screen()
 
 
 func _process(delta: float) -> void:
 	_clock += delta
-	var pulse: float = 0.5 + 0.5 * sin(_clock * TAU * PhoneOverlay.tune(B_PULSE_HZ))
+	_place_card(delta)
+	queue_redraw()
 	if _state == STATE_RESULT:
 		_result_left -= delta
 		if _result_left <= 0.0:
 			set_process(false)
-			closed.emit()
+			_emit_closed()
 		return
+	var pulse: float = 0.5 + 0.5 * sin(_clock * TAU * PhoneOverlay.tune(B_PULSE_HZ))
 	_seconds_left = maxf(_seconds_left - delta, 0.0)
 	_dial.fraction = clampf(_seconds_left / maxf(_deadline, 0.001), 0.0, 1.0)
 	_dial.seconds = ceili(_seconds_left)
@@ -410,9 +506,62 @@ func _process(delta: float) -> void:
 	_dial.pulse = pulse if _dial.urgent else 0.0
 	_dial.queue_redraw()
 	for card: OptionCard in [_bribe_card, _elim_card]:
-		card.pulse = pulse
-		card.queue_redraw()
-	queue_redraw()
+		if card.armed:
+			card.pulse = pulse
+			card.queue_redraw()
+
+
+## Otra flagrancia espera turno: la reacción que se está enseñando dura menos.
+func hurry_result() -> void:
+	if _state == STATE_RESULT:
+		_result_left = minf(_result_left, PhoneOverlay.tune(B_QUEUE_S))
+
+
+func is_short_layout() -> bool:
+	return _short
+
+
+## Pantalla baja (móvil apaisado, texto grande): foto y reloj más pequeños.
+func _fit_to_screen() -> void:
+	if _photo == null or not is_inside_tree():
+		return
+	var short: bool = size.y < PhoneOverlay.base_size(self) * SHORT_SCREEN_EMS
+	if short == _short and _fitted:
+		return
+	_fitted = true
+	_short = short
+	_photo.set_ems(PORTRAIT_EMS_SHORT if short else PORTRAIT_EMS)
+	_dial.set_ems(DIAL_EMS_SHORT if short else DIAL_EMS)
+
+
+## Centrada; si hay avisos arriba y cabe, justo por debajo de ellos (sin saltos: se desliza).
+func _place_card(delta: float) -> void:
+	var h: float = _card.size.y
+	if h <= 0.0:
+		return
+	var target: float = (size.y - h) * 0.5
+	var toasts: float = _toast_bottom()
+	if toasts > 0.0:
+		target = maxf(target, toasts + CARD_TOAST_GAP)
+	target = clampf(target, 0.0, maxf(size.y - h - CARD_EDGE, 0.0))
+	var y: float = lerpf(_card.offset_top, target, clampf(delta * CARD_EASE, 0.0, 1.0)) if _placed else target
+	_placed = true
+	_card.offset_top = y
+	_card.offset_bottom = y + h
+
+
+func _toast_bottom() -> float:
+	var ui: UIRoot = UIRoot.find(get_tree())
+	var toasts: ToastStack = ui.get_toasts() if ui != null else null
+	if toasts == null or not toasts.is_visible_in_tree() or toasts.get_toast_count() == 0:
+		return 0.0
+	return toasts.get_global_rect().end.y - get_global_rect().position.y
+
+
+func _emit_closed() -> void:
+	if not _closed_sent:
+		_closed_sent = true
+		closed.emit()
 
 
 func _draw() -> void:
@@ -631,6 +780,7 @@ func _show_result(text: String, tone: String) -> void:
 	_result_label.text = text
 	_set_card_enabled(_bribe_card, false)
 	_set_card_enabled(_elim_card, false)
+	_dial.finish(str(TONE_GLYPHS.get(tone, "cross")), tone)
 	_result_left = PhoneOverlay.tune(B_RESULT_S)
 	_refresh_state()
 
@@ -647,7 +797,7 @@ func _on_closed(npc_id: String, outcome: String) -> void:
 		return
 	_outcome = outcome
 	if outcome == CaughtHandler.OUTCOME_GAME_OVER:
-		closed.emit()
+		_emit_closed()
 		return
 	var who: String = str(_options.get("npc_name", ""))
 	var text: String = UITheme.trf(OUTCOME_KEY % outcome.to_upper(), [who])
@@ -676,6 +826,15 @@ func _on_npc_decided(npc_id: String, _action: String, context: Dictionary) -> vo
 func _on_money_changed(_old_value: int, _new_value: int, _reason: String) -> void:
 	if _state != STATE_RESULT:
 		_apply_options(_current_options())
+
+
+func _on_game_over(_cause: String, _ending_id: String, _snapshot: Dictionary) -> void:
+	set_process(false)
+	_emit_closed()
+
+
+func get_dial() -> Dial:
+	return _dial
 
 
 ## Tecla de opción: la primera pulsación arma; la misma tecla otra vez confirma (dos gestos, §13.7).

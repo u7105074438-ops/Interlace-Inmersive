@@ -1,23 +1,38 @@
-# phone_case.gd — Cuerpo de test_phone: superposición sin pausa, superior que ve el móvil, contactos, chat con registro, llamada escuchada, N5 y silencio.
+# phone_case.gd — Cuerpo de test_phone: superposición sin pausa, superior que ve el móvil (enfriamiento entre aperturas), contactos, chat con registro, llamada escuchada, sitios seguros, N5, contraoferta sin fondos, chantaje desde el chat, silencio y modo compacto.
 # PROPIETARIO DE: nada.
-# ESCUCHA: player_seen_partially, record_created, bribe_offered, bribe_result, belief_created (registro durante el caso).
+# ESCUCHA: player_seen_partially, record_created, bribe_offered, bribe_result, belief_created, game_over (registro durante el caso).
 extends TestCase
 
 const Fixtures := preload("res://tests/cases/bribery_fixtures.gd")
 const ROOM := "wing_3b"
 const SAFE_ROOM := "p3_toilets"
+const STAIRS := "service_stairs@3"
 const CHIEF := "npc_bernard_lasker"
 const GOSSIP := "npc_debbie_foyle"
 const CLIMBER := "npc_claudia_reeves"
 const OBLIVIOUS := "npc_nate_brackley"
 const DIRECTOR := "npc_diana_sedgwick"
+const BLACKMAILER := "npc_george_penn"
 const N5_OCCUPATION := "a10_marketing_director"
 const MID_OCCUPATION := "senior_sales"
+const HR_OCCUPATION := "hr_assistant"
 const FAVOUR := "look_away_once"
+const OTHER_FAVOUR := "lend_access"
 const WALLET_MONEY := 50000
+const WORK_HOUR := 10
 const EPS := 0.0001
+const MOBILE_WINDOW := Vector2i(1170, 540)
 const WATCHED: Array[String] = ["player_seen_partially", "record_created", "bribe_offered",
 		"bribe_result", "belief_created", "game_over"]
+
+
+## Jugador de mentira (grupo "player") para comprobar que el móvil no bloquea el movimiento.
+class FakePlayer extends Node2D:
+	var locked: bool = false
+
+	func set_input_locked(on: bool) -> void:
+		locked = on
+
 
 var _log: Fixtures.SignalLog = null
 var _ui: UIRoot = null
@@ -34,13 +49,20 @@ func run_case() -> void:
 	_setup_room()
 	await _check_overlay_keeps_clock()
 	_check_superior_sees_phone()
+	await _check_cooldown_across_reopen()
 	_check_contacts()
+	await _check_contacts_budget()
 	_check_chat_record()
 	_check_call_overheard()
 	_check_call_private()
+	_check_service_stairs()
 	_check_estimate_n5()
+	_check_counteroffer_funds()
+	await _check_demand_from_chat()
 	_check_silent_and_messages()
 	_check_director_ignores()
+	_check_escape_steps_back()
+	await _check_compact_layout()
 	await _check_caught_closes_phone()
 	SaveSystem.set_setting(PhoneOverlay.SETTING_SILENCED, false)
 	_log.stop()
@@ -65,13 +87,14 @@ func _setup_room() -> void:
 
 
 ## Tiradas fijas: acepta si P > 0 (el caso comprueba canales, no la fórmula).
-func _prepare_panel(panel: BribePanel) -> Fixtures.FakeWallet:
+func _prepare_panel(panel: BribePanel, roll: float = 0.0) -> Fixtures.FakeWallet:
 	var wallet: Fixtures.FakeWallet = Fixtures.FakeWallet.new(WALLET_MONEY)
 	var phone: PhoneOverlay = _phone()
 	panel.wallet = wallet
 	panel.ctx_provider = func(channel: String) -> Dictionary:
 		var ctx: Dictionary = phone.offer_context(channel)
-		ctx["roll"] = 0.0
+		ctx["roll"] = roll
+		ctx["counter_roll"] = 0.5
 		return ctx
 	panel.refresh_funds()
 	return wallet
@@ -94,6 +117,9 @@ func _check_overlay_keeps_clock() -> void:
 	GameClock.resume()
 	var speed: float = GameClock.get_speed_multiplier()
 	var before: float = GameClock.get_total_minutes()
+	var fake: FakePlayer = FakePlayer.new()
+	add_child(fake)
+	fake.add_to_group("player")
 	_ui.open_phone()
 	var phone: PhoneOverlay = _ui.get_top_modal() as PhoneOverlay
 	check(phone != null, "UIRoot.open_phone() instantiates src/ui/mobile/phone.gd")
@@ -110,6 +136,19 @@ func _check_overlay_keeps_clock() -> void:
 	check(typing.is_empty(), "no text fields: the phone never needs to lock movement for typing")
 	check(bool(phone.get_meta(PhoneOverlay.META_OVERLAY, false)), "it flags itself as a non-blocking overlay")
 	check(PhoneOverlay.find_service(get_tree()) != null, "the session inbox service is installed")
+	_check_movement(fake)
+	fake.remove_from_group("player")
+	fake.queue_free()
+
+
+## El bloqueo de movimiento lo aplica UIRoot (no es de este constructor): ver REQUESTS 1-2.
+func _check_movement(fake: FakePlayer) -> void:
+	if not _ui.has_method("blocks_world_input"):
+		print("PENDING (REQUEST ui_root.gd/player.gd): UIRoot.blocks_world_input() missing; with the phone open "
+				+ "the player is locked=%s (must be false once the request lands)" % fake.locked)
+		return
+	check(not bool(_ui.call("blocks_world_input")), "UIRoot: the phone overlay does not block world input")
+	check(not fake.locked, "…and the player can keep moving with the phone open (PASO 26)")
 
 
 func _check_superior_sees_phone() -> void:
@@ -134,29 +173,76 @@ func _check_superior_sees_phone() -> void:
 			"no spam: one report per superior per movil.enfriamiento_superior_segundos")
 
 
+## Pulsar M tres veces delante del jefe no triplica su creencia: el enfriamiento vive en el Service.
+func _check_cooldown_across_reopen() -> void:
+	_log.clear()
+	for i: int in 3:
+		_ui.open_phone()
+		await wait_frames(2)
+		check(not PhoneOverlay.is_open(get_tree()), "M toggles the phone away (%d)" % (i + 1))
+		_ui.open_phone()
+		await wait_frames(2)
+	check_eq(_log.count_for("player_seen_partially", CHIEF), 0,
+			"closing and reopening the phone does not reset the superior's cooldown")
+	var service: PhoneOverlay.Service = _phone().get_service()
+	service.advance(Database.get_balance_float("movil.enfriamiento_superior_segundos") + 0.1)
+	_phone().refresh_exposure()
+	check_eq(_log.count_for("player_seen_partially", CHIEF), 1, "…once the cooldown has passed, he notices again")
+
+
 func _check_contacts() -> void:
-	var rows: Array[Dictionary] = PhoneContactsTab.list_contacts()
-	check(not rows.is_empty(), "the player's room colleagues are contacts (proximity at work)")
 	var occupation: OccupationData = PlayerState.get_occupation()
 	check_eq(PhoneContactsTab.contact_source(_npc(GOSSIP), occupation), PhoneContactsTab.SOURCE_COLLEAGUE,
-			"Debbie's number comes from working next to her")
+			"fallback: Debbie's number comes from working next to her")
+	check(not PhoneContactsTab.is_contact(GOSSIP), "a fresh run starts with no numbers (PlayerState.get_contacts)")
+	GameClock.set_time(GameClock.get_day(), WORK_HOUR, 0)
+	for i: int in Database.get_balance_int("movil.horas_proximidad_contacto"):
+		EventBus.hour_passed.emit(WORK_HOUR + i, GameClock.get_day())
+		_setup_room()
+	var source: String = ""
+	for entry: Dictionary in PhoneContactsTab.list_contacts():
+		if str(entry["npc_id"]) == GOSSIP:
+			source = str(entry["source"])
+	check_eq(source, PhoneContactsTab.SOURCE_COLLEAGUE,
+			"after movil.horas_proximidad_contacto working hours in her room she is a contact (proximity)")
 	var stranger: NPCRuntime = _find_stranger(occupation)
-	check(stranger != null and PhoneContactsTab.contact_source(stranger, occupation).is_empty(),
+	check(stranger != null and not PhoneContactsTab.is_contact(stranger.id),
 			"a stranger from another department is not a contact")
 	if stranger != null:
 		NPCDirector.add_favour(stranger.id, "test_favour", 1)
-		check_eq(PhoneContactsTab.contact_source(stranger, occupation), PhoneContactsTab.SOURCE_FAVOUR,
-				"a favour in their ledger gives you their number")
+		check(PhoneContactsTab.is_contact(stranger.id), "a favour in their ledger gives you their number")
 	_phone().show_tab(PhoneOverlay.TAB_CONTACTS)
+	_phone().get_contacts_tab().flush_rows()
 	check(_phone().get_contacts_tab().has_contact(GOSSIP), "the contacts tab lists her")
+	check_eq(PhoneOverlay.TAB_ICONS[PhoneOverlay.TAB_CONTACTS], "personal", "the Contacts tab shows a person glyph")
 
 
 func _find_stranger(occupation: OccupationData) -> NPCRuntime:
 	for npc: NPCRuntime in NPCDirector.get_all_npcs():
 		if npc.home_room != occupation.office_room and npc.department != str(occupation.extra.get("department", "")) \
-				and PhoneContactsTab.contact_source(npc, occupation).is_empty() and npc.tier < 5:
+				and npc.current_room != ROOM and not PhoneContactsTab.is_contact(npc.id) and npc.tier < 5:
 			return npc
 	return null
+
+
+## En RR. HH. hay un número por empleado: la lista se construye por tandas, sin congelar el fotograma.
+func _check_contacts_budget() -> void:
+	PlayerState.set_occupation(HR_OCCUPATION, "test")
+	var tab: PhoneContactsTab = _phone().get_contacts_tab()
+	_phone().show_tab(PhoneOverlay.TAB_CONTACTS)
+	var total: int = tab.get_rows().size()
+	var budget: int = Database.get_balance_int("movil.filas_contactos_por_fotograma")
+	check(total > budget * 3, "working in HR gives every number (%d)" % total)
+	check(tab.get_row_count() <= budget * 2, "…but only a batch of rows is built on the first frame")
+	for i: int in ceili(float(total) / budget) + 2:
+		await wait_frames(1)
+	check_eq(tab.get_row_count(), total, "…and the rest arrive over the next frames")
+	var first: Control = tab.get_row_node(GOSSIP)
+	tab.refresh()
+	check(tab.get_row_count() == total and first != null and tab.get_row_node(GOSSIP) == first,
+			"a refresh reuses the rows it already has")
+	PlayerState.set_occupation(_start_occupation, "test")
+	_phone().show_tab(PhoneOverlay.TAB_CONTACTS)
 
 
 # ─── Canales ───────────────────────────────────────────────────────
@@ -212,21 +298,44 @@ func _check_call_private() -> void:
 			"toilets are safe for calls, the open-plan wing is not (rooms.safe_for_calls)")
 	check(PhoneOverlay.hearing_radius(SAFE_ROOM) < PhoneOverlay.hearing_radius(ROOM),
 			"voices carry further outside the safe rooms")
-	EventBus.room_entered.emit(SAFE_ROOM, true)
-	for npc: NPCRuntime in NPCDirector.get_all_npcs():
-		if npc.current_room == SAFE_ROOM:
-			npc.current_room = ROOM
+	_enter_alone(SAFE_ROOM)
 	var exposure: Dictionary = _phone().refresh_exposure()
 	check((exposure[PhoneOverlay.EXPO_LISTENERS] as Array).is_empty() and bool(exposure[PhoneOverlay.EXPO_SAFE]),
 			"alone in the toilets nobody can hear you")
-	var result: Dictionary = _offer(CLIMBER, Bribery.CHANNEL_PHONE_CALL, "lend_access")
+	var result: Dictionary = _offer(CLIMBER, Bribery.CHANNEL_PHONE_CALL, OTHER_FAVOUR)
 	check(bool(result.get("ok", false)) and not (result.get("effects", []) as Array).has(Bribery.EFFECT_OVERHEARD),
 			"a private call is not overheard")
 	_phone().close_bribe()
 	EventBus.room_entered.emit(ROOM, true)
 
 
-# ─── Precio estimado, silencio y directivos ────────────────────────
+func _enter_alone(room_id: String) -> void:
+	EventBus.room_entered.emit(room_id, true)
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if npc.current_room == room_id:
+			npc.current_room = ROOM
+
+
+## §13.5: la escalera de servicio (pieza transversal, id con «@planta») también es segura.
+func _check_service_stairs() -> void:
+	check(PhoneOverlay.is_call_safe_room(STAIRS) and PhoneOverlay.is_call_safe_room("service_stairs"),
+			"the service stairs are a safe place for calls (with or without the floor suffix)")
+	check(not PhoneOverlay.is_call_safe_room("corridors_low@3"), "…the transversal corridor is not")
+	check_near(PhoneOverlay.hearing_radius(STAIRS), PhoneOverlay.hearing_radius(SAFE_ROOM), EPS,
+			"…with the same short hearing radius as the toilets")
+	_enter_alone(STAIRS)
+	var phone: PhoneOverlay = _phone()
+	var exposure: Dictionary = phone.refresh_exposure()
+	check(bool(exposure[PhoneOverlay.EXPO_SAFE]), "the exposure strip calls the stairwell a private spot")
+	phone.show_tab(PhoneOverlay.TAB_CALL)
+	check(not phone.get_call_tab().get_privacy_text().contains(tr("PHONE_PRIVACY_HINT")),
+			"…and the privacy card no longer tells you to go to the toilets or the stairs")
+	EventBus.room_entered.emit(ROOM, true)
+	phone.refresh_exposure()
+	phone.show_tab(PhoneOverlay.TAB_CONTACTS)
+
+
+# ─── Precio estimado, contraoferta, chantaje, silencio y directivos ─
 
 func _check_estimate_n5() -> void:
 	var phone: PhoneOverlay = _phone()
@@ -247,6 +356,73 @@ func _check_estimate_n5() -> void:
 	check(panel.get_estimate_text().contains(UITheme.format_money(estimate)), "…printed on the panel")
 	phone.close_bribe()
 	PlayerState.set_occupation(_start_occupation, "test")
+
+
+## «Ofrecer lo que piden» nunca ofrece menos de lo pedido: sin fondos se deshabilita.
+func _check_counteroffer_funds() -> void:
+	var dealer: NPCRuntime = Fixtures.synthetic("test_bribable", "bribable")
+	var panel: BribePanel = _phone().get_bribe_panel()
+	panel.npc_resolver = func(npc_id: String) -> NPCRuntime: return dealer if npc_id == dealer.id else null
+	_phone().open_bribe(dealer.id, Bribery.CHANNEL_MOBILE_CHAT)
+	var wallet: Fixtures.FakeWallet = _prepare_panel(panel, 0.99)
+	panel.select_favour(FAVOUR)
+	panel.set_amount(Bribery.fair_price(dealer, FAVOUR))
+	panel.request_offer()
+	var first: Dictionary = panel.confirm_offer()
+	var asked: int = panel.asked_price()
+	check(str(first.get("outcome", "")) == Bribery.OUTCOME_COUNTEROFFER and asked > 0, "they ask for more")
+	_log.clear()
+	wallet.money = asked - 1
+	panel.refresh_funds()
+	check(not panel.can_pay_asked() and not panel.accept_counteroffer(),
+			"short of the asked price: 'Offer what they ask' is disabled and cannot arm a lower offer")
+	check(panel.get_state() == BribePanel.STATE_RESULT and _log.count("bribe_offered") == 0,
+			"…no second offer, no second permanent record")
+	_phone().close_bribe()
+	_phone().open_bribe(dealer.id, Bribery.CHANNEL_MOBILE_CHAT)
+	check(panel.get_favour() == FAVOUR and panel.asked_price() == asked,
+			"closing and reopening the panel keeps their counteroffer (per contact and favour)")
+	panel.step_favour(1)
+	check_eq(panel.asked_price(), 0, "another favour has no standing counteroffer")
+	panel.step_favour(-1)
+	wallet.money = asked + 3
+	panel.refresh_funds()
+	check(panel.accept_counteroffer() and panel.get_amount() == asked,
+			"with enough money it arms exactly the asked price (%d)" % asked)
+	var second: Dictionary = panel.confirm_offer()
+	check_eq(str(second.get("outcome", "")), Bribery.OUTCOME_ACCEPTED, "paying what they ask is accepted")
+	check_eq(wallet.money, 3, "exactly the asked price was paid")
+	panel.npc_resolver = Callable()
+	_phone().close_bribe()
+
+
+## Exigencia por chat: responder no pausa el reloj, deja registro y la conversación se actualiza.
+func _check_demand_from_chat() -> void:
+	var npc: NPCRuntime = _npc(BLACKMAILER)
+	var entry: Dictionary = Blackmail.add_material(npc, Blackmail.KIND_WITNESSED, "drawer_forced",
+			GameClock.get_day(), Blackmail.DEMAND_MONEY, 0)
+	Blackmail.issue_demand(npc, entry, GameClock.get_day())
+	await wait_frames(2)
+	var phone: PhoneOverlay = _phone()
+	phone.open_chat(BLACKMAILER)
+	check(phone.get_chat_tab().can_answer_demand(), "the chat offers to answer their demand")
+	phone.get_chat_tab().answer_demand()
+	var dialog: BlackmailDialog = _ui.get_top_modal() as BlackmailDialog
+	check(dialog != null and not _ui.is_clock_paused_by_ui(), "answering from the chat does not pause the world")
+	check(dialog != null and bool(dialog.get_meta(PhoneOverlay.META_OVERLAY, false)) and dialog.replies_by_chat(),
+			"…it is part of the phone overlay and warns that the reply is written")
+	if dialog == null:
+		return
+	dialog.wallet = Fixtures.FakeWallet.new(WALLET_MONEY)
+	dialog.press_pay()
+	var paid: Dictionary = dialog.confirm()
+	check(bool(paid.get("ok", false)) and not dialog.record_id.is_empty(),
+			"paying through the company chat leaves a chat_log record")
+	dialog.closed.emit()
+	await wait_frames(3)
+	check(_ui.get_top_modal() == phone and not phone.get_chat_tab().can_answer_demand(),
+			"back in the chat, the settled demand no longer shows 'Answer their demand'")
+	phone.get_chat_tab().close_thread()
 
 
 func _check_silent_and_messages() -> void:
@@ -277,6 +453,48 @@ func _check_director_ignores() -> void:
 	PlayerState.set_occupation(MID_OCCUPATION, "test")
 	check(PhoneContactsTab.will_answer(director), "a player close enough in rank gets an answer")
 	PlayerState.set_occupation(_start_occupation, "test")
+
+
+func _check_escape_steps_back() -> void:
+	var phone: PhoneOverlay = _phone()
+	phone.open_chat(GOSSIP)
+	phone.request_close()
+	check(PhoneOverlay.is_open(get_tree()) and phone.get_chat_tab().get_thread().is_empty(),
+			"Esc inside a chat thread goes back to the chat list, not out of the phone")
+
+
+## Pantalla de móvil (1170×540, táctil, texto grande): deslizador, precio y riesgo siempre a la vista.
+func _check_compact_layout() -> void:
+	var window: Window = get_tree().root
+	var old_size: Vector2i = window.size
+	window.size = MOBILE_WINDOW
+	_ui.set_text_options(UITheme.TEXT_LARGE, false)
+	_ui.set_touch_mode(true)
+	await wait_frames(4)
+	var phone: PhoneOverlay = _phone()
+	check(phone.is_compact(), "a landscape phone screen with large text switches the phone to compact mode")
+	phone.open_bribe(GOSSIP, Bribery.CHANNEL_MOBILE_CHAT)
+	await wait_frames(4)
+	var panel: BribePanel = phone.get_bribe_panel()
+	var page: Rect2 = panel.get_global_rect()
+	var body: Rect2 = (panel.get("_scroll") as Control).get_global_rect()
+	for node_name: String in ["_slider", "_send_button"]:
+		var node: Control = panel.get(node_name) as Control
+		check(page.encloses(node.get_global_rect()), "compact bribe panel: %s is fully on screen" % node_name)
+	for node_name: String in ["_estimate_label", "_risk_label"]:
+		var line: Control = panel.get(node_name) as Control
+		check(body.encloses(line.get_global_rect()), "compact bribe panel: %s is not scrolled out of view" % node_name)
+	phone.close_bribe()
+	phone.open_chat(BLACKMAILER)
+	await wait_frames(4)
+	var em: float = PhoneOverlay.base_size(phone)
+	check(phone.get_chat_tab().get_bubble_area_height() >= em * PhoneChatTab.BUBBLES_MIN_EMS - 1.0,
+			"compact chat: the message list keeps room for whole messages")
+	phone.get_chat_tab().close_thread()
+	window.size = old_size
+	_ui.set_touch_mode(false)
+	_ui.set_text_options(UITheme.TEXT_MEDIUM, false)
+	await wait_frames(4)
 
 
 func _check_caught_closes_phone() -> void:

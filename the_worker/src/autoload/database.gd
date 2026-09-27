@@ -26,8 +26,12 @@ extends Node
 ##   get_rooms_by_floor(p) = salas de p + esas copias. get_all_rooms() y get_rooms_by_clearance()
 ##   solo devuelven salas base (166 con el edificio completo).
 ## · Objetos (§11.3): catálogo en balance.json → objetos (clave = id; ver su _nota).
+## · Partida: lo único de Database que pertenece a la partida es el preset de dificultad activo
+##   (§15.7): save_state()/load_state() lo guardan y restauran (SaveSystem carga Database antes que
+##   el resto de sistemas, así cada load_state ya lee los modificadores de esa partida).
 
 const DATA_DIR := "res://data/"
+const S_DIFFICULTY := "difficulty_preset"
 const JSON_EXTENSION := ".json"
 const ROOMS_PREFIX := "rooms/"
 const ROOMS_KIND := "rooms"
@@ -187,6 +191,22 @@ var _record_order: Dictionary = {}
 
 func reset_for_new_run() -> void:
 	pass
+
+
+## El preset de dificultad de la partida (§15.7).
+func save_state() -> Dictionary:
+	return {S_DIFFICULTY: get_difficulty_preset()}
+
+
+## Un preset desconocido (datos cambiados entre versiones) conserva el activo, con aviso.
+func load_state(data: Dictionary) -> void:
+	var preset: String = str(data.get(S_DIFFICULTY, ""))
+	if preset.is_empty() or preset == get_difficulty_preset():
+		return
+	if get_difficulty_presets().has(preset):
+		_difficulty_preset = preset
+	else:
+		push_warning(PRESET_UNKNOWN_FORMAT % preset)
 
 
 # ─── Carga y validación al arrancar ───────────────────────────

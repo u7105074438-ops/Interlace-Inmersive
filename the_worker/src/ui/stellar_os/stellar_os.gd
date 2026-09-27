@@ -1,6 +1,6 @@
 # stellar_os.gd — StellarOS (§13.3, §15.1, PASO 22/25): escritorio a pantalla completa, arranque por nivel del equipo, barra de tareas, ventanas de aplicación, anuncios internos y sesión de invitado por intrusión.
-# PROPIETARIO DE: la sesión de escritorio abierta (aplicación en primer plano, anuncios visibles, progreso del arranque), la ralentización del reloj cuando nadie más la gestiona y, si la partida no aporta uno, un DutySystem de respaldo mientras está abierto.
-# ESCUCHA: nada (lee GameClock, PlayerState, NPCDirector y Database; las aplicaciones escuchan lo suyo).
+# PROPIETARIO DE: la sesión de escritorio abierta (aplicación en primer plano, anuncios visibles, progreso del arranque, acto del jugador en sesión de invitado), la ralentización del reloj cuando nadie más la gestiona y, si la partida no aporta uno, el DutySystem de respaldo (uno por partida, hijo de UIRoot).
+# ESCUCHA: duty_progressed, duty_completed, duty_failed (insignia de MAIL); el respaldo, además, lo que escucha DutySystem y run_started.
 class_name StellarOS
 extends Control
 
@@ -24,8 +24,18 @@ extends Control
 ##  · PERSONNEL, PORTAL y MARKET son de otro constructor: se cargan si su archivo existe; si no,
 ##    ventana «404: aplicación no desplegada». MARKET solo aparece si la ocupación la desbloquea
 ##    (occupations.json unlocks_apps contiene "MARKET", desde R25).
-##  · Deberes: se usa el DutySystem de la partida (grupo "duty_system"); si no hay ninguno (pruebas,
-##    escenarios) se crea uno de respaldo hijo del escritorio, que vive mientras está abierto.
+##  · Deberes: se usa el DutySystem de la partida (grupo "duty_system", lo añade game_root). Si no
+##    hay ninguno se crea UNO de respaldo (OSFallbackDuties) hijo de UIRoot (o de la raíz): sobrevive
+##    a cerrar el ordenador, así que la bandeja cambia cada jornada, la lotería sigue su RNG, el
+##    rastro de A.S.S.I.S.T. se acumula y las consecuencias de duty_failed se ejecutan aunque el
+##    ordenador esté cerrado. Se reinicia con otra partida (run_started, otra semilla o el reloj
+##    hacia atrás) y se retira en cuanto aparece el DutySystem de la partida (nunca hay dos que
+##    ejecuten consecuencias). No se guarda: SaveSystem solo guarda autoloads (petición abierta).
+##  · Sesión de invitado = acto ilegal visible: mientras dura, el jugador (grupo "player") está en
+##    begin_act("file_copied") (animación sentado tecleando); quien entre en la sala ve a alguien en
+##    el ordenador de otro. Al cerrar, end_act(). El delito solo se emite si de verdad se copia.
+##  · Tamaño de texto y alto contraste se vuelven a aplicar en caliente (apply_settings) si UIRoot
+##    los cambia con el ordenador abierto.
 
 signal booted()
 signal app_opened(app_id: String)
@@ -67,6 +77,10 @@ const ACTION_SEND := "enviar"
 const ACTION_GENERATE := "generar"
 const ACTION_COPY := "copiar"
 const B_BALLOON := "interfaz.toast_segundos"
+const B_TOUCH_TITLE := "ordenador.barra_titulo_tactil_factor"
+const FALLBACK_DUTIES_NAME := "FallbackDutySystem"
+const PLAYER_GROUP := "player"
+const GUEST_ACT := "file_copied"
 ## Contenido (no ajustes): anuncios OS_AD_<n>_* y consejos de arranque OS_BOOT_TIP_<n>.
 const AD_ICONS: Array[String] = ["drop", "star", "user", "shoe", "portal", "idea", "warning", "hourglass"]
 const BOOT_TIP_COUNT := 6
@@ -96,7 +110,6 @@ var _app_id: String = ""
 var _opening: bool = false
 var _clock_owned: bool = false
 var _speed_before: float = 1.0
-var _fallback_duties: DutySystem = null
 var _icons: Dictionary = {}
 var _desktop_apps: Array[String] = []
 var _window_layer: Control
@@ -108,6 +121,13 @@ var _boot: OSBootScreen
 var _balloon: PanelContainer
 var _balloon_label: Label
 var _balloon_left: float = 0.0
+var _clock_stamp: int = -1
+var _speed_stamp: float = -1.0
+var _ad_interval: float = 0.0
+var _style_key: Array = []
+var _badges_queued: bool = false
+var _act_begun: bool = false
+var _boot_tip_offset: int = 0
 
 
 # ─── Piezas del escritorio (clases internas) ───────────────────────
@@ -227,17 +247,18 @@ class OSWindow extends Control:
 		mouse_filter = Control.MOUSE_FILTER_STOP
 		_title = OSApp.make_label(title_text, OSTheme.V_ON_DARK, false, true)
 		add_child(_title)
-		_min = _title_button("_", minimise_pressed)
-		_close = _title_button("×", close_pressed)
+		_min = _title_button("_", minimise_pressed, OSTheme.V_TITLE_BUTTON)
+		_close = _title_button("×", close_pressed, OSTheme.V_TITLE_CLOSE)
 		body = MarginContainer.new()
 		for side: String in ["left", "right", "top", "bottom"]:
 			body.add_theme_constant_override("margin_" + side, roundi(base * 0.4))
 		add_child(body)
 		_build_status()
 
-	func _title_button(glyph: String, sig: Signal) -> Button:
+	func _title_button(glyph: String, sig: Signal, variation: String) -> Button:
 		var b: Button = Button.new()
 		b.text = glyph
+		b.theme_type_variation = variation
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_size_override("font_size", roundi(base * 0.8))
 		b.pressed.connect(func() -> void: sig.emit())
@@ -276,7 +297,7 @@ class OSWindow extends Control:
 			_layout()
 
 	func title_height() -> float:
-		return base * 1.6
+		return base * 1.6 * StellarOS.touch_factor()
 
 	func frame_width() -> float:
 		return OSTheme.bevel_width(base) * 3.0
@@ -285,7 +306,8 @@ class OSWindow extends Control:
 		var fw: float = frame_width()
 		var th: float = title_height()
 		var bs: float = th - fw * 1.5
-		_close.position = Vector2(size.x - fw - bs - base * 0.2, fw + (th - bs) * 0.25)
+		var inset: float = float(pal.get("radius", 0)) * 0.6
+		_close.position = Vector2(size.x - fw - bs - base * 0.2 - inset, fw + (th - bs) * 0.5)
 		_close.size = Vector2(bs, bs)
 		_min.position = _close.position - Vector2(bs + base * 0.15, 0)
 		_min.size = Vector2(bs, bs)
@@ -300,7 +322,7 @@ class OSWindow extends Control:
 
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
-		OSTheme.draw_bevel(self, r, pal, false, base)
+		OSTheme.draw_window_frame(self, r, pal, base)
 		var fw: float = frame_width()
 		var bar: Rect2 = Rect2(Vector2(fw, fw), Vector2(size.x - fw * 2.0, title_height()))
 		OSTheme.draw_title_bar(self, bar, pal, true)
@@ -639,9 +661,11 @@ class OSAdPopup extends Control:
 		add_child(title)
 		var close: Button = Button.new()
 		close.text = "×"
+		close.theme_type_variation = OSTheme.V_TITLE_CLOSE
 		close.focus_mode = Control.FOCUS_NONE
-		close.position = Vector2(size.x - base * 1.75, base * 0.3)
-		close.size = Vector2(base * 1.2, base * 1.2)
+		var side: float = base * 1.2 * StellarOS.touch_factor()
+		close.position = Vector2(size.x - side - base * 0.55, base * 0.3)
+		close.size = Vector2(side, side)
 		close.pressed.connect(func() -> void: dismissed.emit())
 		add_child(close)
 		add_child(_build_body())
@@ -709,6 +733,46 @@ class OSNotDeployedApp extends OSApp:
 		return "OS_404_WINDOW"
 
 
+## DutySystem de respaldo mientras game_root no aporte el suyo (ver DECISIONES): uno por partida,
+## vive en UIRoot y se retira en cuanto aparece el de la partida.
+class OSFallbackDuties extends DutySystem:
+	var _run_seed: int = 0
+	var _last_minutes: float = 0.0
+
+	func _ready() -> void:
+		super._ready()
+		_mark_run()
+		EventBus.run_started.connect(_on_run_started)
+
+	## true si hay otro DutySystem en el árbol (el de la partida).
+	func superseded() -> bool:
+		for node: Node in get_tree().get_nodes_in_group(DutySystem.GROUP):
+			if node != self and node is DutySystem and not node.is_queued_for_deletion():
+				return true
+		return false
+
+	## Otra partida (otra semilla o el reloj hacia atrás: partida nueva o carga) empieza de cero.
+	func ensure_current_run() -> void:
+		if GameClock.get_run_seed() != _run_seed or GameClock.get_total_minutes() < _last_minutes:
+			reset_for_new_run()
+		_mark_run()
+
+	func _mark_run() -> void:
+		_run_seed = GameClock.get_run_seed()
+		_last_minutes = GameClock.get_total_minutes()
+
+	func _on_run_started(_seed: int) -> void:
+		reset_for_new_run()
+		_mark_run()
+
+	## Nunca dos ejecutores de consecuencias: si ya hay otro, este se retira sin actuar.
+	func _on_duty_failed(duty_id: String, consequence: String) -> void:
+		if superseded():
+			queue_free()
+			return
+		super._on_duty_failed(duty_id, consequence)
+
+
 # ─── Ciclo de vida ────────────────────────────────────────────────
 
 func _init() -> void:
@@ -730,27 +794,36 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_managed = str(get_meta(META_KIND, "")) == KIND_COMPUTER
 	_tier = _resolve_tier()
-	_base = UITheme.base_font_size(UITheme.current_text_size)
-	_pal = OSTheme.palette_for_tier(_tier)
-	theme = OSTheme.build(_pal, _base)
 	_rng.seed = hash("%d:%s:%d" % [GameClock.get_run_seed(), RNG_SALT, GameClock.get_day()])
+	_ad_interval = OSTheme.per_tier(B_AD_INTERVAL, _tier)
+	_apply_style()
 	_build_desktop()
 	_take_clock()
 	_start_boot()
+	if is_guest():
+		_begin_guest_act()
 	EventBus.duty_progressed.connect(_on_duty_changed.unbind(2))
 	EventBus.duty_completed.connect(_on_duty_changed.unbind(3))
 	EventBus.duty_failed.connect(_on_duty_changed.unbind(2))
 
 
 func _exit_tree() -> void:
+	_end_guest_act()
 	_release_clock()
 
 
 func _process(delta: float) -> void:
+	if _style_key != _current_style_key():
+		apply_settings()
 	if not _booted:
 		_advance_boot(delta)
 		return
-	_taskbar.update_clock()
+	var stamp: int = floori(GameClock.get_total_minutes())
+	var speed: float = GameClock.get_speed_multiplier()
+	if stamp != _clock_stamp or speed != _speed_stamp:
+		_clock_stamp = stamp
+		_speed_stamp = speed
+		_taskbar.update_clock()
 	_tick_ads(delta)
 	_tick_balloon(delta)
 
@@ -775,6 +848,17 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _action(event: InputEvent, action: String) -> bool:
 	return InputMap.has_action(action) and event.is_action_pressed(action)
+
+
+## Un clic fuera del menú de inicio (papel pintado, ventana, iconos) lo cierra.
+func _input(event: InputEvent) -> void:
+	if _start_menu == null or not _start_menu.visible or not UITheme.is_primary_press(event):
+		return
+	var pos: Vector2 = (event as InputEventMouseButton).position if event is InputEventMouseButton \
+			else (event as InputEventScreenTouch).position
+	if not _start_menu.get_global_rect().has_point(pos) \
+			and not _taskbar.get_start_button().get_global_rect().has_point(pos):
+		_close_start_menu()
 
 
 # ─── API pública ──────────────────────────────────────────────────
@@ -904,18 +988,60 @@ func wait_lag(factor: float = 1.0) -> void:
 	_busy.end()
 
 
-## DutySystem de la partida; si no existe, uno de respaldo que vive con el escritorio.
+## DutySystem de la partida; si no existe, el de respaldo (uno por partida, hijo de UIRoot).
 func get_duty_system() -> DutySystem:
-	if is_instance_valid(_fallback_duties):
-		return _fallback_duties
-	if is_inside_tree():
-		for node: Node in get_tree().get_nodes_in_group(DutySystem.GROUP):
-			if node is DutySystem and not node.is_queued_for_deletion():
-				return node as DutySystem
-	_fallback_duties = DutySystem.new()
-	_fallback_duties.name = "FallbackDutySystem"
-	add_child(_fallback_duties)
-	return _fallback_duties
+	if not is_inside_tree():
+		return null
+	var fallback: OSFallbackDuties = null
+	var real: DutySystem = null
+	for node: Node in get_tree().get_nodes_in_group(DutySystem.GROUP):
+		if node.is_queued_for_deletion() or not node is DutySystem:
+			continue
+		if node is OSFallbackDuties:
+			fallback = node as OSFallbackDuties
+		elif real == null:
+			real = node as DutySystem
+	if real != null:
+		if fallback != null:
+			fallback.queue_free()
+		return real
+	if fallback == null:
+		fallback = _create_fallback_duties()
+	fallback.ensure_current_run()
+	return fallback
+
+
+func _create_fallback_duties() -> OSFallbackDuties:
+	var fallback: OSFallbackDuties = OSFallbackDuties.new()
+	fallback.name = FALLBACK_DUTIES_NAME
+	var host: Node = UIRoot.find(get_tree())
+	(host if host != null else get_tree().root).add_child(fallback)
+	return fallback
+
+
+## Vuelve a aplicar tamaño de texto y alto contraste de UITheme (UIRoot.apply_settings con el
+## ordenador abierto): reconstruye el escritorio y vuelve a montar la aplicación abierta.
+func apply_settings() -> void:
+	var reopen: String = _app_id
+	close_app()
+	for child: Node in get_children():
+		remove_child(child)
+		child.queue_free()
+	_icons.clear()
+	_ads.clear()
+	_opening = false
+	_apply_style()
+	_build_desktop()
+	_configure_boot_screen()
+	_boot.visible = not _booted
+	_clock_stamp = -1
+	if _booted and not reopen.is_empty():
+		_mount_app(reopen)
+
+
+## Factor de los botones de título y de cierre en pantalla táctil (dedos, no punteros).
+static func touch_factor() -> float:
+	return maxf(UITheme.tune(B_TOUCH_TITLE), 1.0) if UITheme.touch_scale_active else 1.0
 
 
 ## Aplicaciones que muestra el escritorio (MARKET solo si la ocupación la desbloquea).
@@ -1032,6 +1158,10 @@ func notify(text: String) -> void:
 	_balloon.position = Vector2(size.x - _balloon.size.x - _base * 0.4, local.y - _balloon.size.y - _base * 0.3)
 
 
+func is_start_menu_open() -> bool:
+	return _start_menu.visible
+
+
 func get_balloon_text() -> String:
 	return _balloon_label.text if _balloon.visible else ""
 
@@ -1052,6 +1182,17 @@ func spawn_ad(index: int = -1) -> Control:
 
 
 # ─── Construcción ─────────────────────────────────────────────────
+
+func _apply_style() -> void:
+	_style_key = _current_style_key()
+	_base = UITheme.base_font_size(UITheme.current_text_size)
+	_pal = OSTheme.palette_for_tier(_tier)
+	theme = OSTheme.build(_pal, _base)
+
+
+func _current_style_key() -> Array:
+	return [UITheme.current_text_size, UITheme.current_high_contrast, UITheme.touch_scale_active]
+
 
 func _resolve_tier() -> int:
 	if _context.has("tier"):
@@ -1113,9 +1254,17 @@ func _refresh_badges() -> void:
 	icon.queue_redraw()
 
 
+## Coalescido: una sola relectura por fotograma aunque lleguen varias señales de deber.
 func _on_duty_changed() -> void:
+	if is_inside_tree() and not _badges_queued:
+		_badges_queued = true
+		_flush_badges.call_deferred()
+
+
+func _flush_badges() -> void:
+	_badges_queued = false
 	if is_inside_tree():
-		_refresh_badges.call_deferred()
+		_refresh_badges()
 
 
 func _guest_banner() -> PanelContainer:
@@ -1197,14 +1346,20 @@ func _start_boot() -> void:
 		_boot_duration = maxf(UITheme.tune(B_GUEST_LOGIN), 0.0)
 	else:
 		_boot_duration = boot_seconds_for_tier(_tier)
+	_boot_tip_offset = _rng.randi_range(0, BOOT_TIP_COUNT - 1)
+	_configure_boot_screen()
+	if _boot_duration <= 0.0:
+		_finish_boot()
+
+
+func _configure_boot_screen() -> void:
 	_boot.tips = roundi(OSTheme.per_tier(B_BOOT_TIPS, _tier))
-	_boot.tip_offset = _rng.randi_range(0, BOOT_TIP_COUNT - 1)
+	_boot.tip_offset = _boot_tip_offset
+	_boot.set_progress(_boot_elapsed / maxf(_boot_duration, 0.001))
 	if is_guest():
 		_boot.guest_name = OSApp.npc_name(_npc_id)
 		var npc: NPCRuntime = NPCDirector.get_npc(_npc_id)
 		_boot.guest_appearance = CharacterPainter.appearance_for_npc(npc) if npc != null else {}
-	if _boot_duration <= 0.0:
-		_finish_boot()
 
 
 func _advance_boot(delta: float) -> void:
@@ -1217,6 +1372,7 @@ func _advance_boot(delta: float) -> void:
 func _finish_boot() -> void:
 	_booted = true
 	_boot.visible = false
+	_clock_stamp = -1
 	_taskbar.update_clock()
 	booted.emit()
 	var first_app: String = APP_FILES if is_guest() else str(_context.get("app", ""))
@@ -1342,11 +1498,10 @@ func _close_start_menu() -> void:
 # ─── Anuncios y avisos ────────────────────────────────────────────
 
 func _tick_ads(delta: float) -> void:
-	var interval: float = OSTheme.per_tier(B_AD_INTERVAL, _tier)
-	if interval <= 0.0 or is_guest() or _instant or is_busy():
+	if _ad_interval <= 0.0 or is_guest() or _instant or is_busy():
 		return
 	_ad_timer += delta
-	if _ad_timer < interval:
+	if _ad_timer < _ad_interval:
 		return
 	_ad_timer = 0.0
 	if get_ads().size() < UITheme.tune_int(B_AD_MAX):
@@ -1383,6 +1538,30 @@ func _release_clock() -> void:
 		return
 	_clock_owned = false
 	GameClock.set_speed_multiplier(_speed_before)
+
+
+# ─── Sesión de invitado: acto visible (BUILD_NOTES §14) ───────────
+
+func _begin_guest_act() -> void:
+	var player: Node = get_tree().get_first_node_in_group(PLAYER_GROUP)
+	if player == null or not player.has_method("begin_act"):
+		return
+	player.call("begin_act", GUEST_ACT, 0.0)
+	_act_begun = true
+
+
+func _end_guest_act() -> void:
+	if not _act_begun or not is_inside_tree():
+		return
+	_act_begun = false
+	var player: Node = get_tree().get_first_node_in_group(PLAYER_GROUP)
+	if player != null and player.has_method("current_act") and str(player.call("current_act")) == GUEST_ACT:
+		player.call("end_act")
+
+
+## true mientras el jugador está «sentado en el ordenador de otro» (acto begin_act en curso).
+func is_guest_act_active() -> bool:
+	return _act_begun
 
 
 ## MARKET: la propia aplicación decide (is_available(), si está desplegada); si no, los datos

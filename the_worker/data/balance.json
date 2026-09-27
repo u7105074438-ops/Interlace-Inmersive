@@ -67,7 +67,48 @@
     "umbral_flagrancia": 1.0,
     "umbral_perdida_contacto": 0.1,
     "distancia_reconocimiento_disfraz": 3.0,
-    "distancia_clasificacion_uniforme": 6.0
+    "distancia_clasificacion_uniforme": 6.0,
+    "_nota_nodos": "Perception (PASO 10-11, src/simulation/perception.gd). Distancias en metros (= celdas). distancia_referencia/d = factor de distancia (inversamente proporcional), acotado por distancia_minima y factor_distancia_max. Más allá de distancia_identificacion (× factor de alcance) el contador no supera tope_contador_lejano: desde lejos solo hay percepción parcial. Cono: base × (1 + (perspicacia − perspicacia_neutra) × mod_*_por_punto) acotado a [factor_cono_min, factor_cono_max]. Hardliner: barre su cono con periodo_barrido_hardliner s (cabeza del tic slow_wide_gaze_sweep) y amplitud barrido_hardliner grados. Oído: investiga si perspicacia efectiva ≥ umbral_investigar_ruido y el ruido es anómalo (≥ radio_ruido_anomalo) o el jugador llama la atención; oblivious multiplica el radio por oido_oblivious. Conos visibles (modo normal): a menos de radio_conos_visibles del jugador, con alfa_cono (jugador legal), alfa_cono_sigilo (sigilo/agachado o digno de atención) y alfa_cono_alerta (contador > 0); alfa_cono_depuracion con el interruptor F1.",
+    "distancia_referencia": 1.0,
+    "distancia_minima": 0.5,
+    "factor_distancia_max": 2.0,
+    "distancia_identificacion": 5.0,
+    "tope_contador_lejano": 0.9,
+    "perspicacia_neutra": 50,
+    "mod_alcance_por_punto": 0.005,
+    "mod_angulo_por_punto": 0.003,
+    "factor_cono_min": 0.7,
+    "factor_cono_max": 1.4,
+    "periodo_barrido_hardliner": 7.0,
+    "umbral_investigar_ruido": 50,
+    "radio_ruido_anomalo": 4.0,
+    "oido_oblivious": 0.35,
+    "segundos_atencion": 2.5,
+    "umbral_mascara_ruido": 0.9,
+    "rayos_cono": 22,
+    "refinado_cono": 2,
+    "salto_refinado_cono": 0.8,
+    "intervalo_cono": 0.15,
+    "radio_conos_visibles": 11.0,
+    "alfa_cono": 0.12,
+    "alfa_cono_sigilo": 0.2,
+    "alfa_cono_alerta": 0.28,
+    "alfa_cono_depuracion": 0.26,
+    "luminancia_suelo_clara": 0.7,
+    "velocidad_giro_cono": 8.0,
+    "factor_borde_cono": 2.2,
+    "desvanecido_borde_cono": 0.2,
+    "velocidad_fundido_cono": 0.8,
+    "color_cono": [
+      1.0,
+      0.96,
+      0.82
+    ],
+    "color_cono_suelo_claro": [
+      0.16,
+      0.22,
+      0.34
+    ]
   },
   "ruido": {
     "radio_sigiloso": 1.0,
@@ -110,13 +151,8 @@
       "competent": 0.0,
       "bribe_attempt": 2.0,
       "chat_log": 2.5,
-      "debug_observed": 0.8
-    },
-    "peso_origen": {
-      "_nota": "NO forma parte de la fórmula de sospecha de §7.2 (BeliefNet no lo aplica: un rumor ya se descuenta con su certeza ×0,75). Se conserva neutro (1,0) porque IdeaPresentation lee .record en su conversión puntos → peso.",
-      "direct": 1.0,
-      "rumor": 1.0,
-      "record": 1.0
+      "debug_observed": 0.8,
+      "management_abuse": 0.5
     },
     "divisor_normalizacion": 3.0,
     "reputacion_portador_por_defecto": 50.0,
@@ -1974,7 +2010,7 @@
     "paso_volumen": 0.05
   },
   "interfaz": {
-    "_nota": "Interfaz (HUD, subtítulos, avisos, controles táctiles, panel F1). Tamaños en píxeles del lienzo base 1920×1080; tiempos en segundos reales.",
+    "_nota": "Interfaz (HUD, subtítulos, avisos, controles táctiles, panel F1). Tamaños en píxeles del lienzo base 1920×1080; tiempos en segundos reales. flagrancia_resultado_cola_segundos: si otra flagrancia espera turno, la reacción del testigo anterior se muestra como mucho estos segundos antes de abrir la siguiente.",
     "texto_base_por_nivel": [
       20,
       24,
@@ -2009,7 +2045,12 @@
     "flagrancia_resultado_segundos": 2.4,
     "flagrancia_pulso_hz": 1.3,
     "flagrancia_aviso_segundos": 3.0,
-    "flagrancia_ralentizacion_visual": 0.35
+    "flagrancia_ralentizacion_visual": 0.35,
+    "flagrancia_resultado_cola_segundos": 1.0,
+    "indicador_deteccion_radio": 15.0,
+    "indicador_deteccion_contorno": 2.5,
+    "indicador_deteccion_escala_alto_contraste": 1.25,
+    "ficha_personaje_ancho_em": 17.0
   },
   "flagrancia": {
     "_nota": "§12.2. plazo_decision_segundos: segundos reales de la ventana de decisión (con el reloj ralentizado a multiplicador_tiempo), × (1 + plazo_extra_por_reputacion × reputación/100) (§7.10: con reputación alta el testigo duda más). plazo_minimo_contraoferta_segundos: tras una contraoferta el plazo no se reinicia, pero quedan al menos estos segundos para responder. peso_denuncia_*: puntos de sospecha de npc_reported_player (+20 en Seguridad, +10 ante el superior; BeliefNet los escala por la credibilidad del denunciante, §7.2). prob_indiferencia: probabilidad de desinterés de burnout/oblivious; si no se desinteresan, lo recuerdan en silencio. duda_*: probabilidad de que un testigo que iba a denunciar calle = (duda_por_rango × rango relativo del jugador + duda_por_temor × temor/100 + duda_por_afecto × afecto/100) × (1 − valentía/100), acotada a duda_maxima (§7.5, §7.9). franja_cotilleo / amplificacion_cotilla: el cotilla cuenta la flagrancia en esa franja a todos sus vínculos, con el factor del vínculo × amplificacion_cotilla (BeliefNet lo acota a creencias.amplificacion_rumor_max).",
@@ -3079,7 +3120,29 @@
       "enviar": 0.5,
       "generar": 1.5,
       "copiar": 1.0
-    }
+    },
+    "barra_titulo_tactil_factor": 1.3,
+    "unidad_compartida_escalon_min": 4,
+    "disco_mb_por_nivel": [
+      40,
+      64,
+      256,
+      512,
+      4096,
+      16384,
+      131072,
+      0
+    ],
+    "disco_ocupado_por_nivel": [
+      0.97,
+      0.94,
+      0.83,
+      0.71,
+      0.55,
+      0.38,
+      0.12,
+      0.0
+    ]
   },
   "expedientes": {
     "_nota": "PERSONNEL (§13.4, PASO 20): nivel mínimo de expediente (N1–N7) de cada sección de la ficha — tabla exacta del manual; el acceso completo anticipado equivale a nivel_maximo. Estudio: minutos de juego consumidos (15–30) y conversión de probabilidad a palabra difusa (umbrales ascendentes: muy improbable, improbable, incierto, probable, muy probable). temperatura_estudio = softmax sobre las utilidades de UtilityAI para confrontar/denunciar ante una flagrancia hipotética de certeza certeza_estudio. Categorías: sobornable = no insobornable y codicia ≥ sobornable_codicia_min; peligroso = perspicacia ≥ peligro_perspicacia_min o denunciaría un soborno (umbrales de sobornos).",
@@ -3125,7 +3188,16 @@
     "temor_umbral": 40,
     "max_comunicaciones": 8,
     "max_disciplinario": 6,
-    "tramos_valor_aproximado": 5
+    "tramos_valor_aproximado": 5,
+    "colores_vinculo": {
+      "friendship": "#3a7a3e",
+      "couple": "#c0457a",
+      "rivalry": "#b23a2c",
+      "hierarchy": "#2b5b98",
+      "department": "#7a7466",
+      "debt": "#d4912a",
+      "nepotism": "#7b4aa0"
+    }
   },
   "portal": {
     "_nota": "PORTAL (§13.3, PASO 25): agendas visibles en el organigrama para titulares de escalón ≥ escalon_agenda_min (la de Voss, §11.8).",
@@ -3140,7 +3212,18 @@
       10,
       100,
       1000
-    ]
+    ],
+    "tramos_patron": [
+      0.35,
+      0.7
+    ],
+    "colores_terminal": {
+      "screen": "#0f1d19",
+      "grid": "#20382f",
+      "up": "#62f29a",
+      "down": "#ff6b5b",
+      "amber": "#ffc857"
+    }
   },
   "presentacion_ui": {
     "_nota": "Pantalla de resultados (§9.5): paso del control de inflado; la preparación sale de cómo se produjo el informe: deber de informe (subtipos) completado con método de trabajo real u objeto/método de informe robado al COO.",
@@ -3160,7 +3243,20 @@
       "stolen_material"
     ],
     "escalon_inversor": 7,
-    "segundos_por_pregunta": 2.0
+    "segundos_por_pregunta": 2.0,
+    "objetos_chantaje_inversor": [
+      "board_blackmail_dossiers",
+      "blackmail_file"
+    ],
+    "colores": {
+      "paper": "#f8f1df",
+      "red": "#b8352a",
+      "green": "#2f7d45",
+      "warn_bg": "#fff4d6",
+      "newsprint": "#efeadc",
+      "screen": "#fbfbf7",
+      "scandal": "#7b4aa0"
+    }
   },
   "escenas": {
     "_nota": "Escenas guionizadas de la sala Aurora (P12, §11.2) y del interrogatorio (P15, §12.5): src/ui/aurora_scene.gd, interrogation_scene.gd y scene_stage.gd. Tiempos en segundos reales; escalas de personaje sobre el lienzo de diseño 1920×1080.",
@@ -3178,10 +3274,16 @@
     "temblor_px": 22,
     "temblor_segundos": 0.55,
     "max_acusables": 8,
-    "max_ideas_listadas": 6
+    "max_ideas_listadas": 6,
+    "camara_suavizado": 6.0,
+    "camara_zoom_max": 1.7,
+    "fps_accesorios": 10,
+    "panel_ancho_em": 25,
+    "panel_fraccion_max": 0.46,
+    "panel_segundos": 0.18
   },
   "movil": {
-    "_nota": "Móvil (§13.5, §14.10). radio_escucha_llamada: celdas (1 celda = 1 metro) en las que se oye una llamada en una sala con safe_for_calls (baños, escaleras de servicio); en el resto de salas × factor_escucha_sala_abierta (§13.5: son los únicos espacios seguros). Sin nodos de NPC en la escena, cuenta quien comparte la sala del jugador. certeza_superior_ve_movil: player_seen_partially de un personaje de escalón superior que ve al jugador usando el móvil (a percepcion.cono_distancia_base); se repite cada enfriamiento_superior_segundos reales mientras siga mirando. escalon_directivo / brecha_escalon_sin_respuesta: un directivo (escalón >= escalon_directivo) no responde a un jugador que esté esa brecha de escalones o más por debajo. nivel_expediente_precio_estimado: nivel de expediente (§13.4, N5) desde el que la interfaz de soborno muestra el precio estimado. afecto_minimo_contacto: afecto del registro desde el que alguien te da su número (vía favores). departamento_rrhh: trabajar en ese departamento da acceso a todos los números. soborno_paso: paso del deslizador (EUR); soborno_fraccion_inicial: valor inicial del deslizador a ciegas, fracción del capital. max_mensajes_bandeja: mensajes de la sesión que guarda el servicio del móvil. vibracion_*: sacudida visual del móvil al recibir un mensaje sin silenciar (segundos, píxeles, hercios). animacion_apertura_segundos: deslizamiento al abrirlo.",
+    "_nota": "Móvil (§13.5, §14.10). radio_escucha_llamada: celdas (1 celda = 1 metro) en las que se oye una llamada en una sala con safe_for_calls (baños, escaleras de servicio); en el resto de salas × factor_escucha_sala_abierta (§13.5: son los únicos espacios seguros). Sin nodos de NPC en la escena, cuenta quien comparte la sala del jugador. certeza_superior_ve_movil: player_seen_partially de un personaje de escalón superior que ve al jugador usando el móvil (a percepcion.cono_distancia_base); se repite cada enfriamiento_superior_segundos reales mientras siga mirando. escalon_directivo / brecha_escalon_sin_respuesta: un directivo (escalón >= escalon_directivo) no responde a un jugador que esté esa brecha de escalones o más por debajo. nivel_expediente_precio_estimado: nivel de expediente (§13.4, N5) desde el que la interfaz de soborno muestra el precio estimado. afecto_minimo_contacto: afecto del registro desde el que alguien te da su número (vía favores). departamento_rrhh: trabajar en ese departamento da acceso a todos los números. soborno_paso: paso del deslizador (EUR); soborno_fraccion_inicial: valor inicial del deslizador a ciegas, fracción del capital. max_mensajes_bandeja: mensajes de la sesión que guarda el servicio del móvil. vibracion_*: sacudida visual del móvil al recibir un mensaje sin silenciar (segundos, píxeles, hercios). animacion_apertura_segundos: deslizamiento al abrirlo. filas_contactos_por_fotograma: filas nuevas que las listas de contactos/llamadas construyen por fotograma (sin tirones con cientos de números, p. ej. en RR. HH.).",
     "radio_escucha_llamada": 4.0,
     "factor_escucha_sala_abierta": 2.0,
     "certeza_superior_ve_movil": 0.3,
@@ -3199,11 +3301,11 @@
     "vibracion_amplitud": 5.0,
     "vibracion_hz": 26.0,
     "animacion_apertura_segundos": 0.18,
-    "horas_proximidad_contacto": 4
+    "horas_proximidad_contacto": 4,
+    "filas_contactos_por_fotograma": 12
   },
   "mapa": {
-    "_nota": "Mapa de evacuación (Tab, §13.6, PASO 36). Acceso por sala: verde = la tarjeta/ocupación la abre (regla de puertas de FloorStreamer: nivel y special_access según special_access_mode, más despacho propio y acceso_por_etiqueta); ámbar = método alternativo disponible ahora (uniformes: etiquetas de rol que imita el disfraz puesto o llevado; llaves_maestras hasta llaves_maestras_nivel_max; tarjetas ajenas con su nivel; llaves_antiguas para entradas old_keys; herramientas_forzar para forced_lock; conductos: trampilla hacia una sala autorizada o red de conductos utilizable; cornisas desde una sala autorizada); rojo = nada. Puntos de personajes conocidos si el nivel de expediente alcanza nivel_expediente_rutina (rutina N2).",
-    "nivel_expediente_rutina": 2,
+    "_nota": "Mapa de evacuación (Tab, §13.6, PASO 36). Acceso por sala: verde = la tarjeta/ocupación la abre (regla de puertas de FloorStreamer: nivel y special_access según special_access_mode, más despacho propio y acceso_por_etiqueta); ámbar = método alternativo disponible ahora (uniformes: etiquetas de rol que imita el disfraz puesto o llevado; llaves_maestras hasta llaves_maestras_nivel_max; llaves_sala: llave de una sala o planta concreta; tarjetas ajenas con su nivel; llaves_antiguas para entradas old_keys; herramientas_forzar para forced_lock; conductos: trampilla hacia una sala autorizada o red de conductos utilizable; cornisas desde una sala autorizada); rojo = nada. Puntos de personajes conocidos si el nivel de expediente efectivo (PersonnelApp.effective_level: puesto, RRHH, intrusión, chantaje) alcanza expedientes.nivel_seccion.routine. cono_alfa / cono_alfa_borde: relleno y borde (tinta) de los conos de cámara del plano.",
     "uniformes": {
       "uniform_security": [
         "guard"
@@ -3226,6 +3328,9 @@
         "maintenance",
         "basements",
         "vents"
+      ],
+      "factory_overalls": [
+        "factory_floor"
       ]
     },
     "llaves_maestras": [
@@ -3247,7 +3352,10 @@
     "herramientas_forzar": [
       "lockpick",
       "pry_bar",
-      "cutting_tools"
+      "crowbar",
+      "cutting_tools",
+      "bolt_cutter",
+      "angle_grinder"
     ],
     "llaves_conductos": [
       "vent_key"
@@ -3288,6 +3396,486 @@
         ]
       }
     },
-    "ocupacion_marcas_max": 10
+    "llaves_sala": {
+      "_nota": "Llaves de una sala o de una planta concreta (herramientas de puesto o robadas): misma forma que acceso_por_etiqueta (rooms = ids base, floors, max_room_clearance). Dan ámbar (método room_key).",
+      "ceo_office_key": {
+        "rooms": [
+          "ceo_office"
+        ]
+      },
+      "hr_file_key": {
+        "rooms": [
+          "hr_office"
+        ]
+      },
+      "supply_room_key": {
+        "rooms": [
+          "office_supplies"
+        ]
+      },
+      "copier_key": {
+        "rooms": [
+          "main_copyroom",
+          "p3_copyroom"
+        ]
+      },
+      "petty_cash_key": {
+        "rooms": [
+          "accounting"
+        ]
+      },
+      "factory_master_key": {
+        "floors": [
+          100
+        ]
+      }
+    },
+    "cono_alfa": 0.14,
+    "cono_alfa_borde": 0.6
+  },
+  "npc_nodo": {
+    "_nota": "Nodos de personaje del mundo (src/entities/npc.gd, npc_layer.gd; PASO 9, §14.5-§14.7, §20). Velocidades en celdas/s: velocidad_base × velocidad_por_escalon[escalón] × modificadores (old_hand lento, climber con prisa hacia despachos de superiores, denuncia, huida). Tiempos en segundos reales. idle_intervalo = [min, max] entre gestos de reposo (reloj, bostezo); vistazo_* = miradas laterales (snitch × factor_vistazo_snitch). recado = duración de una reacción (denunciar, cotillear, descansar). Escalón 4: pausas de observación al caminar. sala_denuncia_seguridad: adonde camina quien denuncia a Seguridad. prob_escaleras: parte de los viajes entre plantas que usan la escalera principal. altura_indicador: celdas sobre los pies del indicador de detección y los bocadillos.",
+    "velocidad_base": 2.3,
+    "velocidad_por_escalon": [
+      1.0,
+      1.12,
+      1.12,
+      1.0,
+      0.94,
+      1.06,
+      1.06,
+      0.86,
+      0.86
+    ],
+    "mod_velocidad_old_hand": 0.78,
+    "mod_velocidad_prisa": 1.3,
+    "mod_velocidad_denuncia": 1.2,
+    "mod_velocidad_huida": 2.0,
+    "mod_velocidad_agitacion": 1.25,
+    "idle_intervalo": [
+      6.0,
+      14.0
+    ],
+    "vistazo_intervalo": [
+      7.0,
+      15.0
+    ],
+    "vistazo_duracion": 1.6,
+    "vistazo_angulo": 55.0,
+    "factor_vistazo_snitch": 0.4,
+    "fps_tic": 2.5,
+    "recado_segundos": 25.0,
+    "confrontacion_segundos": 6.0,
+    "distancia_confrontacion": 1.3,
+    "distancia_charla": 2.2,
+    "emote_segundos": 3.0,
+    "investigacion_segundos": 5.0,
+    "pausa_escalon4_intervalo": 5.0,
+    "pausa_escalon4_segundos": 1.1,
+    "distancia_retroceso_coward": 1.3,
+    "paso_retroceso_coward": 0.5,
+    "margen_llegada": 0.08,
+    "altura_indicador": 1.75,
+    "radio_seleccion": 0.9,
+    "sala_denuncia_seguridad": "security_director_office",
+    "prob_escaleras": 0.25,
+    "radio_agitacion": 2,
+    "segundos_agitacion": 1.4,
+    "prob_gesto": 0.5,
+    "carril": 0.28,
+    "distancia_sobresalto": 2.0
+  },
+  "disfraz": {
+    "_nota": "Disfraces (§11.4, PASO 38; Disguise). Distancias en metros: percepcion.distancia_clasificacion_uniforme (más lejos: el observador clasifica por el uniforme) y percepcion.distancia_reconocimiento_disfraz (más cerca: reconoce al jugador quien lo conoce, NPCDirector.knows_player, o tiene perspicacia efectiva > perspicacia_reconocimiento). Entre ambas: zona intermedia, factor interpolado y sin reconocimiento. uniformes.<id>.ventanas = dónde y cuándo es COHERENTE el uniforme: hora en [desde, hasta) (hasta < desde cruza la medianoche) y planta en [plantas[0], plantas[1]]; fuera de toda ventana es incoherente: detección × factor_incoherente (> 1: más sospechoso que sin disfraz, §11.4). factor_* = multiplicador de la velocidad de llenado de Perception (0 = invisible). alias_uniforme: ids de herramienta de puesto equivalentes. plantas_sin_efecto: el uniforme no oculta nada (exterior). pasamontanas: ocupa el hueco de disfraz (PlayerState.set_disguise); oculta siempre la identidad; dentro del edificio × factor_pasamontanas_edificio, fuera × factor_pasamontanas_exterior.",
+    "uniformes": {
+      "uniform_cleaning": {
+        "ventanas": [
+          {
+            "desde": 17,
+            "hasta": 23,
+            "plantas": [
+              -3,
+              21
+            ]
+          }
+        ]
+      },
+      "uniform_maintenance": {
+        "ventanas": [
+          {
+            "desde": 7,
+            "hasta": 19,
+            "plantas": [
+              -3,
+              21
+            ]
+          },
+          {
+            "desde": 6,
+            "hasta": 22,
+            "plantas": [
+              -3,
+              -1
+            ]
+          },
+          {
+            "desde": 6,
+            "hasta": 22,
+            "plantas": [
+              100,
+              100
+            ]
+          }
+        ]
+      },
+      "uniform_security": {
+        "ventanas": [
+          {
+            "desde": 0,
+            "hasta": 24,
+            "plantas": [
+              -3,
+              21
+            ]
+          },
+          {
+            "desde": 0,
+            "hasta": 24,
+            "plantas": [
+              100,
+              100
+            ]
+          }
+        ]
+      }
+    },
+    "alias_uniforme": {
+      "cleaning_uniform": "uniform_cleaning",
+      "maintenance_uniform": "uniform_maintenance",
+      "guard_uniform": "uniform_security"
+    },
+    "pasamontanas": "balaclava",
+    "factor_lejos_coherente": 0.0,
+    "factor_cerca_coherente": 0.4,
+    "factor_reconocido": 1.0,
+    "factor_incoherente": 1.6,
+    "factor_pasamontanas_edificio": 2.0,
+    "factor_pasamontanas_exterior": 1.0,
+    "perspicacia_reconocimiento": 70,
+    "plantas_sin_efecto": [
+      200
+    ]
+  },
+  "policia": {
+    "_nota": "Respuesta policial exterior (§4.3, PASO 39; Police). Tiempos en MINUTOS DE JUEGO (el reloj de noche corre a tiempo.minutos_reales_por_hora_por_franja.night; las acciones de NightOps los consumen con GameClock.advance_minutes). Aviso consolidado = suma de certezas de los testigos >= umbral_aviso_consolidado (un testigo directo, o varios parciales) o una alarma. Llegada = minutos_respuesta_base × factor_respuesta_por_sala[sala] (la comisaría está en sala_comisaria). A la llegada: jugador en la sala del aviso = arresto; si no, búsqueda de minutos_busqueda: expuesto (calle, tiendas, viviendas) consume minutos_cerco y al agotarse se cierra el cerco (arresto); en un callejón (sala con evasion_zone) cada tramo (entrar en la sala o en un escondite distinto) cubre minutos_por_callejon y hay callejones tramos por persecución: quedarse más en el mismo tramo o no tener tramos libres cierra el cerco; minutos_evasion ocultos = evasión (police_evaded). salas_refugio (y el interior del edificio) ocultan como un callejón sin límite de tramos SOLO si la identidad no se conoce. peso_registro_identificado = peso del registro (denuncia policial, stamped_document) que llega al edificio cuando un testigo reconoce al jugador sin pasamontañas.",
+    "sala_comisaria": "police_station",
+    "umbral_aviso_consolidado": 0.9,
+    "minutos_respuesta_base": 16.0,
+    "factor_respuesta_por_sala": {
+      "npc_house_mansion": 0.6,
+      "npc_house_semi": 1.0,
+      "npc_house_humble": 1.25,
+      "street": 0.8,
+      "police_station": 0.1
+    },
+    "minutos_busqueda": 45.0,
+    "minutos_cerco": 10.0,
+    "callejones": 3,
+    "minutos_por_callejon": 12.0,
+    "minutos_evasion": 30.0,
+    "salas_refugio": [
+      "player_flat"
+    ],
+    "peso_registro_identificado": 4.0
+  },
+  "noche": {
+    "_nota": "Operaciones nocturnas (§4.3, §22.16, PASO 39; NightOps). Seguir a un trabajador hasta su casa exige conocer su domicilio: expediente con nivel >= expedientes.nivel_seccion.home (N6-N7) o expediente completo (PlayerState.grant_full_file: intrusión en RR. HH., chantaje). franjas_seguimiento = franjas en que se le puede seguir (sale del edificio o ya está en casa). En casa (NPCDirector.is_at_home): fuera del edificio según su agenda y con hora >= hora_llegada_domicilio o < tiempo.hora_inicio_jornada. Entradas (illegitimate_entries de la sala): minutos_entrada y herramientas_entrada (lista vacía = sin herramienta; forced_lock usa mapa.herramientas_forzar) y factor_ruido_entrada sobre prob_vecino_entrada. Contenedores = interactables de la vivienda de tipo tipos_contenedor con contains; requires -> requisitos_contenedor (llevar uno). Cada objeto de contains está con prob_objeto y cada contenedor tira además botin_extra (tabla de la tipología). Un contenedor saqueado queda vacío para ESE personaje dias_reposicion_botin jornadas (estado en NPCDirector). Riesgos por tipología: residente en casa despierta con prob_despertar_residente por acción ruidosa (testigo directo, certeza creencias.certeza_directa_completa); un vecino nota la entrada con prob_vecino_entrada (testigo parcial, creencias.certeza_parcial); alarma = aviso consolidado inmediato; seguridad_privada llega minutos_seguridad_privada después de la alarma (testigo directo si el jugador sigue dentro). rol_vecino / rol_seguridad_privada = roles de npcs_generation (departamento exterior) que dan identidad al testigo.",
+    "franjas_seguimiento": [
+      "exit",
+      "night"
+    ],
+    "minutos_seguimiento": 25,
+    "hora_llegada_domicilio": 20,
+    "minutos_entrada": {
+      "forced_lock": 5,
+      "window": 3
+    },
+    "herramientas_entrada": {
+      "forced_lock": [
+        "lockpick",
+        "pry_bar",
+        "cutting_tools",
+        "crowbar"
+      ],
+      "window": []
+    },
+    "factor_ruido_entrada": {
+      "forced_lock": 1.0,
+      "window": 1.5
+    },
+    "tipos_contenedor": [
+      "drawer",
+      "safe",
+      "floor_safe"
+    ],
+    "requisitos_contenedor": {
+      "key": [
+        "lockpick",
+        "crowbar",
+        "pry_bar"
+      ],
+      "combination": [
+        "safe_combination_note",
+        "angle_grinder"
+      ]
+    },
+    "dias_reposicion_botin": 20,
+    "rol_vecino": "neighbour",
+    "rol_seguridad_privada": "private_security",
+    "viviendas": {
+      "npc_house_humble": {
+        "tipo": "humble",
+        "prob_objeto": 0.9,
+        "botin_extra": [
+          {
+            "objeto": "phone_highend",
+            "prob": 0.2
+          },
+          {
+            "objeto": "cash_small",
+            "prob": 0.3
+          }
+        ],
+        "minutos_por_contenedor": 6,
+        "prob_despertar_residente": 0.15,
+        "prob_vecino_entrada": 0.3,
+        "alarma": false,
+        "seguridad_privada": false,
+        "minutos_seguridad_privada": 0
+      },
+      "npc_house_semi": {
+        "tipo": "semi",
+        "prob_objeto": 0.85,
+        "botin_extra": [
+          {
+            "objeto": "laptop_highend",
+            "prob": 0.35
+          },
+          {
+            "objeto": "jewellery",
+            "prob": 0.25
+          }
+        ],
+        "minutos_por_contenedor": 7,
+        "prob_despertar_residente": 0.12,
+        "prob_vecino_entrada": 0.3,
+        "alarma": false,
+        "seguridad_privada": false,
+        "minutos_seguridad_privada": 0
+      },
+      "npc_house_mansion": {
+        "tipo": "mansion",
+        "prob_objeto": 0.8,
+        "botin_extra": [
+          {
+            "objeto": "watch_luxury",
+            "prob": 0.3
+          },
+          {
+            "objeto": "laptop_highend",
+            "prob": 0.5
+          },
+          {
+            "objeto": "jewellery_luxury",
+            "prob": 0.15
+          }
+        ],
+        "minutos_por_contenedor": 8,
+        "prob_despertar_residente": 0.08,
+        "prob_vecino_entrada": 0.0,
+        "alarma": true,
+        "seguridad_privada": true,
+        "minutos_seguridad_privada": 6
+      }
+    }
+  },
+  "hogar": {
+    "_nota": "Ciclo de tarde y noche (§4.2, §4.4, §15.4, §22.16, PASO 39; HomeCycle). Salario (PlayerState.get_daily_wage) a la hora tiempo.hora_fin_jornada. Comidas: desayuno y cena; cada una se come de la despensa (inventario o alijos de sala_domicilio; objetos de comidas.<comida> en ese orden: robados o comprados, sin coste al comerlos) o se compra a su precio (punto medio economia.desayuno_*/cena_*, el de PlayerState.get_daily_expense_breakdown). Al cerrar la jornada (dormir o day_advanced) se liquida: salario si faltaba, comidas no hechas (despensa -> compra -> perdida), alquiler y estatus (lo que alcance; el resto se pierde con nota). Una jornada con menos de comidas_minimas_jornada comidas cuenta como sin comer; jornadas_sin_comer_inanicion seguidas = muerte por inanición (game_over starvation, §4.4; primera jornada: aviso). Sustraer comida (tipos_fuente_comida de cafetería/office, §22.4 §22.8) elimina el coste de esa comida. Dormir solo en sala_domicilio y con hora >= hora_minima_dormir o antes de tiempo.hora_cambio_jornada, sin persecución policial. minutos_*: tiempo de juego de cada paso (GameClock.advance_minutes).",
+    "sala_domicilio": "player_flat",
+    "hora_minima_dormir": 19,
+    "comidas_minimas_jornada": 1,
+    "jornadas_sin_comer_inanicion": 2,
+    "comidas": {
+      "breakfast": [
+        "food_breakfast",
+        "food_basic",
+        "food_premium"
+      ],
+      "dinner": [
+        "food_dinner",
+        "food_basic",
+        "food_premium"
+      ]
+    },
+    "tipos_fuente_comida": [
+      "kitchen_food",
+      "food_fridge"
+    ],
+    "objeto_comida_robada": "food_basic",
+    "tipo_mostrador": "shop_counter",
+    "minutos_trayecto_casa": 25,
+    "minutos_compra": 8,
+    "minutos_comida": {
+      "breakfast": 15,
+      "dinner": 30
+    }
+  },
+  "fabrica": {
+    "_nota": "Robo en fábrica (§11.6, PASO 41; FactoryTheft + Company). escalas.<id>: pares e ingreso (€ para el jugador, reventa inmediata) del §11.6; rango_min; ocupaciones (vacío = cualquiera); requiere_carro_o_montacargas (caja: carrito = objetos_carro, opción cart de las manos, o acreditación ≥ la de sala_montacargas); requiere_complice (palé: transportista de puestos_transportista, rol u ocupación, con deuda ≥ deuda_minima_complice o afecto ≥ afecto_minimo_complice); peso_incidente y gravedad del descuadre que aflora en el recuento semanal (inventory_mismatch de investigations.json). La compañía pierde pares × precio medio (Company, avg_price) y lo apunta en costes AL RECUENTO, no al robo. tolerancia_recuento_pares: merma que el recuento absorbe sin descuadre (el bolsillo, «prácticamente ninguno»). stock_base_pares: existencias de producto terminado que el libro espera cada semana. escalas_visibles_margenes: el CFO (ocupacion_cfo, si es un personaje) lo ve en los márgenes: peso × factor_peso_cfo y es testigo del incidente. ocupaciones_responsables_inventario: si el jugador ocupa ese puesto, el descuadre sin albaranes le apunta a él. Albaranes falsificados (salas_albaranes): el descuadre de la semana apunta al superior directo (pieza forged_document); la sospecha del jugador sube (registro tipo_registro_acceso, peso_registro_acceso) porque también tenía acceso. informes_max: recuentos guardados.",
+    "escalas": {
+      "pocket": {
+        "pares_min": 1,
+        "pares_max": 2,
+        "ingreso_min": 40,
+        "ingreso_max": 80,
+        "rango_min": 3,
+        "ocupaciones": [],
+        "requiere_carro_o_montacargas": false,
+        "requiere_complice": false,
+        "peso_incidente": 2.0,
+        "gravedad": 1
+      },
+      "box": {
+        "pares_min": 10,
+        "pares_max": 20,
+        "ingreso_min": 400,
+        "ingreso_max": 900,
+        "rango_min": 8,
+        "ocupaciones": [],
+        "requiere_carro_o_montacargas": true,
+        "requiere_complice": false,
+        "peso_incidente": 3.5,
+        "gravedad": 2
+      },
+      "pallet": {
+        "pares_min": 200,
+        "pares_max": 400,
+        "ingreso_min": 8000,
+        "ingreso_max": 18000,
+        "rango_min": 15,
+        "ocupaciones": [
+          "factory_foreman",
+          "factory_director"
+        ],
+        "requiere_carro_o_montacargas": false,
+        "requiere_complice": true,
+        "peso_incidente": 6.0,
+        "gravedad": 4
+      }
+    },
+    "tolerancia_recuento_pares": 4,
+    "stock_base_pares": 6000,
+    "sala_recuento": "finished_goods",
+    "salas_albaranes": [
+      "loading_dock",
+      "foreman_office"
+    ],
+    "objetos_carro": [
+      "mail_trolley",
+      "filing_trolley"
+    ],
+    "sala_montacargas": "freight_elevator",
+    "puestos_transportista": [
+      "dock_worker"
+    ],
+    "deuda_minima_complice": 1,
+    "afecto_minimo_complice": 70,
+    "ocupaciones_responsables_inventario": [
+      "factory_foreman"
+    ],
+    "escalas_visibles_margenes": [
+      "pallet"
+    ],
+    "ocupacion_cfo": "cfo",
+    "factor_peso_cfo": 1.5,
+    "tipo_evidencia_albaran": "forged_document",
+    "tipo_registro_acceso": "card_log",
+    "peso_registro_acceso": 2.0,
+    "informes_max": 12
+  },
+  "compradores": {
+    "_nota": "Compradores de la sala de demostraciones (§11.5, PASO 41; Buyers + Company). Company genera al empezar la partida una cartera de tamano_cartera compradores (nombre del name_bank de npcs_generation, empresa de empresas = claves BUYER_FIRM_*, los seis rasgos estándar sorteados en [rasgo_min, rasgo_max]) y, en los días de la semana de dias_visita_semana (1 = primera jornada de la semana), visitas_por_dia visitas a sala en las horas_visita, cada una con un pedido de pares_pedido_min..max pares al precio medio de los fundamentales. Operaciones (solo ocupaciones_venta, en sala): venta honesta → comision_legal del pedido; sobreprecio (markup ≤ sobreprecio_max) → la diferencia al bolsillo, detectado en el acto si perspicacia ≥ perspicacia_detecta_sobreprecio; si no, reclamación con probabilidad perspicacia/100 × factor_prob_reclamacion a las semanas_reclamacion_min..max semanas; venta fantasma → importe íntegro si codicia ≥ codicia_min_venta_fantasma (el descuadre se apunta al cierre mensual); descuento con mordida (descuento ≤ descuento_max) → fraccion_mordida del descuento al bolsillo: acepta sin objeción con codicia ≥ codicia_acepta_mordida y, por debajo, con probabilidad codicia/100; quien acepta guarda material de chantaje. Quien rechaza con lealtad ≥ lealtad_denuncia se queja al superior (npc_reported_player canal_queja) y la reputación baja reputacion_por_queja.",
+    "sala": "buyer_demo_room",
+    "ocupaciones_venta": [
+      "junior_sales",
+      "senior_sales",
+      "b10_director"
+    ],
+    "tamano_cartera": 8,
+    "empresas": [
+      "BUYER_FIRM_1",
+      "BUYER_FIRM_2",
+      "BUYER_FIRM_3",
+      "BUYER_FIRM_4",
+      "BUYER_FIRM_5",
+      "BUYER_FIRM_6"
+    ],
+    "rasgo_min": 5,
+    "rasgo_max": 95,
+    "dias_visita_semana": [
+      2,
+      4
+    ],
+    "visitas_por_dia": 2,
+    "horas_visita": [
+      10,
+      16
+    ],
+    "pares_pedido_min": 40,
+    "pares_pedido_max": 240,
+    "comision_legal": 0.02,
+    "sobreprecio_por_defecto": 0.12,
+    "sobreprecio_max": 0.4,
+    "perspicacia_detecta_sobreprecio": 70,
+    "factor_prob_reclamacion": 1.0,
+    "semanas_reclamacion_min": 2,
+    "semanas_reclamacion_max": 5,
+    "codicia_min_venta_fantasma": 60,
+    "descuento_por_defecto": 0.15,
+    "descuento_max": 0.4,
+    "fraccion_mordida": 0.5,
+    "codicia_acepta_mordida": 70,
+    "lealtad_denuncia": 70,
+    "canal_queja": "superior",
+    "reputacion_por_queja": 3.0
+  },
+  "huelga": {
+    "_nota": "Acciones del jugador sobre el conflicto laboral (§11.7, PASO 41; Strike + Company). AGITAR: conversar con un personaje de escalón ≤ descontento.escalon_max_afectado descontento (ánimo < animo_max_descontento o algún agravio), como mucho una vez cada jornadas_entre_agitaciones jornadas por personaje → descontento inmediato + impulso diario (agitacion_*: puntos por jornada que Company suma cada día y reduce en decaimiento_agitacion_diario, tope agitacion_max); plantar un rumor contra la dirección (hecho_rumor:<directivo>, certeza_rumor; por defecto contra el titular de ocupacion_objetivo_rumor) acelera más. APACIGUAR: concesión salarial (escalón ≥ escalon_min_concesion) o despido del causante (directivo de escalón > descontento.escalon_max_afectado y menor que el del jugador, con escalón del jugador ≥ escalon_min_despido). LIDERAR (descontento > umbral_huelga, sin haberla traicionado nunca): reputación ante la dirección + reputacion_direccion_liderar (negativa), afecto de los escalones bajos + afecto_bajos_liderar y de la dirección (escalón ≥ empresa.escalon_directivo) + afecto_direccion_liderar; prestigio laboral (0-100, inicial prestigio_inicial) de trabajadores y dirección = prestigio_liderar_*. TRAICIONAR (haberla convocado y no comparecer): la huelga termina (strike_resolved betrayed), reputación ante la dirección + reputacion_direccion_traicionar, agravio permanente agravio_traicion de gravedad gravedad_agravio_traicion a cada personaje de escalones bajos, afecto de la dirección + afecto_direccion_traicionar, prestigio de trabajadores = prestigio_traicion_trabajadores PARA SIEMPRE y de dirección = prestigio_traicion_direccion.",
+    "animo_max_descontento": 0.0,
+    "jornadas_entre_agitaciones": 3,
+    "descontento_por_conversacion": 1,
+    "agitacion_por_conversacion": 1,
+    "descontento_por_rumor": 2,
+    "agitacion_por_rumor": 2,
+    "agitacion_max": 6,
+    "decaimiento_agitacion_diario": 1,
+    "hecho_rumor": "management_abuse",
+    "certeza_rumor": 0.7,
+    "ocupacion_objetivo_rumor": "factory_director",
+    "escalon_min_concesion": 5,
+    "escalon_min_despido": 5,
+    "causa_despido": "fired",
+    "reputacion_direccion_liderar": -30.0,
+    "reputacion_direccion_traicionar": 35.0,
+    "afecto_bajos_liderar": 25,
+    "afecto_direccion_liderar": -20,
+    "afecto_direccion_traicionar": 15,
+    "agravio_traicion": "strike_betrayed",
+    "gravedad_agravio_traicion": 12,
+    "prestigio_inicial": 50.0,
+    "prestigio_liderar_trabajadores": 95.0,
+    "prestigio_liderar_direccion": 5.0,
+    "prestigio_traicion_trabajadores": 0.0,
+    "prestigio_traicion_direccion": 95.0
   }
 }

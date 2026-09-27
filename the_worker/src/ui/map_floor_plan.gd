@@ -9,14 +9,17 @@ extends Control
 ##   methods: {room_id: método alternativo}, layers: {cameras, routes, occupancy: bool}, band: franja,
 ##   dots: [{npc_id, name, floor, room_id, target, approximate}], player_floor: int, player_room: String,
 ##   player_cell: Vector2 (celdas de planta; Vector2.INF = desconocida)}.
-## Dibuja salas con el tinte y la trama de acceso (forma además de color, §13.10), muros negros con
-## puertas y barrido, ascensores (aspa), escaleras (peldaños), flechas verdes de evacuación hacia
-## escaleras y salidas, extintores, «USTED ESTÁ AQUÍ», norte y escala. Capas: cámaras (cono de datos
-## balance camaras.*), rutas alternativas (trampillas y conductos, cerraduras antiguas, escalera de
-## servicio, cornisas) y ocupación por franja (occupants_by_band).
+## Dibuja salas con el tinte y la trama de acceso (forma además de color, §13.10), mobiliario en trazo
+## fino, muros negros con puertas y barrido, ascensores (aspa), escaleras (peldaños), flechas verdes de
+## evacuación siempre paralelas al eje (nunca en diagonal), extintores, nombres sobre placa de papel,
+## «USTED ESTÁ AQUÍ», norte y escala. Capas: cámaras (cono de datos camaras.alcance/angulo recortado a
+## su sala con Geometry2D, en tinta translúcida mapa.cono_alfa*), rutas alternativas (trampillas y
+## conductos, cerraduras antiguas, escalera de servicio, cornisas) y ocupación por franja
+## (occupants_by_band: una pastilla figura + número por sala). Los objetivos se dibujan los últimos
+## con mira y etiqueta de nombre; los conocidos, con un punto de radio mínimo ligado a la letra base.
 ## El kit estático (palette, draw_status_block, draw_hatch, draw_running_man, draw_exit_sign,
-## draw_arrow, draw_pin, draw_callout, draw_npc_dot, draw_person, draw_vent, draw_extinguisher) lo
-## comparte el corte vertical de MapView.
+## draw_arrow, draw_pin, draw_callout, draw_npc_dot, draw_target_marker, draw_tag, draw_people_badge,
+## draw_helicopter, draw_person, draw_vent, draw_extinguisher) lo comparte el corte de MapView.
 
 signal room_hovered(room_id: String)
 signal room_clicked(room_id: String)
@@ -41,14 +44,16 @@ const NO_CELL := Vector2i(-1, -1)
 const PAD := 18.0
 const WALL_RATIO := 0.22
 const NAME_CELL_RATIO := 0.95
-const NAME_MIN_RATIO := 0.58
+const NAME_MIN_RATIO := 0.64
+const NAME_FLOOR_RATIO := 0.5
 const NAME_MAX_RATIO := 0.92
 const EVAC_STEP_CELLS := 7.0
 const EVAC_MIN_CELLS := 3.0
 const EVAC_LEN_CELLS := 2.2
 const STEP_SPACING_CELLS := 0.7
 const DOT_RATIO := 0.42
-const PIP_RATIO := 0.8
+const DOT_MIN_RATIO := 0.3
+const DOT_MAX_RATIO := 0.55
 const SCALE_BAR_CELLS := 10
 const HATCH_PLAN_CELLS := 0.9
 const DASH_CELLS := 0.6
@@ -57,6 +62,13 @@ const FIT_MARGIN_CELLS := 1.5
 const INK_MAX_LUMINANCE := 0.42
 const FURNITURE_MIN_CELLS := 2
 const LABEL_HIGH_RATIO := 0.36
+const BADGE_RATIO := 0.62
+const TAG_RATIO := 0.66
+const PLATE_ALPHA := 0.9
+const B_CONE_ALPHA := "mapa.cono_alfa"
+const B_CONE_EDGE_ALPHA := "mapa.cono_alfa_borde"
+const B_CAM_REACH := "camaras.alcance"
+const B_CAM_ANGLE := "camaras.angulo"
 
 const PAL_NORMAL: Dictionary = {
 	"paper": Color("#f8f5ed"), "paper_shade": Color("#ece6d8"), "white": Color("#ffffff"),
@@ -67,7 +79,8 @@ const PAL_NORMAL: Dictionary = {
 	"allowed_ink": Color("#1c8a4b"), "alt_ink": Color("#d0820f"), "forbidden_ink": Color("#c7343a"),
 	"earth": Color("#e6dccb"), "earth_line": Color("#cdbfa6"), "concrete": Color("#d7d2c7"),
 	"dot": Color("#22418f"), "dot_edge": Color("#ffffff"), "people": Color("#6a45a8"),
-	"camera": Color("#2a2d33"), "shadow": Color(0.0, 0.0, 0.0, 0.10),
+	"camera": Color("#2a2d33"), "shadow": Color(0.0, 0.0, 0.0, 0.10), "target": Color("#c8127a"),
+	"select": Color("#1d2024"),
 }
 const PAL_CONTRAST: Dictionary = {
 	"paper": Color("#ffffff"), "paper_shade": Color("#e8e8e8"), "white": Color("#ffffff"),
@@ -78,7 +91,8 @@ const PAL_CONTRAST: Dictionary = {
 	"allowed_ink": Color("#006b2e"), "alt_ink": Color("#a35f00"), "forbidden_ink": Color("#b00000"),
 	"earth": Color("#d9ccb3"), "earth_line": Color("#a8966f"), "concrete": Color("#bdbdbd"),
 	"dot": Color("#0030a0"), "dot_edge": Color("#ffffff"), "people": Color("#5a1fb0"),
-	"camera": Color("#000000"), "shadow": Color(0.0, 0.0, 0.0, 0.18),
+	"camera": Color("#000000"), "shadow": Color(0.0, 0.0, 0.0, 0.18), "target": Color("#b0006a"),
+	"select": Color("#000000"),
 }
 
 var _floor: int = 0
@@ -312,19 +326,90 @@ static func draw_callout(ci: CanvasItem, anchor: Vector2, box_pos: Vector2, text
 	return box
 
 
-## Punto de personaje conocido; objetivo = anillo rojo; aproximado = anillo discontinuo.
+## Punto de personaje conocido (azul con borde blanco); un objetivo usa la mira (draw_target_marker).
 static func draw_npc_dot(ci: CanvasItem, pos: Vector2, radius: float, pal: Dictionary, target: bool,
 		approximate: bool) -> void:
-	var edge: float = maxf(1.2, radius * 0.3)
 	if target:
-		ci.draw_circle(pos, radius * 1.9, Color(pal["red"], 0.18))
-		ci.draw_arc(pos, radius * 1.75, 0.0, TAU, 20, pal["red"], edge * 1.3, true)
+		draw_target_marker(ci, pos, radius, pal, approximate)
+		return
+	var edge: float = maxf(1.2, radius * 0.3)
 	if approximate:
-		_dashed_ring(ci, pos, radius * 1.2, pal["red"] if target else pal["dot"], edge)
-		ci.draw_circle(pos, radius * 0.55, pal["red"] if target else pal["dot"])
+		_dashed_ring(ci, pos, radius * 1.2, pal["dot"], edge)
+		ci.draw_circle(pos, radius * 0.55, pal["dot"])
 		return
 	ci.draw_circle(pos, radius + edge, pal["dot_edge"])
-	ci.draw_circle(pos, radius, pal["red"] if target else pal["dot"])
+	ci.draw_circle(pos, radius, pal["dot"])
+
+
+## Objetivo marcado: mira de tinta sobre disco blanco con centro magenta (se lee sobre cualquier
+## color de acceso, §14.2 silueta antes que detalle). Aproximado = aro discontinuo (puesto habitual).
+static func draw_target_marker(ci: CanvasItem, pos: Vector2, radius: float, pal: Dictionary, approximate: bool) -> void:
+	var r: float = radius * 1.9
+	var w: float = maxf(1.5, radius * 0.34)
+	ci.draw_circle(pos + Vector2(w, w) * 0.6, r + w, pal["shadow"])
+	ci.draw_circle(pos, r + w, pal["white"])
+	var ticks: PackedVector2Array = PackedVector2Array()
+	for dir: Vector2 in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+		ticks.append_array([pos + dir * r * 0.45, pos + dir * (r + w * 2.2)])
+	ci.draw_multiline(ticks, pal["white"], w * 2.4)
+	ci.draw_multiline(ticks, pal["ink"], w)
+	if approximate:
+		_dashed_ring(ci, pos, r * 0.78, pal["ink"], w)
+	else:
+		ci.draw_arc(pos, r * 0.78, 0.0, TAU, 24, pal["ink"], w, true)
+	ci.draw_circle(pos, r * 0.36, pal["target"])
+
+
+## Tamaño de una etiqueta de nombre (draw_tag) para colocarla antes de dibujarla.
+static func tag_size(text: String, font: Font, font_size: int) -> Vector2:
+	var ts: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	return Vector2(ts.x + font_size * 1.9, font_size * 1.55)
+
+
+## Etiqueta de objetivo: placa de tinta con mira magenta y nombre en blanco, unida al punto.
+static func draw_tag(ci: CanvasItem, anchor: Vector2, box: Rect2, text: String, font: Font, font_size: int,
+		pal: Dictionary) -> void:
+	var near: Vector2 = Vector2(clampf(anchor.x, box.position.x, box.end.x), clampf(anchor.y, box.position.y, box.end.y))
+	ci.draw_line(anchor, near, pal["white"], maxf(3.0, font_size * 0.26), true)
+	ci.draw_line(anchor, near, pal["ink"], maxf(1.5, font_size * 0.1), true)
+	ci.draw_polygon(UITheme.rounded_rect_points(box.grow(1.5), font_size * 0.3), PackedColorArray([pal["white"]]))
+	ci.draw_polygon(UITheme.rounded_rect_points(box, font_size * 0.28), PackedColorArray([pal["ink"]]))
+	var c: Vector2 = Vector2(box.position.x + font_size * 0.72, box.get_center().y)
+	ci.draw_arc(c, font_size * 0.36, 0.0, TAU, 16, pal["white"], maxf(1.2, font_size * 0.1), true)
+	ci.draw_circle(c, font_size * 0.16, pal["target"])
+	var baseline: float = box.get_center().y + font.get_ascent(font_size) * 0.36
+	ci.draw_string(font, Vector2(box.position.x + font_size * 1.3, baseline), text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			font_size, pal["white"])
+
+
+## Pastilla de ocupación: figura + número (una por sala; legible aunque la sala sea pequeña).
+static func people_badge_size(count: int, font: Font, font_size: int) -> Vector2:
+	var tw: float = font.get_string_size(str(count), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	return Vector2(tw + font_size * 1.55, font_size * 1.35)
+
+
+static func draw_people_badge(ci: CanvasItem, box: Rect2, count: int, font: Font, font_size: int, pal: Dictionary) -> void:
+	ci.draw_polygon(UITheme.rounded_rect_points(box.grow(1.0), box.size.y * 0.5), PackedColorArray([pal["white"]]))
+	ci.draw_polygon(UITheme.rounded_rect_points(box, box.size.y * 0.5), PackedColorArray([pal["people"]]))
+	draw_person(ci, Vector2(box.position.x + box.size.y * 0.5, box.get_center().y + box.size.y * 0.04), box.size.y * 0.66, pal["white"])
+	var baseline: float = box.get_center().y + font.get_ascent(font_size) * 0.36
+	ci.draw_string(font, Vector2(box.position.x + box.size.y * 0.86, baseline), str(count), HORIZONTAL_ALIGNMENT_LEFT, -1,
+			font_size, pal["white"])
+
+
+## Helicóptero de la dirección aparcado en la azotea (silueta lateral dentro de `r`).
+static func draw_helicopter(ci: CanvasItem, r: Rect2, col: Color, glass: Color) -> void:
+	var w: float = maxf(1.2, r.size.y * 0.07)
+	var body: PackedVector2Array = UITheme.ellipse_points(_u(r, 0.36, 0.56), r.size.x * 0.24, r.size.y * 0.24, 18)
+	ci.draw_colored_polygon(body, col)
+	ci.draw_colored_polygon(UITheme.ellipse_points(_u(r, 0.26, 0.5), r.size.x * 0.09, r.size.y * 0.13, 12), glass)
+	ci.draw_colored_polygon(PackedVector2Array([_u(r, 0.52, 0.46), _u(r, 0.94, 0.5), _u(r, 0.94, 0.58), _u(r, 0.52, 0.66)]), col)
+	ci.draw_colored_polygon(PackedVector2Array([_u(r, 0.88, 0.26), _u(r, 0.97, 0.26), _u(r, 0.96, 0.56), _u(r, 0.9, 0.56)]), col)
+	ci.draw_line(_u(r, 0.36, 0.3), _u(r, 0.36, 0.2), col, w * 1.4)
+	ci.draw_line(_u(r, 0.0, 0.18), _u(r, 0.74, 0.18), col, w * 1.3, true)
+	for x: float in [0.22, 0.5]:
+		ci.draw_line(_u(r, x, 0.78), _u(r, x, 0.92), col, w)
+	ci.draw_line(_u(r, 0.1, 0.94), _u(r, 0.62, 0.94), col, w * 1.3, true)
 
 
 static func _dashed_ring(ci: CanvasItem, pos: Vector2, radius: float, col: Color, w: float) -> void:
@@ -472,6 +557,7 @@ func _draw() -> void:
 		_draw_occupancy(pal)
 	_draw_dots(pal)
 	_draw_hover(pal)
+	_draw_targets(pal)
 	_draw_player(pal)
 	_draw_compass(pal)
 
@@ -618,14 +704,15 @@ func _draw_evacuation(pal: Dictionary) -> void:
 	var t: float = EVAC_STEP_CELLS * 0.5
 	while t < length - EVAC_MIN_CELLS * 0.5:
 		var p: Vector2 = rect.position + (Vector2(t, rect.size.y * 0.5) if horizontal else Vector2(rect.size.x * 0.5, t))
-		_evac_arrow(p, _nearest(exits, p), horizontal and rect.size.x > rect.size.y * 2.0, pal)
+		_evac_arrow(p, _nearest(exits, p), horizontal, pal)
 		t += EVAC_STEP_CELLS
 
 
+## Flecha sobre el eje, siempre paralela a él (hacia la proyección de la salida): nunca en diagonal
+## atravesando muros, también en las plantas de vestíbulo (PB, nave, azotea).
 func _evac_arrow(p: Vector2, target: Vector2, along_x: bool, pal: Dictionary) -> void:
 	var d: Vector2 = target - p
-	if along_x:
-		d = Vector2(d.x, 0.0)
+	d = Vector2(d.x, 0.0) if along_x else Vector2(0.0, d.y)
 	if d.length() < EVAC_MIN_CELLS:
 		return
 	var n: Vector2 = d.normalized()
@@ -652,29 +739,46 @@ static func _nearest(points: Array[Vector2], p: Vector2) -> Vector2:
 
 # ─── Capas ─────────────────────────────────────────────────────────
 
+## Conos de cámara recortados a la sala que vigilan (los muros ciegan): tinta translúcida con borde
+## continuo, legible sobre verde, ámbar y rojo; el icono de la cámara encima.
 func _draw_cameras(pal: Dictionary) -> void:
-	var reach: float = Database.get_balance_float("camaras.alcance") * _scale
-	var half: float = deg_to_rad(Database.get_balance_float("camaras.angulo") * 0.5)
-	var cone: Color = _cone_color()
+	var fill: Color = Color(pal["camera"], Database.get_balance_float(B_CONE_ALPHA))
+	var edge: Color = Color(pal["camera"], Database.get_balance_float(B_CONE_EDGE_ALPHA))
+	for cam: Dictionary in _plan.get("cameras", []):
+		for part: PackedVector2Array in camera_cone(cam):
+			draw_colored_polygon(part, fill)
+			var outline: PackedVector2Array = part.duplicate()
+			outline.append(part[0])
+			draw_polyline(outline, edge, maxf(1.2, _scale * 0.09), true)
 	for cam: Dictionary in _plan.get("cameras", []):
 		var at: Vector2 = _center_of(cam["cell"])
-		var dir: Vector2 = Vector2(0.0, 1.0).rotated(deg_to_rad(float(cam.get("rotation", 0.0))))
-		var pts: PackedVector2Array = PackedVector2Array([at])
-		for i: int in ARC_SEGMENTS + 1:
-			pts.append(at + dir.rotated(lerpf(-half, half, float(i) / float(ARC_SEGMENTS))) * reach)
-		draw_colored_polygon(pts, Color(cone, Database.get_balance_float("camaras.alfa_cuna_clara") * 1.6))
-		pts.append(at)
-		draw_polyline(pts, Color(cone, Database.get_balance_float("camaras.alfa_borde")), maxf(1.0, _scale * 0.08), true)
 		var s: float = clampf(_scale * 1.1, 12.0, 26.0)
 		draw_circle(at, s * 0.62, pal["white"])
+		draw_arc(at, s * 0.62, 0.0, TAU, 16, pal["camera"], 1.2, true)
 		UITheme.draw_icon(self, "camera", Rect2(at - Vector2(s, s) * 0.5, Vector2(s, s)), pal["camera"], maxf(1.5, s * 0.1))
 
 
-func _cone_color() -> Color:
-	var raw: Array = UITheme.tune_array("camaras.color_cuna")
-	if raw.size() >= 3:
-		return Color(float(raw[0]), float(raw[1]), float(raw[2]))
-	return palette()["red"]
+## Cono de una cámara en px locales, recortado al rectángulo de su sala (Geometry2D). Vacío si la
+## cámara no tiene sala en el plano.
+func camera_cone(cam: Dictionary) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var rooms: Dictionary = _plan.get("rooms", {})
+	if not rooms.has(str(cam.get("room_id", ""))):
+		return out
+	_fit()
+	var reach: float = Database.get_balance_float(B_CAM_REACH) * _scale
+	var half: float = deg_to_rad(Database.get_balance_float(B_CAM_ANGLE) * 0.5)
+	var at: Vector2 = _center_of(cam["cell"])
+	var dir: Vector2 = Vector2(0.0, 1.0).rotated(deg_to_rad(float(cam.get("rotation", 0.0))))
+	var fan: PackedVector2Array = PackedVector2Array([at])
+	for i: int in ARC_SEGMENTS + 1:
+		fan.append(at + dir.rotated(lerpf(-half, half, float(i) / float(ARC_SEGMENTS))) * reach)
+	var r: Rect2 = _cell_rect(rooms[str(cam["room_id"])])
+	var box: PackedVector2Array = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+	for part: PackedVector2Array in Geometry2D.intersect_polygons(fan, box):
+		if part.size() >= 3:
+			out.append(part)
+	return out
 
 
 func _draw_routes(pal: Dictionary) -> void:
@@ -739,26 +843,23 @@ static func _has_ledge(room: RoomData) -> bool:
 	return false
 
 
+## Ocupación por franja (occupants_by_band): una pastilla «figura + número» por sala.
 func _draw_occupancy(pal: Dictionary) -> void:
 	var rooms: Dictionary = _plan["rooms"]
 	var band: String = str(_model.get("band", ""))
-	var cap: int = maxi(1, Database.get_balance_int("mapa.ocupacion_marcas_max"))
 	var font: Font = UITheme.font(UITheme.FONT_BOLD)
+	var fs: int = roundi(_base_size() * BADGE_RATIO)
 	for id: String in get_room_ids():
 		var room: RoomData = Database.get_room(id)
 		var count: int = room.get_occupants(band) if room != null else 0
 		if count <= 0:
 			continue
 		var r: Rect2 = _cell_rect(rooms[id]).grow(-_wall_w() * 1.5)
-		var s: float = clampf(_scale * PIP_RATIO, 9.0, 18.0)
-		var per_row: int = maxi(1, int(r.size.x * 0.5 / s))
-		var shown: int = mini(count, cap)
-		for i: int in shown:
-			var at: Vector2 = Vector2(r.position.x + s * (0.6 + float(i % per_row)), r.end.y - s * (0.6 + float(i / per_row)))
-			draw_person(self, at, s, pal["people"])
-		if count > shown:
-			var tail: Vector2 = Vector2(r.position.x + s * (0.4 + float(mini(shown, per_row))), r.end.y - s * 0.25)
-			draw_string(font, tail, "+%d" % (count - shown), HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(s * 0.9), pal["people"])
+		var bs: Vector2 = people_badge_size(count, font, fs)
+		if bs.x > r.size.x or bs.y > r.size.y:
+			continue
+		var pos: Vector2 = Vector2(r.position.x + _wall_w(), r.end.y - bs.y - _wall_w())
+		draw_people_badge(self, Rect2(pos, bs), count, font, fs, pal)
 
 
 # ─── Nombres, puntos, jugador ──────────────────────────────────────
@@ -776,24 +877,38 @@ func _draw_names(pal: Dictionary) -> void:
 		_draw_room_label(r, tr(room.name_key).to_upper(), room.clearance_required, _status(id), font, fs, pal)
 
 
+## Nombre de sala sobre una placa de papel (no se mezcla con muebles ni muros); si no cabe ni en
+## dos líneas se reduce la letra (hasta NAME_FLOOR_RATIO) y si aun así no cabe se omite (la sala sigue
+## en la lista del panel). Nivel de acreditación arriba a la izquierda.
 func _draw_room_label(r: Rect2, text: String, clearance: int, status: int, font: Font, fs: int, pal: Dictionary) -> void:
-	var lines: PackedStringArray = _wrap(text, font, fs, r.size.x)
-	var line_h: float = font.get_height(fs)
-	if lines.is_empty() or line_h * float(lines.size()) > r.size.y * 0.8:
-		return
+	var pad: float = maxf(3.0, fs * 0.35)
+	var size_fs: int = fs
+	var lines: PackedStringArray = _wrap(text, font, size_fs, r.size.x - pad * 2.0)
+	while lines.is_empty() and size_fs > roundi(_base_size() * NAME_FLOOR_RATIO):
+		size_fs -= 1
+		lines = _wrap(text, font, size_fs, r.size.x - pad * 2.0)
+	var line_h: float = font.get_height(size_fs)
 	var block_h: float = line_h * float(lines.size())
+	if lines.is_empty() or block_h + pad > r.size.y * 0.8:
+		return
 	var center_y: float = r.position.y + r.size.y * LABEL_HIGH_RATIO if r.size.y > block_h * 4.0 else r.get_center().y
 	var y0: float = center_y - block_h * 0.5
+	var widest: float = 0.0
+	for line: String in lines:
+		widest = maxf(widest, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, size_fs).x)
+	var plate: Rect2 = Rect2(r.get_center().x - widest * 0.5 - pad, y0 - pad * 0.5, widest + pad * 2.0, block_h + pad)
+	var outline: PackedVector2Array = UITheme.rounded_rect_points(plate, pad * 0.8)
+	draw_polygon(outline, PackedColorArray([Color(pal["paper"], PLATE_ALPHA)]))
+	outline.append(outline[0])
+	draw_polyline(outline, pal["ink_faint"], 1.0, true)
 	for i: int in lines.size():
-		var ts: float = font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var pos: Vector2 = Vector2(r.get_center().x - ts * 0.5, y0 + line_h * float(i) + font.get_ascent(fs))
-		draw_string_outline(font, pos, lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, maxi(2, fs / 5), Color(pal["white"], 0.85))
-		draw_string(font, pos, lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, pal["ink"])
-	var tag_fs: int = maxi(8, roundi(fs * 0.78))
-	var tag: String = tr("MAP_CLEARANCE_FMT") % clearance
-	var tag_pos: Vector2 = r.position + Vector2(tag_fs * 0.2, font.get_ascent(tag_fs) + tag_fs * 0.1)
-	if r.size.y > line_h * float(lines.size() + 1):
-		draw_string(font, tag_pos, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_fs, status_ink(status, pal))
+		var ts: float = font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, size_fs).x
+		var pos: Vector2 = Vector2(r.get_center().x - ts * 0.5, y0 + line_h * float(i) + font.get_ascent(size_fs))
+		draw_string(font, pos, lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, size_fs, pal["ink"])
+	var tag_fs: int = maxi(9, roundi(size_fs * 0.78))
+	if r.size.y > block_h + line_h * 2.0:
+		var tag_pos: Vector2 = r.position + Vector2(tag_fs * 0.2, font.get_ascent(tag_fs) + tag_fs * 0.1)
+		draw_string(font, tag_pos, tr("MAP_CLEARANCE_FMT") % clearance, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_fs, status_ink(status, pal))
 
 
 ## Parte el texto en una o dos líneas que quepan en `width` ([] si no cabe).
@@ -813,23 +928,48 @@ static func _wrap(text: String, font: Font, fs: int, width: float) -> PackedStri
 	return best
 
 
+## Conocidos con rutina desbloqueada: punto azul (radio mínimo según la letra base, legible en móvil).
 func _draw_dots(pal: Dictionary) -> void:
-	var rooms: Dictionary = _plan["rooms"]
+	for dot: Dictionary in _dots_here(false):
+		draw_npc_dot(self, _dot_at(dot), _dot_radius(), pal, false, bool(dot.get("approximate", false)))
+
+
+## Objetivos marcados, lo último antes del «usted está aquí»: mira + etiqueta con el nombre.
+func _draw_targets(pal: Dictionary) -> void:
 	var font: Font = UITheme.font(UITheme.FONT_BOLD)
-	var radius: float = clampf(_scale * DOT_RATIO, 4.0, 10.0)
-	var fs: int = roundi(_base_size() * NAME_MIN_RATIO)
+	var fs: int = roundi(_base_size() * TAG_RATIO)
+	var radius: float = _dot_radius()
+	for dot: Dictionary in _dots_here(true):
+		var pos: Vector2 = _dot_at(dot)
+		var approx: bool = bool(dot.get("approximate", false))
+		draw_target_marker(self, pos, radius, pal, approx)
+		var text: String = UITheme.trf("MAP_TARGET_APPROX_FMT", [dot.get("name", "")]) if approx else str(dot.get("name", ""))
+		var ts: Vector2 = tag_size(text, font, fs)
+		var box: Rect2 = Rect2(pos + Vector2(radius * 3.0, -ts.y - radius), ts)
+		if box.end.x > size.x - PAD:
+			box.position.x = pos.x - radius * 3.0 - ts.x
+		box.position.y = maxf(PAD, box.position.y)
+		draw_tag(self, pos, box, text, font, fs, pal)
+
+
+func _dots_here(targets: bool) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var rooms: Dictionary = _plan["rooms"]
 	for dot: Dictionary in _model.get("dots", []):
-		var room_id: String = str(dot.get("room_id", ""))
-		if int(dot.get("floor", -999)) != _floor or not rooms.has(room_id):
-			continue
-		var pos: Vector2 = dot_position(_cell_rect(rooms[room_id]).grow(-_wall_w() * 2.0), str(dot.get("npc_id", "")))
-		var target: bool = bool(dot.get("target", false))
-		draw_npc_dot(self, pos, radius, pal, target, bool(dot.get("approximate", false)))
-		if target:
-			var label: String = str(dot.get("name", ""))
-			var at: Vector2 = pos + Vector2(radius * 2.2, font.get_ascent(fs) * 0.35)
-			draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, maxi(3, fs / 4), pal["white"])
-			draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, pal["red_dark"])
+		if int(dot.get("floor", -999)) == _floor and rooms.has(str(dot.get("room_id", ""))) \
+				and bool(dot.get("target", false)) == targets:
+			out.append(dot)
+	return out
+
+
+func _dot_at(dot: Dictionary) -> Vector2:
+	var rooms: Dictionary = _plan["rooms"]
+	return dot_position(_cell_rect(rooms[str(dot["room_id"])]).grow(-_wall_w() * 2.0), str(dot.get("npc_id", "")))
+
+
+func _dot_radius() -> float:
+	var base: float = float(_base_size())
+	return clampf(_scale * DOT_RATIO, base * DOT_MIN_RATIO, base * DOT_MAX_RATIO)
 
 
 ## Posición determinista de un punto dentro de un rectángulo (reparto por hash del id).

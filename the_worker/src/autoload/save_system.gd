@@ -1,5 +1,5 @@
 # save_system.gd — Persistencia (§12.7, §19.13): la partida en curso (run.json, escritura atómica verificada) y el perfil (profile.json: ajustes y galería de finales).
-# PROPIETARIO DE: los dos archivos de persistencia, los ajustes del perfil, los finales desbloqueados y las marcas de partida viva, cargada y terminada (§19.13).
+# PROPIETARIO DE: los dos archivos de persistencia, los ajustes del perfil, los finales desbloqueados, las marcas de partida viva, cargada y terminada (§19.13) y los estados de nodos de escena leídos y aún sin reclamar.
 # ESCUCHA: run_started, game_over.
 class_name SaveSystemNode
 extends Node
@@ -20,6 +20,12 @@ extends Node
 ##    durante el renombrado), la lectura promueve el .tmp y lo usa (read_or_recover).
 ##  · load_run(): verifica y decodifica el archivo ANTES de tocar ningún sistema; después llama a
 ##    load_state() de cada autoload en el orden de project.godot y emite run_loaded(día).
+##  · NODOS DE ESCENA con estado de partida (CaughtHandler, DutySystem: no son autoloads): los que
+##    están en el grupo SCENE_GROUP e implementan save_state/load_state se guardan en el mismo
+##    "systems" con la clave "scene:<clave>" (clave = get_save_key() o el nombre del nodo). load_run
+##    se lo entrega a los que ya estén en el árbol (después de los autoloads) y guarda el resto:
+##    un nodo que se crea después lo pide con claim_scene_state(clave) en su _ready. Una partida
+##    nueva (run_started, reset_for_new_run) olvida lo no reclamado.
 ##  · Se guarda SOLO al dormir (§12.7): el mundo llama a save_run() al terminar la secuencia de
 ##    sueño. Nada se guarda automáticamente.
 ##  · Permadeath, variante A: game_over termina la partida del proceso: save_run() se niega
@@ -54,6 +60,9 @@ const SAVE_VERSION := 1
 const DEFAULT_DIR := "user://"
 const TMP_SUFFIX := ".tmp"
 const AUTOLOAD_PREFIX := "autoload/"
+const SCENE_GROUP := "run_persistent_nodes"
+const SCENE_KEY_PREFIX := "scene:"
+const SCENE_KEY_GETTER := "get_save_key"
 const K_VERSION := "version"
 const K_DAY := "day"
 const K_CHECKSUM := "checksum"
@@ -112,6 +121,8 @@ var _settings: Dictionary = {}
 var _unlocked: Array[String] = []
 var _profile_loaded: bool = false
 var _defaults: Dictionary = {}
+## "clave de nodo" → estado leído por load_run() que ningún nodo del árbol recogió todavía.
+var _pending_scene_states: Dictionary = {}
 
 
 func _ready() -> void:
@@ -124,6 +135,7 @@ func reset_for_new_run() -> void:
 	_run_active = false
 	_run_over = false
 	_run_loaded = false
+	_pending_scene_states.clear()
 
 
 # ═══ Partida (§19.13) ═════════════════════════════════════════════════
@@ -151,6 +163,7 @@ func load_run() -> bool:
 	for autoload_name: String in get_persistent_autoloads():
 		if (states as Dictionary).has(autoload_name):
 			_autoload(autoload_name).call("load_state", states[autoload_name])
+	_deliver_scene_states(states)
 	_run_active = true
 	_run_over = false
 	_run_loaded = true
@@ -278,6 +291,29 @@ func get_persistent_autoloads() -> Array[String]:
 	return out
 
 
+## Claves de los nodos de escena (grupo SCENE_GROUP) que se guardarían ahora, en orden de árbol.
+func get_persistent_scene_nodes() -> Array[String]:
+	var out: Array[String] = []
+	for node: Node in _scene_nodes():
+		out.append(scene_key_of(node))
+	return out
+
+
+## Estado de la partida cargada para el nodo de clave `save_key` que aún no lo recibió ({} si no
+## hay). Se entrega una sola vez.
+func claim_scene_state(save_key: String) -> Dictionary:
+	var state: Variant = _pending_scene_states.get(save_key, {})
+	_pending_scene_states.erase(save_key)
+	return state if state is Dictionary else {}
+
+
+## get_save_key() del nodo o, si no lo tiene, su nombre.
+static func scene_key_of(node: Node) -> String:
+	if node.has_method(SCENE_KEY_GETTER):
+		return str(node.call(SCENE_KEY_GETTER))
+	return String(node.name)
+
+
 ## Texto de archivo: cabecera + checksum (MD5 del cuerpo exacto) + cuerpo bajo `body_key`.
 func compose(header: Dictionary, body_key: String, body: Variant) -> String:
 	var body_text: String = JSON.stringify(body, "", true, true)
@@ -393,14 +429,46 @@ func is_valid_ending_id(ending_id: String) -> bool:
 
 # ═══ Internos: partida ════════════════════════════════════════════════
 
-## {autoload: encode_state(save_state())}.
+## {autoload: encode_state(save_state())} + {"scene:<clave>": ...} de los nodos de escena.
 func _collect_states() -> Dictionary:
 	var systems: Dictionary = {}
 	for autoload_name: String in get_persistent_autoloads():
 		var state: Variant = _autoload(autoload_name).call("save_state")
 		if state is Dictionary:
 			systems[autoload_name] = encode_state(state)
+	for node: Node in _scene_nodes():
+		var node_state: Variant = node.call("save_state")
+		if node_state is Dictionary:
+			systems[SCENE_KEY_PREFIX + scene_key_of(node)] = encode_state(node_state)
 	return systems
+
+
+## Nodos del grupo SCENE_GROUP con save_state y load_state.
+func _scene_nodes() -> Array[Node]:
+	var out: Array[Node] = []
+	if not is_inside_tree():
+		return out
+	for node: Node in get_tree().get_nodes_in_group(SCENE_GROUP):
+		if node.has_method("save_state") and node.has_method("load_state"):
+			out.append(node)
+	return out
+
+
+## Tras los autoloads: cada estado "scene:" va a su nodo; lo que no tiene nodo queda pendiente.
+func _deliver_scene_states(states: Dictionary) -> void:
+	_pending_scene_states.clear()
+	var nodes: Dictionary = {}
+	for node: Node in _scene_nodes():
+		nodes[scene_key_of(node)] = node
+	for key: Variant in states:
+		var text: String = str(key)
+		if not text.begins_with(SCENE_KEY_PREFIX):
+			continue
+		var save_key: String = text.trim_prefix(SCENE_KEY_PREFIX)
+		if nodes.has(save_key):
+			(nodes[save_key] as Node).call("load_state", states[key])
+		else:
+			_pending_scene_states[save_key] = states[key]
 
 
 func _autoload(autoload_name: String) -> Node:
@@ -525,6 +593,7 @@ static func _is_number(value: Variant) -> bool:
 func _on_run_started(_run_seed: int) -> void:
 	if not _run_loaded:
 		delete_run()
+		_pending_scene_states.clear()
 	_run_active = true
 	_run_over = false
 

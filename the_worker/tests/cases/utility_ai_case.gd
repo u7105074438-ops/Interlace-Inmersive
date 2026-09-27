@@ -57,6 +57,7 @@ func run_case() -> void:
 	_check_cooldown_counts_other_reports()
 	_check_debt_suppression()
 	_check_bribe_inclination()
+	_check_reinforcement_escalation()
 
 
 func _check_repertoire() -> void:
@@ -351,6 +352,30 @@ func _context(npc_id: String, rank: int, meters: Array) -> Dictionary:
 		"player_rank": rank, "player_suspicion": meters[0], "player_reputation": meters[1],
 		"belief_certainties": beliefs,
 	})
+
+
+## §7.2 percepción parcial acumulable: el refuerzo que CRUZA la certeza completa hace reevaluar al
+## portador una sola vez (NPCDirector oye belief_decayed = «certeza cambiada»).
+func _check_reinforcement_escalation() -> void:
+	new_run()
+	_clear()
+	var room: String = NPCDirector.get_npc(AMELIA).home_room
+	var id: String = BeliefNet.create_belief(AMELIA, "player", "seen_partially", PARTIAL, "direct", room)
+	check_eq(_decisions_of(AMELIA), 1, "a partial sighting: one evaluation at birth")
+	BeliefNet.reinforce_belief(id, 0.05)
+	check_eq(_decisions_of(AMELIA), 1, "a reinforcement below full certainty: no new evaluation")
+	BeliefNet.reinforce_belief(id, DIRECT)
+	check(BeliefNet.get_belief(id).certainty >= DIRECT, "precondition: now at full certainty")
+	check_eq(_decisions_of(AMELIA), 2, "crossing full certainty makes the holder re-evaluate")
+	var last: Array = _decided.back()
+	check(last[0] == AMELIA and float(last[2].get("certainty", 0.0)) >= DIRECT,
+			"…with the reinforced certainty")
+	BeliefNet.reinforce_belief(id, DIRECT)
+	check_eq(_decisions_of(AMELIA), 2, "only once per belief")
+
+
+func _decisions_of(npc_id: String) -> int:
+	return _decided.filter(func(entry: Array) -> bool: return entry[0] == npc_id).size()
 
 
 func _decided_action(npc_id: String) -> String:

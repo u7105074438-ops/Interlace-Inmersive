@@ -1,13 +1,14 @@
-# scenes.gd (escenario) — Capturas de las escenas Aurora (antes del choque y sus tres resultados) e interrogatorio (disculpa, portazo, piezas sobre la mesa, acusación, final).
+# scenes.gd (escenario) — Capturas de las escenas Aurora (ensayo, antes del choque, el choque y sus tres resultados) e interrogatorio (disculpa, portazo, piezas sobre la mesa, reacción, acusación, final), en escritorio, móvil y español.
 # PROPIETARIO DE: nada (monta una partida con población, prepara ideas y casos de QA y fotografía).
 # ESCUCHA: nada.
 extends Node
 
 ## tools/screenshot.sh /tmp/shots_scenes scenes
-## Capturas: aurora_pick, aurora_prepare, aurora_accusation, aurora_win, aurora_tie, aurora_loss,
-## aurora_others, interrogation_apology, interrogation_door_slam, interrogation_mid,
-## interrogation_stamp, interrogation_accuse, interrogation_end, aurora_phone, interrogation_phone,
-## aurora_tie_es, interrogation_es (textos más largos en español).
+## Capturas: aurora_rehearsal, aurora_pick, aurora_prepare, aurora_accusation, aurora_clash,
+## aurora_win, aurora_tie, aurora_loss, aurora_others, interrogation_apology,
+## interrogation_door_slam, interrogation_mid, interrogation_react, interrogation_accuse,
+## interrogation_end, aurora_phone_pick, aurora_phone_clash, interrogation_phone,
+## aurora_tie_es, interrogation_es.
 ## Los choques usan claves forzadas (clash_overrides) para fijar cada resultado; los
 ## interrogatorios, contexto forzado (reputación, sospecha) para cada tono.
 
@@ -35,6 +36,14 @@ const CASE_ROOMS: Array[String] = ["ceo_office", "boardroom", "vice_ceo_office",
 	"trading_room", "results_room", "board_confidential_archive"]
 ## Asistentes con ideas propias pendientes: las presentan al cerrar la reunión.
 const PRESENTERS: Array[String] = ["npc_sonia_vail", "npc_tom_iverson"]
+## Dueños de las ideas compradas para llenar el selector en el móvil.
+const SELLERS: Array[String] = ["npc_bernard_lasker", "npc_connie_marks", "npc_amelia_cole",
+	"npc_ludmila_petrova", "npc_george_penn"]
+## Día de la reunión semanal con el balance por defecto (jornada 1 = día 0 de la semana).
+const MEETING_DAY := 4
+const REHEARSAL_HOUR := 9
+const UNTIL_LIMIT := 8.0
+const UNTIL_STEP := 0.1
 
 var _pilot: Autopilot
 var _case_index: int = 0
@@ -44,10 +53,11 @@ func run(pilot: Autopilot) -> void:
 	_pilot = pilot
 	_new_run()
 	await pilot.frames(3)
+	await _rehearsal_shot()
 	await _aurora_run(WIN, "aurora_win", true)
 	await _aurora_run(TIE, "aurora_tie", false)
 	await _aurora_run(LOSS, "aurora_loss", false)
-	await _interrogation_tone({"reputation": 91.0, "suspicion": 12.0}, "interrogation_apology", 2.2)
+	await _interrogation_tone({"reputation": 91.0, "suspicion": 12.0}, "interrogation_apology", 2.4)
 	await _interrogation_tone({"reputation": 48.0, "suspicion": 82.0}, "interrogation_door_slam", 1.75)
 	await _interrogation_flow()
 	await _phone_shots()
@@ -86,8 +96,14 @@ func _stolen_idea(owner_id: String) -> String:
 	return id
 
 
+func _bought_idea(seller: String) -> String:
+	var id: String = IdeaPool.generate_idea(seller, "sales")
+	IdeaPool.acquire(id, IdeaPool.METHOD_PURCHASE)
+	return id
+
+
 func _open_meeting(believers: int) -> String:
-	GameClock.set_time(3, 11, 0)
+	GameClock.set_time(MEETING_DAY, 11, 0)
 	if not IdeaPool.is_meeting_open():
 		IdeaPool.start_meeting()
 	var id: String = _stolen_idea(OWNER)
@@ -101,37 +117,75 @@ func _open_meeting(believers: int) -> String:
 	return id
 
 
+## La sala vacía antes de la reunión: el jugador ensaya una idea (preparación real ×1,0).
+func _rehearsal_shot() -> void:
+	if IdeaPool.is_meeting_open():
+		IdeaPool.close_meeting()
+	GameClock.set_time(MEETING_DAY, REHEARSAL_HOUR, 0)
+	var id: String = _bought_idea(SELLER)
+	_stolen_idea(OWNER)
+	var scene: AuroraScene = AuroraScene.new()
+	scene.closed.connect(func() -> void: pass)
+	add_child(scene)
+	await _pilot.seconds(0.8)
+	scene.rehearse(id, IdeaPresentation.PREP_REAL)
+	await _pilot.seconds(0.8)
+	await _pilot.shot("aurora_rehearsal")
+	scene.finish()
+	scene.queue_free()
+	await _pilot.frames(2)
+
+
 func _aurora_run(overrides: Dictionary, shot_name: String, full: bool) -> void:
 	var idea_id: String = _open_meeting(2 if overrides == LOSS else 0)
 	if full:
-		var bought: String = IdeaPool.generate_idea(SELLER, "sales")
-		IdeaPool.acquire(bought, IdeaPool.METHOD_PURCHASE)
+		_bought_idea(SELLER)
 	var scene: AuroraScene = AuroraScene.new()
 	scene.clash_overrides = overrides
 	scene.closed.connect(func() -> void: pass)
 	add_child(scene)
-	await _pilot.seconds(1.6)
+	await _until(func() -> bool: return scene.get_step() == AuroraScene.STEP_PICK)
+	await _pilot.seconds(0.8)
 	if full:
 		await _pilot.shot("aurora_pick")
 	scene.choose_idea(idea_id)
-	await _pilot.seconds(0.4)
+	await _pilot.seconds(0.6)
 	if full:
 		await _pilot.shot("aurora_prepare")
 	scene.choose_preparation(IdeaPresentation.PREP_NONE)
-	var walk: float = Database.get_balance_float("escenas.paseo_segundos")
-	await _pilot.seconds(walk + SceneStage.reading_time(tr("AURORA_PITCH")) + 1.0)
+	await _to_accusation(scene, full)
+	scene.skip_ahead()
+	await _pilot.seconds(0.7)
 	if full:
-		await _pilot.shot("aurora_accusation")
-	scene.fast_forward()
-	await _pilot.seconds(0.5)
+		await _pilot.shot("aurora_clash")
+	scene.skip_ahead()
+	await _pilot.seconds(1.0)
 	await _pilot.shot(shot_name)
 	if full:
 		scene.continue_scene()
+		var walk: float = Database.get_balance_float("escenas.paseo_segundos")
 		await _pilot.seconds(walk * 3.0 + 1.0)
 		await _pilot.shot("aurora_others")
 	scene.finish()
 	scene.queue_free()
 	await _pilot.frames(2)
+
+
+## Espera (en pasos de 0,1 s, como mucho UNTIL_LIMIT) a que `check` se cumpla.
+func _until(check: Callable) -> void:
+	var waited: float = 0.0
+	while not bool(check.call()) and waited < UNTIL_LIMIT:
+		await _pilot.seconds(UNTIL_STEP)
+		waited += UNTIL_STEP
+
+
+func _to_accusation(scene: AuroraScene, full: bool) -> void:
+	var walk: float = Database.get_balance_float("escenas.paseo_segundos")
+	await _pilot.seconds(walk + SceneStage.reading_time(tr("AURORA_PITCH")) + 1.1)
+	if full:
+		await _pilot.shot("aurora_accusation")
+	if scene.get_step() != AuroraScene.STEP_RESULT:
+		push_warning("scenes: the Aurora scene left the result step early")
 
 
 # ─── Interrogatorio ───────────────────────────────────────────
@@ -178,11 +232,12 @@ func _interrogation_flow() -> void:
 	await _pilot.seconds(1.6)
 	await _pilot.shot("interrogation_mid")
 	scene.answer(Interrogation.ANSWER_EXPLAIN)
-	await _pilot.seconds(3.2)
-	await _pilot.shot("interrogation_stamp")
+	scene.skip_ahead()
+	await _pilot.seconds(1.4)
+	await _pilot.shot("interrogation_react")
 	scene.fast_forward()
 	scene.open_accuse_picker()
-	await _pilot.seconds(0.5)
+	await _pilot.seconds(0.6)
 	await _pilot.shot("interrogation_accuse")
 	var candidates: Array[String] = scene.accuse_candidates()
 	scene.answer(Interrogation.ANSWER_ACCUSE, candidates[0] if not candidates.is_empty() else "")
@@ -195,32 +250,45 @@ func _interrogation_flow() -> void:
 
 # ─── Móvil ────────────────────────────────────────────────────
 
-## Móvil: ventana 20:9 con el texto grande y la escala táctil que aplica UIRoot en un teléfono.
+## Móvil: ventana 20:9 con el texto grande y la escala táctil que aplica UIRoot en un teléfono; el
+## selector con seis ideas (se desplaza; los botones quedan a la vista) y el choque.
 func _phone_shots() -> void:
 	get_window().size = PHONE
 	UITheme.touch_scale_active = true
 	UITheme.current_text_size = UITheme.TEXT_LARGE
 	await _pilot.frames(4)
 	var idea_id: String = _open_meeting(0)
+	for seller: String in SELLERS:
+		_bought_idea(seller)
 	var scene: AuroraScene = AuroraScene.new()
 	scene.clash_overrides = WIN
 	scene.closed.connect(func() -> void: pass)
 	add_child(scene)
-	await _pilot.seconds(1.6)
+	await _until(func() -> bool: return scene.get_step() == AuroraScene.STEP_PICK)
+	await _pilot.seconds(0.8)
+	await _pilot.shot("aurora_phone_pick")
 	scene.choose_idea(idea_id)
-	await _pilot.seconds(0.3)
-	await _pilot.shot("aurora_phone")
+	scene.choose_preparation(IdeaPresentation.PREP_NONE)
+	scene.skip_ahead()
+	scene.skip_ahead()
+	await _pilot.seconds(2.0)
+	await _pilot.shot("aurora_phone_clash")
 	scene.finish()
 	scene.queue_free()
+	await _phone_interrogation()
+	UITheme.touch_scale_active = false
+	UITheme.current_text_size = UITheme.TEXT_MEDIUM
+	get_window().size = DESKTOP
+	await _pilot.frames(2)
+
+
+func _phone_interrogation() -> void:
 	var inter: InterrogationScene = InterrogationScene.new(_open_case(), {"reputation": 66.0, "suspicion": 30.0})
 	inter.closed.connect(func() -> void: pass)
 	add_child(inter)
 	await _pilot.seconds(5.0)
 	await _pilot.shot("interrogation_phone")
 	inter.queue_free()
-	UITheme.touch_scale_active = false
-	UITheme.current_text_size = UITheme.TEXT_MEDIUM
-	get_window().size = DESKTOP
 	await _pilot.frames(2)
 
 

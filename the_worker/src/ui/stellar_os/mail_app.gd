@@ -16,6 +16,8 @@ extends OSApp
 ##    Además, una respuesta errónea cuesta ordenador.correo_reputacion_respuesta_erronea de
 ##    reputación (PlayerState.modify_reputation, motivo "mail_wrong_reply").
 ##  · El tachado en el HUD lo produce PlayerState (duty_completed) al terminar el deber.
+##  · Lector: las respuestas siguen al cuerpo del correo y la letra pequeña va después (en móvil
+##    quedan a la vista sin desplazar hasta el fondo); el hueco sobrante queda debajo.
 
 const CONTENT_KEY := "email_templates"
 const B_CONTENT_BY_SUBTYPE := "deberes.contenido_por_subtipo"
@@ -367,10 +369,9 @@ func _show_mail(inbox: Array[Dictionary], index: int) -> void:
 	_reader.add_child(HSeparator.new())
 	var body: Label = make_label(t(str(tpl.get("body_key", ""))), "", true)
 	_reader.add_child(body)
-	var footer: Label = make_label(t("MAIL_FOOTER"), OSTheme.V_MUTED, true)
-	footer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_reader.add_child(footer)
 	_reader.add_child(_reply_block(entry))
+	_reader.add_child(make_label(t("MAIL_FOOTER"), OSTheme.V_MUTED, true))
+	_reader.add_child(spacer())
 
 
 func _from_line(tpl: Dictionary) -> HBoxContainer:
@@ -401,6 +402,9 @@ func _reply_block(entry: Dictionary) -> VBoxContainer:
 			if choice >= 0 and choice < keys_sent.size():
 				box.add_child(make_label(t("MAIL_YOU_SENT", [t(str(keys_sent[choice]))]), OSTheme.V_MUTED, true))
 		return box
+	var gap: Control = spacer(false)
+	gap.custom_minimum_size.y = base * 0.35
+	box.add_child(gap)
 	box.add_child(make_section(t("MAIL_REPLY_WITH")))
 	var keys: Array = tpl.get("replies_keys", []) as Array
 	for i: int in mini(keys.size(), REPLY_COUNT):
@@ -434,5 +438,4 @@ func _on_reply(choice: int) -> void:
 
 
 func _on_duty_event() -> void:
-	if is_inside_tree():
-		refresh.call_deferred()
+	request_refresh()

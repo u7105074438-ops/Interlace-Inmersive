@@ -1,5 +1,5 @@
 # os_theme.gd — Aspecto deliberadamente obsoleto de StellarOS (§13.3, §13.4, §14.8): paletas por aspecto, biseles, tema y dibujo vectorial.
-# PROPIETARIO DE: nada (funciones puras de estilo y dibujo; la caché de fuentes es de UITheme).
+# PROPIETARIO DE: nada de juego (funciones puras de estilo y dibujo; solo la caché de la estrella del botón de inicio y el indicador transitorio de rellenos oscuros mientras dibuja un icono en alto contraste; la caché de fuentes es de UITheme).
 # ESCUCHA: nada.
 class_name OSTheme
 extends RefCounted
@@ -27,6 +27,13 @@ const BAND_KEYS: Array[String] = [
 	"floor", "wall", "accent", "light", "shadow", "carpet", "furniture", "outline", "window",
 ]
 const FLAG_KEYS: Array[String] = ["bevel", "radius", "scanlines", "product_key", "edition_key"]
+const BAND_SLOTS_KEY := "band_slots"
+## Color de respaldo si la banda no define una clave (datos incompletos).
+const BAND_FALLBACK := "#808080"
+## Colores propios de cada aspecto. Los que coinciden con la paleta de su banda NO se repiten aquí:
+## "band_slots" dice qué clave de data/art_bands.json (banda de ordenador.banda_por_nivel) rellena
+## cada hueco. Solo quedan literales los cromados deliberadamente fuera de paleta (el 98 verde
+## azulado, los grises del 2000, las barras de título, los estados).
 const SKINS: Dictionary = {
 	SKIN_RETRO: {
 		"face": "#d9d1b8", "light": "#fbf7ea", "shadow": "#8e866d", "dark": "#23251f",
@@ -38,29 +45,32 @@ const SKINS: Dictionary = {
 		"product_key": "OS_PRODUCT_RETRO", "edition_key": "OS_EDITION_RETRO",
 	},
 	SKIN_CLASSIC: {
-		"face": "#d4d0c8", "light": "#ffffff", "shadow": "#808080", "dark": "#1b2632",
+		"face": "#d4d0c8", "light": "#ffffff", "shadow": "#808080",
 		"text": "#111111", "muted": "#4f5864", "title_a": "#0a246a", "title_b": "#3a6ea5",
 		"title_text": "#ffffff", "title_off": "#9aa4b0", "field": "#ffffff", "select": "#0a246a",
-		"select_text": "#ffffff", "accent": "#1f6fd1", "good": "#1e7b34", "bad": "#b3261e",
-		"warn": "#9a6700", "desk": "#3a5a82", "desk_dark": "#1b2632", "paper": "#f7e98a",
+		"select_text": "#ffffff", "good": "#1e7b34", "bad": "#b3261e", "warn": "#9a6700", "paper": "#f7e98a",
+		BAND_SLOTS_KEY: {"dark": "outline", "desk_dark": "outline", "desk": "carpet", "accent": "accent"},
 		"bevel": true, "radius": 0, "scanlines": false,
 		"product_key": "OS_PRODUCT_CLASSIC", "edition_key": "OS_EDITION_CLASSIC",
 	},
 	SKIN_LUNA: {
-		"face": "#ece9d8", "light": "#ffffff", "shadow": "#aca899", "dark": "#1a120b",
-		"text": "#1a120b", "muted": "#5b5446", "title_a": "#1f2d4e", "title_b": "#4a6a9e",
+		"face": "#ece9d8", "light": "#ffffff", "shadow": "#aca899",
+		"muted": "#5b5446", "title_b": "#4a6a9e",
 		"title_text": "#fff6dc", "title_off": "#8e9bb3", "field": "#ffffff", "select": "#2f4a7a",
-		"select_text": "#ffffff", "accent": "#b8923a", "good": "#2e7d32", "bad": "#a8261e",
-		"warn": "#8f6a12", "desk": "#1f2d4e", "desk_dark": "#0e1628", "paper": "#f4e3a1",
+		"select_text": "#ffffff", "good": "#2e7d32", "bad": "#a8261e",
+		"warn": "#8f6a12", "desk_dark": "#0e1628", "paper": "#f4e3a1",
+		BAND_SLOTS_KEY: {"dark": "outline", "text": "outline", "title_a": "carpet", "desk": "carpet",
+				"accent": "accent"},
 		"bevel": false, "radius": 7, "scanlines": false,
 		"product_key": "OS_PRODUCT_LUNA", "edition_key": "OS_EDITION_LUNA",
 	},
 	SKIN_SOVEREIGN: {
-		"face": "#f7f5f0", "light": "#fffdf8", "shadow": "#d9d3c6", "dark": "#1c1c1f",
-		"text": "#1c1c1f", "muted": "#6e695f", "title_a": "#1c1c1f", "title_b": "#2a2a2e",
-		"title_text": "#e8d9ae", "title_off": "#6e695f", "field": "#fffdf8", "select": "#b89b5e",
-		"select_text": "#1c1c1f", "accent": "#b89b5e", "good": "#3d7a4f", "bad": "#9e2b25",
-		"warn": "#8a6d2f", "desk": "#e8e5de", "desk_dark": "#cbc4b4", "paper": "#fbf6e6",
+		"light": "#fffdf8", "shadow": "#d9d3c6", "title_b": "#2a2a2e", "title_text": "#e8d9ae",
+		"field": "#fffdf8", "select_text": "#1c1c1f", "good": "#3d7a4f", "bad": "#9e2b25",
+		"warn": "#8a6d2f", "paper": "#fbf6e6",
+		BAND_SLOTS_KEY: {"face": "wall", "desk": "floor", "desk_dark": "carpet", "accent": "accent",
+				"select": "accent", "muted": "shadow", "title_off": "shadow", "dark": "furniture",
+				"text": "furniture", "title_a": "furniture"},
 		"bevel": false, "radius": 12, "scanlines": false,
 		"product_key": "OS_PRODUCT_SOVEREIGN", "edition_key": "OS_EDITION_SOVEREIGN",
 	},
@@ -99,6 +109,18 @@ const V_PRIMARY := "OSPrimary"
 const V_DANGER := "OSDanger"
 const V_FLAT := "OSFlat"
 const V_TASK := "OSTaskButton"
+const V_SECTION := "OSSection"
+const V_TITLE_BUTTON := "OSTitleButton"
+const V_TITLE_CLOSE := "OSTitleClose"
+## Cierre al estilo XP del aspecto luna (rojo de ventana de 2001, fuera de paleta a propósito).
+const LUNA_CLOSE := "#c8412c"
+## Alto contraste: los rellenos de los iconos se oscurecen para que el contorno blanco se lea.
+const CONTRAST_FILL_DARKEN := 0.7
+
+## Contexto de dibujo (solo durante draw_icon): rellenos oscuros del alto contraste.
+static var _dark_fills: bool = false
+## Estrellas del botón de inicio ya rasterizadas, por tamaño en píxeles.
+static var _star_cache: Dictionary = {}
 
 
 ## Caja de estilo biselada (botones, ventanas y campos al estilo de 1998).
@@ -175,10 +197,14 @@ static func palette(skin_id: String, band_id: String) -> Dictionary:
 	var src: Dictionary = SKINS.get(skin_id, SKINS[SKIN_RETRO])
 	var pal: Dictionary = {"skin": skin_id, "band": band_id}
 	for key: String in src:
-		pal[key] = src[key] if FLAG_KEYS.has(key) else Color(str(src[key]))
+		if key != BAND_SLOTS_KEY:
+			pal[key] = src[key] if FLAG_KEYS.has(key) else Color(str(src[key]))
 	var band_pal: Dictionary = _band_palette(band_id)
+	var slots: Dictionary = src.get(BAND_SLOTS_KEY, {}) as Dictionary
+	for slot: String in slots:
+		pal[slot] = Color(str(band_pal.get(str(slots[slot]), BAND_FALLBACK)))
 	for key: String in BAND_KEYS:
-		pal["band_" + key] = Color(str(band_pal.get(key, src.get("desk", "#808080"))))
+		pal["band_" + key] = Color(str(band_pal.get(key, BAND_FALLBACK)))
 	return pal
 
 
@@ -210,6 +236,8 @@ static func build(pal: Dictionary, base: int) -> Theme:
 	_panels(t, pal, base)
 	_scrollbars(t, pal, base)
 	_tabs(t, pal, base)
+	_sections(t, pal, base)
+	_title_buttons(t, pal, base)
 	return t
 
 
@@ -350,6 +378,75 @@ static func _tabs(t: Theme, pal: Dictionary, base: int) -> void:
 	t.set_font_size("font_size", "TabBar", roundi(base * RATIO_BODY))
 
 
+## Rótulos de sección y separadores: filete grabado en los biselados, azul marino en luna y
+## filete de oro en sovereign (el equipo caro se nota también dentro de las aplicaciones).
+static func _sections(t: Theme, pal: Dictionary, base: int) -> void:
+	t.set_type_variation(V_SECTION, "Label")
+	t.set_font("font", V_SECTION, UITheme.spaced(UITheme.font(UITheme.FONT_BOLD)))
+	t.set_font_size("font_size", V_SECTION, roundi(base * RATIO_SMALL))
+	var skin: String = str(pal.get("skin", SKIN_RETRO))
+	var ink: Color = col(pal, "accent") if skin == SKIN_SOVEREIGN else (col(pal, "title_a") if skin == SKIN_LUNA
+			else col(pal, "muted"))
+	t.set_color("font_color", V_SECTION, ink)
+	var line: StyleBoxFlat = StyleBoxFlat.new()
+	line.draw_center = false
+	line.border_width_bottom = maxi(1, roundi(bevel_width(base) * (1.0 if skin == SKIN_SOVEREIGN else 0.5)))
+	line.border_color = Color(rule_color(pal), 0.9)
+	line.content_margin_bottom = base * 0.15
+	t.set_stylebox("normal", V_SECTION, line)
+	var sep: StyleBoxLine = StyleBoxLine.new()
+	sep.color = rule_color(pal)
+	sep.thickness = maxi(1, roundi(bevel_width(base) * 0.5))
+	t.set_stylebox("separator", "HSeparator", sep)
+	t.set_constant("separation", "HSeparator", roundi(base * 0.3))
+
+
+## Color de filetes y divisores del aspecto.
+static func rule_color(pal: Dictionary) -> Color:
+	match str(pal.get("skin", SKIN_RETRO)):
+		SKIN_SOVEREIGN:
+			return col(pal, "accent")
+		SKIN_LUNA:
+			return col(pal, "title_b")
+	return col(pal, "shadow")
+
+
+## Botones _ y × de la barra de título: grises biselados (98/2000), redondos con el cierre rojo
+## (luna) o aros de oro sobre cuero (sovereign).
+static func _title_buttons(t: Theme, pal: Dictionary, base: int) -> void:
+	var skin: String = str(pal.get("skin", SKIN_RETRO))
+	var pad: Vector2 = Vector2(base * 0.1, 0.0)
+	if pal.get("bevel", false) or skin == SKIN_CONTRAST:
+		_variant(t, V_TITLE_BUTTON, pal, base, pad)
+		_variant(t, V_TITLE_CLOSE, pal, base, pad)
+		return
+	var ink: Color = col(pal, "title_text")
+	var fill: Color = col(pal, "title_b") if skin == SKIN_LUNA else Color(0, 0, 0, 0)
+	var ring: Color = Color.WHITE if skin == SKIN_LUNA else col(pal, "accent")
+	var close_fill: Color = Color(LUNA_CLOSE) if skin == SKIN_LUNA else fill
+	_round_button(t, V_TITLE_BUTTON, fill, ring, ink, base)
+	_round_button(t, V_TITLE_CLOSE, close_fill, ring, Color.WHITE if skin == SKIN_LUNA else ink, base)
+
+
+static func _round_button(t: Theme, v: String, fill: Color, ring: Color, ink: Color, base: int) -> void:
+	t.set_type_variation(v, "Button")
+	var states: Dictionary = {"normal": fill, "hover": fill.lightened(0.18) if fill.a > 0.0 else Color(ring, 0.25),
+			"pressed": fill.darkened(0.2) if fill.a > 0.0 else Color(ring, 0.4)}
+	for state: String in states:
+		var sb: StyleBoxFlat = StyleBoxFlat.new()
+		sb.bg_color = states[state]
+		sb.set_corner_radius_all(roundi(base))
+		sb.set_border_width_all(maxi(1, roundi(bevel_width(base) * 0.6)))
+		sb.border_color = Color(ring, 0.85)
+		sb.anti_aliasing = true
+		t.set_stylebox(state, v, sb)
+	t.set_stylebox("hover_pressed", v, t.get_stylebox("pressed", v))
+	t.set_stylebox("focus", v, StyleBoxEmpty.new())
+	for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color",
+			"font_hover_pressed_color"]:
+		t.set_color(state, v, ink)
+
+
 # ─── Cajas de estilo ──────────────────────────────────────────────
 
 ## kind: raised, hover, pressed, disabled, focus, field, window, row, row_selected, tab_on,
@@ -420,9 +517,10 @@ static func _flat_kind(sb: StyleBoxFlat, pal: Dictionary, kind: String, contrast
 			sb.border_color = col(pal, "accent") if not contrast else col(pal, "select")
 		"field":
 			sb.bg_color = col(pal, "field")
-			sb.border_color = col(pal, "shadow").darkened(0.25)
+			sb.border_color = _edge_color(pal, col(pal, "shadow").darkened(0.25))
 		"window", "tab_on":
 			sb.bg_color = col(pal, "face")
+			sb.border_color = _edge_color(pal, sb.border_color)
 		"row":
 			sb.bg_color = Color(0, 0, 0, 0)
 			sb.border_color = Color(0, 0, 0, 0)
@@ -433,6 +531,16 @@ static func _flat_kind(sb: StyleBoxFlat, pal: Dictionary, kind: String, contrast
 			sb.bg_color = col(pal, "face").darkened(0.05)
 		"tooltip":
 			sb.bg_color = col(pal, "paper")
+
+
+## Borde de paneles planos: filete de oro (sovereign) o marino (luna); si no, `fallback`.
+static func _edge_color(pal: Dictionary, fallback: Color) -> Color:
+	match str(pal.get("skin", SKIN_RETRO)):
+		SKIN_SOVEREIGN:
+			return Color(col(pal, "accent"), 0.7)
+		SKIN_LUNA:
+			return Color(col(pal, "title_b"), 0.55)
+	return fallback
 
 
 # ─── Dibujo: marcos, barras de título, papel pintado ──────────────
@@ -478,14 +586,50 @@ static func draw_title_bar(ci: CanvasItem, r: Rect2, pal: Dictionary, active: bo
 	if radius <= 0.0:
 		draw_hgradient(ci, r, a, b)
 		return
+	var skin: String = str(pal.get("skin", SKIN_RETRO))
 	var pts: PackedVector2Array = top_rounded_points(r, radius)
 	var colors: PackedColorArray = PackedColorArray()
 	for p: Vector2 in pts:
-		colors.append(a.lerp(b, clampf((p.x - r.position.x) / maxf(r.size.x, 1.0), 0.0, 1.0)))
+		var kx: float = clampf((p.x - r.position.x) / maxf(r.size.x, 1.0), 0.0, 1.0)
+		var ky: float = clampf((p.y - r.position.y) / maxf(r.size.y, 1.0), 0.0, 1.0)
+		colors.append(b.lerp(a, ky) if skin == SKIN_LUNA else a.lerp(b, kx))
 	ci.draw_polygon(pts, colors)
-	if pal.get("skin") == SKIN_SOVEREIGN or pal.get("skin") == SKIN_LUNA:
-		ci.draw_line(Vector2(r.position.x + radius, r.end.y), Vector2(r.end.x - radius, r.end.y),
-				col(pal, "accent"), 2.0)
+	var inner: float = r.size.x - radius * 2.0
+	if skin == SKIN_LUNA:
+		ci.draw_rect(Rect2(r.position + Vector2(radius, 1.0), Vector2(inner, r.size.y * 0.42)), Color(1, 1, 1, 0.13))
+	elif skin == SKIN_SOVEREIGN:
+		var y: float = r.end.y - maxf(3.0, r.size.y * 0.12)
+		ci.draw_dashed_line(Vector2(r.position.x + radius, y), Vector2(r.end.x - radius, y),
+				Color(col(pal, "accent"), 0.5), 1.0, maxf(4.0, r.size.y * 0.14))
+	if skin == SKIN_SOVEREIGN or skin == SKIN_LUNA:
+		ci.draw_line(Vector2(r.position.x, r.end.y), Vector2(r.end.x, r.end.y), col(pal, "accent"), 2.0)
+
+
+## Marco de ventana: bisel en 98/2000; sombra suave y filete del aspecto (marino en luna, oro en
+## sovereign) en los equipos caros.
+static func draw_window_frame(ci: CanvasItem, r: Rect2, pal: Dictionary, base: int) -> void:
+	if pal.get("bevel", false):
+		draw_bevel(ci, r, pal, false, base)
+		return
+	var skin: String = str(pal.get("skin", SKIN_RETRO))
+	var radius: float = float(pal.get("radius", 0))
+	if skin != SKIN_CONTRAST:
+		for i: int in 3:
+			var halo: Rect2 = Rect2(r.position + Vector2(0, base * 0.25), r.size).grow(base * (0.1 + i * 0.14))
+			ci.draw_colored_polygon(_panel_points(halo, radius + base * 0.2 * i), Color(0, 0, 0, 0.06))
+	var pts: PackedVector2Array = _panel_points(r, radius)
+	ci.draw_colored_polygon(pts, col(pal, "face"))
+	var closed: PackedVector2Array = pts.duplicate()
+	closed.append(pts[0])
+	var edge: Color = col(pal, "accent") if skin == SKIN_SOVEREIGN else (col(pal, "title_a") if skin == SKIN_LUNA
+			else col(pal, "light"))
+	ci.draw_polyline(closed, edge, 1.5 if skin == SKIN_SOVEREIGN else 2.0, true)
+
+
+static func _panel_points(r: Rect2, radius: float) -> PackedVector2Array:
+	if radius > 0.0:
+		return UITheme.rounded_rect_points(r, radius)
+	return _rect_pts(r)
 
 
 ## Papel pintado del escritorio según el aspecto, con la paleta de la banda.
@@ -689,6 +833,8 @@ static func draw_icon_tile(ci: CanvasItem, icon: String, r: Rect2, pal: Dictiona
 ## Estrella del botón de inicio como textura (con suavizado por supermuestreo 4×4).
 static func star_texture(px: int) -> ImageTexture:
 	var side: int = maxi(px, 8)
+	if _star_cache.has(side):
+		return _star_cache[side] as ImageTexture
 	var img: Image = Image.create(side, side, false, Image.FORMAT_RGBA8)
 	var c: Vector2 = Vector2(side, side) * 0.5
 	var outer: PackedVector2Array = star_points(c, side * 0.5, side * 0.22)
@@ -698,7 +844,9 @@ static func star_texture(px: int) -> ImageTexture:
 	for y: int in side:
 		for x: int in side:
 			img.set_pixel(x, y, _star_pixel(Vector2(x, y), outer, inner, fill, ink))
-	return ImageTexture.create_from_image(img)
+	var tex: ImageTexture = ImageTexture.create_from_image(img)
+	_star_cache[side] = tex
+	return tex
 
 
 static func _star_pixel(p: Vector2, outer: PackedVector2Array, inner: PackedVector2Array, fill: Color, ink: Color) -> Color:
@@ -722,15 +870,15 @@ static func _star_pixel(p: Vector2, outer: PackedVector2Array, inner: PackedVect
 ## files, market, not_found, trash, hourglass, lock, idea, doc, report, personal, warning, user,
 ## start, snail, drop, shoe, check, cross, folder, star.
 static func draw_icon(ci: CanvasItem, icon: String, r: Rect2, pal: Dictionary) -> void:
-	var ink: Color = Color("#1a1a1a") if pal.get("skin") != SKIN_CONTRAST else Color.WHITE
+	var contrast: bool = pal.get("skin") == SKIN_CONTRAST
+	var ink: Color = Color("#1a1a1a") if not contrast else Color.WHITE
 	if pal.get("icon_ink") is Color:
 		ink = pal["icon_ink"]
 	var w: float = maxf(1.5, r.size.x * 0.055)
-	if _icons_apps(ci, icon, r, ink, w, pal):
-		return
-	if _icons_files(ci, icon, r, ink, w, pal):
-		return
-	_icons_misc(ci, icon, r, ink, w, pal)
+	_dark_fills = contrast
+	if not _icons_apps(ci, icon, r, ink, w, pal) and not _icons_files(ci, icon, r, ink, w, pal):
+		_icons_misc(ci, icon, r, ink, w, pal)
+	_dark_fills = false
 
 
 static func _icons_apps(ci: CanvasItem, icon: String, r: Rect2, ink: Color, w: float, pal: Dictionary) -> bool:
@@ -773,6 +921,10 @@ static func _icons_files(ci: CanvasItem, icon: String, r: Rect2, ink: Color, w: 
 			_icon_trash(ci, r, ink, w)
 		"lock":
 			_icon_lock(ci, r, ink, w)
+		"shared":
+			_icon_shared(ci, r, ink, w)
+		"disk":
+			_icon_disk(ci, r, ink, w)
 		_:
 			return false
 	return true
@@ -877,6 +1029,21 @@ static func _icon_folder(ci: CanvasItem, r: Rect2, ink: Color, w: float) -> void
 			Color("#d9a441"), ink, w)
 	_shape(ci, _rect_pts(_sub(r, 0.16, 0.26, 0.62, 0.4)), Color("#fbfaf4"), ink, w * 0.7)
 	_shape(ci, _pts(r, [[0.06, 0.4], [0.94, 0.4], [0.9, 0.84], [0.1, 0.84]]), Color("#f0c360"), ink, w)
+
+
+## Unidad de red: carpeta con el cable y el nodo de la red corporativa.
+static func _icon_shared(ci: CanvasItem, r: Rect2, ink: Color, w: float) -> void:
+	_icon_folder(ci, _sub(r, 0.0, -0.06, 1.0, 0.86), ink, w)
+	ci.draw_line(_p(r, 0.5, 0.74), _p(r, 0.5, 0.9), ink, w)
+	ci.draw_line(_p(r, 0.18, 0.9), _p(r, 0.82, 0.9), ink, w)
+	_shape(ci, UITheme.ellipse_points(_p(r, 0.5, 0.9), r.size.x * 0.09, r.size.y * 0.09, 12), Color("#5fb3e8"), ink, w * 0.8)
+
+
+## Disco duro beige con su luz de actividad.
+static func _icon_disk(ci: CanvasItem, r: Rect2, ink: Color, w: float) -> void:
+	_shape(ci, _rect_pts(_sub(r, 0.06, 0.26, 0.88, 0.5)), Color("#d9d1b8"), ink, w)
+	ci.draw_line(_p(r, 0.16, 0.62), _p(r, 0.6, 0.62), Color(ink, 0.5), w * 0.8)
+	ci.draw_circle(_p(r, 0.8, 0.62), r.size.x * 0.06, Color("#5fd38d"))
 
 
 static func _icon_market(ci: CanvasItem, r: Rect2, ink: Color, w: float) -> void:
@@ -1038,7 +1205,7 @@ static func top_rounded_points(r: Rect2, radius: float) -> PackedVector2Array:
 
 
 static func _shape(ci: CanvasItem, pts: PackedVector2Array, fill: Color, ink: Color, w: float) -> void:
-	ci.draw_colored_polygon(pts, fill)
+	ci.draw_colored_polygon(pts, fill.darkened(CONTRAST_FILL_DARKEN) if _dark_fills else fill)
 	var closed: PackedVector2Array = pts.duplicate()
 	closed.append(pts[0])
 	ci.draw_polyline(closed, ink, w, true)

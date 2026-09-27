@@ -1,5 +1,5 @@
-# os_apps.gd (escenario) — Capturas de PERSONNEL (N1 y N7 del mismo personaje, comparación), PORTAL (organigrama con vacantes), MARKET (R28) y las tres fases de la presentación de resultados.
-# PROPIETARIO DE: nada (monta una partida de muestra y abre cada aplicación suelta).
+# os_apps.gd (escenario) — Capturas de PERSONNEL (N1 y N7 del mismo personaje, comparación), PORTAL (organigrama con vacantes), MARKET (R28, tratos), las tres fases de la presentación de resultados (con confirmaciones y tratos en la sala), alto contraste, español y tamaño de teléfono.
+# PROPIETARIO DE: nada (monta una partida de muestra y abre cada aplicación).
 # ESCUCHA: nada.
 extends Node
 
@@ -14,6 +14,7 @@ const N1_POST := "email_worker_3b"
 const N7_POST := "vice_ceo"
 const MARKET_POST := "cfo"
 const PHONE_WINDOW := Vector2i(1170, 540)
+const DESKTOP_WINDOW := Vector2i(1600, 900)
 const SAMPLE_DAY := 3
 const SAMPLE_HOUR := 10
 const SAMPLE_MINUTE := 42
@@ -23,6 +24,11 @@ const PROMOTION_TARGET := "copy_operator"
 const SAMPLE_REPUTATION := 58.0
 const SAMPLE_MERIT := 12
 const SAMPLE_MONEY := 60000
+const SAMPLE_SHARES := 120
+const SAMPLE_ORDER := 250
+const SAMPLE_INFLATION := 0.1
+const ACTIVIST := "inv_margaret_ash"
+const LEVERAGE_ITEM := "blackmail_file"
 const APP_WAIT_FRAMES := 120
 const SYSTEMS: Array[String] = [
 	"GameClock", "PlayerState", "NPCDirector", "SocialGraph", "BeliefNet", "Security",
@@ -39,6 +45,7 @@ func run(pilot: Autopilot) -> void:
 	await _shot_personnel(pilot)
 	await _shot_portal(pilot)
 	await _shot_market(pilot)
+	await _shot_results_variants(pilot)
 	await _shot_results(pilot)
 	await _shot_contrast(pilot)
 	await _shot_spanish(pilot)
@@ -60,7 +67,6 @@ func _new_run() -> void:
 			NPCDirector.generate_population()
 		elif system_name == "SocialGraph":
 			SocialGraph.build_initial_graph()
-	PersonnelApp.reset_session()
 
 
 func _close(node: Node, pilot: Autopilot) -> void:
@@ -141,27 +147,65 @@ func _shot_market(pilot: Autopilot) -> void:
 	for day: int in range(SAMPLE_DAY + 1, results_day - 1):
 		GameClock.set_time(day, SAMPLE_HOUR, SAMPLE_MINUTE)
 		EventBus.day_advanced.emit(day)
-	MarketTrading.buy(120)
+	MarketTrading.buy(SAMPLE_SHARES)
 	for i: int in NEWS_EVENTS.size():
 		NewsFeed.schedule_market_event(NEWS_EVENTS[i], GameClock.get_day() + i + 1)
 	var app: MarketApp = await _open_os(pilot, MarketApp.APP_ID) as MarketApp
-	app.set_quantity(250)
+	app.set_quantity(SAMPLE_ORDER)
+	app.buy()
+	if app.has_pending_confirmation():
+		app.confirm_pending()
 	await pilot.frames(4)
 	await pilot.shot("market_r28")
+	app.request_investor_action("inv_victor_sallow", MarketApp.ACT_TIP)
+	await pilot.frames(4)
+	await pilot.shot("market_deal_confirm")
+	app.cancel_pending()
 	await _close(_os, pilot)
 	GameClock.set_time(results_day, SAMPLE_HOUR, SAMPLE_MINUTE)
 	EventBus.day_advanced.emit(results_day)
 
 
+func _results_quarter() -> int:
+	return Market.quarter_of(Market.get_current_day())
+
+
+## Preparación a tamaño de teléfono y en alto contraste (sin cerrar nada: el trimestre sigue abierto).
+func _shot_results_variants(pilot: Autopilot) -> void:
+	get_window().size = PHONE_WINDOW
+	UITheme.current_text_size = UITheme.TEXT_LARGE
+	UITheme.touch_scale_active = true
+	var screen: ResultsPresentationScreen = ResultsPresentationScreen.open(self, _results_quarter())
+	await pilot.frames(8)
+	await pilot.shot("results_phone")
+	await _close(screen, pilot)
+	get_window().size = DESKTOP_WINDOW
+	UITheme.current_text_size = UITheme.TEXT_MEDIUM
+	UITheme.touch_scale_active = false
+	UITheme.current_high_contrast = true
+	screen = ResultsPresentationScreen.open(self, _results_quarter())
+	await pilot.frames(8)
+	screen.choose_inflation(SAMPLE_INFLATION)
+	await pilot.frames(4)
+	await pilot.shot("results_contrast")
+	await _close(screen, pilot)
+	UITheme.current_high_contrast = false
+
+
 func _shot_results(pilot: Autopilot) -> void:
-	var screen: ResultsPresentationScreen = ResultsPresentationScreen.open(self, Market.quarter_of(
-			Market.get_current_day()))
+	var screen: ResultsPresentationScreen = ResultsPresentationScreen.open(self, _results_quarter())
 	await pilot.frames(8)
 	await pilot.shot("results_1_preparation")
-	screen.choose_inflation(0.1)
+	PlayerState.add_item(LEVERAGE_ITEM)
+	screen.request_deal(ACTIVIST, MarketApp.ACT_BLACKMAIL)
+	screen.confirm_pending()
+	screen.choose_inflation(SAMPLE_INFLATION)
 	await pilot.frames(4)
 	await pilot.shot("results_1_inflated")
-	screen.confirm_figures()
+	screen.request_lock_figures()
+	await pilot.frames(4)
+	await pilot.shot("results_1_confirm")
+	screen.confirm_pending()
 	screen.select_preparation(ResultsPresentation.LEVEL_ASSIST)
 	await pilot.frames(8)
 	await pilot.shot("results_2_presentation")
@@ -179,6 +223,9 @@ func _shot_spanish(pilot: Autopilot) -> void:
 	await pilot.shot("personnel_es")
 	await _close(_os, pilot)
 	PlayerState.set_occupation(N1_POST, "qa")
+	await _open_os(pilot, PersonnelApp.APP_ID, {"file_npc_id": SUBJECT})
+	await pilot.shot("personnel_es_n1")
+	await _close(_os, pilot)
 	await _open_os(pilot, PortalApp.APP_ID, {"occupation_id": PROMOTION_TARGET})
 	await pilot.shot("portal_es")
 	await _close(_os, pilot)
@@ -192,6 +239,10 @@ func _shot_contrast(pilot: Autopilot) -> void:
 	await _open_os(pilot, PersonnelApp.APP_ID, {"file_npc_id": SUBJECT})
 	await pilot.shot("personnel_contrast")
 	await _close(_os, pilot)
+	PlayerState.set_occupation(MARKET_POST, "qa")
+	await _open_os(pilot, MarketApp.APP_ID)
+	await pilot.shot("market_contrast")
+	await _close(_os, pilot)
 	UITheme.current_high_contrast = false
 
 
@@ -200,10 +251,20 @@ func _shot_phone(pilot: Autopilot) -> void:
 	UITheme.current_text_size = UITheme.TEXT_LARGE
 	UITheme.touch_scale_active = true
 	PlayerState.set_occupation(N7_POST, "qa")
-	await _open_os(pilot, PersonnelApp.APP_ID, {"file_npc_id": SUBJECT})
+	var app: PersonnelApp = await _open_os(pilot, PersonnelApp.APP_ID) as PersonnelApp
+	await pilot.shot("personnel_phone_list")
+	app.call("_on_row_picked", SUBJECT)
+	await pilot.frames(6)
 	await pilot.shot("personnel_phone")
 	await _close(_os, pilot)
 	PlayerState.set_occupation(N1_POST, "qa")
-	await _open_os(pilot, PortalApp.APP_ID)
+	var portal: PortalApp = await _open_os(pilot, PortalApp.APP_ID) as PortalApp
 	await pilot.shot("portal_phone")
+	portal.call("_on_card_picked", "wing_3b_chief")
+	await pilot.frames(4)
+	await pilot.shot("portal_phone_detail")
+	await _close(_os, pilot)
+	PlayerState.set_occupation(MARKET_POST, "qa")
+	await _open_os(pilot, MarketApp.APP_ID)
+	await pilot.shot("market_phone")
 	await _close(_os, pilot)

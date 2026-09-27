@@ -59,6 +59,9 @@ func run_case() -> void:
 	_test_detection_and_demotion()
 	_test_audit_determinism()
 	_test_daily_recalculation()
+	_test_market_event_effects()
+	_test_strike_event_not_doubled()
+	_test_minor_verdict_demotes()
 	_test_save_load()
 
 
@@ -434,6 +437,80 @@ func _test_daily_recalculation() -> void:
 	var f: Dictionary = Company.get_fundamentals()
 	check_eq(call, [f["revenue"], f["costs"], f["risk_factor"]],
 			"fundamentals_updated(revenue, costs, risk)")
+
+
+## §9.12: los eventos activos de NewsFeed mueven los fundamentales de Company (mismo día, misma
+## semilla: la única diferencia entre las dos partidas es el evento).
+func _test_market_event_effects() -> void:
+	var base: Dictionary = _fundamentals_after_day("")
+	var leather: Dictionary = _fundamentals_after_day("leather_price_rise")
+	check_near(float(leather["costs"]) / float(base["costs"]), 1.08, RATIO_EPS,
+			"leather price rise: every cost line ×1.08 (§9.12 costs +8%)")
+	check_near(float(leather["revenue"]), float(base["revenue"]), EPS, "…revenue untouched")
+	var lawsuit: Dictionary = _fundamentals_after_day("customer_lawsuit")
+	check_near(float(lawsuit["legal"]) - float(base["legal"]), 40000.0, EPS,
+			"customer lawsuit: +40,000 € legal costs per day")
+	check_near(float(lawsuit["risk_factor"]) - float(base["risk_factor"]), 0.3, RATIO_EPS,
+			"…and risk factor +0.3")
+	var celebrity: Dictionary = _fundamentals_after_day("celebrity_wears_brand")
+	check_near(float(celebrity["brand_strength"]) - float(base["brand_strength"]), 0.1, RATIO_EPS,
+			"a celebrity wearing the brand: brand strength +0.1")
+	check_near(float(celebrity["revenue"]) / float(base["revenue"]),
+			float(celebrity["brand_strength"]) / float(base["brand_strength"]), RATIO_EPS,
+			"…which lifts revenue (units × price × brand)")
+	var competitor: Dictionary = _fundamentals_after_day("competitor_launch")
+	check_near(float(competitor["growth_expectation"]),
+			(1.0 + float(base["growth_expectation"])) * 0.9 - 1.0, RATIO_EPS,
+			"competitor launch: growth expectation factor ×0.9 (§9.12 −10%)")
+
+
+## El evento "strike" de NewsFeed da titular y sentimiento; la huelga en fundamentales es de Company
+## (factor de unidades y peso strike_active): su +0,5 de riesgo no se suma dos veces.
+func _test_strike_event_not_doubled() -> void:
+	_fresh()
+	var before: float = float(Company.get_fundamentals()["risk_factor"])
+	EventBus.strike_started.emit()
+	check(NewsFeed.get_active_market_events().any(func(ev: Dictionary) -> bool:
+		return ev["id"] == "strike"), "precondition: NewsFeed activates its strike event")
+	Company.recalculate_fundamentals()
+	check_near(float(Company.get_fundamentals()["risk_factor"]),
+			before + _risk_weight("per_negative_news"), RATIO_EPS,
+			"Company ignores the strike event's own +0.5 risk (only its negative news counts)")
+
+
+## §12.3: culpabilidad leve → descenso de rango (y la acreditación de la ocupación nueva).
+func _test_minor_verdict_demotes() -> void:
+	_fresh()
+	var clearances: Array = []
+	var on_clearance: Callable = func(o: int, n: int) -> void: clearances.append([o, n])
+	EventBus.clearance_changed.connect(on_clearance)
+	_set_player("order_filer")
+	clearances.clear()
+	EventBus.investigation_resolved.emit("case_x", "player_minor", "npc_george_penn")
+	EventBus.investigation_resolved.emit("case_y", "cold", "")
+	check_eq(PlayerState.get_occupation_id(), "order_filer", "other verdicts do not demote the player")
+	EventBus.investigation_resolved.emit("case_z", "player_minor", "player")
+	var demoted: OccupationData = PlayerState.get_occupation()
+	check(demoted != null and demoted.rank < 2 and Database.get_occupation("order_filer")
+			.demotes_to.has(demoted.id), "player_minor → Company demotes the player (%s)"
+			% (demoted.id if demoted != null else ""))
+	var old_clearance: int = Database.get_occupation("order_filer").clearance
+	check(demoted.clearance == old_clearance or clearances.has([old_clearance, demoted.clearance]),
+			"the clearance follows the new occupation")
+	EventBus.clearance_changed.disconnect(on_clearance)
+
+
+## Fundamentales tras abrir la jornada 2 con `event_id` programado para ese día ("" = sin evento).
+func _fundamentals_after_day(event_id: String) -> Dictionary:
+	_fresh()
+	if not event_id.is_empty():
+		check(NewsFeed.schedule_market_event(event_id, GameClock.get_day() + 1),
+				"precondition: %s scheduled for tomorrow" % event_id)
+	GameClock.advance_to_next_day()
+	if not event_id.is_empty():
+		check(NewsFeed.get_active_market_events().any(func(ev: Dictionary) -> bool:
+			return ev["id"] == event_id), "%s is active" % event_id)
+	return Company.get_fundamentals()
 
 
 func _test_save_load() -> void:

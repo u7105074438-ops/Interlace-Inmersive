@@ -1,13 +1,18 @@
-# interrogation_scene_case.gd — Cuerpo de test_interrogation_scene: la escena de P15 (§12.5, PASO 29) presenta las piezas una a una, cada respuesta llama a Interrogation, finales de éxito, fracaso, congelación y sin caso, y las tres variantes de tono (disculpa, portazo, neutro).
+# interrogation_scene_case.gd — Cuerpo de test_interrogation_scene: la escena de P15 (§12.5, PASO 29) presenta las piezas una a una, cada respuesta llama a Interrogation, finales de éxito, fracaso, congelación y sin caso, las tres variantes de tono (disculpa, portazo con su sonido y subtítulo, neutro), Esc por puntos de lectura, el selector de acusados, el vigilante sin nombre, la ventana modal de UIRoot y la maquetación en móvil.
 # PROPIETARIO DE: nada.
-# ESCUCHA: interrogation_answered, investigation_resolved, game_over (vía SignalLog).
+# ESCUCHA: interrogation_answered, investigation_resolved, game_over (vía SignalLog) y subtitle_posted (conexión del caso).
 extends TestCase
 
 const Fx := preload("res://tests/cases/security_fixtures.gd")
 const EPS := 0.001
+const ROSE := "npc_rose_miller"
+const PHONE_SCREEN := Vector2(2400, 1080)
+## La ficha va algo inclinada: su caja puede asomar unos píxeles del rectángulo sin girar.
+const TILT_SLACK := 12.0
 
 var _log: Fx.SignalLog
 var _answered: Array = []
+var _subtitles: Array[String] = []
 
 
 func run_case() -> void:
@@ -21,6 +26,11 @@ func run_case() -> void:
 	await _check_lawyer_frozen()
 	await _check_no_case()
 	await _check_populated_investigator()
+	await _check_escape_beats()
+	await _check_picker_is_modal()
+	await _check_guard_fallback()
+	await _check_uiroot_modal()
+	await _check_phone_layout()
 	_log.stop()
 
 
@@ -83,6 +93,11 @@ func _check_tone_apology() -> void:
 
 func _check_tone_door_slam() -> void:
 	_fresh()
+	var director: AudioDirector = AudioDirector.new()
+	add_child(director)
+	await wait_frames(2)
+	_subtitles.clear()
+	EventBus.subtitle_posted.connect(_on_subtitle)
 	var scene: InterrogationScene = await _open(_case(false), {"reputation": 90.0, "suspicion": 80.0}, false)
 	check_eq(scene.get_tone(), Interrogation.TONE_DOOR_SLAM, "suspicion 80 → door slam (even at reputation 90)")
 	check(not scene.is_door_closed() and not scene.has_door_slammed(), "the door starts open")
@@ -92,8 +107,18 @@ func _check_tone_door_slam() -> void:
 	check_eq(scene.get_caption(), tr("INTERROGATION_INTRO_DOOR_SLAM"), "the slam line is narrated")
 	scene.fast_forward()
 	check(scene.is_door_closed() and scene.has_door_slammed(), "the door slams shut")
+	check(scene.get_sfx_requests().has(InterrogationScene.SFX_DOOR), "the slam asks AudioDirector for its sound")
+	var door_sub: String = SfxBank.subtitle_key(InterrogationScene.SFX_DOOR) if SfxBank.has_sfx(InterrogationScene.SFX_DOOR) \
+			else InterrogationScene.SUB_DOOR
+	check(_subtitles.has(door_sub), "…with a subtitle that describes the door (%s)" % door_sub)
 	check_eq(scene.get_step(), InterrogationScene.STEP_PIECE, "then the first piece is presented")
+	EventBus.subtitle_posted.disconnect(_on_subtitle)
+	director.queue_free()
 	await _close(scene)
+
+
+func _on_subtitle(key: String, _position: Vector2, _importance: int) -> void:
+	_subtitles.append(key)
 
 
 func _check_tone_neutral() -> void:
@@ -127,6 +152,7 @@ func _check_sequential_failure() -> void:
 	check_near(scene.get_meter_weight(), 11.0, EPS, "the meter drops by 0.8")
 	check_eq(scene.answer(Interrogation.ANSWER_EXPLAIN)["outcome"], "alibi_false", "the bought alibi is caught")
 	check_near(scene.get_case_weight(), 15.5, EPS, "the footage now weighs double (9.0)")
+	check(scene.get_meter().span >= scene.get_meter_weight(), "the meter's scale grows: nothing overflows the bar")
 	check(not scene.available_answers().has(Interrogation.ANSWER_EXPLAIN), "the burnt alibi is gone")
 	check_eq(scene.get_shown_piece().get("record_id"), records[3], "exhibit 4")
 	check_eq(scene.answer(Interrogation.ANSWER_DENY)["outcome"], "denial_rejected", "denying 2.5 fails")
@@ -195,6 +221,8 @@ func _check_lawyer_frozen() -> void:
 	check_eq(scene.answer(Interrogation.ANSWER_LAWYER)["outcome"], "case_frozen", "lawyer requested")
 	check_eq(scene.get_end_title(), tr("INTERROGATION_FROZEN_TITLE"), "frozen end state")
 	check(Security.get_investigation(case_id).is_frozen(Security.get_current_day()), "logic: the case is frozen")
+	var days: int = int(scene.get_session().get_rules()["freeze_days"])
+	check(scene.get_end_lines().has(tr("INTERROGATION_END_FROZEN_HINT") % days), "the hint uses freeze_days (%d)" % days)
 	await _close(scene)
 
 
@@ -222,3 +250,137 @@ func _check_populated_investigator() -> void:
 	scene.request_close()
 	check_eq(scene.get_step(), InterrogationScene.STEP_PIECE, "Esc does not get you out of an interrogation")
 	await _close(scene)
+
+
+# ─── Esc por puntos de lectura ──────────────────────────────────────────
+
+## Un Esc tras responder muestra la reacción (resultado, sello, réplica) y se queda ahí; el
+## siguiente trae la pieza siguiente.
+func _check_escape_beats() -> void:
+	_fresh()
+	var scene: InterrogationScene = await _open(_case(false), {"reputation": 50.0, "suspicion": 0.0}, false)
+	var investigator: String = scene.get_investigator()
+	scene.request_close()
+	check_eq(scene.get_step(), InterrogationScene.STEP_PIECE, "Esc during the opening line → the first exhibit")
+	scene.answer(Interrogation.ANSWER_SILENCE)
+	check_eq(scene.get_step(), InterrogationScene.STEP_REACT, "the player answers")
+	scene.request_close()
+	check_eq(scene.get_caption(), tr(Interrogation.outcome_key(Interrogation.OUTCOME_SILENCE)),
+			"one Esc: the outcome is shown")
+	check_eq(scene.get_card_stamp(), tr("INTERROGATION_STAMP_NOTED"), "…the card is stamped")
+	check_eq(scene.get_stage().bubble_text(investigator), tr("INTERROGATION_REACT_SILENCE_KEPT"),
+			"…the investigator reacts")
+	check(scene.get_step() == InterrogationScene.STEP_REACT and _shows(scene, tr("INTERROGATION_NEXT")),
+			"…and the scene waits there (Next exhibit)")
+	scene.request_close()
+	check(scene.get_step() == InterrogationScene.STEP_PIECE and scene.get_caption().is_empty()
+			and scene.get_session().get_current_index() == 1, "second Esc: the next exhibit")
+	await _close(scene)
+
+
+# ─── Selector de acusados ───────────────────────────────────────────────
+
+## El selector sustituye a las respuestas: no quedan botones pulsables detrás.
+func _check_picker_is_modal() -> void:
+	_fresh()
+	var scene: InterrogationScene = await _open(_case(false), {"reputation": 50.0, "suspicion": 0.0})
+	check(scene.find_child("Answer_deny", true, false) != null, "the answers are on the panel")
+	scene.open_accuse_picker()
+	check(scene.is_picker_open() and scene.find_child("Answer_deny", true, false) == null,
+			"the picker replaces the answers (nothing clickable behind it)")
+	scene.request_close()
+	check(not scene.is_picker_open() and scene.find_child("Answer_deny", true, false) != null,
+			"Esc closes the picker and brings the answers back")
+	await _close(scene)
+
+
+# ─── Investigador: nunca un ausente ─────────────────────────────────────
+
+func _check_guard_fallback() -> void:
+	_fresh(true)
+	check_eq(InterrogationScene.choose_investigator(""), SceneStage.GUARD_ID,
+			"nobody in Audit or Security → the unnamed guard")
+	check_eq(InterrogationScene.choose_investigator(ROSE), ROSE, "Rose Miller while she is on staff")
+	var guard: Dictionary = SceneStage.cast_member(SceneStage.GUARD_ID)
+	check_eq(str(guard["name"]), tr(SceneStage.GUARD_NAME_KEY), "the guard has a localised name")
+	check_eq((guard["appearance"] as Dictionary).get("uniform"), SceneStage.GUARD_UNIFORM, "…and a uniform")
+	NPCDirector.remove_npc(ROSE, "expelled")
+	check_eq(InterrogationScene.choose_investigator(ROSE), SceneStage.GUARD_ID, "a removed Rose never comes back")
+	var scene: InterrogationScene = await _open(_case(false), {"reputation": 50.0, "suspicion": 0.0})
+	check(scene.get_investigator() != ROSE and scene.get_stage().has_actor(scene.get_investigator()),
+			"the scene casts whoever is left (%s)" % scene.get_investigator())
+	await _close(scene)
+
+
+# ─── Ventana modal de UIRoot ────────────────────────────────────────────
+
+func _esc(ui: UIRoot) -> void:
+	var ev: InputEventAction = InputEventAction.new()
+	ev.action = "pause_menu"
+	ev.pressed = true
+	ui._unhandled_input(ev)
+
+
+func _check_uiroot_modal() -> void:
+	_fresh()
+	var ui: UIRoot = UIRoot.new()
+	add_child(ui)
+	await wait_frames(2)
+	var was_paused: bool = GameClock.is_paused()
+	GameClock.resume()
+	var scene: InterrogationScene = InterrogationScene.open(ui, _case(false),
+			{"reputation": 50.0, "suspicion": 0.0, "has_legal_contact": true})
+	await wait_frames(2)
+	check(ui.get_top_modal() == scene and GameClock.is_paused(), "InterrogationScene.open(UIRoot): modal, clock paused")
+	scene.fast_forward()
+	_esc(ui)
+	check(ui.get_top_modal() == scene and scene.get_step() == InterrogationScene.STEP_PIECE,
+			"Esc through UIRoot does not end the interrogation")
+	scene.answer(Interrogation.ANSWER_LAWYER)
+	scene.fast_forward()
+	check_eq(scene.get_step(), InterrogationScene.STEP_END, "frozen: the end panel")
+	_esc(ui)
+	await wait_frames(2)
+	check(not ui.has_modal() and not GameClock.is_paused(), "Esc at the end leaves: modal closed, clock resumed")
+	if was_paused:
+		GameClock.pause()
+	ui.queue_free()
+	await wait_frames(1)
+
+
+# ─── Maquetación en móvil (texto grande y escala táctil) ────────────────
+
+func _check_phone_layout() -> void:
+	_fresh()
+	var saved: Array = [UITheme.touch_scale_active, UITheme.current_text_size]
+	UITheme.touch_scale_active = true
+	UITheme.current_text_size = UITheme.TEXT_LARGE
+	var host: Control = Control.new()
+	host.size = PHONE_SCREEN
+	add_child(host)
+	var scene: InterrogationScene = InterrogationScene.new(_case(true), {"reputation": 50.0, "suspicion": 0.0})
+	scene.instant = true
+	host.add_child(scene)
+	await wait_frames(6)
+	var screen: Rect2 = Rect2(Vector2.ZERO, PHONE_SCREEN)
+	var panel: Rect2 = scene.get_dock().panel.get_global_rect()
+	check(screen.encloses(panel), "phone: the answer panel stays on screen (%s)" % panel)
+	var card: EvidenceCardProbe = EvidenceCardProbe.new(scene.get_card())
+	check(scene.get_stage().safe_rect().grow(TILT_SLACK).encloses(card.rect), "phone: the exhibit card sits in the room")
+	check(not card.rect.intersects(panel), "phone: the card does not hide under the panel")
+	scene.queue_free()
+	host.queue_free()
+	UITheme.touch_scale_active = saved[0]
+	UITheme.current_text_size = saved[1]
+	await wait_frames(1)
+
+
+## Caja visible de la ficha (escala con pivote en el centro, sin contar la leve inclinación).
+class EvidenceCardProbe extends RefCounted:
+	var rect: Rect2 = Rect2()
+
+	func _init(card: Control) -> void:
+		if card == null:
+			return
+		var shown: Vector2 = card.size * card.scale
+		rect = Rect2(card.position + card.pivot_offset * (Vector2.ONE - card.scale), shown)

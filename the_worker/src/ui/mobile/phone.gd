@@ -1,5 +1,5 @@
 # phone.gd — Móvil (§13.5): superposición con CONTACTOS, CHAT y LLAMADA, soborno por deslizador, modo silencio y exposición.
-# PROPIETARIO DE: la vista abierta del móvil (pestaña, panel de soborno, vibración) y los superiores que ya lo han visto en esta apertura; su Service (hijo de UIRoot) guarda la bandeja de mensajes de la sesión (transitoria, no se guarda en disco).
+# PROPIETARIO DE: la vista abierta del móvil (pestaña, panel de soborno, vibración, modo compacto); su Service (hijo de UIRoot) guarda lo transitorio de la sesión: bandeja de mensajes, último aviso de cada superior y fichas de contraoferta en pie (no se guarda en disco).
 # ESCUCHA: phone_message_received, money_changed, player_caught_redhanded, game_over (y el Service: phone_message_received, run_started, run_loaded).
 class_name PhoneOverlay
 extends Control
@@ -13,16 +13,23 @@ extends Control
 ##    del grupo "npcs" con npc_id; si el nodo tiene can_see_player() se respeta) o, sin nodos de NPC
 ##    en la escena, quienes comparten la sala del jugador (NPCDirector). Cada uno emite
 ##    player_seen_partially(npc_id, movil.certeza_superior_ve_movil, sala) — BeliefNet crea la
-##    creencia de percepción parcial —, como mucho una vez cada movil.enfriamiento_superior_segundos.
+##    creencia de percepción parcial —, como mucho una vez cada movil.enfriamiento_superior_segundos
+##    (reloj del Service: cerrar y volver a abrir el móvil no reinicia la cuenta).
 ##  · Oyentes de una llamada = personajes a movil.radio_escucha_llamada celdas (× factor_escucha_sala_
-##    abierta fuera de las salas safe_for_calls: baños y escaleras de servicio) o, sin nodos, quienes
-##    comparten la sala. Van en ctx.listeners de Bribery.offer(…, "phone_call"): "bribe_attempt:overheard".
+##    abierta fuera de los sitios seguros: salas con safe_for_calls — baños — y la escalera de
+##    servicio transversal, service_stairs@N, §13.5) o, sin nodos, quienes comparten la sala. Van en
+##    ctx.listeners de Bribery.offer(…, "phone_call"): "bribe_attempt:overheard".
 ##  · Chat: todo trato escrito pasa por Bribery.offer(…, "mobile_chat") → registro chat_log permanente.
 ##  · Silencio: AudioDirector.set_phone_silenced() (o el ajuste phone_silenced de SaveSystem). La
 ##    vibración sonora y su ruido los emite AudioDirector; aquí solo la sacudida visual.
 ##  · No hay campos de texto: el móvil no bloquea el movimiento por sí mismo; lleva la meta
 ##    "ui_overlay" = true para que UIRoot/Player no lo traten como ventana bloqueante (ver REQUESTS).
 ##  · Si pillan al jugador (player_caught_redhanded) o acaba la partida, el móvil se cierra.
+##  · Modo compacto: si la pantalla del terminal mide menos de COMPACT_SCREEN_EMS líneas de texto
+##    (móvil apaisado, texto grande) las pestañas se aprietan para que deslizador, precio y riesgo
+##    queden siempre a la vista. En modo táctil, si los controles virtuales están visibles, el
+##    terminal deja libre el botón de acción de la esquina (§13.7).
+##  · Esc: cierra el panel de soborno, luego la conversación abierta y, por último, el móvil.
 
 signal close_requested
 
@@ -32,7 +39,7 @@ const TAB_CONTACTS := "contacts"
 const TAB_CHAT := "chat"
 const TAB_CALL := "call"
 const TABS: Array[String] = [TAB_CONTACTS, TAB_CHAT, TAB_CALL]
-const TAB_ICONS: Dictionary = {TAB_CONTACTS: "person", TAB_CHAT: "talk", TAB_CALL: "phone"}
+const TAB_ICONS: Dictionary = {TAB_CONTACTS: "personal", TAB_CHAT: "talk", TAB_CALL: "phone"}
 const TAB_KEYS: Dictionary = {TAB_CONTACTS: "PHONE_TAB_CONTACTS", TAB_CHAT: "PHONE_TAB_CHAT",
 		TAB_CALL: "PHONE_TAB_CALL"}
 const ACTION_CHAT := "chat"
@@ -43,6 +50,9 @@ const CTX_NPC := "npc_id"
 const CTX_ACTION := "action"
 const SETTING_SILENCED := "phone_silenced"
 const ROOM_SAFE_KEY := "safe_for_calls"
+## Piezas transversales seguras para llamar aunque su ficha no lleve safe_for_calls (§13.5: «los baños y
+## la escalera de servicio son los únicos sitios seguros»). Es identidad de datos, no un ajuste.
+const SAFE_TRANSVERSAL_ROOMS: Array[String] = ["service_stairs"]
 ## Marca para UIRoot/Player: ventana superpuesta que no debe bloquear el movimiento (ver REQUESTS).
 const META_OVERLAY := "ui_overlay"
 const EXPO_SUPERIORS := "superiors"
@@ -66,27 +76,34 @@ const B_SHAKE_HZ := "movil.vibracion_hz"
 const B_OPEN_S := "movil.animacion_apertura_segundos"
 const B_INBOX_MAX := "movil.max_mensajes_bandeja"
 const B_CELL := "mundo.px_por_unidad"
+const B_STICK := "interfaz.stick_radio"
 
 ## Maquetación (píxeles del lienzo base y proporciones de dibujo; no son ajustes de juego).
 const DEVICE_ASPECT := 0.54
 const DEVICE_HEIGHT_EMS := 36.0
 const DEVICE_MIN_WIDTH_EMS := 17.5
 const DEVICE_MAX_WIDTH_FRACTION := 0.45
-const MARGIN_RIGHT := 44.0
+## Pegado a la esquina: tapa del todo el panel de deberes del HUD (mismo borde) sin asomar texto.
+const MARGIN_RIGHT := 16.0
 const MARGIN_TOP := 118.0
-const MARGIN_BOTTOM := 28.0
+const MARGIN_BOTTOM := 16.0
+## Hueco del grupo de botón de acción + conmutadores de VirtualControls (en radios del stick).
+const TOUCH_RESERVE_RADII := 3.4
+## Por debajo de estas líneas de texto de alto de pantalla, el móvil pasa a modo compacto.
+const COMPACT_SCREEN_EMS := 30.0
 const SCREEN_PAD := 12
 const OPEN_EASE := 0.4
 const SLIDE_FRACTION := 0.35
 const EPS := 0.0001
-const HANGUP_ANGLE := 2.356
 const SIGNAL_BARS := 4
 const UNDERGROUND_BARS := 1
+const HIGH_CONTRAST_BORDER := 2
 
 
 # ─── Piezas de interfaz compartidas por las pestañas ───────────────
 
-## Glifo vectorial (los de UITheme más los propios del móvil: bell, bell_off, back, server, hangup).
+## Glifo vectorial (los de UITheme más los propios del móvil: bell, bell_off, back, forward, server,
+## hangup, signal, exclaim, flagrant; "person" es alias de "personal").
 class Glyph extends Control:
 	var glyph: String = "info"
 	var color_name: String = "paper"
@@ -163,6 +180,47 @@ class IconButton extends Button:
 				maxf(side * 0.09, 1.5))
 
 
+## Botón de acción de ficha de contacto (como en un móvil de verdad): glifo arriba y rótulo debajo,
+## sobre una losa redondeada; la principal con el color de acento. Deshabilitado = gris.
+class ActionTile extends Button:
+	var glyph: String = ""
+	var caption: String = ""
+	var primary: bool = false
+
+	func _init(p_caption: String, p_glyph: String, p_primary: bool = false) -> void:
+		caption = p_caption
+		glyph = p_glyph
+		primary = p_primary
+		tooltip_text = p_caption
+		focus_mode = Control.FOCUS_NONE
+		flat = true
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_THEME_CHANGED:
+			var base: float = PhoneOverlay.base_size(self)
+			custom_minimum_size = Vector2(base * 3.2, base * 2.9)
+
+	func _draw() -> void:
+		var base: float = PhoneOverlay.base_size(self)
+		var r: Rect2 = Rect2(Vector2.ZERO, size).grow(-2.0)
+		var accent: Color = UITheme.color("rep") if primary else UITheme.color("button")
+		var bg: Color = UITheme.color("slot") if disabled else (accent.lightened(0.08) if is_hovered() else accent)
+		PhoneOverlay.fill_round(self, r, base * 0.45, bg)
+		var edge: Color = UITheme.color("line") if (UITheme.current_high_contrast or not primary) else accent.lightened(0.2)
+		PhoneOverlay.line_round(self, r, base * 0.45, edge, 2.0 if UITheme.current_high_contrast else 1.5)
+		var ink: Color = UITheme.color("faint") if disabled else UITheme.color("paper")
+		var side: float = base * 1.05
+		PhoneOverlay.draw_glyph(self, glyph, Rect2((size.x - side) * 0.5, base * 0.42, side, side), ink,
+				maxf(side * 0.09, 1.5))
+		var font: Font = get_theme_font("font", UITheme.V_CAPTION)
+		var fs: int = get_theme_font_size("font_size", UITheme.V_CAPTION)
+		var width: float = minf(font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, size.x - 6.0)
+		draw_string(font, Vector2((size.x - width) * 0.5, base * 2.35), caption, HORIZONTAL_ALIGNMENT_LEFT,
+				size.x - 6.0, fs, ink)
+
+
 ## Foto de un personaje (busto de PERSONNEL con el fondo de la banda de su escalón).
 class Portrait extends Control:
 	var app: Dictionary = {}
@@ -175,8 +233,12 @@ class Portrait extends Control:
 
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_THEME_CHANGED:
-			var side: float = PhoneOverlay.base_size(self) * ems
-			custom_minimum_size = Vector2(side, side)
+			set_ems(ems)
+
+	func set_ems(p_ems: float) -> void:
+		ems = p_ems
+		var side: float = PhoneOverlay.base_size(self) * ems
+		custom_minimum_size = Vector2(side, side)
 
 	func set_npc(npc: NPCRuntime) -> void:
 		app = CharacterPainter.appearance_for_npc(npc) if npc != null else {}
@@ -187,13 +249,14 @@ class Portrait extends Control:
 		var r: Rect2 = Rect2((size - Vector2(side, side)) * 0.5, Vector2(side, side))
 		if app.is_empty():
 			draw_rect(r, UITheme.color("slot"))
-			UITheme.draw_icon(self, "person", r.grow(-side * 0.18), UITheme.color("faint"), side * 0.05)
+			PhoneOverlay.draw_glyph(self, "personal", r.grow(-side * 0.18), UITheme.color("faint"), side * 0.05)
 		else:
 			CharacterPainter.draw_portrait(self, app, r)
 		draw_rect(r, frame, false, 2.0)
 
 
 ## Pestaña de la barra inferior: glifo, rótulo, indicador de pestaña activa y globo de no leídos.
+## En modo compacto glifo y rótulo se aprietan y la barra es más baja.
 class TabButton extends Control:
 	signal pressed
 	var glyph: String = ""
@@ -201,6 +264,7 @@ class TabButton extends Control:
 	var active: bool = false
 	var badge: int = 0
 	var accent: Color = Color.WHITE
+	var compact: bool = false
 
 	func _init(p_glyph: String, p_caption: String) -> void:
 		glyph = p_glyph
@@ -211,8 +275,13 @@ class TabButton extends Control:
 
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_THEME_CHANGED:
-			var base: float = PhoneOverlay.base_size(self)
-			custom_minimum_size = Vector2(base * 3.0, base * 2.6)
+			set_compact(compact)
+
+	func set_compact(on: bool) -> void:
+		compact = on
+		var base: float = PhoneOverlay.base_size(self)
+		custom_minimum_size = Vector2(base * 3.0, base * (2.0 if on else 2.6))
+		queue_redraw()
 
 	func _gui_input(event: InputEvent) -> void:
 		if UITheme.is_primary_press(event):
@@ -224,14 +293,14 @@ class TabButton extends Control:
 		var col: Color = accent if active else UITheme.color("muted")
 		if active:
 			draw_rect(Rect2(size.x * 0.22, 0.0, size.x * 0.56, 3.0), accent)
-		var side: float = base * 1.15
-		var icon_r: Rect2 = Rect2((size.x - side) * 0.5, base * 0.35, side, side)
-		PhoneOverlay.draw_glyph(self, glyph, icon_r, col, maxf(side * 0.09, 1.5))
 		var font: Font = get_theme_font("font", UITheme.V_CAPTION)
 		var fs: int = get_theme_font_size("font_size", UITheme.V_CAPTION)
 		var width: float = font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(font, Vector2((size.x - width) * 0.5, base * 2.3), caption,
+		var side: float = base * (0.85 if compact else 1.15)
+		var icon_r: Rect2 = Rect2((size.x - side) * 0.5, base * (0.2 if compact else 0.35), side, side)
+		draw_string(font, Vector2((size.x - width) * 0.5, base * (1.72 if compact else 2.3)), caption,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+		PhoneOverlay.draw_glyph(self, glyph, icon_r, col, maxf(side * 0.09, 1.5))
 		if badge > 0:
 			PhoneOverlay.draw_badge(self, icon_r.position + Vector2(side, 0.0), badge, base)
 
@@ -338,10 +407,16 @@ class Device extends Control:
 			glass.draw_polyline(PackedVector2Array([o, mid, end]), col, 1.2, true)
 
 
-## Bandeja de mensajes de la sesión (transitoria): el móvil puede cerrarse y abrirse sin perderlos.
-## PlayerState, si algún día expone get_phone_messages(), manda sobre esta copia (ver REQUESTS).
+## Estado transitorio de la sesión (no se guarda): el móvil puede cerrarse y abrirse sin perderlo.
+##  · inbox: bandeja de mensajes (PlayerState, si algún día expone get_phone_messages(), manda).
+##  · seen_at: último aviso de cada superior que vio el móvil, con el reloj propio del servicio
+##    (segundos reales, monótono): reabrir el móvil no reinicia movil.enfriamiento_superior_segundos.
+##  · counters: fichas de contraoferta en pie por personaje y favor (Bribery las valida al usarlas).
 class Service extends Node:
 	var inbox: Array[Dictionary] = []
+	var seen_at: Dictionary = {}
+	var counters: Dictionary = {}
+	var clock: float = 0.0
 
 	func _ready() -> void:
 		add_to_group(PhoneOverlay.SERVICE_GROUP)
@@ -349,8 +424,41 @@ class Service extends Node:
 		EventBus.run_started.connect(_on_reset)
 		EventBus.run_loaded.connect(_on_reset)
 
+	func _process(delta: float) -> void:
+		clock += delta
+
 	func _on_reset(_value: int) -> void:
 		inbox.clear()
+		seen_at.clear()
+		counters.clear()
+
+	## true (y lo apunta) si el superior no ha avisado en los últimos `cooldown` segundos.
+	func try_report(npc_id: String, cooldown: float) -> bool:
+		if seen_at.has(npc_id) and clock - float(seen_at[npc_id]) < cooldown:
+			return false
+		seen_at[npc_id] = clock
+		return true
+
+	## Adelanta el reloj del servicio (pruebas y herramientas: simula el paso del tiempo real).
+	func advance(seconds: float) -> void:
+		clock += maxf(seconds, 0.0)
+
+	func get_counter(npc_id: String, favour_id: String) -> Dictionary:
+		return (counters.get(npc_id + "|" + favour_id, {}) as Dictionary).duplicate()
+
+	func set_counter(npc_id: String, favour_id: String, token: Dictionary) -> void:
+		var key: String = npc_id + "|" + favour_id
+		if token.is_empty():
+			counters.erase(key)
+		else:
+			counters[key] = token.duplicate()
+
+	## Favor con una contraoferta en pie de este personaje ("" si no hay).
+	func counter_favour(npc_id: String) -> String:
+		for key: String in counters:
+			if key.begins_with(npc_id + "|"):
+				return key.get_slice("|", 1)
+		return ""
 
 	func _on_message(from_id: String, text_key: String, is_chat: bool) -> void:
 		inbox.append({"from_id": from_id, "text_key": text_key, "is_chat": is_chat,
@@ -415,8 +523,10 @@ var _expo_label: Label
 var _service: Service = null
 var _tab: String = TAB_CONTACTS
 var _exposure: Dictionary = {EXPO_SUPERIORS: [], EXPO_LISTENERS: [], EXPO_SAFE: false}
-var _seen_by: Dictionary = {}
-var _clock: float = 0.0
+var _compact: bool = false
+var _laid_out: bool = false
+var _touch_reserved: bool = false
+var _ui: UIRoot = null
 var _watch_left: float = 0.0
 var _shake_left: float = 0.0
 var _open_t: float = 0.0
@@ -443,6 +553,7 @@ func _ready() -> void:
 	add_to_group(GROUP)
 	_service = ensure_service(get_tree())
 	_chat.service = _service
+	_bribe.service = _service
 	_silenced = is_phone_silenced(get_tree())
 	_silent_button.glyph = "bell_off" if _silenced else "bell"
 	_style_device()
@@ -460,8 +571,9 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
-	_clock += delta
 	_open_t += delta
+	if _touch_reserved != (_touch_reserve() > 0.0):
+		_layout()
 	_shake_left = maxf(_shake_left - delta, 0.0)
 	_watch_left -= delta
 	if _watch_left <= 0.0:
@@ -524,6 +636,7 @@ func _build_exposure() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	_expo_panel.add_child(row)
 	_expo_glyph = Glyph.new("eye", "paper", 0.9)
+	_expo_glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_expo_glyph)
 	_expo_label = label("", UITheme.V_SMALL, true)
 	_expo_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -575,12 +688,30 @@ func _style_device() -> void:
 
 func _layout() -> void:
 	var base: float = base_size(self)
+	var reserve: float = _touch_reserve()
+	_touch_reserved = reserve > 0.0
 	var h: float = minf(size.y - MARGIN_TOP - MARGIN_BOTTOM, base * DEVICE_HEIGHT_EMS)
 	var w: float = minf(maxf(h * DEVICE_ASPECT, base * DEVICE_MIN_WIDTH_EMS), size.x * DEVICE_MAX_WIDTH_FRACTION)
-	_rest = Vector2(size.x - MARGIN_RIGHT - w, size.y - MARGIN_BOTTOM - h)
+	_rest = Vector2(size.x - MARGIN_RIGHT - reserve - w, size.y - MARGIN_BOTTOM - h)
 	_device.size = Vector2(w, h)
 	_device.position = _rest + _offset()
 	_device.fit_screen()
+	var compact: bool = _device.screen_rect().size.y < base * COMPACT_SCREEN_EMS
+	if compact != _compact or not _laid_out:
+		_laid_out = true
+		set_compact(compact)
+
+
+## Hueco a la derecha para el botón de acción táctil, solo mientras los controles virtuales se ven.
+func _touch_reserve() -> float:
+	if _ui == null and is_inside_tree():
+		_ui = UIRoot.find(get_tree())
+	if not is_instance_valid(_ui) or not _ui.is_touch_mode():
+		return 0.0
+	var controls: Control = _ui.get_virtual_controls()
+	if controls == null or not controls.is_visible_in_tree():
+		return 0.0
+	return tune(B_STICK) * TOUCH_RESERVE_RADII
 
 
 func _offset() -> Vector2:
@@ -594,11 +725,33 @@ func _offset() -> Vector2:
 
 # ─── API pública ───────────────────────────────────────────────────
 
+## Esc: primero el panel de soborno, luego la conversación abierta y, por último, el móvil.
 func request_close() -> void:
 	if _bribe.visible:
 		close_bribe()
 		return
+	if _tab == TAB_CHAT and not _chat.get_thread().is_empty():
+		_chat.close_thread()
+		return
 	close_requested.emit()
+
+
+## Aprieta las pestañas para pantallas bajas (móvil apaisado, texto grande).
+func set_compact(on: bool) -> void:
+	_compact = on
+	set_single_line(_expo_label, on)
+	for tab: String in _tab_buttons:
+		(_tab_buttons[tab] as TabButton).set_compact(on)
+	_contacts.set_compact(on)
+	_chat.set_compact(on)
+	_call.set_compact(on)
+	_bribe.set_compact(on)
+	if is_inside_tree():
+		_show_exposure()
+
+
+func is_compact() -> bool:
+	return _compact
 
 
 func show_tab(tab: String) -> void:
@@ -682,6 +835,10 @@ func get_exposure() -> Dictionary:
 	return _exposure.duplicate(true)
 
 
+func get_service() -> Service:
+	return _service
+
+
 func is_silenced() -> bool:
 	return _silenced
 
@@ -737,13 +894,15 @@ func _apply_context() -> void:
 			open_bribe(npc_id, Bribery.CHANNEL_MOBILE_CHAT)
 
 
+## Como mucho un aviso por superior cada movil.enfriamiento_superior_segundos, con el reloj del Service
+## (sobrevive a cerrar y abrir el móvil: pulsar M tres veces delante del jefe no triplica la sospecha).
 func _report_superiors(superiors: Array[String]) -> void:
+	if _service == null:
+		_service = ensure_service(get_tree())
 	var cooldown: float = tune(B_COOLDOWN)
 	for npc_id: String in superiors:
-		if _seen_by.has(npc_id) and _clock - float(_seen_by[npc_id]) < cooldown:
-			continue
-		_seen_by[npc_id] = _clock
-		EventBus.player_seen_partially.emit(npc_id, tune(B_CERTAINTY), PlayerState.get_room())
+		if _service.try_report(npc_id, cooldown):
+			EventBus.player_seen_partially.emit(npc_id, tune(B_CERTAINTY), PlayerState.get_room())
 
 
 func _show_exposure() -> void:
@@ -751,21 +910,36 @@ func _show_exposure() -> void:
 	var listeners: Array = _exposure[EXPO_LISTENERS]
 	var tone: String = "gain"
 	var glyph: String = "lock"
-	var text: String = tr("PHONE_EXPO_PRIVATE") if bool(_exposure[EXPO_SAFE]) else tr("PHONE_EXPO_ALONE")
+	var text: String = exposure_text(_exposure, _compact)
 	if not superiors.is_empty():
 		tone = "danger"
 		glyph = "eye"
-		text = UITheme.trf("PHONE_EXPO_SUPERIOR", [npc_name(str(superiors[0]))]) if superiors.size() == 1 \
-				else UITheme.trf("PHONE_EXPO_SUPERIORS", [superiors.size()])
 	elif not listeners.is_empty():
 		tone = "warn"
 		glyph = "ear"
-		text = UITheme.trf("PHONE_EXPO_LISTENERS", [listeners.size()])
 	var col: Color = UITheme.color(tone)
-	_expo_panel.add_theme_stylebox_override("panel", box(Color(col.darkened(0.55), 0.95), col, 8, 10.0, 5.0, 2))
+	var pad_v: float = 3.0 if _compact else 5.0
+	_expo_panel.add_theme_stylebox_override("panel", box(Color(col.darkened(0.55), 0.95), col, 8, 10.0, pad_v, 2))
 	_expo_glyph.set_glyph(glyph, col.lightened(0.25))
 	_expo_label.text = text
+	_expo_label.tooltip_text = exposure_text(_exposure, false)
 	_expo_label.add_theme_color_override("font_color", UITheme.color("paper"))
+
+
+## Texto de la tira de exposición (corto en modo compacto: cabe en una línea).
+static func exposure_text(exposure: Dictionary, short: bool) -> String:
+	var superiors: Array = exposure.get(EXPO_SUPERIORS, [])
+	var listeners: Array = exposure.get(EXPO_LISTENERS, [])
+	if not superiors.is_empty():
+		if short:
+			return UITheme.trf("PHONE_EXPO_SHORT_SUPERIORS", [superiors.size()])
+		return UITheme.trf("PHONE_EXPO_SUPERIOR", [npc_name(str(superiors[0]))]) if superiors.size() == 1 \
+				else UITheme.trf("PHONE_EXPO_SUPERIORS", [superiors.size()])
+	if not listeners.is_empty():
+		return UITheme.trf("PHONE_EXPO_SHORT_LISTENERS" if short else "PHONE_EXPO_LISTENERS", [listeners.size()])
+	if bool(exposure.get(EXPO_SAFE, false)):
+		return tr_static("PHONE_EXPO_SHORT_PRIVATE" if short else "PHONE_EXPO_PRIVATE")
+	return tr_static("PHONE_EXPO_SHORT_ALONE" if short else "PHONE_EXPO_ALONE")
 
 
 func _refresh_badges() -> void:
@@ -794,10 +968,23 @@ func _on_offer_resolved(result: Dictionary) -> void:
 	_contacts.refresh()
 
 
+## «Responder a su exigencia» desde el chat: el diálogo se abre sin pausar (sigue siendo el móvil) y,
+## al cerrarse, la conversación y los contactos se refrescan (la exigencia ya puede estar resuelta).
 func _open_blackmail(npc_id: String) -> void:
 	var ui: UIRoot = UIRoot.find(get_tree())
-	if ui != null:
-		BlackmailDialog.open_for(ui, npc_id)
+	var dialog: BlackmailDialog = BlackmailDialog.open_for(ui, npc_id, true) if ui != null else null
+	if dialog != null:
+		dialog.tree_exited.connect(_after_blackmail)
+	else:
+		_after_blackmail()
+
+
+func _after_blackmail() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	_chat.refresh()
+	_contacts.refresh()
+	_refresh_badges()
 
 
 func _on_phone_message(from_id: String, _text_key: String, _is_chat: bool) -> void:
@@ -895,10 +1082,16 @@ static func hearing_radius(room_id: String) -> float:
 	return radius if is_call_safe_room(room_id) else radius * tune(B_OPEN_FACTOR)
 
 
+## Baños (safe_for_calls en su ficha) y escalera de servicio (pieza transversal, con o sin «@planta»).
 static func is_call_safe_room(room_id: String) -> bool:
-	var room: RoomData = Database.get_room(room_id) if not room_id.is_empty() else null
-	if room == null and room_id.contains("@"):
-		room = Database.get_room(room_id.substr(0, room_id.find("@")))
+	if room_id.is_empty():
+		return false
+	var base_id: String = DatabaseSystem.get_room_base_id(room_id)
+	if SAFE_TRANSVERSAL_ROOMS.has(base_id):
+		return true
+	var room: RoomData = Database.get_room(room_id)
+	if room == null:
+		room = Database.get_room(base_id)
 	return room != null and bool(room.extra.get(ROOM_SAFE_KEY, false))
 
 
@@ -979,6 +1172,13 @@ static func accent_color() -> Color:
 
 # ─── Construcción y dibujo compartidos ─────────────────────────────
 
+## Una línea con puntos suspensivos (modo compacto) o texto envuelto. Recortar y envolver a la vez
+## deja la etiqueta sin alto mínimo en Godot 4, así que nunca van juntos.
+static func set_single_line(l: Label, single: bool) -> void:
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF if single else TextServer.AUTOWRAP_WORD_SMART
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS if single else TextServer.OVERRUN_NO_TRIMMING
+
+
 static func label(text: String, variation: String = "", wrap: bool = false) -> Label:
 	var l: Label = Label.new()
 	l.text = text
@@ -988,18 +1188,31 @@ static func label(text: String, variation: String = "", wrap: bool = false) -> L
 	return l
 
 
+## Caja redondeada; con alto contraste (§13.10) fondo opaco y contorno siempre visible.
 static func box(bg: Color, border: Color, radius: int, pad_h: float, pad_v: float,
 		border_w: int = 0) -> StyleBoxFlat:
 	var sb: StyleBoxFlat = StyleBoxFlat.new()
 	sb.bg_color = bg
 	sb.border_color = border
 	sb.set_border_width_all(border_w)
+	if UITheme.current_high_contrast:
+		sb.bg_color = Color(bg, 1.0) if bg.a > 0.0 else bg
+		if border_w == 0 or border.a <= 0.0:
+			sb.border_color = UITheme.color("line")
+		sb.set_border_width_all(maxi(border_w, HIGH_CONTRAST_BORDER))
 	sb.set_corner_radius_all(radius)
 	sb.content_margin_left = pad_h
 	sb.content_margin_right = pad_h
 	sb.content_margin_top = pad_v
 	sb.content_margin_bottom = pad_v
 	sb.anti_aliasing = true
+	return sb
+
+
+## Fondo liso de página (sin contorno ni en alto contraste).
+static func fill_box(bg: Color) -> StyleBoxFlat:
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = bg
 	return sb
 
 
@@ -1077,12 +1290,14 @@ static func draw_glyph(c: CanvasItem, glyph: String, r: Rect2, col: Color, w: fl
 			_glyph_bell(c, r, col, w, true)
 		"back":
 			c.draw_polyline(_unit_points(r, [0.62, 0.18, 0.3, 0.5, 0.62, 0.82]), col, w * 1.4, true)
+		"forward":
+			c.draw_polyline(_unit_points(r, [0.38, 0.18, 0.7, 0.5, 0.38, 0.82]), col, w * 1.4, true)
+		"person":
+			UITheme.draw_icon(c, "personal", r, col, w)
 		"server":
 			_glyph_server(c, r, col, w)
 		"hangup":
-			c.draw_set_transform(r.get_center(), HANGUP_ANGLE, Vector2.ONE)
-			UITheme.draw_icon(c, "phone", Rect2(-r.size * 0.5, r.size), col, w)
-			c.draw_set_transform(Vector2.ZERO)
+			_glyph_hangup(c, r, col)
 		"signal", "signal_low":
 			_glyph_signal(c, r, col, SIGNAL_BARS if glyph == "signal" else UNDERGROUND_BARS)
 		"exclaim":
@@ -1119,6 +1334,19 @@ static func _glyph_bell(c: CanvasItem, r: Rect2, col: Color, w: float, slashed: 
 	c.draw_circle(_unit(r, 0.5, 0.17), r.size.x * 0.05, col)
 	if slashed:
 		c.draw_line(_unit(r, 0.12, 0.1), _unit(r, 0.88, 0.92), col, w * 1.3, true)
+
+
+## Auricular clásico boca abajo (colgar): arco grueso con las dos cazoletas.
+static func _glyph_hangup(c: CanvasItem, r: Rect2, col: Color) -> void:
+	var center: Vector2 = _unit(r, 0.5, 0.78)
+	var radius: float = r.size.x * 0.36
+	c.draw_arc(center, radius, PI * 1.08, PI * 1.92, 18, col, r.size.x * 0.16, true)
+	for side: float in [-1.0, 1.0]:
+		var foot: Vector2 = center + Vector2(side * radius * 0.93, -radius * 0.2)
+		var pts: PackedVector2Array = PackedVector2Array([foot + Vector2(-0.13, -0.06) * r.size.x,
+				foot + Vector2(0.13, -0.06) * r.size.x, foot + Vector2(0.11, 0.12) * r.size.x,
+				foot + Vector2(-0.11, 0.12) * r.size.x])
+		c.draw_colored_polygon(pts, col)
 
 
 static func _glyph_server(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:

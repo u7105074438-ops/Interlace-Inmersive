@@ -55,6 +55,7 @@ func run_case() -> void:
 	_test_decay_and_consolidation()
 	_test_resurfacing()
 	_test_fabricate()
+	_test_press_hurts_npc_reputation()
 	await _test_listeners()
 	_test_market_events()
 	_test_event_control()
@@ -157,6 +158,20 @@ func _check_suspicion_decays_with_press() -> void:
 	var expected: float = NewsFeed.get_suspicion_contribution() * factor
 	check_near(PlayerState.get_suspicion(), expected, EPS,
 			"after the day change the cached suspicion equals the live press weight (%.2f)" % expected)
+
+
+## Escándalo fabricado contra un rival (§9.8): su reputación (y su credibilidad) baja con la prensa.
+func _test_press_hurts_npc_reputation() -> void:
+	new_run(DEFAULT_SEED)
+	var rival: String = "npc_claudia_reeves"
+	var before: float = NPCDirector.get_npc_reputation(rival)
+	var weight: float = Database.get_balance_float("noticias.sospecha_fabricado_objetivo")
+	var factor: float = Database.get_balance_float("npc.reputacion_por_peso_prensa")
+	var id: String = NewsFeed.fabricate(rival, SMEAR)
+	check_near(NPCDirector.get_npc_reputation(rival), maxf(before - weight * factor, 0.0), EPS,
+			"a fabricated scandal costs the target %.0f reputation" % (weight * factor))
+	NewsFeed.bury(id, COMMS)
+	check_near(NPCDirector.get_npc_reputation(rival), before, EPS, "burying it gives it back")
 
 
 func _test_decay_and_consolidation() -> void:

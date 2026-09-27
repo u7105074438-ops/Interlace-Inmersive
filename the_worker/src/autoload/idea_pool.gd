@@ -801,20 +801,27 @@ func _set_signal(owner: String, idea_id: String, behaviour: String, confidant: S
 	}
 
 
+## Confidente: un vínculo del propietario (fuerza ≥ ideas.fuerza_minima_confidente) o, sin ninguno,
+## alguien de su sala; nunca su rival (get_neighbours incluye la rivalidad).
 func _pick_confidant(owner: String) -> String:
 	var candidates: Array[String] = []
 	for npc_id: String in SocialGraph.get_neighbours(owner,
 			Database.get_balance_float(B_CONFIDANT_STRENGTH)):
-		if npc_id != owner and npc_id != PLAYER_ID and not is_owner_gone(npc_id):
+		if npc_id != owner and npc_id != PLAYER_ID and not is_owner_gone(npc_id) \
+				and not _is_rival(owner, npc_id):
 			candidates.append(npc_id)
 	if candidates.is_empty():
 		var room: String = NPCDirector.get_current_location(owner)
 		for npc: NPCRuntime in NPCDirector.get_npcs_in_room(room):
-			if npc.id != owner and npc.alive:
+			if npc.id != owner and npc.alive and not _is_rival(owner, npc.id):
 				candidates.append(npc.id)
 	if candidates.is_empty():
 		return ""
 	return candidates[_rng.randi_range(0, candidates.size() - 1)]
+
+
+static func _is_rival(owner: String, other: String) -> bool:
+	return SocialGraph.get_link_type(owner, other) == NPCDirectorSystem.RIVAL_LINK_TYPE
 
 
 func _weighted_pick(weights: Dictionary) -> String:

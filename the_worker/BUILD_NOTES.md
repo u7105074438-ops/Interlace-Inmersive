@@ -77,6 +77,20 @@ Autoloads start **empty**. A new run is created by `game_root.gd` calling, in or
 Each autoload therefore exposes `func reset_for_new_run() -> void` (extra method, allowed).
 Loading a saved run: `SaveSystem.load_run()` calls each system's `load_state()`.
 Tests call these directly to set up state.
+- **Run seed order:** `GameClock.set_run_seed(seed)` goes BEFORE the resets (every system seeds its
+  RNG from `GameClock.get_run_seed()` inside `reset_for_new_run()`; `reset_for_new_run()` never
+  changes the seed). A saved run restores its seed in `GameClock.load_state()`.
+- **Resume rule:** `reset_for_new_run()` and `load_state()` leave the clock PAUSED. The world
+  emits `run_started(seed)` (new run) or SaveSystem emits `run_loaded(day)` (after `load_run()`)
+  once the world is built; GameClock resumes itself on either. Tests never emit them, so they do
+  not depend on the real-time clock. `run_started` also makes SaveSystem delete a previous
+  character's `run.json` (unless the run came from `load_run()`).
+- **Scene nodes with run state** (CaughtHandler, DutySystem — not autoloads) join the group
+  `SaveSystemNode.SCENE_GROUP` and are saved inside run.json as `"scene:<get_save_key()>"`.
+  `load_run()` hands each state to the node already in the tree; a node created later calls
+  `SaveSystem.claim_scene_state(key)` in its `_ready` (both handlers already do). game_root only
+  has to add the nodes. `Database` saves the active difficulty preset (§15.7) the same way as
+  any autoload (it loads first, so every other `load_state` sees the run's modifiers).
 
 ## 3. Units, space, floors
 
@@ -246,15 +260,68 @@ their owner autoload passes it in; state lives in the owning autoload (and is sa
   - Company: `get_all_seats() -> Array[Dictionary]` ({occupation_id, seat_index, holder}),
     `get_player_seat() -> Dictionary`, `get_seat_count(occupation_id) -> int`.
   - PlayerState: `get_room() -> String`, `get_floor() -> int` (updated from room_entered/floor_changed),
-    `get_disguise() -> String` ("" = none), `set_disguise(uniform_id)`, `get_name() -> String`.
+    `get_disguise() -> String` ("" = none), `set_disguise(uniform_id)`, `get_player_name() -> String`
+    / `set_player_name(name)` (`get_name()` cannot be overridden on a Node: it is `get_player_name()`).
+  - PlayerState **external memory** (§13.3-§13.5; the UI keeps NO persistent state of its own, all
+    of this is saved with PlayerState): notes `get_notes() -> Array[Dictionary]` ({id, day, hour,
+    minute, text, npc_id}), `add_note(text, npc_id := "") -> int`, `remove_note(id) -> bool`,
+    `get_notes_about(npc_id)`; free notepad `get_notepad()/set_notepad(text)`; notebook log
+    `get_notebook_entries()` (every `notebook_entry_added` of the run: {category, text_key, args,
+    day, hour, minute}); phone contacts `get_contacts() -> Array[Dictionary]` ({npc_id, source,
+    day}), `add_contact(npc_id, source) -> bool` (source: proximity | favour | hr | purchase |
+    messaged; UI aliases colleague/bought accepted), `has_contact(npc_id)`, `get_contact_source`,
+    `contact_source_key(source)` (CONTACT_SOURCE_*) — automatic: N working hours in the same room
+    (`movil.horas_proximidad_contacto`), favour_added, blackmail_demanded, phone_message_received,
+    `grant_full_file(id, "hr_intrusion")`, and every number while working in HR; marked targets
+    `mark_target/unmark_target/get_marked_targets/is_marked` (they emit `notebook_entry_added
+    ("targets", PERS_NOTE_TARGET_MARKED|_CLEARED, [name])`; NPCDirector listens and keeps the
+    target at LOD 0 with reason "marked_target"); `grant_full_file/has_full_file/
+    get_full_file_reason`; `record_study/get_studies`; mission flags `get_flag(key, default)`,
+    `set_flag(key, value)` (null clears), `has_flag(key)`.
   - GameClock: `get_run_seed()`, `set_run_seed()`, `set_observer_check(callable: Callable)` — the
     world registers a function returning true when observers are near (used by advance_to_band).
+    Pause has two layers: `pause()/resume()` (general switch, run lifecycle) and ownership-counted
+    `pause_by(owner)/resume_by(owner)` (+ `is_paused_by`, `get_pause_owners`, `clear_pause_owners`)
+    for modals/menus/cinematics: nobody unpauses on top of another owner; `is_paused()` is true if
+    the general pause OR any owner holds it.
   - Security: `get_footage_list() -> Array[Dictionary]`, `get_access_log() -> Array[Dictionary]`.
+- **Perception terms:** `NPCDirector.get_effective_perception(npc_id)` = trait + suspicion term +
+  `Security.get_guard_perception_bonus()` for guards (occupations in `npc.ocupaciones_vigilancia`).
+  **Security owns the guard bonus** (alert level, §7.10); NPCDirector only applies it there.
+  Perception must use that value and never add the suspicion or alert terms again.
+- **Shared news layer (§7.11):** BeliefNet adds `NewsFeed.get_suspicion_contribution()` ×
+  `creencias.factor_peso_social_noticias` to the player's suspicion (a synthetic `news_coverage`
+  entry in `get_suspicion_breakdown()`), recomputed on news_published / news_buried / day_advanced:
+  one scandal raises suspicion AND depresses the price; burying it lowers both. News about an NPC
+  (fabricated scandal, activist campaign) lowers that NPC's `get_npc_reputation` (and credibility)
+  by `NewsFeed.get_suspicion_about(id)` × `npc.reputacion_por_peso_prensa`.
+- **Market events on fundamentals (§9.12):** Company applies the active events of
+  `NewsFeed.get_active_market_events()` (production/revenue/costs multipliers, brand add, legal
+  costs, growth factor, risk add) except the "strike" event (Company models strikes itself).
+  NewsFeed activates an event before emitting its news, so Company recalculates at once.
+- **Verdict "player_minor":** Company demotes the player (`demote_player("credible_accusation")`;
+  clearance follows the new occupation); Security only marks max effective suspicion for some
+  weeks. Game-over emitters use `Tracking.evaluate_ending_for_cause(cause)` and
+  `Tracking.get_snapshot_for_cause(cause)` (the cause is only registered when game_over is heard).
+- **Full-certainty escalation:** a belief about the player reinforced past
+  `creencias.certeza_directa_completa` (§7.2 partial sightings adding up) makes its holder
+  re-evaluate once (NPCDirector listens to `belief_decayed` = "certainty changed"; no new signal).
+- **SocialGraph departures from the manual (documented in its header):** Sonia Vail's
+  `initial_links` in npcs_named.json are dropped at build time (§8.3 isolation); `kill_rumour`
+  buries a fact until the next day change (BeliefNet forgets its rumour beliefs then; use
+  `BeliefNet.forget_rumours(fact)` for an immediate effect); `get_neighbours()` includes every link
+  type (rivals too) — "allies" = friendship/couple (`NPCDirectorSystem.ALLY_LINK_TYPES`); SocialGraph
+  does not rewire links on `seat_filled` except department links of an NPC who changes post.
 - **Helper libraries (src/simulation, class_name, static or RefCounted):** UtilityAI
   (`static func evaluate(npc: NPCRuntime, context: Dictionary) -> Dictionary` returning
   {action, score, scores}), Bribery, CaughtHandler, InvestigationEngine, Interrogation,
   IdeaPresentation, DutySystem, InventoryRules, Disguise, Police, FactoryTheft, Buyers, Strike,
-  Endgame, Perception (Perception is a Node attached to NPC nodes — World phase).
+  Endgame, Perception (Perception is a Node attached to NPC nodes — World phase), PlayerRecords
+  (pure data container of PlayerState's external memory; PlayerState owns and saves it).
+- **Localisation check:** `tools/check_locale.py` (`--sim` = only simulation layer + data decide
+  the exit code) verifies that every key used by data (`*_key`, `*_keys`, ALL_CAPS values) and code
+  (ALL_CAPS literals, the dynamic key families of the simulation layer expanded from their real
+  domains, other `"X_%s"` formats / `"X_" +` prefixes) exists in strings.csv with EN and ES.
 
 ## 14. World & presentation contract (World phase)
 

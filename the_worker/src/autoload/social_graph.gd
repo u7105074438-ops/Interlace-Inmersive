@@ -1001,12 +1001,7 @@ func kill_rumour(belief_fact: String) -> int:
 	if belief_fact.is_empty():
 		return 0
 	_killed[belief_fact] = GameClock.get_day()
-	var count: int = 0
-	for npc: NPCRuntime in NPCDirector.get_all_npcs():
-		for b: Belief in BeliefNet.get_beliefs_held_by(npc.id):
-			if b.source == Belief.SOURCE_RUMOR and b.fact == belief_fact:
-				count += 1
-	return count
+	return BeliefNet.count_rumours(belief_fact)
 
 
 ## Extra (protocolo BeliefNet): true desde kill_rumour(fact) hasta el primer hour_passed de la

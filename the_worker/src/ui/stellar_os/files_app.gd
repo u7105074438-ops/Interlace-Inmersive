@@ -1,5 +1,5 @@
-# files_app.gd — FILES de StellarOS (§13.3, §11.1, PASO 25): archivos propios (informes, ideas, documentos) y, por intrusión, los del dueño del equipo, con copia de ideas y documentos.
-# PROPIETARIO DE: nada (los listados se derivan cada vez de PlayerState, DutySystem, IdeaPool y data/rooms; aquí solo la carpeta y el archivo seleccionados).
+# files_app.gd — FILES de StellarOS (§13.3, §11.1, PASO 25): archivos propios (informes, ideas, documentos), ajenos según el puesto (unidad compartida) y, por intrusión, los del dueño del equipo, con copia de ideas y documentos.
+# PROPIETARIO DE: nada (los listados se derivan cada vez de PlayerState, DutySystem, IdeaPool, NPCDirector y data/rooms; aquí solo la carpeta y el archivo seleccionados).
 # ESCUCHA: idea_acquired, inventory_changed, duty_completed (mientras está abierta, para refrescar).
 class_name FilesApp
 extends OSApp
@@ -7,7 +7,14 @@ extends OSApp
 ## DECISIONES:
 ##  · Sesión propia: «Informes» (deberes cumplidos hoy + salidas de A.S.S.I.S.T. de
 ##    DutySystem.get_assist_log: el rastro digital también está aquí), «Ideas» (IdeaPool, en tu
-##    poder), «Documentos» (documentos del inventario) y una papelera de broma.
+##    poder), «Documentos» (documentos del inventario), «Unidad compartida» (ver abajo) y una
+##    papelera de broma.
+##  · «Según rango» (§13.3): la unidad compartida S:\ muestra archivos AJENOS de solo lectura. Con
+##    el acceso especial others_computers (IT: técnico, jefe de equipo, director) ve todos los
+##    ordenadores del edificio; desde el escalón ordenador.unidad_compartida_escalon_min, los de su
+##    equipo (escalón inferior y mismo departamento). Lista los documentos de cada ordenador
+##    (data/rooms, interactivo npc_computer) y los borradores de ideas vivas de sus dueños: es
+##    información para planear una intrusión; copiar exige estar en el puesto del dueño (§11.1).
 ##  · Sesión de invitado (intrusión, StellarOS.open_intrusion): «Ideas» del dueño
 ##    (IdeaPool.get_ideas_by_owner, vivas), «Documentos» (contains del interactivo npc_computer
 ##    de data/rooms, o context.contains) y «Personal» (archivos de relleno, solo lectura).
@@ -15,32 +22,46 @@ extends OSApp
 ##    (dueño fuera de su puesto, jugador en él) y ya emite idea_acquired y
 ##    crime_committed("file_copied") — el registro digital lo crean quienes escuchan. Aquí no se
 ##    vuelve a emitir el delito (sería doble).
-##  · Copiar un documento = una copia al inventario (el objeto del catálogo si el id existe; si no,
-##    ordenador.objeto_copia_documento con extra {document_id, source_npc, name_key}) +
-##    crime_committed("file_copied", sala, {document_id, owner, subject: "player", computer_id}) +
-##    notebook_entry_added("files", ...).
+##  · Copiar un documento = UNA copia NO apilable al inventario (el objeto del catálogo si el id
+##    existe; si no, ordenador.objeto_copia_documento) con extra {document_id, source_npc,
+##    name_key, stackable: false}: cada documento ocupa su hueco y conserva su identidad, y un
+##    documento ya copiado no se vuelve a copiar (ni a denunciar). Emite
+##    crime_committed("file_copied", sala, {document_id, owner, subject: "player", computer_id}) y
+##    notebook_entry_added("files", NOTE_FILE_COPIED_DOC, [clave del nombre, dueño]).
 
 const FOLDER_REPORTS := "reports"
 const FOLDER_IDEAS := "ideas"
 const FOLDER_DOCUMENTS := "documents"
+const FOLDER_SHARED := "shared"
 const FOLDER_TRASH := "trash"
 const FOLDER_PERSONAL := "personal"
-const OWN_FOLDERS: Array[String] = [FOLDER_REPORTS, FOLDER_IDEAS, FOLDER_DOCUMENTS, FOLDER_TRASH]
+const OWN_FOLDERS: Array[String] = [FOLDER_REPORTS, FOLDER_IDEAS, FOLDER_DOCUMENTS, FOLDER_SHARED, FOLDER_TRASH]
 const GUEST_FOLDERS: Array[String] = [FOLDER_IDEAS, FOLDER_DOCUMENTS, FOLDER_PERSONAL]
 const FOLDER_ICONS: Dictionary = {
 	FOLDER_REPORTS: "report", FOLDER_IDEAS: "idea", FOLDER_DOCUMENTS: "folder", FOLDER_TRASH: "trash",
-	FOLDER_PERSONAL: "personal",
+	FOLDER_PERSONAL: "personal", FOLDER_SHARED: "shared",
 }
 const ACTION_COPY_IDEA := "copy_idea"
 const ACTION_COPY_DOC := "copy_doc"
 const METHOD_STEAL_FILE := "steal_file"
 const CRIME_FILE_COPIED := "file_copied"
 const B_COPY_ITEM := "ordenador.objeto_copia_documento"
+const B_SHARED_TIER := "ordenador.unidad_compartida_escalon_min"
+const B_DISK_MB := "ordenador.disco_mb_por_nivel"
+const B_DISK_USED := "ordenador.disco_ocupado_por_nivel"
+const ACCESS_OTHERS := "others_computers"
+const SHARED_NONE := ""
+const SHARED_ALL := "all"
+const SHARED_TEAM := "team"
+const GENERATED_OWNER := "generated"
+const DEPARTMENT_KEY := "department"
+const EXTRA_STACKABLE := "stackable"
 const NOTE_CATEGORY := "files"
 const NPC_COMPUTER := "npc_computer"
 const KIND_DOCUMENT := "document"
 const STATUS_COMPLETED := "completed"
 const DOC_KEY_FORMAT := "FILES_DOC_%s"
+const DOC_GENERIC_KEY := "FILES_DOC_GENERIC"
 ## Contenido (no ajustes): archivos de relleno traducidos.
 const PERSONAL_COUNT := 10
 const PERSONAL_SHOWN := 4
@@ -58,6 +79,7 @@ var _preview_meta: Label
 var _preview_body: Label
 var _action: Button
 var _address: Label
+var _disk: FilesDiskGauge
 
 
 ## Foto del dueño del equipo (sesión de invitado).
@@ -81,6 +103,42 @@ class FilesPortraitView extends Control:
 		draw_rect(r, OSTheme.col(pal, "dark"), false, 2.0)
 
 
+## Indicador de disco al pie de las carpetas: el equipo barato siempre está lleno (§13.3: la
+## mejora con el rango debe notarse); el del R33 no tiene límite.
+class FilesDiskGauge extends Control:
+	var pal: Dictionary = {}
+	var base: int = 24
+	var capacity_mb: float = 0.0
+	var used: float = 0.0
+
+	func _init(p: Dictionary, base_px: int) -> void:
+		pal = p
+		base = base_px
+		custom_minimum_size = Vector2(0, base * 3.1)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var f: Font = UITheme.font(UITheme.FONT_SEMIBOLD)
+		var fs: int = roundi(base * OSTheme.RATIO_SMALL)
+		var ink: Color = OSTheme.col(pal, "text")
+		OSTheme.draw_icon(self, "disk", Rect2(Vector2(0, base * 0.1), Vector2(base * 1.3, base * 1.3)), pal)
+		draw_string(f, Vector2(base * 1.6, base * 0.95), OSApp.t("FILES_DISK_LABEL"), HORIZONTAL_ALIGNMENT_LEFT,
+				size.x - base * 1.6, fs, ink)
+		var bar: Rect2 = Rect2(0, base * 1.5, size.x, base * 0.75)
+		OSTheme.draw_bevel(self, bar, pal, true, base)
+		var inner: Rect2 = bar.grow(-OSTheme.bevel_width(base) * 2.5)
+		var fill: Color = OSTheme.col(pal, "bad") if used > 0.9 else OSTheme.col(pal, "select")
+		if capacity_mb > 0.0:
+			draw_rect(Rect2(inner.position, Vector2(inner.size.x * clampf(used, 0.0, 1.0), inner.size.y)), fill)
+		draw_string(UITheme.font(UITheme.FONT_REGULAR), Vector2(0, base * 2.95), _caption(), HORIZONTAL_ALIGNMENT_LEFT,
+				size.x, fs, OSTheme.col(pal, "muted"))
+
+	func _caption() -> String:
+		if capacity_mb <= 0.0:
+			return OSApp.t("FILES_DISK_UNLIMITED")
+		return OSApp.t("FILES_DISK_FREE", [String.num(capacity_mb * (1.0 - used), 1), String.num(capacity_mb, 0)])
+
+
 # ─── Construcción ─────────────────────────────────────────────────
 
 func build() -> void:
@@ -91,13 +149,7 @@ func build() -> void:
 	var h: HBoxContainer = HBoxContainer.new()
 	h.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(h)
-	var folders: PanelContainer = make_panel(OSTheme.V_SUNKEN)
-	folders.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	folders.size_flags_stretch_ratio = 0.5
-	var fscroll: ScrollContainer = make_scroll_list()
-	_folder_list = fscroll.get_child(0) as VBoxContainer
-	folders.add_child(fscroll)
-	h.add_child(folders)
+	h.add_child(_folder_column())
 	var right: VBoxContainer = VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.size_flags_stretch_ratio = 1.5
@@ -110,9 +162,23 @@ func build() -> void:
 	right.add_child(files)
 	right.add_child(_preview_panel())
 	_folder = GUEST_FOLDERS[0] if is_guest() else OWN_FOLDERS[0]
-	EventBus.idea_acquired.connect(_on_world_changed.unbind(2))
-	EventBus.inventory_changed.connect(_on_world_changed.unbind(2))
-	EventBus.duty_completed.connect(_on_world_changed.unbind(3))
+	EventBus.idea_acquired.connect(request_refresh.unbind(2))
+	EventBus.inventory_changed.connect(request_refresh.unbind(2))
+	EventBus.duty_completed.connect(request_refresh.unbind(3))
+
+
+func _folder_column() -> PanelContainer:
+	var folders: PanelContainer = make_panel(OSTheme.V_SUNKEN)
+	folders.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	folders.size_flags_stretch_ratio = 0.5
+	var col: VBoxContainer = VBoxContainer.new()
+	folders.add_child(col)
+	var fscroll: ScrollContainer = make_scroll_list()
+	_folder_list = fscroll.get_child(0) as VBoxContainer
+	col.add_child(fscroll)
+	_disk = FilesDiskGauge.new(pal, base)
+	col.add_child(_disk)
+	return folders
 
 
 func _address_bar() -> HBoxContainer:
@@ -185,6 +251,8 @@ func get_title_key() -> String:
 # ─── API ──────────────────────────────────────────────────────────
 
 func refresh() -> void:
+	if not get_folders().has(_folder):
+		_folder = get_folders()[0]
 	_fill_folders()
 	_files = list_files(_folder)
 	OSApp.clear_children(_file_list)
@@ -195,16 +263,22 @@ func refresh() -> void:
 		row.pressed.connect(select_file.bind(str(f["id"])))
 		_file_list.add_child(row)
 	if _files.is_empty():
-		_file_list.add_child(make_label(t("FILES_EMPTY_FOLDER"), OSTheme.V_MUTED, true))
+		_file_list.add_child(_empty_state())
 	if _find(_selected).is_empty():
 		_selected = str(_files[0]["id"]) if not _files.is_empty() else ""
 	_show_preview(_find(_selected))
 	if _address != null:
 		_address.text = t("FILES_PATH", [t("FILES_FOLDER_" + _folder.to_upper())])
+	_update_disk()
 
 
 func get_folders() -> Array[String]:
-	return GUEST_FOLDERS if is_guest() else OWN_FOLDERS
+	if is_guest():
+		return GUEST_FOLDERS
+	var out: Array[String] = OWN_FOLDERS.duplicate()
+	if shared_access().is_empty():
+		out.erase(FOLDER_SHARED)
+	return out
 
 
 func open_folder(folder: String) -> void:
@@ -236,6 +310,8 @@ func list_files(folder: String) -> Array[Dictionary]:
 			return _guest_ideas() if is_guest() else _own_ideas()
 		FOLDER_DOCUMENTS:
 			return _guest_documents() if is_guest() else _own_documents()
+		FOLDER_SHARED:
+			return [] if is_guest() else _shared_files()
 		FOLDER_PERSONAL:
 			return _personal_files()
 		FOLDER_TRASH:
@@ -256,7 +332,30 @@ func copy_file(file_id: String) -> bool:
 	return false
 
 
-# ─── Listados ─────────────────────────────────────────────────────
+## Acceso a archivos ajenos por puesto: SHARED_ALL (others_computers), SHARED_TEAM (desde el
+## escalón ordenador.unidad_compartida_escalon_min) o SHARED_NONE.
+static func shared_access() -> String:
+	var occ: OccupationData = PlayerState.get_occupation()
+	if occ == null:
+		return SHARED_NONE
+	if occ.special_access.has(ACCESS_OTHERS):
+		return SHARED_ALL
+	var min_tier: int = Database.get_balance_int(B_SHARED_TIER)
+	return SHARED_TEAM if min_tier > 0 and occ.tier >= min_tier else SHARED_NONE
+
+
+## Ordenadores de data/rooms con documentos: [{computer_id, room_id, owner, contains}].
+static func computers_with_documents() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for room: RoomData in Database.get_all_rooms():
+		for it: Dictionary in room.interactables:
+			if str(it.get("type", "")) == NPC_COMPUTER and it.get("contains") is Array:
+				out.append({"computer_id": str(it.get("id", "")), "room_id": room.id,
+						"owner": str(it.get("owner", "")), "contains": it["contains"]})
+	return out
+
+
+# ─── Listados propios ─────────────────────────────────────────────
 
 func _reports() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -270,14 +369,12 @@ func _reports() -> Array[Dictionary]:
 				t("FILES_REPORT_META", [t(str(duty.get("name_key", ""))), roundi(float(duty.get("quality", 0.0)) * PERCENT)]),
 				t("FILES_REPORT_BODY_" + method.to_upper()) if not method.is_empty() else ""))
 	var ds: DutySystem = duty_system()
-	var log_entries: Array[Dictionary] = []
-	if ds != null:
-		log_entries = ds.get_assist_log()
+	var log_entries: Array[Dictionary] = ds.get_assist_log() if ds != null else []
 	for i: int in range(log_entries.size() - 1, -1, -1):
 		var e: Dictionary = log_entries[i]
 		out.append(_file("assist_%d" % i, "doc", t("FILES_ASSIST_NAME", [int(e.get("day", 0)), int(e.get("hour", 0)), i + 1]),
-				t("FILES_ASSIST_META", [str(e.get("task_type", "")), t("ASSIST_BADGE_" + str(e.get("result", "")).to_upper())]),
-				t("FILES_ASSIST_BODY")))
+				t("FILES_ASSIST_META", [AssistApp.task_name(str(e.get("task_type", ""))),
+				t("ASSIST_BADGE_" + str(e.get("result", "")).to_upper())]), t("FILES_ASSIST_BODY")))
 	return out
 
 
@@ -298,14 +395,66 @@ func _own_documents() -> Array[Dictionary]:
 		if str(item.extra.get("kind", "")) != KIND_DOCUMENT:
 			continue
 		var name_key: String = str(item.extra.get("name_key", item.name_key))
-		var f: Dictionary = _file("item_%s_%d" % [item.id, out.size()], "doc", t(name_key),
-				t("FILES_DOC_META_HOT") if item.is_compromising() else t("FILES_DOC_META"), t("FILES_DOC_PAPER"))
+		var source: String = str(item.extra.get("source_npc", ""))
+		var meta: String = t("FILES_DOC_META_HOT") if item.is_compromising() else t("FILES_DOC_META")
+		if not source.is_empty():
+			meta = t("FILES_DOC_META_SOURCE", [meta, npc_name(source)])
+		var f: Dictionary = _file("item_%s_%d" % [item.id, out.size()], "doc", t(name_key), meta, t("FILES_DOC_PAPER"))
 		if item.is_compromising():
 			f["tag"] = t("FILES_TAG_CONFIDENTIAL")
 			f["tag_color"] = c("bad")
 		out.append(f)
 	return out
 
+
+## Unidad compartida (solo lectura): documentos y borradores de ideas de los ordenadores a los que
+## el puesto da acceso.
+func _shared_files() -> Array[Dictionary]:
+	var access: String = shared_access()
+	var out: Array[Dictionary] = []
+	if access.is_empty():
+		return out
+	for pc: Dictionary in computers_with_documents():
+		var owner: String = str(pc["owner"])
+		if not _shares_with_player(owner, access):
+			continue
+		for doc: Variant in pc["contains"]:
+			out.append(_shared_document(str(doc), owner, str(pc["room_id"])))
+	for idea: Idea in IdeaPool.get_available_ideas():
+		if _shares_with_player(idea.owner, access) and not idea.presented:
+			out.append(_shared_idea(idea))
+	return out
+
+
+func _shared_document(doc_id: String, owner: String, room_id: String) -> Dictionary:
+	var who: String = npc_name(owner) if owner != GENERATED_OWNER else t("FILES_SHARED_WORKSTATION")
+	var f: Dictionary = _file("shared_%s_%s" % [owner, doc_id], "report", doc_display_name(doc_id),
+			t("FILES_SHARED_META", [who, _room_name(room_id)]), t("FILES_SHARED_DOC_BODY", [who]))
+	f["tag"] = t("FILES_TAG_READ_ONLY")
+	return f
+
+
+func _shared_idea(idea: Idea) -> Dictionary:
+	var who: String = npc_name(idea.owner)
+	var f: Dictionary = _file("shared_idea_" + idea.id, "idea", t("FILES_SHARED_IDEA_NAME", [_idea_label(idea)]),
+			t("FILES_SHARED_IDEA_META", [who, idea.quality, idea.freshness]), t("FILES_SHARED_IDEA_BODY", [who]))
+	f["tag"] = t("FILES_TAG_READ_ONLY")
+	return f
+
+
+## SHARED_ALL: cualquier ordenador; SHARED_TEAM: personajes activos de escalón inferior y del mismo
+## departamento que el puesto del jugador.
+func _shares_with_player(owner: String, access: String) -> bool:
+	if access == SHARED_ALL:
+		return owner != PLAYER_ID
+	var npc: NPCRuntime = NPCDirector.get_npc(owner)
+	var occ: OccupationData = PlayerState.get_occupation()
+	if npc == null or not npc.alive or occ == null:
+		return false
+	return npc.tier < occ.tier and npc.department == str(occ.extra.get(DEPARTMENT_KEY, ""))
+
+
+# ─── Listados del invitado ────────────────────────────────────────
 
 func _guest_ideas() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -331,7 +480,7 @@ func _guest_documents() -> Array[Dictionary]:
 				t("FILES_DOC_GUEST_BODY"))
 		f["action"] = ACTION_COPY_DOC
 		f["doc_id"] = doc_id
-		f["done"] = _has_copy(doc_id)
+		f["done"] = has_copy(doc_id)
 		_tag_copyable(f)
 		out.append(f)
 	return out
@@ -360,22 +509,33 @@ func computer_documents() -> Array:
 	var extra: Dictionary = context.get("extra", {}) as Dictionary
 	if extra.get("contains") is Array:
 		return extra["contains"]
-	var npc_id: String = get_npc_id()
-	for room: RoomData in Database.get_all_rooms():
-		for it: Dictionary in room.interactables:
-			if str(it.get("type", "")) == NPC_COMPUTER and str(it.get("owner", "")) == npc_id:
-				return it.get("contains", []) if it.get("contains") is Array else []
+	for pc: Dictionary in computers_with_documents():
+		if str(pc["owner"]) == get_npc_id():
+			return pc["contains"]
 	return []
 
 
-## Nombre visible de un documento: el del catálogo de objetos o FILES_DOC_<ID>.
-static func doc_display_name(doc_id: String) -> String:
+## true si el jugador ya lleva una copia de ese documento (por id de catálogo o por document_id).
+static func has_copy(doc_id: String) -> bool:
+	if PlayerState.is_carrying(doc_id):
+		return true
+	for item: ItemData in PlayerState.get_inventory():
+		if str(item.extra.get("document_id", "")) == doc_id:
+			return true
+	return false
+
+
+## Clave del nombre visible de un documento: la del catálogo de objetos, FILES_DOC_<ID> o la genérica.
+static func doc_name_key(doc_id: String) -> String:
 	var item: ItemData = Database.get_item(doc_id)
 	if item != null:
-		return t(item.name_key)
+		return item.name_key
 	var key: String = DOC_KEY_FORMAT % doc_id.to_upper()
-	var text: String = TranslationServer.translate(key)
-	return text if text != key else t("FILES_DOC_GENERIC")
+	return key if TranslationServer.translate(key) != key else DOC_GENERIC_KEY
+
+
+static func doc_display_name(doc_id: String) -> String:
+	return t(doc_name_key(doc_id))
 
 
 ## Sufijo del nombre de archivo de una idea (su número, sin el prefijo del id).
@@ -408,15 +568,6 @@ func _find(file_id: String) -> Dictionary:
 	return {}
 
 
-func _has_copy(doc_id: String) -> bool:
-	if PlayerState.is_carrying(doc_id):
-		return true
-	for item: ItemData in PlayerState.get_inventory():
-		if str(item.extra.get("document_id", "")) == doc_id:
-			return true
-	return false
-
-
 # ─── Copias ───────────────────────────────────────────────────────
 
 func _copy_idea(f: Dictionary) -> bool:
@@ -439,24 +590,40 @@ func _copy_idea(f: Dictionary) -> bool:
 func _copy_document(f: Dictionary) -> bool:
 	var doc_id: String = str(f["doc_id"])
 	await wait_action(StellarOS.ACTION_COPY)
-	var item: ItemData = Database.get_item(doc_id)
+	if has_copy(doc_id):
+		refresh()
+		return false
+	var item: ItemData = make_document_copy(doc_id, get_npc_id())
 	if item == null:
-		item = Database.get_item(str(Database.get_balance(B_COPY_ITEM)))
-		if item == null:
-			return false
-		item.extra["document_id"] = doc_id
-		item.extra["source_npc"] = get_npc_id()
-		item.extra["name_key"] = DOC_KEY_FORMAT % doc_id.to_upper()
+		return false
 	if not PlayerState.add_item_data(item):
 		post_status(t("FILES_STATUS_NO_SPACE"))
 		return false
 	var extra: Dictionary = context.get("extra", {}) as Dictionary
 	EventBus.crime_committed.emit(CRIME_FILE_COPIED, _crime_room(), {"document_id": doc_id,
 			"owner": get_npc_id(), "subject": PLAYER_ID, "computer_id": str(extra.get("computer_id", ""))})
-	EventBus.notebook_entry_added.emit(NOTE_CATEGORY, "NOTE_FILE_COPIED_DOC", [str(f["name"]), npc_name(get_npc_id())])
+	EventBus.notebook_entry_added.emit(NOTE_CATEGORY, "NOTE_FILE_COPIED_DOC", [doc_name_key(doc_id),
+			npc_name(get_npc_id())])
 	post_status(t("FILES_STATUS_DOC_COPIED", [str(f["name"])]))
 	refresh()
 	return true
+
+
+## Copia física de un documento ajeno: el objeto del catálogo (si existe) o el genérico de balance,
+## siempre NO apilable y con su identidad en extra. null si el catálogo no tiene ninguno.
+static func make_document_copy(doc_id: String, owner: String) -> ItemData:
+	var item: ItemData = Database.get_item(doc_id)
+	var key: String = item.name_key if item != null else doc_name_key(doc_id)
+	if item == null:
+		item = Database.get_item(str(Database.get_balance(B_COPY_ITEM)))
+	if item == null:
+		return null
+	item.extra[EXTRA_STACKABLE] = false
+	item.extra["document_id"] = doc_id
+	item.extra["source_npc"] = owner
+	item.extra["name_key"] = key
+	item.stack = 1
+	return item
 
 
 func _crime_room() -> String:
@@ -475,6 +642,11 @@ func _room_label() -> String:
 	return t(room.name_key) if room != null else ""
 
 
+func _room_name(room_id: String) -> String:
+	var room: RoomData = Database.get_room(room_id)
+	return t(room.name_key) if room != null else room_id
+
+
 # ─── Vista ────────────────────────────────────────────────────────
 
 func _fill_folders() -> void:
@@ -486,6 +658,30 @@ func _fill_folders() -> void:
 		row.set_selected(folder == _folder)
 		row.pressed.connect(open_folder.bind(folder))
 		_folder_list.add_child(row)
+
+
+## Carpeta vacía: icono grande y una frase de la casa (en vez de una línea suelta).
+func _empty_state() -> VBoxContainer:
+	var box: VBoxContainer = VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.custom_minimum_size.y = base * 14.0
+	var art: OSApp.OSIcon = make_icon(str(FOLDER_ICONS.get(_folder, "folder")), 4.5)
+	art.modulate.a = 0.45
+	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(art)
+	var key: String = "FILES_EMPTY_%s%s" % [_folder.to_upper(), "_GUEST" if is_guest() else ""]
+	var text: Label = make_label(t(key), OSTheme.V_MUTED, true)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(text)
+	return box
+
+
+func _update_disk() -> void:
+	_disk.visible = not is_guest()
+	_disk.capacity_mb = OSTheme.per_tier(B_DISK_MB, get_tier())
+	_disk.used = OSTheme.per_tier(B_DISK_USED, get_tier())
+	_disk.queue_redraw()
 
 
 func _show_preview(f: Dictionary) -> void:
@@ -506,8 +702,3 @@ func _show_preview(f: Dictionary) -> void:
 func _on_action() -> void:
 	if not _selected.is_empty():
 		await copy_file(_selected)
-
-
-func _on_world_changed() -> void:
-	if is_inside_tree():
-		refresh.call_deferred()

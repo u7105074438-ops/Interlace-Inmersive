@@ -4,7 +4,9 @@
 class_name CaughtHandler
 extends Node
 
-## Nodo que el World añade a la escena de juego. La interfaz (src/ui/caught_window.gd) escucha
+## Nodo que el World añade a la escena de juego (se guarda con la partida: grupo
+## SaveSystemNode.SCENE_GROUP, clave SAVE_KEY; si se crea después de load_run() recoge su estado
+## con SaveSystem.claim_scene_state). La interfaz (src/ui/caught_window.gd) escucha
 ## decision_window_opened / _updated / _closed y llama a choose_bribe() o choose_elimination().
 ## options = {npc_id, npc_name, crime_type, witnesses, seconds_left, deadline,
 ##   "bribe":     {enabled, price, favour, channel, counteroffer, label_key, disabled_reason_key},
@@ -44,6 +46,7 @@ signal decision_window_updated(npc_id: String, options: Dictionary)
 signal decision_window_closed(npc_id: String, outcome: String)
 
 const PLAYER_ID := "player"
+const SAVE_KEY := "CaughtHandler"
 const OPTION_BRIBE := "bribe"
 const OPTION_ELIMINATE := "eliminate"
 const OUTCOME_INACTION := "inaction"
@@ -141,6 +144,15 @@ func _ready() -> void:
 	EventBus.game_over.connect(_on_game_over)
 	EventBus.run_started.connect(_on_run_started)
 	_rng.seed = _seed()
+	add_to_group(SaveSystemNode.SCENE_GROUP)
+	var saved: Dictionary = SaveSystem.claim_scene_state(SAVE_KEY)
+	if not saved.is_empty():
+		load_state(saved)
+
+
+## Clave con la que SaveSystem guarda este nodo en la partida.
+func get_save_key() -> String:
+	return SAVE_KEY
 
 
 func _process(delta: float) -> void:
