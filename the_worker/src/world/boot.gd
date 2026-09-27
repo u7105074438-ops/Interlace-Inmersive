@@ -13,6 +13,8 @@ func _ready() -> void:
 	InputSetup.register_actions()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build_title()
+	if Autopilot.is_requested():
+		Autopilot.launch(get_tree())
 
 
 func _build_title() -> void:

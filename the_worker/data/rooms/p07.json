@@ -1,0 +1,1186 @@
+{
+ "_version": 1,
+ "_furniture_note": "Cells: x right, y down, 0..w-1 / 0..h-1. rotation = degrees clockwise, 0 = front faces +y (down, towards the corridor door). size = final axis-aligned footprint in cells (already rotated); omitted = 1x1. rug/runway/helipad/motivational_poster/window_wall are walkable decoration. Rows h-2..h-1, the 3 middle cells of rows 0..1 and (for rooms with an internal door) the 3 middle rows of the side walls are kept free.",
+ "floor": 7,
+ "band": "the_specialists",
+ "kit": "creative",
+ "ambient_sound": "quiet_office",
+ "ambient_noise_level": 0.2,
+ "rooms": [
+  {
+   "id": "shoe_design_studio",
+   "name_key": "ROOM_SHOE_DESIGN_STUDIO",
+   "floor": 7,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    20,
+    16
+   ],
+   "furniture": [
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      1,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "motivational_poster",
+     "pos": [
+      5,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      6,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      10
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      11
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      6,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      10
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      11
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      10
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      11
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "whiteboard",
+     "pos": [
+      13,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "trophy_case",
+     "pos": [
+      16,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "trophy_case",
+     "pos": [
+      18,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "table",
+     "pos": [
+      15,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      14,
+      4
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      18,
+      5
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      13
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      19,
+      13
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_design_desk",
+     "type": "under_desk",
+     "pos": [
+      6,
+      9
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "designer_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      2,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true,
+     "idea_quality": "high"
+    },
+    {
+     "id": "designer_pc_2",
+     "type": "npc_computer",
+     "pos": [
+      6,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true,
+     "idea_quality": "high"
+    },
+    {
+     "id": "designer_pc_3",
+     "type": "npc_computer",
+     "pos": [
+      10,
+      9
+     ],
+     "owner": "generated",
+     "requires_absence": true,
+     "idea_quality": "high"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_low"
+   ],
+   "occupants_by_band": {
+    "arrival": 6,
+    "work_morning": 9,
+    "lunch": 2,
+    "work_afternoon": 9,
+    "exit": 3,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_SHOE_DESIGN_STUDIO_OPP",
+   "risk_key": "ROOM_SHOE_DESIGN_STUDIO_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "prototype_workshop",
+   "name_key": "ROOM_PROTOTYPE_WORKSHOP",
+   "floor": 7,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "workbench",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      4,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "workbench",
+     "pos": [
+      9,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      15,
+      2
+     ],
+     "rotation": 270,
+     "size": [
+      1,
+      4
+     ]
+    },
+    {
+     "type": "industrial_machine",
+     "pos": [
+      0,
+      7
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "crate",
+     "pos": [
+      15,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "crate",
+     "pos": [
+      15,
+      9
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      5,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_proto_crate",
+     "type": "crate",
+     "pos": [
+      15,
+      9
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "prototype_shelf",
+     "type": "supply_shelf",
+     "pos": [
+      15,
+      3
+     ],
+     "items": [
+      "shoe_prototype"
+     ],
+     "resale_value": 250
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_low"
+   ],
+   "occupants_by_band": {
+    "arrival": 3,
+    "work_morning": 4,
+    "lunch": 1,
+    "work_afternoon": 4,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_PROTOTYPE_WORKSHOP_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "exotic_materials",
+   "name_key": "ROOM_EXOTIC_MATERIALS",
+   "floor": 7,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    12,
+    10
+   ],
+   "furniture": [
+    {
+     "type": "shelf_rack",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      8,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      0,
+      3
+     ],
+     "rotation": 90,
+     "size": [
+      1,
+      4
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      11,
+      3
+     ],
+     "rotation": 270,
+     "size": [
+      1,
+      4
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      4,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      6
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      8,
+      7
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "safe",
+     "pos": [
+      0,
+      7
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "exotic_shelf",
+     "type": "supply_shelf",
+     "pos": [
+      4,
+      4
+     ],
+     "items": [
+      "exotic_leather",
+      "rare_material"
+     ],
+     "resale_value": 400,
+     "inventory": "strict"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_low"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 1,
+    "lunch": 0,
+    "work_afternoon": 1,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_EXOTIC_MATERIALS_OPP",
+   "risk_key": "ROOM_EXOTIC_MATERIALS_RISK",
+   "is_hiding_place": false,
+   "search_priority": 2
+  },
+  {
+   "id": "walk_test_runway",
+   "name_key": "ROOM_WALK_TEST_RUNWAY",
+   "floor": 7,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    24,
+    8
+   ],
+   "furniture": [
+    {
+     "type": "runway",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      18,
+      2
+     ]
+    },
+    {
+     "type": "bench",
+     "pos": [
+      4,
+      5
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "bench",
+     "pos": [
+      9,
+      5
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "bench",
+     "pos": [
+      15,
+      5
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "table",
+     "pos": [
+      20,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      20,
+      1
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      21,
+      1
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "plant",
+     "pos": [
+      23,
+      5
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_runway_curtain",
+     "type": "curtain",
+     "pos": [
+      0,
+      0
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "runway_log_pc",
+     "type": "computer",
+     "pos": [
+      20,
+      0
+     ],
+     "shows": "walk_test_log"
+    },
+    {
+     "id": "runway_watch",
+     "type": "eavesdrop_point",
+     "pos": [
+      12,
+      4
+     ],
+     "targets": "executives_on_runway"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_low"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 2,
+    "lunch": 0,
+    "work_afternoon": 3,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_WALK_TEST_RUNWAY_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "historic_designs_archive",
+   "name_key": "ROOM_HISTORIC_DESIGNS_ARCHIVE",
+   "floor": 7,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    14,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "shelf_rack",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 90,
+     "size": [
+      1,
+      6
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      6
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      7,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      6
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      12,
+      2
+     ],
+     "rotation": 270,
+     "size": [
+      2,
+      6
+     ]
+    },
+    {
+     "type": "desk",
+     "pos": [
+      0,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      9
+     ],
+     "rotation": 90
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_historic_shelves",
+     "type": "archive_shelves",
+     "pos": [
+      3,
+      4
+     ],
+     "capacity": 6,
+     "can_hide_body": false
+    },
+    {
+     "id": "hide_historic_vent",
+     "type": "vent",
+     "pos": [
+      13,
+      0
+     ],
+     "capacity": 3,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "historic_designs_drawers",
+     "type": "design_archive",
+     "pos": [
+      7,
+      4
+     ],
+     "decades_old": 3,
+     "yields": "historic_design_idea"
+    },
+    {
+     "id": "historic_archive_lock",
+     "type": "lock_old",
+     "pos": [
+      7,
+      11
+     ],
+     "target": "door",
+     "keys_basic_opens": true
+    },
+    {
+     "id": "historic_archive_vent",
+     "type": "vent_hatch",
+     "pos": [
+      13,
+      0
+     ],
+     "leads_to": [
+      "p7_toilets",
+      "vent_network"
+     ]
+    }
+   ],
+   "illegitimate_entries": [
+    "vent",
+    "old_keys"
+   ],
+   "connects_to": [
+    "corridors_low",
+    "vent_network"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 0,
+    "work_afternoon": 1,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_HISTORIC_DESIGNS_ARCHIVE_OPP",
+   "risk_key": "ROOM_HISTORIC_DESIGNS_ARCHIVE_RISK",
+   "is_hiding_place": true,
+   "search_priority": 1
+  },
+  {
+   "id": "p7_toilets",
+   "name_key": "ROOM_P7_TOILETS",
+   "floor": 7,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": true,
+   "size": [
+    8,
+    6
+   ],
+   "furniture": [
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      6,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "sink",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sink",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_p7_stall",
+     "type": "toilet_stall",
+     "pos": [
+      1,
+      2
+     ],
+     "capacity": 1,
+     "can_hide_body": false
+    },
+    {
+     "id": "hide_p7_vent",
+     "type": "vent",
+     "pos": [
+      7,
+      2
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "p7_toilets_vent",
+     "type": "vent_hatch",
+     "pos": [
+      7,
+      2
+     ],
+     "leads_to": [
+      "historic_designs_archive",
+      "vent_network"
+     ]
+    }
+   ],
+   "illegitimate_entries": [
+    "vent"
+   ],
+   "connects_to": [
+    "corridors_low",
+    "vent_network"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 1,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_P7_TOILETS_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "safe_for_calls": true
+  }
+ ]
+}

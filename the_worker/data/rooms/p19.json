@@ -1,0 +1,1077 @@
+{
+ "_version": 1,
+ "_furniture_note": "Cells: x right, y down, 0..w-1 / 0..h-1. rotation = degrees clockwise, 0 = front faces +y (down, towards the corridor door). size = final axis-aligned footprint in cells (already rotated); omitted = 1x1. rug/runway/helipad/motivational_poster/window_wall are walkable decoration. Rows h-2..h-1, the 3 middle cells of rows 0..1 and (for rooms with an internal door) the 3 middle rows of the side walls are kept free.",
+ "floor": 19,
+ "band": "the_throne",
+ "kit": "boardroom",
+ "ambient_sound": "silence",
+ "ambient_noise_level": 0.0,
+ "rooms": [
+  {
+   "id": "vice_ceo_office",
+   "name_key": "ROOM_VICE_CEO_OFFICE",
+   "floor": 19,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_throne",
+   "kit": "boardroom",
+   "ambient_sound": "silence",
+   "ambient_noise_level": 0.0,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     15,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    16,
+    14
+   ],
+   "furniture": [
+    {
+     "type": "window_wall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      6,
+      1
+     ]
+    },
+    {
+     "type": "window_wall",
+     "pos": [
+      10,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      6,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      12,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      11,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "npc_preston_vaile"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "rug",
+     "pos": [
+      0,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      5,
+      5
+     ]
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      0,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "table",
+     "pos": [
+      0,
+      5
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "armchair",
+     "pos": [
+      0,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "armchair",
+     "pos": [
+      2,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "trophy_case",
+     "pos": [
+      14,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "safe",
+     "pos": [
+      15,
+      10
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      11
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_vaile_desk",
+     "type": "under_desk",
+     "pos": [
+      12,
+      4
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "vaile_computer",
+     "type": "npc_computer",
+     "pos": [
+      11,
+      3
+     ],
+     "owner": "npc_preston_vaile",
+     "requires_absence": true,
+     "contains": [
+      "plan_against_voss"
+     ]
+    },
+    {
+     "id": "vaile_drawer",
+     "type": "drawer",
+     "pos": [
+      13,
+      3
+     ],
+     "owner": "npc_preston_vaile",
+     "contains": [
+      "vaile_private_notes"
+     ]
+    },
+    {
+     "id": "vaile_safe",
+     "type": "safe",
+     "pos": [
+      15,
+      10
+     ],
+     "requires": "key",
+     "contains": [
+      "vaile_secrets"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 1,
+    "lunch": 0,
+    "work_afternoon": 1,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_VICE_CEO_OFFICE_OPP",
+   "risk_key": "ROOM_VICE_CEO_OFFICE_RISK",
+   "is_hiding_place": false,
+   "search_priority": 2
+  },
+  {
+   "id": "crisis_room",
+   "name_key": "ROOM_CRISIS_ROOM",
+   "floor": 19,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_throne",
+   "kit": "boardroom",
+   "ambient_sound": "silence",
+   "ambient_noise_level": 0.0,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     15,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "monitor_wall",
+     "pos": [
+      1,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      5,
+      1
+     ]
+    },
+    {
+     "type": "monitor_wall",
+     "pos": [
+      10,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      5,
+      1
+     ]
+    },
+    {
+     "type": "meeting_table",
+     "pos": [
+      4,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      8,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      4,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      5,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      9
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      15,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "crisis_dashboard",
+     "type": "computer",
+     "pos": [
+      4,
+      4
+     ],
+     "shows": "crisis_dashboard",
+     "active_on": "scandal"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 0,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_CRISIS_ROOM_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "exec_gym",
+   "name_key": "ROOM_EXEC_GYM",
+   "floor": 19,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_throne",
+   "kit": "boardroom",
+   "ambient_sound": "silence",
+   "ambient_noise_level": 0.0,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    18,
+    14
+   ],
+   "furniture": [
+    {
+     "type": "window_wall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      7,
+      1
+     ]
+    },
+    {
+     "type": "window_wall",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      7,
+      1
+     ]
+    },
+    {
+     "type": "treadmill",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      1,
+      3
+     ]
+    },
+    {
+     "type": "treadmill",
+     "pos": [
+      5,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      1,
+      3
+     ]
+    },
+    {
+     "type": "treadmill",
+     "pos": [
+      12,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      1,
+      3
+     ]
+    },
+    {
+     "type": "treadmill",
+     "pos": [
+      15,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      1,
+      3
+     ]
+    },
+    {
+     "type": "weight_bench",
+     "pos": [
+      4,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "weight_bench",
+     "pos": [
+      8,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "weight_bench",
+     "pos": [
+      12,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "bench",
+     "pos": [
+      9,
+      11
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "lockers",
+     "pos": [
+      14,
+      11
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "water_cooler",
+     "pos": [
+      0,
+      11
+     ],
+     "rotation": 90
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_gym_locker",
+     "type": "locker",
+     "pos": [
+      16,
+      11
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "gym_exec_locker",
+     "type": "drawer",
+     "pos": [
+      15,
+      11
+     ],
+     "owner": "generated",
+     "container": "gym_locker",
+     "contains": [
+      "exec_keycard",
+      "wallet"
+     ]
+    },
+    {
+     "id": "gym_window_ledge",
+     "type": "roof_ledge",
+     "pos": [
+      17,
+      1
+     ],
+     "leads_to": [
+      "rooftop_terrace",
+      "ceo_office"
+     ]
+    },
+    {
+     "id": "gym_eavesdrop",
+     "type": "eavesdrop_point",
+     "pos": [
+      9,
+      5
+     ],
+     "targets": "executives_off_guard"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high",
+    "exec_spa"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 1,
+    "lunch": 2,
+    "work_afternoon": 2,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_EXEC_GYM_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "exec_spa",
+   "name_key": "ROOM_EXEC_SPA",
+   "floor": 19,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_throne",
+   "kit": "boardroom",
+   "ambient_sound": "silence",
+   "ambient_noise_level": 0.0,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    14,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "hot_tub",
+     "pos": [
+      2,
+      1
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      3
+     ]
+    },
+    {
+     "type": "sauna",
+     "pos": [
+      10,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      3
+     ]
+    },
+    {
+     "type": "massage_table",
+     "pos": [
+      3,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "bench",
+     "pos": [
+      8,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      9
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      13,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_spa_curtain",
+     "type": "curtain",
+     "pos": [
+      13,
+      3
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "spa_eavesdrop",
+     "type": "eavesdrop_point",
+     "pos": [
+      7,
+      4
+     ],
+     "targets": "executives_confidential"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "exec_gym"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 2,
+    "work_afternoon": 1,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_EXEC_SPA_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "exec_secretariat",
+   "name_key": "ROOM_EXEC_SECRETARIAT",
+   "floor": 19,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_throne",
+   "kit": "boardroom",
+   "ambient_sound": "silence",
+   "ambient_noise_level": 0.0,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     9,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    10,
+    8
+   ],
+   "furniture": [
+    {
+     "type": "chair",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      0,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      8,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      1,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "printer",
+     "pos": [
+      9,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      3,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      3,
+      5
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "exec_secretariat_computer",
+     "type": "npc_computer",
+     "pos": [
+      0,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true,
+     "info": "harlan_voss_agenda"
+    },
+    {
+     "id": "exec_secretariat_drawer",
+     "type": "drawer",
+     "pos": [
+      8,
+      3
+     ],
+     "owner": "generated",
+     "contains": [
+      "voss_agenda_printout"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 2,
+    "lunch": 0,
+    "work_afternoon": 2,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_EXEC_SECRETARIAT_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "p19_toilets",
+   "name_key": "ROOM_P19_TOILETS",
+   "floor": 19,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_throne",
+   "kit": "boardroom",
+   "ambient_sound": "silence",
+   "ambient_noise_level": 0.0,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": true,
+   "size": [
+    8,
+    6
+   ],
+   "furniture": [
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      6,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "sink",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sink",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_p19_stall",
+     "type": "toilet_stall",
+     "pos": [
+      1,
+      2
+     ],
+     "capacity": 1,
+     "can_hide_body": false
+    },
+    {
+     "id": "hide_p19_vent",
+     "type": "vent",
+     "pos": [
+      7,
+      2
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "p19_toilets_vent",
+     "type": "vent_hatch",
+     "pos": [
+      7,
+      2
+     ],
+     "leads_to": [
+      "vent_network"
+     ]
+    }
+   ],
+   "illegitimate_entries": [
+    "vent"
+   ],
+   "connects_to": [
+    "corridors_high",
+    "vent_network"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 1,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_P19_TOILETS_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "safe_for_calls": true
+  }
+ ]
+}

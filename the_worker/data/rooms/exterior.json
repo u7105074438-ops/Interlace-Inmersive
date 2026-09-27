@@ -1,0 +1,1722 @@
+{
+ "_version": 1,
+ "_furniture_note": "Cells: x right, y down, 0..w-1 / 0..h-1. rotation = degrees clockwise, 0 = front faces +y (down, towards the corridor door). size = final axis-aligned footprint in cells (already rotated); omitted = 1x1. rug/runway/helipad/motivational_poster/window_wall are walkable decoration. Rows h-2..h-1, the 3 middle cells of rows 0..1 and (for rooms with an internal door) the 3 middle rows of the side walls are kept free.",
+ "floor": 200,
+ "band": "exterior",
+ "kit": "city",
+ "ambient_sound": "street_ambient",
+ "ambient_noise_level": 0.3,
+ "rooms": [
+  {
+   "id": "player_flat",
+   "name_key": "ROOM_PLAYER_FLAT",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.1,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    14,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "bed",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      3
+     ]
+    },
+    {
+     "type": "wardrobe",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "kitchen_counter",
+     "pos": [
+      10,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "fridge",
+     "pos": [
+      13,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "table",
+     "pos": [
+      10,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      4
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      12,
+      5
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "tv",
+     "pos": [
+      0,
+      5
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      0,
+      8
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      13,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "flat_stash",
+     "type": "supply_closet",
+     "pos": [
+      2,
+      0
+     ],
+     "capacity": 8,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "player_bed",
+     "type": "bed",
+     "pos": [
+      1,
+      1
+     ],
+     "action": "sleep_save"
+    },
+    {
+     "id": "player_fridge",
+     "type": "food_fridge",
+     "pos": [
+      13,
+      0
+     ],
+     "owner": "player"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 0,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_PLAYER_FLAT_OPP",
+   "risk_key": null,
+   "is_hiding_place": true,
+   "search_priority": 2,
+   "private_property": true,
+   "owner": "player"
+  },
+  {
+   "id": "supermarket",
+   "name_key": "ROOM_SUPERMARKET",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.4,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "shelf_rack",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      5
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      6,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      5
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      10,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      5
+     ]
+    },
+    {
+     "type": "fridge",
+     "pos": [
+      15,
+      2
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "fridge",
+     "pos": [
+      15,
+      3
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "fridge",
+     "pos": [
+      15,
+      4
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "fridge",
+     "pos": [
+      15,
+      5
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "counter",
+     "pos": [
+      0,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "cash_register",
+     "pos": [
+      2,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      13,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "supermarket_checkout",
+     "type": "shop_counter",
+     "pos": [
+      1,
+      8
+     ],
+     "sells": [
+      "food_breakfast",
+      "food_dinner",
+      "food_basic",
+      "food_premium"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 2,
+    "work_morning": 3,
+    "lunch": 4,
+    "work_afternoon": 3,
+    "exit": 5,
+    "night": 2
+   },
+   "opportunity_key": "ROOM_SUPERMARKET_OPP",
+   "risk_key": "ROOM_SUPERMARKET_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "clothes_shop",
+   "name_key": "ROOM_CLOTHES_SHOP",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.3,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    12,
+    10
+   ],
+   "furniture": [
+    {
+     "type": "mannequin",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "mirror",
+     "pos": [
+      3,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "mannequin",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "clothes_rack",
+     "pos": [
+      1,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "clothes_rack",
+     "pos": [
+      8,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "clothes_rack",
+     "pos": [
+      1,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "counter",
+     "pos": [
+      8,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "cash_register",
+     "pos": [
+      11,
+      6
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_fitting_room",
+     "type": "curtain",
+     "pos": [
+      0,
+      7
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "clothes_checkout",
+     "type": "shop_counter",
+     "pos": [
+      9,
+      6
+     ],
+     "sells": [
+      "balaclava",
+      "executive_suit"
+     ],
+     "price_keys": {
+      "balaclava": "economia.precio_pasamontanas",
+      "executive_suit": "economia.precio_traje_ejecutivo"
+     }
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 2,
+    "lunch": 2,
+    "work_afternoon": 2,
+    "exit": 3,
+    "night": 1
+   },
+   "opportunity_key": "ROOM_CLOTHES_SHOP_OPP",
+   "risk_key": "ROOM_CLOTHES_SHOP_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "street",
+   "name_key": "ROOM_STREET",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.5,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    40,
+    8
+   ],
+   "furniture": [
+    {
+     "type": "street_lamp",
+     "pos": [
+      3,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "street_lamp",
+     "pos": [
+      15,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "street_lamp",
+     "pos": [
+      25,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "street_lamp",
+     "pos": [
+      36,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "bench",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "car",
+     "pos": [
+      5,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      2
+     ]
+    },
+    {
+     "type": "car",
+     "pos": [
+      26,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      2
+     ]
+    },
+    {
+     "type": "vending_machine",
+     "pos": [
+      23,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      30,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "planter_box",
+     "pos": [
+      33,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "street_bus_stop",
+     "type": "bus_stop",
+     "pos": [
+      12,
+      1
+     ],
+     "leads_to": [
+      "transport_stop"
+     ]
+    },
+    {
+     "id": "street_smoking_spot",
+     "type": "smoking_spot",
+     "pos": [
+      31,
+      1
+     ],
+     "group": "smokers_circle"
+    },
+    {
+     "id": "street_vending",
+     "type": "vending",
+     "pos": [
+      23,
+      0
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "main_reception",
+    "flagship_store",
+    "garage",
+    "trash_dock",
+    "loading_dock",
+    "player_flat",
+    "supermarket",
+    "clothes_shop",
+    "alleys",
+    "npc_house_humble",
+    "npc_house_semi",
+    "npc_house_mansion",
+    "transport_stop",
+    "police_station"
+   ],
+   "occupants_by_band": {
+    "arrival": 12,
+    "work_morning": 4,
+    "lunch": 8,
+    "work_afternoon": 4,
+    "exit": 12,
+    "night": 2
+   },
+   "opportunity_key": "ROOM_STREET_OPP",
+   "risk_key": "ROOM_STREET_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "alleys",
+   "name_key": "ROOM_ALLEYS",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.3,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": true,
+   "size": [
+    20,
+    6
+   ],
+   "furniture": [
+    {
+     "type": "dumpster",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "dumpster",
+     "pos": [
+      15,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "crate",
+     "pos": [
+      4,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "crate",
+     "pos": [
+      5,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      13,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "alley_dumpster_west",
+     "type": "dumpster",
+     "pos": [
+      0,
+      0
+     ],
+     "capacity": 6,
+     "can_hide_body": true
+    },
+    {
+     "id": "alley_dumpster_east",
+     "type": "dumpster",
+     "pos": [
+      15,
+      0
+     ],
+     "capacity": 6,
+     "can_hide_body": true
+    }
+   ],
+   "interactables": [],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 1,
+    "work_afternoon": 0,
+    "exit": 1,
+    "night": 1
+   },
+   "opportunity_key": "ROOM_ALLEYS_OPP",
+   "risk_key": "ROOM_ALLEYS_RISK",
+   "is_hiding_place": true,
+   "search_priority": 1,
+   "evasion_zone": true
+  },
+  {
+   "id": "npc_house_humble",
+   "name_key": "ROOM_NPC_HOUSE_HUMBLE",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.1,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    12,
+    10
+   ],
+   "furniture": [
+    {
+     "type": "bed",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      3
+     ]
+    },
+    {
+     "type": "wardrobe",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "fridge",
+     "pos": [
+      8,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "kitchen_counter",
+     "pos": [
+      9,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "table",
+     "pos": [
+      9,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      4
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      5
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "tv",
+     "pos": [
+      0,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      0,
+      7
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_humble_wardrobe",
+     "type": "supply_closet",
+     "pos": [
+      2,
+      0
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "humble_wardrobe_drawer",
+     "type": "drawer",
+     "pos": [
+      2,
+      0
+     ],
+     "owner": "resident",
+     "contains": [
+      "cash_small",
+      "jewellery_cheap"
+     ],
+     "loot_tier": "low"
+    },
+    {
+     "id": "humble_kitchen_drawer",
+     "type": "drawer",
+     "pos": [
+      9,
+      0
+     ],
+     "owner": "resident",
+     "contains": [
+      "cash_small"
+     ],
+     "loot_tier": "low"
+    }
+   ],
+   "illegitimate_entries": [
+    "forced_lock",
+    "window"
+   ],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 0,
+    "work_afternoon": 0,
+    "exit": 1,
+    "night": 2
+   },
+   "opportunity_key": "ROOM_NPC_HOUSE_HUMBLE_OPP",
+   "risk_key": "ROOM_NPC_HOUSE_HUMBLE_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "private_property": true,
+   "has_alarm": false,
+   "loot_tier": "low"
+  },
+  {
+   "id": "npc_house_semi",
+   "name_key": "ROOM_NPC_HOUSE_SEMI",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.1,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "bed",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      3
+     ]
+    },
+    {
+     "type": "wardrobe",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "bed",
+     "pos": [
+      4,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      3
+     ]
+    },
+    {
+     "type": "fridge",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "kitchen_counter",
+     "pos": [
+      12,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "table",
+     "pos": [
+      11,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      4
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      14,
+      5
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "tv",
+     "pos": [
+      0,
+      5
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      0,
+      8
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "bookshelf",
+     "pos": [
+      5,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "safe",
+     "pos": [
+      15,
+      8
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_semi_wardrobe",
+     "type": "supply_closet",
+     "pos": [
+      2,
+      0
+     ],
+     "capacity": 3,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "semi_wardrobe_drawer",
+     "type": "drawer",
+     "pos": [
+      2,
+      0
+     ],
+     "owner": "resident",
+     "contains": [
+      "cash_medium",
+      "jewellery"
+     ],
+     "loot_tier": "medium"
+    },
+    {
+     "id": "semi_safe",
+     "type": "safe",
+     "pos": [
+      15,
+      8
+     ],
+     "requires": "key",
+     "contains": [
+      "cash_savings"
+     ],
+     "loot_tier": "medium"
+    }
+   ],
+   "illegitimate_entries": [
+    "forced_lock",
+    "window"
+   ],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 0,
+    "work_afternoon": 0,
+    "exit": 1,
+    "night": 3
+   },
+   "opportunity_key": "ROOM_NPC_HOUSE_SEMI_OPP",
+   "risk_key": "ROOM_NPC_HOUSE_SEMI_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "private_property": true,
+   "has_alarm": false,
+   "loot_tier": "medium"
+  },
+  {
+   "id": "npc_house_mansion",
+   "name_key": "ROOM_NPC_HOUSE_MANSION",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     23,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     12,
+     17
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    24,
+    18
+   ],
+   "furniture": [
+    {
+     "type": "bed",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      3
+     ]
+    },
+    {
+     "type": "wardrobe",
+     "pos": [
+      3,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "bed",
+     "pos": [
+      19,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      3
+     ]
+    },
+    {
+     "type": "wardrobe",
+     "pos": [
+      22,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "rug",
+     "pos": [
+      4,
+      5
+     ],
+     "rotation": 0,
+     "size": [
+      6,
+      6
+     ]
+    },
+    {
+     "type": "piano",
+     "pos": [
+      2,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "statue",
+     "pos": [
+      8,
+      4
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      15,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "table",
+     "pos": [
+      15,
+      7
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      15,
+      8
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "safe",
+     "pos": [
+      23,
+      6
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "bar_counter",
+     "pos": [
+      8,
+      12
+     ],
+     "rotation": 0,
+     "size": [
+      5,
+      1
+     ]
+    },
+    {
+     "type": "car",
+     "pos": [
+      19,
+      12
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      0,
+      12
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      0,
+      13
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "mansion_car_trunk",
+     "type": "car_trunk",
+     "pos": [
+      19,
+      12
+     ],
+     "capacity": 4,
+     "can_hide_body": true
+    },
+    {
+     "id": "mansion_curtain",
+     "type": "curtain",
+     "pos": [
+      23,
+      10
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "mansion_floor_safe",
+     "type": "floor_safe",
+     "pos": [
+      6,
+      10
+     ],
+     "requires": "combination",
+     "contains": [
+      "cash_large",
+      "bonds"
+     ],
+     "loot_tier": "high"
+    },
+    {
+     "id": "mansion_wall_safe",
+     "type": "safe",
+     "pos": [
+      23,
+      6
+     ],
+     "requires": "key",
+     "contains": [
+      "jewellery_luxury"
+     ],
+     "loot_tier": "high"
+    },
+    {
+     "id": "mansion_master_drawer",
+     "type": "drawer",
+     "pos": [
+      3,
+      0
+     ],
+     "owner": "resident",
+     "contains": [
+      "cash_medium",
+      "watch_luxury"
+     ],
+     "loot_tier": "high"
+    },
+    {
+     "id": "mansion_guest_drawer",
+     "type": "drawer",
+     "pos": [
+      22,
+      0
+     ],
+     "owner": "resident",
+     "contains": [
+      "jewellery"
+     ],
+     "loot_tier": "high"
+    }
+   ],
+   "illegitimate_entries": [
+    "forced_lock",
+    "window"
+   ],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 2,
+    "work_morning": 2,
+    "lunch": 2,
+    "work_afternoon": 2,
+    "exit": 3,
+    "night": 4
+   },
+   "opportunity_key": "ROOM_NPC_HOUSE_MANSION_OPP",
+   "risk_key": "ROOM_NPC_HOUSE_MANSION_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "private_property": true,
+   "has_alarm": true,
+   "private_security": true,
+   "loot_tier": "high"
+  },
+  {
+   "id": "transport_stop",
+   "name_key": "ROOM_TRANSPORT_STOP",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.5,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    8,
+    6
+   ],
+   "furniture": [
+    {
+     "type": "bench",
+     "pos": [
+      0,
+      1
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "street_lamp",
+     "pos": [
+      7,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      7,
+      2
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "transport_bus_stop",
+     "type": "bus_stop",
+     "pos": [
+      1,
+      2
+     ],
+     "destinations": [
+      "street",
+      "npc_house_humble",
+      "npc_house_semi",
+      "npc_house_mansion"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 6,
+    "work_morning": 1,
+    "lunch": 1,
+    "work_afternoon": 1,
+    "exit": 6,
+    "night": 1
+   },
+   "opportunity_key": "ROOM_TRANSPORT_STOP_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "police_station",
+   "name_key": "ROOM_POLICE_STATION",
+   "floor": 200,
+   "wing": null,
+   "clearance_required": 0,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "exterior",
+   "kit": "city",
+   "ambient_sound": "street_ambient",
+   "ambient_noise_level": 0.3,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     15,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "lockers",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "holding_cell",
+     "pos": [
+      12,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      4
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      1,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      1,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      12,
+      6
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      12,
+      7
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      6,
+      5
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "counter",
+     "pos": [
+      5,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "bench",
+     "pos": [
+      1,
+      8
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "police_front_desk",
+     "type": "police_desk",
+     "pos": [
+      6,
+      6
+     ],
+     "dispatch": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "street"
+   ],
+   "occupants_by_band": {
+    "arrival": 4,
+    "work_morning": 4,
+    "lunch": 3,
+    "work_afternoon": 4,
+    "exit": 4,
+    "night": 3
+   },
+   "opportunity_key": "ROOM_POLICE_STATION_OPP",
+   "risk_key": "ROOM_POLICE_STATION_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1
+  }
+ ]
+}

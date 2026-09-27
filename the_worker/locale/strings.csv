@@ -989,3 +989,210 @@ ROOM_CORRIDORS_LOW_RISK,Patrolled by guards; cameras.,Patrullados por vigilantes
 ROOM_CORRIDORS_HIGH,"Corridors, Floors 13–20","Pasillos, plantas 13–20"
 ROOM_CORRIDORS_HIGH_RISK,Intensified patrols; cameras.,Patrullaje intensificado; con cámaras.
 DEPT_BASE,Base Floors,Plantas base
+ROOM_CAMPAIGN_ROOM,Campaign Room,Sala de campañas
+ROOM_CAMPAIGN_ROOM_OPP,Self-praise: put your own name and face into campaigns,Autoelogio: inserción del nombre y rostro propios en campañas
+ROOM_CAMPAIGN_ROOM_RISK,A failed campaign carrying your face fails in public,El fracaso de una campaña con rostro propio es público
+ROOM_PRODUCT_PHOTO_STUDIO,Product Photo Studio,Estudio de fotografía de producto
+ROOM_PRODUCT_PHOTO_STUDIO_OPP,Campaign material you can steal,Material de campaña sustraíble
+ROOM_SOCIAL_MEDIA_OFFICE,Social Media Office,Oficina de redes sociales
+ROOM_SOCIAL_MEDIA_OFFICE_OPP,Nudge public sentiment on a small scale,Modificación del sentimiento público a escala reducida
+ROOM_GRAPHIC_DESIGN,Graphic Design,Diseño gráfico
+ROOM_GRAPHIC_DESIGN_OPP,Forge documents that look official,Falsificación de documentos con apariencia oficial
+ROOM_P6_TOILETS,Floor 6 Toilets,Baños planta 6
+ROOM_P6_TOILETS_OPP,Blind spot with a vent,Punto ciego con conducto
+ROOM_SHOE_DESIGN_STUDIO,Design Studio,Estudio de diseño
+ROOM_SHOE_DESIGN_STUDIO_OPP,The game's main source of high-quality ideas,Fuente principal de ideas de calidad alta del juego
+ROOM_SHOE_DESIGN_STUDIO_RISK,Highly ambitious designers: competitors,Diseñadores con Ambición elevada: competidores
+ROOM_PROTOTYPE_WORKSHOP,Prototype Workshop,Taller de prototipos
+ROOM_PROTOTYPE_WORKSHOP_OPP,Physical prototypes you can steal,Prototipos físicos sustraíbles
+ROOM_EXOTIC_MATERIALS,Exotic Materials Room,Sala de materiales exóticos
+ROOM_EXOTIC_MATERIALS_OPP,High-value materials,Materiales de valor elevado
+ROOM_EXOTIC_MATERIALS_RISK,Strict inventory,Inventario estricto
+ROOM_WALK_TEST_RUNWAY,Walk-Test Runway,Pasarela de pruebas
+ROOM_WALK_TEST_RUNWAY_OPP,Comedy: watch executives in ridiculous situations,Comedia: observación de directivos en situación ridícula
+ROOM_HISTORIC_DESIGNS_ARCHIVE,Historic Designs Archive,Archivo de diseños históricos
+ROOM_HISTORIC_DESIGNS_ARCHIVE_OPP,Thirty-year-old designs you can present as your own,Diseños de tres décadas atrás presentables como propios
+ROOM_HISTORIC_DESIGNS_ARCHIVE_RISK,Old Ray Cudmore remembers those designs,Old Ray Cudmore recuerda esos diseños
+ROOM_P7_TOILETS,Floor 7 Toilets,Baños planta 7
+ROOM_P7_TOILETS_OPP,Blind spot with a vent,Punto ciego con conducto
+ROOM_SYSTEMS_OFFICE,Systems Office,Oficina de sistemas
+ROOM_SYSTEMS_OFFICE_OPP,Access to and visibility of digital traces,Accesos y visibilidad de rastros digitales
+ROOM_SYSTEMS_OFFICE_RISK,Alvin Pyne watches every activity,Alvin Pyne observa toda actividad
+ROOM_REPAIR_WORKSHOP,Repair Workshop,Taller de reparación
+ROOM_REPAIR_WORKSHOP_OPP,Other people's computers pass through here: install backdoors,Los ordenadores ajenos pasan por aquí: instalación de accesos
+ROOM_EQUIPMENT_STORE,Equipment Store,Almacén de equipos
+ROOM_EQUIPMENT_STORE_OPP,Better equipment with no questions asked,Equipamiento superior sin justificación
+ROOM_EQUIPMENT_STORE_RISK,Inventory,Inventario
+ROOM_IT_CHIEF_OFFICE,IT Chief's Office,Despacho del jefe de IT
+ROOM_IT_CHIEF_OFFICE_OPP,Administrator credentials,Credenciales de administrador
+ROOM_P8_TOILETS,Floor 8 Toilets,Baños planta 8
+ROOM_P8_TOILETS_OPP,Blind spot with a vent,Punto ciego con conducto
+ROOM_LEGAL_FIRM,In-House Law Firm,Bufete interno
+ROOM_LEGAL_FIRM_OPP,"Contracts, lawsuits, compromising paperwork","Contratos, demandas, documentación comprometedora"
+ROOM_NOTARY,Internal Notary,Notaría interna
+ROOM_NOTARY_OPP,Formalises the ownership documents: the final step of the game,Formalización de los documentos de propiedad: el paso final del juego
+ROOM_NOTARY_RISK,The notary demands verification if your suspicion is high,El notario exige verificación si la sospecha es elevada
+ROOM_LEGAL_ARCHIVE,Legal Archive,Archivo legal
+ROOM_LEGAL_ARCHIVE_OPP,Precedents and historical contracts,Precedentes y contratos históricos
+ROOM_LEGAL_DIRECTOR_OFFICE,Legal Director's Office,Despacho del director legal
+ROOM_LEGAL_DIRECTOR_OFFICE_OPP,Reveals which documents transfer ownership,Revelación de qué documentos transfieren la propiedad
+ROOM_P9_TOILETS,Floor 9 Toilets,Baños planta 9
+ROOM_P9_TOILETS_OPP,Blind spot with a vent,Punto ciego con conducto
+ROOM_A10_GENERAL_OFFICE,A10 General Management Office,Despacho de Dirección General A10
+ROOM_A10_GENERAL_OFFICE_OPP,The floor General Director's computer,Ordenador del Director General de planta
+ROOM_A10_MARKETING_OFFICE,A10 Marketing Office,Despacho de Marketing A10
+ROOM_A10_MARKETING_OFFICE_OPP,Diana Sedgwick's post,Puesto de Diana Sedgwick
+ROOM_A10_MARKETING_OFFICE_RISK,Diana turns self-praise against you,Diana aplica el autoelogio contra el jugador
+ROOM_A10_COORDINATION_OFFICE,A10 Coordination Office,Despacho de Coordinación A10
+ROOM_A10_COORDINATION_OFFICE_OPP,Iggy Robbins's post,Puesto de Iggy Robbins
+ROOM_A10_COORDINATION_OFFICE_RISK,Iggy calls in his debts at the worst moment,Iggy reclama el cobro en el momento más inoportuno
+ROOM_BLOCK_COORDINATION_ROOM,Block Coordination Room,Sala de coordinación de bloques
+ROOM_BLOCK_COORDINATION_ROOM_OPP,Planning for the whole floor,Planificación de la planta completa
+ROOM_P10_SECRETARIAT,Floor Secretariat,Secretaría de planta
+ROOM_P10_SECRETARIAT_OPP,Complete agendas of the floor's executives,Agendas completas de los directivos de la planta
+ROOM_P10_TOILETS,Floor 10 Toilets,Baños planta 10
+ROOM_P10_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_BUYER_DEMO_ROOM,Buyer Demo Room,Sala de demostraciones a compradores
+ROOM_BUYER_DEMO_ROOM_OPP,"Cheat buyers: overpricing, phantom sales, kickbacks","Engaño a compradores: sobreprecio, venta fantasma, mordida"
+ROOM_BUYER_DEMO_ROOM_RISK,A perceptive buyer spots an overprice on the spot,Un comprador con Perspicacia elevada detecta el sobreprecio en el acto
+ROOM_SENIOR_SALES_OFFICES,Senior Sales Offices,Despachos de comerciales senior
+ROOM_SENIOR_SALES_OFFICES_OPP,Contacts and commission structure,Contactos y estructura de comisiones
+ROOM_SALES_CONTRACTS_ROOM,Sales Contracts Room,Sala de contratos de venta
+ROOM_SALES_CONTRACTS_ROOM_OPP,Forgeable contracts,Contratos falsificables
+ROOM_VIP_CLIENT_ARCHIVE,VIP Client Archive,Archivo de clientes VIP
+ROOM_VIP_CLIENT_ARCHIVE_OPP,Buyers listed with their documented weaknesses,Relación de compradores con sus debilidades documentadas
+ROOM_P11_EXEC_PANTRY,Executive Pantry,Office ejecutivo
+ROOM_P11_EXEC_PANTRY_OPP,Overhear the sales staff,Escucha de comerciales
+ROOM_P11_TOILETS,Floor 11 Toilets,Baños planta 11
+ROOM_P11_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_AURORA_ROOM,Aurora Meeting Room,Sala de reuniones Aurora
+ROOM_AURORA_ROOM_OPP,Idea presentations: the game's decisive social scene,Presentación de ideas: la escena social decisiva del juego
+ROOM_AURORA_ROOM_RISK,"If the idea's real owner is in the room, they can accuse you publicly","Si el propietario original está presente, puede acusar públicamente al jugador"
+ROOM_MEETING_12A,Meeting Room 12A,Sala mediana 12A
+ROOM_MEETING_12A_OPP,Meetings leave offices empty,Las reuniones vacían despachos
+ROOM_MEETING_12B,Meeting Room 12B,Sala mediana 12B
+ROOM_MEETING_12B_OPP,Meetings leave offices empty,Las reuniones vacían despachos
+ROOM_VIDEO_CONFERENCE,Video Conference Room,Sala de videoconferencias
+ROOM_VIDEO_CONFERENCE_OPP,Listen in on meetings with outside parties,Escucha de reuniones con contrapartes externas
+ROOM_P12_TOILETS,Floor 12 Toilets,Baños planta 12
+ROOM_P12_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_INVESTMENT_ROOM,Investment Room,Sala de inversiones
+ROOM_INVESTMENT_ROOM_OPP,Early sight of market moves,Visibilidad anticipada de movimientos
+ROOM_CFO_OFFICE,CFO's Office,Oficina del CFO
+ROOM_CFO_OFFICE_OPP,Real fundamentals versus reported figures,Contraste entre fundamentales reales y valores reportados
+ROOM_CFO_OFFICE_RISK,Maurice Sandbell is your direct rival at tier 7,Maurice Sandbell es competidor directo en el escalón 7
+ROOM_MARKET_DATA_ROOM,Market Data Room,Sala de datos de mercado
+ROOM_MARKET_DATA_ROOM_OPP,Real-time share price,Cotización en tiempo real
+ROOM_TREASURY,Treasury,Tesorería
+ROOM_TREASURY_OPP,Moving large sums of capital,Movimiento de capital de cuantía elevada
+ROOM_P13_TOILETS,Floor 13 Toilets,Baños planta 13
+ROOM_P13_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_PRESS_ROOM,Press Room,Sala de prensa
+ROOM_PRESS_ROOM_OPP,"From tier 5 on, journalists watch you from here",Los periodistas vigilan al jugador desde aquí a partir del escalón 5
+ROOM_PUBLIC_RELATIONS,Public Relations,Relaciones públicas
+ROOM_PUBLIC_RELATIONS_OPP,Suppress news and fabricate other people's scandals,Supresión de noticias y fabricación de escándalos ajenos
+ROOM_RECORDING_STUDIO,Corporate Recording Studio,Estudio de grabación corporativo
+ROOM_RECORDING_STUDIO_OPP,Compromising recorded material,Material grabado comprometedor
+ROOM_COMMS_DIRECTOR_OFFICE,Communications Director's Office,Despacho del director de comunicación
+ROOM_COMMS_DIRECTOR_OFFICE_OPP,Bree Nash's post,Puesto de Bree Nash
+ROOM_COMMS_DIRECTOR_OFFICE_RISK,Bree knows everything she has ever buried,Bree conoce todo lo que ha enterrado
+ROOM_P14_TOILETS,Floor 14 Toilets,Baños planta 14
+ROOM_P14_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_SECURITY_DIRECTOR_OFFICE,Security Director's Office,Despacho del Director de Seguridad
+ROOM_SECURITY_DIRECTOR_OFFICE_OPP,Where every recording converges,Punto de convergencia de todas las grabaciones
+ROOM_ALARM_CENTRAL,Alarm Centre,Central de alarmas
+ROOM_ALARM_CENTRAL_OPP,"Switch off alarms selectively, zone by zone",Desactivación selectiva de alarmas por zona
+ROOM_GUARD_LOCKERS,Guard Locker Room,Sala de taquillas de vigilantes
+ROOM_GUARD_LOCKERS_OPP,"Uniforms, keys, shift rota","Uniformes, llaves, cuadrante de turnos"
+ROOM_INTERROGATION_ROOM,Interrogation Room,Sala de interrogatorios
+ROOM_INTERROGATION_ROOM_OPP,Where you end up if you top a shortlist,Destino del jugador si encabeza una lista corta
+ROOM_INTERROGATION_ROOM_RISK,Get the case weight below 7.0 or it closes against you,"Reducir el peso del caso por debajo de 7,0 o se cierra en contra"
+ROOM_INCIDENT_ARCHIVE,Incident Archive,Archivo de incidencias
+ROOM_INCIDENT_ARCHIVE_OPP,The complete incident history: cold cases live here,Historial completo de incidentes: los casos fríos residen aquí
+ROOM_P15_TOILETS,Floor 15 Toilets,Baños planta 15
+ROOM_P15_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_INVESTOR_LOUNGE,Investor Lounge,Lounge de inversores
+ROOM_INVESTOR_LOUNGE_OPP,Deal face to face with the six investors,Trato personal con los seis inversores
+ROOM_TRADING_ROOM,Trading Floor,Sala de bolsa
+ROOM_TRADING_ROOM_OPP,Trade directly on the market,Operación directa en el mercado
+ROOM_INVESTOR_OFFICES,Investors' Offices,Despachos de inversionistas
+ROOM_INVESTOR_OFFICES_OPP,Individual strategies and secrets,Estrategias y secretos individuales
+ROOM_RESULTS_ROOM,Results Presentation Hall,Sala de presentación de resultados
+ROOM_RESULTS_ROOM_OPP,The riskiest quarterly event,El evento trimestral de mayor riesgo
+ROOM_RESULTS_ROOM_RISK,Inflating the figures lights the audit fuse,Inflar las cifras enciende la mecha de la auditoría
+ROOM_P16_TOILETS,Floor 16 Toilets,Baños planta 16
+ROOM_P16_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_AREA_DIRECTOR_OFFICES_A,"Area Directors' Offices, Wing A","Despachos de directores de área, ala A"
+ROOM_AREA_DIRECTOR_OFFICES_B,"Area Directors' Offices, Wing B","Despachos de directores de área, ala B"
+ROOM_AREA_DIRECTOR_OFFICES_C,"Area Directors' Offices, Wing C","Despachos de directores de área, ala C"
+ROOM_EXEC_SECRETARIATS,Executive Secretariats,Secretarías
+ROOM_EXEC_SECRETARIATS_OPP,Top management's agendas,Agendas de la alta directiva
+ROOM_EXEC_DINING,Executive Dining Room,Comedor ejecutivo
+ROOM_EXEC_DINING_OPP,Free luxury meals; high-level conversations,Manutención de lujo sin coste; conversaciones de alto nivel
+ROOM_P17_TOILETS,Floor 17 Toilets,Baños planta 17
+ROOM_P17_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_BOARD_ANTECHAMBER,Board Antechamber,Antesala del consejo
+ROOM_BOARD_ANTECHAMBER_OPP,Overhear people before the sessions,Escucha previa a las sesiones
+ROOM_BOARDROOM,Board of Directors' Room,Sala del consejo de administración
+ROOM_BOARDROOM_OPP,Votes on promotions and dismissals,Votaciones sobre promociones y expulsiones
+ROOM_BOARD_CONFIDENTIAL_ARCHIVE,Board Confidential Archive,Archivo confidencial del consejo
+ROOM_BOARD_CONFIDENTIAL_ARCHIVE_OPP,The company's top-level secrets,Los secretos corporativos de máximo nivel
+ROOM_BOARD_SECRETARY_OFFICE,Board Secretary's Office,Despacho del secretario del consejo
+ROOM_BOARD_SECRETARY_OFFICE_OPP,The minutes: forging them is the most far-reaching tool,Las actas: su falsificación es el instrumento de mayor alcance
+ROOM_P18_TOILETS,Floor 18 Toilets,Baños planta 18
+ROOM_P18_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_VICE_CEO_OFFICE,Vice-CEO's Office,Despacho del vice-CEO
+ROOM_VICE_CEO_OFFICE_OPP,Preston Vaile III's post,Puesto de Preston Vaile III
+ROOM_VICE_CEO_OFFICE_RISK,Preston wants the same final chair as you,Preston aspira a la misma silla final
+ROOM_CRISIS_ROOM,Crisis Room,Sala de crisis
+ROOM_CRISIS_ROOM_OPP,Activated when a scandal breaks,Se activa ante escándalo
+ROOM_EXEC_GYM,Executive Gym,Gimnasio ejecutivo
+ROOM_EXEC_GYM_OPP,Executives off guard and unwatched,Directivos desprevenidos y sin vigilancia
+ROOM_EXEC_SPA,Executive Spa,Spa ejecutivo
+ROOM_EXEC_SPA_OPP,The most confidential conversations,Conversaciones de máxima confidencialidad
+ROOM_EXEC_SECRETARIAT,Executive Secretariat,Secretaría ejecutiva
+ROOM_EXEC_SECRETARIAT_OPP,Harlan Voss's agenda,Agenda de Harlan Voss
+ROOM_P19_TOILETS,Floor 19 Toilets,Baños planta 19
+ROOM_P19_TOILETS_OPP,Blind spot,Punto ciego
+ROOM_CEO_SECRETARIAT,CEO's Secretariat,Secretaría del consejero delegado
+ROOM_CEO_SECRETARIAT_OPP,Pearl Osgood: the floor's real obstacle,Pearl Osgood: el obstáculo real de la planta
+ROOM_CEO_SECRETARIAT_RISK,"If an approach fails, Pearl reports straight to Voss","Si el intento fracasa, informa directamente a Voss"
+ROOM_CEO_OFFICE,CEO's Office,Despacho del consejero delegado
+ROOM_CEO_OFFICE_OPP,The safe with the ownership documents,La caja fuerte con los documentos de propiedad
+ROOM_CEO_OFFICE_RISK,The most closely watched space in the building; Voss is in from 10:00 to 17:00,El espacio con mayor densidad de vigilancia del edificio; Voss lo ocupa de 10:00 a 17:00
+ROOM_CEO_PRIVATE_ROOM,Private Room,Sala privada
+ROOM_CEO_PRIVATE_ROOM_OPP,Voss's personal secrets,Secretos personales de Voss
+ROOM_CEO_BOARDROOM,CEO's Meeting Room,Sala de juntas del consejero delegado
+ROOM_ROOFTOP_TERRACE,Terrace and Helipad,Terraza y helipuerto
+ROOM_ROOFTOP_TERRACE_OPP,An alternative way into the CEO's office,Acceso alternativo al despacho
+ROOM_ROOFTOP_TERRACE_RISK,A camera watches the access door,Cámara en la puerta de acceso
+ROOM_ROOFTOP_MACHINE_ROOM,Rooftop Machine Room,Cuarto de máquinas de azotea
+ROOM_ROOFTOP_MACHINE_ROOM_OPP,A duct that comes out in the CEO's office,Conducto con salida al despacho del consejero delegado
+ROOM_PLAYER_FLAT,Your Flat,Domicilio del jugador
+ROOM_PLAYER_FLAT_OPP,Rest (saves the game); meals; hiding objects,"Descanso, que guarda la partida; manutención; ocultación de objetos"
+ROOM_SUPERMARKET,Supermarket,Supermercado
+ROOM_SUPERMARKET_OPP,Buy food,Adquisición de alimentos
+ROOM_SUPERMARKET_RISK,Mandatory daily cost,Coste diario obligatorio
+ROOM_CLOTHES_SHOP,Clothes Shop,Tienda de ropa
+ROOM_CLOTHES_SHOP_OPP,Balaclavas and executive suits,Pasamontañas y trajes ejecutivos
+ROOM_CLOTHES_SHOP_RISK,High prices,Precio elevado
+ROOM_STREET,Street between Home and Office,Calle entre domicilio y oficina
+ROOM_STREET_OPP,"Routes, stops, the smokers' huddle","Rutas, paradas, corrillo de fumadores"
+ROOM_STREET_RISK,Occasional witnesses,Testigos ocasionales
+ROOM_ALLEYS,Alleys,Callejones
+ROOM_ALLEYS_OPP,Shake off the police,Evasión policial
+ROOM_ALLEYS_RISK,No way out if you get surrounded,Sin salida si se produce cerco
+ROOM_NPC_HOUSE_HUMBLE,Resident's Home: Modest Flat,"Vivienda de personaje, piso modesto"
+ROOM_NPC_HOUSE_HUMBLE_OPP,Burglary and looting,Robo y saqueo
+ROOM_NPC_HOUSE_HUMBLE_RISK,Close neighbours,Vecindario próximo
+ROOM_NPC_HOUSE_SEMI,Resident's Home: Semi-Detached House,"Vivienda de personaje, adosado"
+ROOM_NPC_HOUSE_SEMI_OPP,Better loot,Botín superior
+ROOM_NPC_HOUSE_SEMI_RISK,Close neighbours,Vecindario próximo
+ROOM_NPC_HOUSE_MANSION,Resident's Home: Executive Mansion,"Vivienda de personaje, residencia de directivo"
+ROOM_NPC_HOUSE_MANSION_OPP,The biggest loot outside the building,Máximo botín del exterior
+ROOM_NPC_HOUSE_MANSION_RISK,Alarm and private security,Alarma y seguridad privada
+ROOM_TRANSPORT_STOP,Transport Stop,Parada de transporte
+ROOM_TRANSPORT_STOP_OPP,Discreet tailing,Seguimiento discreto
+ROOM_POLICE_STATION,Police Station,Comisaría
+ROOM_POLICE_STATION_OPP,Where the police response comes from,Origen de la respuesta policial
+ROOM_POLICE_STATION_RISK,Response time is computed,Tiempo de respuesta computado

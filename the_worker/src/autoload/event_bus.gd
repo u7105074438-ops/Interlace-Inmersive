@@ -97,6 +97,44 @@ signal ownership_documents_obtained()
 signal ownership_notarised()
 signal game_over(cause: String, ending_id: String, tracking_snapshot: Dictionary)
 
+# ─── EXT: EXTENSIONES DE INTEGRACIÓN (BUILD_NOTES §2) ───────────
+# Señales añadidas por el orquestador porque el catálogo §18.2 no cubre estos hechos.
+# Todas en pasado; ningún sistema las usa como orden.
+# EXT: ciclo de partida
+signal run_started(run_seed: int)
+signal run_loaded(day_number: int)
+signal day_summary_ready(summary: Dictionary)
+signal time_skipped(from_hour: int, to_hour: int)
+signal hour_passed(hour: int, day_number: int)
+signal tracking_event_recorded(axis: String, amount: int, source: String)
+# EXT: actos del jugador (los emite el jugador / módulos de simulación)
+signal crime_committed(crime_type: String, room_id: String, details: Dictionary)
+signal money_changed(old_value: int, new_value: int, reason: String)
+signal inventory_changed(item_id: String, added: bool)
+signal item_hidden(item_id: String, spot_id: String)
+signal item_disposed(item_id: String, method: String)
+signal player_searched(found_hot_items: int, outcome: String)
+signal disguise_changed(uniform_id: String)
+signal duty_progressed(duty_id: String, progress: float)
+signal duty_deadline_warned(duty_id: String, hours_left: float)
+# EXT: personajes
+signal npc_decided(npc_id: String, action: String, context: Dictionary)
+signal npc_reported_player(npc_id: String, report_type: String, weight: float, location: String)
+signal npc_removed(npc_id: String, cause: String)
+signal body_created(body_id: String, npc_id: String, room_id: String)
+signal body_hidden(body_id: String, spot_id: String)
+signal blackmail_demanded(npc_id: String, demand_type: String, amount: int)
+signal phone_message_received(from_id: String, text_key: String, is_chat: bool)
+# EXT: escenas y eventos programados
+signal aurora_meeting_started(meeting_id: String)
+signal results_presentation_due(quarter_number: int)
+signal interrogation_answered(case_id: String, evidence_index: int, answer: String, outcome: String)
+signal police_arrived(target_location: String)
+signal police_evaded()
+# EXT: presentación y accesibilidad
+signal subtitle_posted(text_key: String, source_position: Vector2, importance: int)
+signal notebook_entry_added(category: String, text_key: String, args: Array)
+
 @warning_ignore_restore("unused_signal")
 
 # ─── DEPURACIÓN (§18.4) ────────────────────────────────────────

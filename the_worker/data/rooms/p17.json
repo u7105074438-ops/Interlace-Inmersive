@@ -1,0 +1,1319 @@
+{
+ "_version": 1,
+ "_furniture_note": "Cells: x right, y down, 0..w-1 / 0..h-1. rotation = degrees clockwise, 0 = front faces +y (down, towards the corridor door). size = final axis-aligned footprint in cells (already rotated); omitted = 1x1. rug/runway/helipad/motivational_poster/window_wall are walkable decoration. Rows h-2..h-1, the 3 middle cells of rows 0..1 and (for rooms with an internal door) the 3 middle rows of the side walls are kept free.",
+ "floor": 17,
+ "band": "the_power",
+ "kit": "executive_lux",
+ "ambient_sound": "executive_quiet",
+ "ambient_noise_level": 0.05,
+ "rooms": [
+  {
+   "id": "area_director_offices_a",
+   "name_key": "ROOM_AREA_DIRECTOR_OFFICES_A",
+   "floor": 17,
+   "wing": "A",
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive_lux",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     15,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "bookshelf",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      4,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      14,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      13,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      15,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      1,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      15,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_area_director_offices_a_desk",
+     "type": "under_desk",
+     "pos": [
+      8,
+      4
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "area_director_offices_a_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      2,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    },
+    {
+     "id": "area_director_offices_a_pc_2",
+     "type": "npc_computer",
+     "pos": [
+      7,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    },
+    {
+     "id": "area_director_offices_a_pc_3",
+     "type": "npc_computer",
+     "pos": [
+      13,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 2,
+    "work_morning": 3,
+    "lunch": 0,
+    "work_afternoon": 3,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": null,
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "area_director_offices_b",
+   "name_key": "ROOM_AREA_DIRECTOR_OFFICES_B",
+   "floor": 17,
+   "wing": "B",
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive_lux",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     15,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "bookshelf",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      4,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      14,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      13,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      15,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      1,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      15,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_area_director_offices_b_desk",
+     "type": "under_desk",
+     "pos": [
+      8,
+      4
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "area_director_offices_b_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      2,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    },
+    {
+     "id": "area_director_offices_b_pc_2",
+     "type": "npc_computer",
+     "pos": [
+      7,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    },
+    {
+     "id": "area_director_offices_b_pc_3",
+     "type": "npc_computer",
+     "pos": [
+      13,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 2,
+    "work_morning": 3,
+    "lunch": 0,
+    "work_afternoon": 3,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": null,
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "area_director_offices_c",
+   "name_key": "ROOM_AREA_DIRECTOR_OFFICES_C",
+   "floor": 17,
+   "wing": "C",
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive_lux",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     15,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "bookshelf",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      4,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      14,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      13,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "vacant"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      15,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      1,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      15,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_area_director_offices_c_desk",
+     "type": "under_desk",
+     "pos": [
+      8,
+      4
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "area_director_offices_c_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      2,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    },
+    {
+     "id": "area_director_offices_c_pc_2",
+     "type": "npc_computer",
+     "pos": [
+      7,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 2,
+    "lunch": 0,
+    "work_afternoon": 2,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": null,
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "exec_secretariats",
+   "name_key": "ROOM_EXEC_SECRETARIATS",
+   "floor": 17,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive_lux",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     11,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    12,
+    10
+   ],
+   "furniture": [
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      8,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      8,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      0,
+      6
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      0,
+      7
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "printer",
+     "pos": [
+      11,
+      7
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "exec_secretariats_pc",
+     "type": "npc_computer",
+     "pos": [
+      2,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true,
+     "info": "top_management_agendas"
+    },
+    {
+     "id": "exec_secretariats_drawer",
+     "type": "drawer",
+     "pos": [
+      8,
+      3
+     ],
+     "owner": "generated",
+     "contains": [
+      "agenda_printouts"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 3,
+    "work_morning": 4,
+    "lunch": 1,
+    "work_afternoon": 4,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_EXEC_SECRETARIATS_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "exec_dining",
+   "name_key": "ROOM_EXEC_DINING",
+   "floor": 17,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive_lux",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    18,
+    14
+   ],
+   "furniture": [
+    {
+     "type": "window_wall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      7,
+      1
+     ]
+    },
+    {
+     "type": "window_wall",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      7,
+      1
+     ]
+    },
+    {
+     "type": "table",
+     "pos": [
+      3,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      5,
+      3
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "chair",
+     "pos": [
+      5,
+      4
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "table",
+     "pos": [
+      3,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      8
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      9
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      5,
+      8
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "chair",
+     "pos": [
+      5,
+      9
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "table",
+     "pos": [
+      11,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      3
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      4
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      3
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      4
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "table",
+     "pos": [
+      11,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      8
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      9
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      8
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      9
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "counter",
+     "pos": [
+      17,
+      2
+     ],
+     "rotation": 270,
+     "size": [
+      1,
+      6
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      11
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      17,
+      11
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "exec_dining_buffet",
+     "type": "lunch_counter",
+     "pos": [
+      17,
+      4
+     ],
+     "free": true,
+     "quality": "luxury"
+    },
+    {
+     "id": "exec_dining_eavesdrop",
+     "type": "eavesdrop_point",
+     "pos": [
+      7,
+      6
+     ],
+     "targets": "top_management"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 8,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_EXEC_DINING_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "p17_toilets",
+   "name_key": "ROOM_P17_TOILETS",
+   "floor": 17,
+   "wing": null,
+   "clearance_required": 6,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive_lux",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": true,
+   "size": [
+    8,
+    6
+   ],
+   "furniture": [
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      6,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "sink",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sink",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_p17_stall",
+     "type": "toilet_stall",
+     "pos": [
+      1,
+      2
+     ],
+     "capacity": 1,
+     "can_hide_body": false
+    },
+    {
+     "id": "hide_p17_vent",
+     "type": "vent",
+     "pos": [
+      7,
+      2
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "p17_toilets_vent",
+     "type": "vent_hatch",
+     "pos": [
+      7,
+      2
+     ],
+     "leads_to": [
+      "vent_network"
+     ]
+    }
+   ],
+   "illegitimate_entries": [
+    "vent"
+   ],
+   "connects_to": [
+    "corridors_high",
+    "vent_network"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 1,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_P17_TOILETS_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "safe_for_calls": true
+  }
+ ]
+}

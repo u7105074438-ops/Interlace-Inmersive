@@ -192,3 +192,109 @@ Each test must finish in < 60 s. Tests must not depend on the real-time clock.
   `godot --headless --path . --import` shows no `SCRIPT ERROR`/`Parse Error` for your files.
 - If a test fails because of a parse error in a file you do not own, wait a minute and retry
   (another builder is mid-edit); report it if it persists.
+
+## 11. Shared EXT signals (already declared in event_bus.gd — use them, don't redeclare)
+
+`run_started(run_seed)`, `run_loaded(day)`, `hour_passed(hour, day)` (GameClock, every game hour), `tracking_event_recorded(axis, amount, source)` (only for tracking-worthy events that have no domain signal of their own), `day_summary_ready(summary)`, `time_skipped(from_hour, to_hour)`,
+`crime_committed(crime_type, room_id, details)` — emitted by whoever executes an illegal act
+(crime types: theft_small, theft_product, drawer_forced, lock_forced, file_copied, trespass,
+bribe, forgery, sabotage, elimination, body_moved, footage_deleted, records_deleted, fraud,
+insider_trade, rumour_planted, idea_stolen, framing, power_cut, burglary),
+`money_changed(old, new, reason)`, `inventory_changed(item_id, added)`, `item_hidden(item_id, spot_id)`,
+`item_disposed(item_id, method)`, `player_searched(found_hot_items, outcome)`, `disguise_changed(uniform_id)`,
+`duty_progressed(duty_id, progress)`, `duty_deadline_warned(duty_id, hours_left)`,
+`npc_decided(npc_id, action, context)` — the outcome of a utility-AI evaluation (NPCDirector emits it),
+`npc_reported_player(npc_id, report_type, weight, location)` — an NPC went to Security / a superior,
+`npc_removed(npc_id, cause)`, `body_created(body_id, npc_id, room_id)`, `body_hidden(body_id, spot_id)`,
+`blackmail_demanded(npc_id, demand_type, amount)`, `phone_message_received(from_id, text_key, is_chat)`,
+`aurora_meeting_started(meeting_id)`, `results_presentation_due(quarter)`,
+`interrogation_answered(case_id, evidence_index, answer, outcome)`, `police_arrived(location)`, `police_evaded()`,
+`subtitle_posted(text_key, source_position, importance)`, `notebook_entry_added(category, text_key, args)`.
+If you need yet another signal, do NOT edit event_bus.gd: list it under REQUESTS FOR OTHER FILES.
+
+## 12. Library modules vs systems
+`src/simulation/*.gd` are libraries/helpers (class_name, usually RefCounted or static funcs), not
+global systems. Autoloads MAY call these pure helpers (e.g. NPCDirector uses UtilityAI to score
+actions; Security uses InvestigationEngine). Helpers never hold global state of their own unless
+their owner autoload passes it in; state lives in the owning autoload (and is saved there).
+
+## 13. Cross-system decisions (fixed by the orchestrator — builders implement their side)
+
+- **Ownership conflicts in §19 resolved:**
+  - Tracking axes: `Tracking` owns the five axes and increments them by *subscribing to domain
+    signals* (§12.8 table: bribe_result → gold, idea_acquired → silk, duty_completed honest → sweat,
+    npc_removed/elimination → blood, body_hidden → blood, crime_committed theft/fraud/forgery/framing/
+    rumour_planted → gold/silk, news_published scandal not buried → ruin, seat_vacated by talent
+    expulsion → ruin, Company theft loss → ruin...). `PlayerState.add_tracking()` only emits
+    `tracking_event_recorded`; `PlayerState.get_tracking()` / `get_dominant_axis()` read Tracking.
+  - Suspicion: BeliefNet computes, PlayerState caches (as the manual says).
+  - Hidden items ("stashes") are owned by PlayerState (`stash_item(item_id, spot_id, room_id) -> bool`,
+    `retrieve_item(spot_id, item_id) -> bool`, `get_stashes() -> Dictionary`,
+    `dispose_item(item_id, method) -> bool`).
+  - Bodies are owned by NPCDirector (a removed NPC with cause "eliminated" has a body record:
+    `get_body_info(npc_id) -> Dictionary {room_id, spot_id, hidden, discovered, day}`,
+    `move_body(npc_id, room_id, spot_id)`).
+  - NPC occupation/seat changes: Company owns seats and emits `seat_vacated` / `seat_filled`;
+    NPCDirector listens and updates the NPC's `occupation_id` (and ledger favour/grievance, §6.3).
+  - NPC merit/ideas-generation mood live in NPCDirector; the player's merit lives in Company.
+- **Extra public getters (add them in the owner; others may call them):**
+  - NPCDirector: `get_npc_reputation(npc_id) -> float` (0-100, from tier + merit − grievances; used as
+    "credibilidad_portador" and "reputación_acusador"), `get_npcs_on_floor(floor) -> Array[NPCRuntime]`,
+    `knows_player(npc_id) -> bool` (same department/room colleagues + anyone with a belief/ledger entry),
+    `get_merit(npc_id) -> int`, `get_body_info`, `move_body`, `get_player_room() -> String`
+    (tracked from `room_entered(room, true)`), `get_npcs_near(room_id) -> Array[NPCRuntime]`.
+  - Company: `get_all_seats() -> Array[Dictionary]` ({occupation_id, seat_index, holder}),
+    `get_player_seat() -> Dictionary`, `get_seat_count(occupation_id) -> int`.
+  - PlayerState: `get_room() -> String`, `get_floor() -> int` (updated from room_entered/floor_changed),
+    `get_disguise() -> String` ("" = none), `set_disguise(uniform_id)`, `get_name() -> String`.
+  - GameClock: `get_run_seed()`, `set_run_seed()`, `set_observer_check(callable: Callable)` — the
+    world registers a function returning true when observers are near (used by advance_to_band).
+  - Security: `get_footage_list() -> Array[Dictionary]`, `get_access_log() -> Array[Dictionary]`.
+- **Helper libraries (src/simulation, class_name, static or RefCounted):** UtilityAI
+  (`static func evaluate(npc: NPCRuntime, context: Dictionary) -> Dictionary` returning
+  {action, score, scores}), Bribery, CaughtHandler, InvestigationEngine, Interrogation,
+  IdeaPresentation, DutySystem, InventoryRules, Disguise, Police, FactoryTheft, Buyers, Strike,
+  Endgame, Perception (Perception is a Node attached to NPC nodes — World phase).
+
+## 14. World & presentation contract (World phase)
+
+- **FloorLayout** (`src/world/floor_layout.gd`, class_name FloorLayout, static, pure, deterministic):
+  `static func compute(floor: int) -> Dictionary` returning a FloorPlan:
+  `{floor, size: Vector2i (cells), rooms: {room_id: Rect2i}, doors: [{a, b, cell: Vector2i, vertical: bool,
+  kind: "normal"|"reader"|"service"|"old_lock"|"vent"}], transit: [{id, kind: "elevator"|"stairs"|
+  "service_stairs"|"freight"|"vent_hatch"|"exit", room_id, cell: Vector2i, targets: Array}], corridor_id}`.
+  Used by FloorStreamer, the map (Tab) and NPC pathing. Same input → same output.
+- **RoomBuilder** (`src/world/room_builder.gd`): builds the node tree of one RoomData at a cell offset:
+  floor/walls/doors drawn by code with the band palette, furniture visuals, collisions, Interactable
+  nodes, hiding spots, SecurityCamera nodes. **Physics layers**: 1 walls, 2 tall furniture (blocks
+  movement AND line of sight), 3 low furniture (blocks movement, *partial* LOS obstruction ×0.4),
+  4 player, 5 NPCs, 6 interactables/areas. Pixel size of a cell = balance `mundo.px_por_unidad`.
+- **FloorStreamer** (`src/world/floor_streamer.gd`, Node2D in the game scene): `load_floor(floor)`,
+  `get_current_floor()`, `get_room_at(world_pos) -> String`, `get_room_rect_px(room_id) -> Rect2`,
+  `cell_to_world(floor_cell) -> Vector2`, `find_path(from_px, to_room_id) -> PackedVector2Array`
+  (room graph + door points; NPCs walk it), `get_spawn_point(room_id) -> Vector2`,
+  `get_interactables_in_room(room_id)`. Emits `room_entered/room_exited(room, by_player)` for the
+  player; emits `floor_changed` when it loads a different floor.
+- **Interactable** (`src/entities/interactable.gd`, class_name Interactable extends Area2D, group
+  "interactables"): `interact_id, interact_type, room_id, data: Dictionary`, `get_prompt_key() -> String`,
+  `is_available() -> bool`. The player picks the nearest one in range; actions are dispatched by
+  `src/world/interaction_router.gd` (class_name InteractionRouter) — one handler per type.
+- **Player** (`src/entities/player.gd`, CharacterBody2D, group "player"): `movement_mode() -> String`
+  ("sneak"|"walk"|"sprint"|"crouch"|"still"), `is_crouching()`, `is_sprinting()`, `is_still()`,
+  `current_act() -> String` (crime type being performed or ""), `begin_act(crime_type, seconds)`,
+  `end_act()`, `set_input_locked(bool)`, `get_facing() -> Vector2`, `play_anim(name)`.
+- **NPC node** (`src/entities/npc.gd`, CharacterBody2D, group "npcs"): `npc_id`, reads NPCRuntime from
+  NPCDirector, walks FloorStreamer paths to its scheduled room/desk, shows archetype tics, carries a
+  Perception child (`src/simulation/perception.gd`, vision cone + hearing) and a DetectionIndicator.
+- **CharacterPainter** (`src/entities/character_painter.gd`, static): `appearance_from_seed(seed: int,
+  tier: int, is_named: bool, accessory: String) -> Dictionary` (the §14.4 layers) and
+  `draw(canvas: CanvasItem, appearance: Dictionary, tier: int, pose: Dictionary)` — shared by player,
+  NPCs, portraits in PERSONNEL and the menus. Silhouette by tier (§14.5), 8-12 frame limited animation.
+- **UIRoot** (`src/ui/ui_root.gd`, CanvasLayer, group "ui_root"): `open_modal(control, pauses_clock: bool)`,
+  `close_modal()`, `has_modal()`, `toast(text_key, args := [])`, `open_computer()`, `open_phone()`,
+  `open_map()`, `open_inventory()`, `show_dialog(title_key, body_key, options: Array) -> int` (awaitable).
+  HUD, subtitles, detection overlays are children. Theme from `src/ui/ui_theme.gd` (`UITheme.build(text_size, high_contrast) -> Theme`).
+- **Game scene**: `scenes/world/game.tscn` → `src/world/game_root.gd` owns FloorStreamer, the Player,
+  the NPC layer, UIRoot, CaughtHandler, DutySystem, AudioDirector (`src/ui/audio/audio_director.gd`).
+  Boot flow: `scenes/boot.tscn` → main menu (`src/ui/main_menu.gd`) → opening cinematic → tutorial →
+  game. `src/util/autopilot.gd` drives scripted runs for screenshots/QA.

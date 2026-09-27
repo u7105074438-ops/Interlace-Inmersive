@@ -1,0 +1,1242 @@
+{
+ "_version": 1,
+ "_furniture_note": "Cells: x right, y down, 0..w-1 / 0..h-1. rotation = degrees clockwise, 0 = front faces +y (down, towards the corridor door). size = final axis-aligned footprint in cells (already rotated); omitted = 1x1. rug/runway/helipad/motivational_poster/window_wall are walkable decoration. Rows h-2..h-1, the 3 middle cells of rows 0..1 and (for rooms with an internal door) the 3 middle rows of the side walls are kept free.",
+ "floor": 6,
+ "band": "the_specialists",
+ "kit": "creative",
+ "ambient_sound": "quiet_office",
+ "ambient_noise_level": 0.2,
+ "rooms": [
+  {
+   "id": "campaign_room",
+   "name_key": "ROOM_CAMPAIGN_ROOM",
+   "floor": 6,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    18,
+    14
+   ],
+   "furniture": [
+    {
+     "type": "bookshelf",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "motivational_poster",
+     "pos": [
+      4,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      7,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      6,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      10
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      11
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      6,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      10
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      11
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "meeting_table",
+     "pos": [
+      12,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      12,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      14,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      15,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      12,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      14,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      15,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "whiteboard",
+     "pos": [
+      14,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      12,
+      9
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      12,
+      10
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "water_cooler",
+     "pos": [
+      17,
+      8
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "printer",
+     "pos": [
+      17,
+      9
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "plant",
+     "pos": [
+      17,
+      11
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_campaign_desk",
+     "type": "under_desk",
+     "pos": [
+      6,
+      4
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "campaign_terminal_p6",
+     "type": "campaign_terminal",
+     "pos": [
+      12,
+      10
+     ],
+     "action": "self_promotion"
+    },
+    {
+     "id": "campaign_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      2,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    },
+    {
+     "id": "campaign_pc_2",
+     "type": "npc_computer",
+     "pos": [
+      6,
+      9
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_low"
+   ],
+   "occupants_by_band": {
+    "arrival": 5,
+    "work_morning": 8,
+    "lunch": 2,
+    "work_afternoon": 8,
+    "exit": 3,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_CAMPAIGN_ROOM_OPP",
+   "risk_key": "ROOM_CAMPAIGN_ROOM_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "product_photo_studio",
+   "name_key": "ROOM_PRODUCT_PHOTO_STUDIO",
+   "floor": 6,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    16,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "shelf_rack",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 90,
+     "size": [
+      1,
+      4
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      3,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      6
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      3,
+      7
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      6
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      7,
+      7
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "photo_backdrop",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "light_stand",
+     "pos": [
+      10,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "light_stand",
+     "pos": [
+      15,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "table",
+     "pos": [
+      12,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "crate",
+     "pos": [
+      14,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "crate",
+     "pos": [
+      15,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_photo_crate",
+     "type": "crate",
+     "pos": [
+      15,
+      8
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "photo_props_shelf",
+     "type": "supply_shelf",
+     "pos": [
+      0,
+      3
+     ],
+     "items": [
+      "campaign_material"
+     ],
+     "resale_value": 60
+    },
+    {
+     "id": "photo_pc",
+     "type": "npc_computer",
+     "pos": [
+      3,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_low"
+   ],
+   "occupants_by_band": {
+    "arrival": 2,
+    "work_morning": 3,
+    "lunch": 1,
+    "work_afternoon": 3,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_PRODUCT_PHOTO_STUDIO_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "social_media_office",
+   "name_key": "ROOM_SOCIAL_MEDIA_OFFICE",
+   "floor": 6,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    12,
+    10
+   ],
+   "furniture": [
+    {
+     "type": "monitor_wall",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 270,
+     "size": [
+      1,
+      3
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      3,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      3,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      4,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      8,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      8,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "water_cooler",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "motivational_poster",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "printer",
+     "pos": [
+      11,
+      7
+     ],
+     "rotation": 90
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_social_desk",
+     "type": "under_desk",
+     "pos": [
+      8,
+      4
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "social_media_terminal",
+     "type": "press_terminal",
+     "pos": [
+      3,
+      3
+     ],
+     "scope": "social_media",
+     "scale": "small",
+     "actions": [
+      "shift_sentiment"
+     ]
+    },
+    {
+     "id": "social_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      8,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_low"
+   ],
+   "occupants_by_band": {
+    "arrival": 3,
+    "work_morning": 4,
+    "lunch": 1,
+    "work_afternoon": 4,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_SOCIAL_MEDIA_OFFICE_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "graphic_design",
+   "name_key": "ROOM_GRAPHIC_DESIGN",
+   "floor": 6,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    14,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      6,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "table",
+     "pos": [
+      6,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "printer",
+     "pos": [
+      0,
+      7
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "photocopier",
+     "pos": [
+      0,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      13,
+      6
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      13,
+      7
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "motivational_poster",
+     "pos": [
+      13,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_graphic_desk",
+     "type": "under_desk",
+     "pos": [
+      2,
+      3
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "forgery_light_table",
+     "type": "forgery_station",
+     "pos": [
+      6,
+      8
+     ],
+     "produces": [
+      "forged_authorization",
+      "forged_official_document"
+     ]
+    },
+    {
+     "id": "design_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      10,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_low"
+   ],
+   "occupants_by_band": {
+    "arrival": 3,
+    "work_morning": 5,
+    "lunch": 1,
+    "work_afternoon": 5,
+    "exit": 2,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_GRAPHIC_DESIGN_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "p6_toilets",
+   "name_key": "ROOM_P6_TOILETS",
+   "floor": 6,
+   "wing": null,
+   "clearance_required": 3,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_specialists",
+   "kit": "creative",
+   "ambient_sound": "quiet_office",
+   "ambient_noise_level": 0.2,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": true,
+   "size": [
+    8,
+    6
+   ],
+   "furniture": [
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      6,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "sink",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sink",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_p6_stall",
+     "type": "toilet_stall",
+     "pos": [
+      1,
+      2
+     ],
+     "capacity": 1,
+     "can_hide_body": false
+    },
+    {
+     "id": "hide_p6_vent",
+     "type": "vent",
+     "pos": [
+      7,
+      2
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "p6_toilets_vent",
+     "type": "vent_hatch",
+     "pos": [
+      7,
+      2
+     ],
+     "leads_to": [
+      "vent_network"
+     ]
+    }
+   ],
+   "illegitimate_entries": [
+    "vent"
+   ],
+   "connects_to": [
+    "corridors_low",
+    "vent_network"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 1,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_P6_TOILETS_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "safe_for_calls": true
+  }
+ ]
+}

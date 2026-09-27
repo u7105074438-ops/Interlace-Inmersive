@@ -1,0 +1,974 @@
+{
+ "_version": 1,
+ "_furniture_note": "Cells: x right, y down, 0..w-1 / 0..h-1. rotation = degrees clockwise, 0 = front faces +y (down, towards the corridor door). size = final axis-aligned footprint in cells (already rotated); omitted = 1x1. rug/runway/helipad/motivational_poster/window_wall are walkable decoration. Rows h-2..h-1, the 3 middle cells of rows 0..1 and (for rooms with an internal door) the 3 middle rows of the side walls are kept free.",
+ "floor": 14,
+ "band": "the_power",
+ "kit": "executive",
+ "ambient_sound": "executive_quiet",
+ "ambient_noise_level": 0.05,
+ "rooms": [
+  {
+   "id": "press_room",
+   "name_key": "ROOM_PRESS_ROOM",
+   "floor": 14,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     15,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    16,
+    14
+   ],
+   "furniture": [
+    {
+     "type": "coffee_machine",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      10
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      11
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "monitor_wall",
+     "pos": [
+      12,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "podium",
+     "pos": [
+      13,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      15,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      8
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      8
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      15,
+      8
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "water_cooler",
+     "pos": [
+      15,
+      11
+     ],
+     "rotation": 270
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_press_desk",
+     "type": "under_desk",
+     "pos": [
+      2,
+      9
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "press_leak_terminal",
+     "type": "press_terminal",
+     "pos": [
+      2,
+      3
+     ],
+     "scope": "journalists",
+     "actions": [
+      "leak_story"
+     ],
+     "watches_player_from_tier": 5
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 3,
+    "work_morning": 4,
+    "lunch": 1,
+    "work_afternoon": 4,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_PRESS_ROOM_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "public_relations",
+   "name_key": "ROOM_PUBLIC_RELATIONS",
+   "floor": 14,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     13,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    14,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      6,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      6,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "printer",
+     "pos": [
+      13,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "whiteboard",
+     "pos": [
+      13,
+      6
+     ],
+     "rotation": 270,
+     "size": [
+      1,
+      3
+     ]
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      1,
+      8
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      1
+     ]
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_pr_desk",
+     "type": "under_desk",
+     "pos": [
+      10,
+      3
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "pr_news_terminal",
+     "type": "press_terminal",
+     "pos": [
+      2,
+      3
+     ],
+     "actions": [
+      "bury_news",
+      "fabricate_scandal"
+     ]
+    },
+    {
+     "id": "pr_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      6,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 3,
+    "work_morning": 5,
+    "lunch": 1,
+    "work_afternoon": 5,
+    "exit": 2,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_PUBLIC_RELATIONS_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "recording_studio",
+   "name_key": "ROOM_RECORDING_STUDIO",
+   "floor": 14,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": false,
+   "size": [
+    14,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      4,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "mixing_desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "rug",
+     "pos": [
+      8,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      5,
+      5
+     ]
+    },
+    {
+     "type": "light_stand",
+     "pos": [
+      9,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "light_stand",
+     "pos": [
+      12,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      9,
+      7
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "shelf_rack",
+     "pos": [
+      0,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      4,
+      1
+     ]
+    },
+    {
+     "type": "crate",
+     "pos": [
+      13,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_recording_curtain",
+     "type": "curtain",
+     "pos": [
+      13,
+      0
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "recording_archive_pc",
+     "type": "computer",
+     "pos": [
+      2,
+      3
+     ],
+     "contains": [
+      "compromising_recordings"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 2,
+    "lunch": 0,
+    "work_afternoon": 2,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_RECORDING_STUDIO_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "comms_director_office",
+   "name_key": "ROOM_COMMS_DIRECTOR_OFFICE",
+   "floor": 14,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     11,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    12,
+    10
+   ],
+   "furniture": [
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      1
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      9,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "npc_bree_nash"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      4
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      4
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "bookshelf",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "bookshelf",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      4,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      0,
+      4
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "sofa",
+     "pos": [
+      0,
+      7
+     ],
+     "rotation": 180,
+     "size": [
+      3,
+      1
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      11,
+      7
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_comms_desk",
+     "type": "under_desk",
+     "pos": [
+      10,
+      3
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "bree_computer",
+     "type": "npc_computer",
+     "pos": [
+      9,
+      2
+     ],
+     "owner": "npc_bree_nash",
+     "requires_absence": true,
+     "contains": [
+      "buried_stories_log"
+     ]
+    },
+    {
+     "id": "bree_drawer",
+     "type": "drawer",
+     "pos": [
+      11,
+      2
+     ],
+     "owner": "npc_bree_nash",
+     "contains": [
+      "bribe_receipts"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 1,
+    "lunch": 0,
+    "work_afternoon": 1,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_COMMS_DIRECTOR_OFFICE_OPP",
+   "risk_key": "ROOM_COMMS_DIRECTOR_OFFICE_RISK",
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "p14_toilets",
+   "name_key": "ROOM_P14_TOILETS",
+   "floor": 14,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": true,
+   "size": [
+    8,
+    6
+   ],
+   "furniture": [
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      6,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "sink",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sink",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_p14_stall",
+     "type": "toilet_stall",
+     "pos": [
+      1,
+      2
+     ],
+     "capacity": 1,
+     "can_hide_body": false
+    },
+    {
+     "id": "hide_p14_vent",
+     "type": "vent",
+     "pos": [
+      7,
+      2
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "p14_toilets_vent",
+     "type": "vent_hatch",
+     "pos": [
+      7,
+      2
+     ],
+     "leads_to": [
+      "vent_network"
+     ]
+    }
+   ],
+   "illegitimate_entries": [
+    "vent"
+   ],
+   "connects_to": [
+    "corridors_high",
+    "vent_network"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 1,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_P14_TOILETS_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "safe_for_calls": true
+  }
+ ]
+}

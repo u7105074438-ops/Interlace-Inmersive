@@ -1,0 +1,988 @@
+{
+ "_version": 1,
+ "_furniture_note": "Cells: x right, y down, 0..w-1 / 0..h-1. rotation = degrees clockwise, 0 = front faces +y (down, towards the corridor door). size = final axis-aligned footprint in cells (already rotated); omitted = 1x1. rug/runway/helipad/motivational_poster/window_wall are walkable decoration. Rows h-2..h-1, the 3 middle cells of rows 0..1 and (for rooms with an internal door) the 3 middle rows of the side walls are kept free.",
+ "floor": 13,
+ "band": "the_power",
+ "kit": "executive",
+ "ambient_sound": "executive_quiet",
+ "ambient_noise_level": 0.05,
+ "rooms": [
+  {
+   "id": "investment_room",
+   "name_key": "ROOM_INVESTMENT_ROOM",
+   "floor": 13,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     15,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    16,
+    14
+   ],
+   "furniture": [
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      8
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      9
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      10
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      11
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      12,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      12,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      12,
+      4
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      5
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "table",
+     "pos": [
+      7,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      7,
+      5
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      9,
+      5
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      8,
+      8
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "monitor_wall",
+     "pos": [
+      15,
+      7
+     ],
+     "rotation": 270,
+     "size": [
+      1,
+      4
+     ]
+    },
+    {
+     "type": "water_cooler",
+     "pos": [
+      15,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "plant",
+     "pos": [
+      0,
+      11
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_investment_desk",
+     "type": "under_desk",
+     "pos": [
+      2,
+      9
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "investment_order_screen",
+     "type": "trading_terminal",
+     "pos": [
+      12,
+      3
+     ],
+     "mode": "view_orders",
+     "early_visibility": true
+    },
+    {
+     "id": "investment_pc_1",
+     "type": "npc_computer",
+     "pos": [
+      2,
+      3
+     ],
+     "owner": "generated",
+     "requires_absence": true
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 3,
+    "work_morning": 5,
+    "lunch": 1,
+    "work_afternoon": 5,
+    "exit": 2,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_INVESTMENT_ROOM_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "cfo_office",
+   "name_key": "ROOM_CFO_OFFICE",
+   "floor": 13,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     13,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    14,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "chair",
+     "pos": [
+      12,
+      1
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "executive_desk",
+     "pos": [
+      11,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ],
+     "owner": "npc_maurice_sandbell"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      4
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      13,
+      4
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "bookshelf",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "bookshelf",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      5,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "table",
+     "pos": [
+      1,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "armchair",
+     "pos": [
+      0,
+      6
+     ],
+     "rotation": 270
+    },
+    {
+     "type": "armchair",
+     "pos": [
+      3,
+      7
+     ],
+     "rotation": 90
+    },
+    {
+     "type": "safe",
+     "pos": [
+      13,
+      8
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_cfo_desk",
+     "type": "under_desk",
+     "pos": [
+      12,
+      3
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "cfo_computer",
+     "type": "npc_computer",
+     "pos": [
+      11,
+      2
+     ],
+     "owner": "npc_maurice_sandbell",
+     "requires_absence": true,
+     "contains": [
+      "real_fundamentals",
+      "reported_figures",
+      "insider_trading_log"
+     ]
+    },
+    {
+     "id": "cfo_drawer",
+     "type": "drawer",
+     "pos": [
+      13,
+      2
+     ],
+     "owner": "npc_maurice_sandbell",
+     "contains": [
+      "insider_trading_notes"
+     ]
+    },
+    {
+     "id": "cfo_safe",
+     "type": "safe",
+     "pos": [
+      13,
+      8
+     ],
+     "requires": "key",
+     "contains": [
+      "quarterly_real_figures"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 1,
+    "lunch": 0,
+    "work_afternoon": 1,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_CFO_OFFICE_OPP",
+   "risk_key": "ROOM_CFO_OFFICE_RISK",
+   "is_hiding_place": false,
+   "search_priority": 2
+  },
+  {
+   "id": "market_data_room",
+   "name_key": "ROOM_MARKET_DATA_ROOM",
+   "floor": 13,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     13,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    14,
+    12
+   ],
+   "furniture": [
+    {
+     "type": "monitor_wall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      5,
+      1
+     ]
+    },
+    {
+     "type": "monitor_wall",
+     "pos": [
+      9,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      5,
+      1
+     ]
+    },
+    {
+     "type": "chair",
+     "pos": [
+      2,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      2,
+      5
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      3,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      3
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      5
+     ],
+     "rotation": 180,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      11,
+      6
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "server_rack",
+     "pos": [
+      6,
+      5
+     ],
+     "rotation": 0,
+     "size": [
+      1,
+      2
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      13,
+      9
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_market_desk",
+     "type": "under_desk",
+     "pos": [
+      10,
+      4
+     ],
+     "capacity": 0,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "market_quotes_terminal",
+     "type": "trading_terminal",
+     "pos": [
+      2,
+      4
+     ],
+     "mode": "live_quotes"
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 2,
+    "work_morning": 3,
+    "lunch": 1,
+    "work_afternoon": 3,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_MARKET_DATA_ROOM_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1
+  },
+  {
+   "id": "treasury",
+   "name_key": "ROOM_TREASURY",
+   "floor": 13,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": true,
+   "camera_positions": [
+    [
+     11,
+     0
+    ]
+   ],
+   "blind_spot": false,
+   "size": [
+    12,
+    10
+   ],
+   "furniture": [
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "filing_cabinet",
+     "pos": [
+      1,
+      0
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "chair",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      0,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "chair",
+     "pos": [
+      10,
+      2
+     ],
+     "rotation": 0
+    },
+    {
+     "type": "desk",
+     "pos": [
+      10,
+      3
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      1
+     ],
+     "owner": "generated"
+    },
+    {
+     "type": "table",
+     "pos": [
+      4,
+      4
+     ],
+     "rotation": 0,
+     "size": [
+      3,
+      2
+     ]
+    },
+    {
+     "type": "safe",
+     "pos": [
+      10,
+      6
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "plant",
+     "pos": [
+      11,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [],
+   "interactables": [
+    {
+     "id": "treasury_terminal",
+     "type": "accounting_terminal",
+     "pos": [
+      0,
+      3
+     ],
+     "scope": "treasury",
+     "actions": [
+      "move_capital"
+     ]
+    },
+    {
+     "id": "treasury_safe",
+     "type": "safe",
+     "pos": [
+      10,
+      6
+     ],
+     "requires": "clearance",
+     "min_clearance": 5,
+     "contains": [
+      "company_cash"
+     ]
+    }
+   ],
+   "illegitimate_entries": [],
+   "connects_to": [
+    "corridors_high"
+   ],
+   "occupants_by_band": {
+    "arrival": 1,
+    "work_morning": 2,
+    "lunch": 0,
+    "work_afternoon": 2,
+    "exit": 1,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_TREASURY_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 2
+  },
+  {
+   "id": "p13_toilets",
+   "name_key": "ROOM_P13_TOILETS",
+   "floor": 13,
+   "wing": null,
+   "clearance_required": 5,
+   "special_access": [],
+   "special_access_mode": "none",
+   "art_band": "the_power",
+   "kit": "executive",
+   "ambient_sound": "executive_quiet",
+   "ambient_noise_level": 0.05,
+   "acoustic_mask": false,
+   "has_cameras": false,
+   "camera_positions": [],
+   "blind_spot": true,
+   "size": [
+    8,
+    6
+   ],
+   "furniture": [
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      0,
+      2
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "toilet_stall",
+     "pos": [
+      6,
+      0
+     ],
+     "rotation": 0,
+     "size": [
+      2,
+      2
+     ]
+    },
+    {
+     "type": "sink",
+     "pos": [
+      6,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "sink",
+     "pos": [
+      7,
+      3
+     ],
+     "rotation": 180
+    },
+    {
+     "type": "trash_bin",
+     "pos": [
+      2,
+      0
+     ],
+     "rotation": 0
+    }
+   ],
+   "hiding_spots": [
+    {
+     "id": "hide_p13_stall",
+     "type": "toilet_stall",
+     "pos": [
+      1,
+      2
+     ],
+     "capacity": 1,
+     "can_hide_body": false
+    },
+    {
+     "id": "hide_p13_vent",
+     "type": "vent",
+     "pos": [
+      7,
+      2
+     ],
+     "capacity": 2,
+     "can_hide_body": false
+    }
+   ],
+   "interactables": [
+    {
+     "id": "p13_toilets_vent",
+     "type": "vent_hatch",
+     "pos": [
+      7,
+      2
+     ],
+     "leads_to": [
+      "vent_network"
+     ]
+    }
+   ],
+   "illegitimate_entries": [
+    "vent"
+   ],
+   "connects_to": [
+    "corridors_high",
+    "vent_network"
+   ],
+   "occupants_by_band": {
+    "arrival": 0,
+    "work_morning": 0,
+    "lunch": 1,
+    "work_afternoon": 0,
+    "exit": 0,
+    "night": 0
+   },
+   "opportunity_key": "ROOM_P13_TOILETS_OPP",
+   "risk_key": null,
+   "is_hiding_place": false,
+   "search_priority": 1,
+   "safe_for_calls": true
+  }
+ ]
+}
