@@ -711,7 +711,9 @@ func _restore_time() -> void:
 
 
 func _resolve(npc_id: String) -> NPCRuntime:
-	var npc: NPCRuntime = npc_resolver.call(npc_id) as NPCRuntime if npc_resolver.is_valid() else null
+	var npc: NPCRuntime = null
+	if npc_resolver.is_valid():
+		npc = npc_resolver.call(npc_id) as NPCRuntime
 	return npc if npc != null else NPCDirector.get_npc(npc_id)
 
 

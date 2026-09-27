@@ -1,13 +1,13 @@
 # blackmail_case.gd — Cuerpo de test_blackmail: material de chantaje, exigencias posteriores, pagar y negarse.
 # PROPIETARIO DE: nada.
-# ESCUCHA: blackmail_demanded, blackmail_initiated, phone_message_received, npc_reported_player (registro durante el caso).
+# ESCUCHA: blackmail_demanded, blackmail_initiated, phone_message_received, npc_reported_player, subtitle_posted (registro durante el caso).
 extends TestCase
 
 const Fixtures := preload("res://tests/cases/bribery_fixtures.gd")
 const CRIME := "theft_small"
 const DAY := 1
 const WATCHED: Array[String] = ["blackmail_demanded", "blackmail_initiated",
-		"phone_message_received", "npc_reported_player"]
+		"phone_message_received", "npc_reported_player", "subtitle_posted"]
 
 var _log: Fixtures.SignalLog = null
 
@@ -22,6 +22,9 @@ func run_case() -> void:
 	_check_dead_npc_is_silent()
 	_check_material_survives_save()
 	_check_handler_day_hook()
+	_check_face_to_face_demand()
+	_check_role_wage_demand()
+	_check_managed_promotion()
 	_log.stop()
 	await get_tree().process_frame
 
@@ -118,10 +121,14 @@ func _check_non_money_demands() -> void:
 	Blackmail.process_day(int(entry["demand_day"]), _population(climber))
 	check_eq(_log.last("blackmail_demanded"), [climber.id, Blackmail.DEMAND_PROMOTION, 0],
 			"the climber demands a promotion, not money")
+	var merit_before: int = climber.merit
 	var paid: Dictionary = Blackmail.pay(climber, {"day": int(entry["demand_day"])})
 	check(bool(paid["ok"]) and float(paid["reputation_cost"]) == 5.0 \
 			and int(paid["favour_magnitude"]) == 5,
 			"backing their promotion costs reputation (5) and owes them a favour (5)")
+	var recommendation: int = Database.get_balance_int("empresa.merito_recomendacion")
+	check(int(paid["merit_given"]) == recommendation and climber.merit == merit_before
+			+ recommendation, "…and the blackmailer gains recommendation merit for the vacancy")
 	var max_demands: int = Database.get_balance_int("chantaje.max_exigencias")
 	for i: int in range(1, max_demands):
 		Blackmail.process_day(int(entry["demand_day"]), _population(climber))
@@ -166,3 +173,60 @@ func _check_handler_day_hook() -> void:
 	check_eq(_log.count_for("blackmail_demanded", npc.id), 1,
 			"the daily tick issues due blackmail demands")
 	handler.queue_free()
+
+
+## El sobornable de la flagrancia exige cara a cara: subtítulo, no chat del móvil.
+func _check_face_to_face_demand() -> void:
+	var npc: NPCRuntime = Fixtures.synthetic("bm_face", "bribable")
+	var entry: Dictionary = Blackmail.add_material(npc, Blackmail.KIND_ASKED_MONEY, CRIME, DAY,
+			Blackmail.DEMAND_MONEY, 0)
+	_log.clear()
+	var demand: Dictionary = Blackmail.issue_demand(npc, entry, DAY, true)
+	check_eq(demand["text_key"], "BLACKMAIL_FACE_MONEY", "the on-the-spot demand has its own line")
+	check(_log.count("phone_message_received") == 0
+			and _log.last("subtitle_posted").slice(0, 1) == ["BLACKMAIL_FACE_MONEY"],
+			"face to face: a subtitle, not a phone chat")
+	var later: Dictionary = Blackmail.add_material(npc, Blackmail.KIND_WITNESSED, CRIME, DAY,
+			Blackmail.DEMAND_MONEY, 0)
+	later["status"] = Blackmail.STATUS_HELD
+	entry["status"] = Blackmail.STATUS_SETTLED
+	_log.clear()
+	Blackmail.process_day(DAY, _population(npc))
+	check_eq(_log.last("phone_message_received").slice(0, 2), [npc.id, "PHONE_BLACKMAIL_MONEY"],
+			"later demands arrive by phone chat")
+
+
+## Regresión: la exigencia en dinero usa el salario de rol de un generado (NPCDirector).
+func _check_role_wage_demand() -> void:
+	var role_npc: NPCRuntime = null
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if not npc.is_named and not NPCDirector.get_role(npc.id).is_empty():
+			role_npc = npc
+			break
+	check(role_npc != null, "a generated role NPC exists")
+	if role_npc == null:
+		return
+	var entry: Dictionary = Blackmail.add_material(role_npc, Blackmail.KIND_WITNESSED, CRIME, DAY,
+			Blackmail.DEMAND_MONEY, 0)
+	var wage: int = int(Database.get_role(NPCDirector.get_role(role_npc.id))["daily_wage"])
+	check_eq(Blackmail.issue_demand(role_npc, entry, DAY)["amount"], wage * 20,
+			"%s demands role wage × 20 (%d)" % [role_npc.id, wage * 20])
+
+
+## Personaje de la plantilla: el favor queda en su registro y el mérito en NPCDirector.
+func _check_managed_promotion() -> void:
+	var npc: NPCRuntime = NPCDirector.get_npcs_by_archetype("climber")[0]
+	var entry: Dictionary = Blackmail.add_material(npc, Blackmail.KIND_LEVERAGE, CRIME, DAY,
+			Blackmail.DEMAND_PROMOTION, 0)
+	Blackmail.issue_demand(npc, entry, DAY)
+	var merit: int = NPCDirector.get_merit(npc.id)
+	var favours: int = NPCDirector.get_favour_total(npc.id)
+	var reputation: float = PlayerState.get_reputation()
+	var paid: Dictionary = Blackmail.pay(npc, {"day": DAY})
+	check(bool(paid["ok"]) and NPCDirector.get_merit(npc.id) == merit
+			+ Database.get_balance_int("empresa.merito_recomendacion"),
+			"NPCDirector records the merit of the backed promotion")
+	check_eq(NPCDirector.get_favour_total(npc.id), favours
+			+ Database.get_balance_int("chantaje.magnitud_favor_promocion"),
+			"…and the favour in the blackmailer's ledger")
+	check(PlayerState.get_reputation() <= reputation, "…paid with the player's reputation")

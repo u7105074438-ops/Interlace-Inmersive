@@ -152,7 +152,7 @@ func _rebuild_title() -> void:
 		child.queue_free()
 	_build_title()
 	_backdrop.refresh()
-	_tower.queue_redraw()
+	_tower.refresh()
 
 
 func _build_title() -> void:

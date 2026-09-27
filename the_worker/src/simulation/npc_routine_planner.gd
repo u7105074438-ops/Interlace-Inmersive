@@ -37,18 +37,10 @@ const LOC_HOME := "home_room"
 const LOC_ABSENT := "absent"
 const LOC_ZONE := "assigned_zone"
 const LOC_ROUND := "assigned_round"
-const LOC_MEETING := "floor_meeting_room"
 const LOC_OTHER_FLOOR := "other_floor"
-const LOC_TOILETS := "floor_toilets"
 const LOC_PANTRY := "floor_pantry"
 const LOC_COPY := "floor_copyroom"
-const FALLBACK_COPYROOM := "main_copyroom"
-const PATTERN_MEETING := "meeting"
-const PATTERN_TOILETS := "_toilets"
-const PATTERN_PANTRY := "pantry"
-const PATTERN_COPY := "copyroom"
 const TIER_TEMPLATE_PREFIX := "tier_"
-const SMOKERS_GATHERING := "smokers_circle"
 const SEED_FORMAT := "%d|%d|%s"
 
 const MINUTES_PER_HOUR := 60
@@ -59,6 +51,10 @@ const B_BAND_STARTS := "tiempo.franjas_hora_inicio"
 const B_REPRESENTATIVE := "rutinas.hora_representativa_franja"
 const B_VIA_MINUTES := "rutinas.minutos_paso"
 const B_ZONE_MINUTES := "rutinas.minutos_por_sala_zona"
+## Ficha floor_* → fragmento del id de sala (contenido en balance.json, no en código).
+const B_ROOM_PATTERNS := "rutinas.patrones_sala"
+const B_COPY_FALLBACK := "rutinas.sala_fotocopias_por_defecto"
+const B_SMOKERS := "rutinas.corrillo_fumadores"
 const B_FACTORY_FLOOR := "mundo.planta_fabrica"
 const B_EXTERIOR_FLOOR := "mundo.planta_exterior"
 
@@ -73,6 +69,9 @@ var _rooms_by_floor: Dictionary = {}
 var _room_floor: Dictionary = {}
 var _dept_rooms: Dictionary = {}
 var _building_floors: Array[int] = []
+var _room_patterns: Dictionary = {}
+var _copy_fallback: String = ""
+var _smokers_gathering: String = ""
 
 
 func _init(generation_rules: Dictionary) -> void:
@@ -84,6 +83,10 @@ func _init(generation_rules: Dictionary) -> void:
 	_load_bands()
 	_via_minutes = Database.get_balance_int(B_VIA_MINUTES)
 	_zone_minutes = maxi(Database.get_balance_int(B_ZONE_MINUTES), 1)
+	var patterns: Variant = Database.get_balance(B_ROOM_PATTERNS)
+	_room_patterns = (patterns as Dictionary).duplicate() if patterns is Dictionary else {}
+	_copy_fallback = str(Database.get_balance(B_COPY_FALLBACK))
+	_smokers_gathering = str(Database.get_balance(B_SMOKERS))
 	_index_rooms()
 
 
@@ -235,8 +238,8 @@ func _add_modifiers(plan: Array, ctx: Dictionary) -> void:
 	for key: String in ["toilet", "copier"]:
 		_add_random_trips(plan, _modifiers.get(key, {}), key, ctx)
 	var npc: NPCRuntime = ctx["npc"]
-	if not npc.is_named and npc.gatherings.has(SMOKERS_GATHERING):
-		_add_smoke_breaks(plan, _modifiers.get(SMOKERS_GATHERING, {}), ctx)
+	if not npc.is_named and npc.gatherings.has(_smokers_gathering):
+		_add_smoke_breaks(plan, _modifiers.get(_smokers_gathering, {}), ctx)
 
 
 ## Corrillo de fumadores (§7.7): cada interval_hours desde first_time mientras esté presente.
@@ -372,16 +375,12 @@ func resolve_location(token: String, ctx: Dictionary, zone_floors: Array) -> Str
 			return _random_room_on(floors, rng, npc.home_room)
 		LOC_ROUND:
 			return _random_room_on(_building_floors, rng, npc.home_room)
-		LOC_MEETING:
-			return _room_on_floor(home_floor, PATTERN_MEETING, rng, npc.home_room)
-		LOC_TOILETS:
-			return _room_on_floor(home_floor, PATTERN_TOILETS, rng, npc.home_room)
-		LOC_PANTRY:
-			return _room_on_floor(home_floor, PATTERN_PANTRY, rng, npc.home_room)
-		LOC_COPY:
-			return _room_on_floor(home_floor, PATTERN_COPY, rng, FALLBACK_COPYROOM)
 		LOC_OTHER_FLOOR:
 			return _other_floor_room(npc, home_floor, rng)
+	var pattern: String = str(_room_patterns.get(token, ""))
+	if not pattern.is_empty():
+		var fallback: String = _copy_fallback if token == LOC_COPY else npc.home_room
+		return _room_on_floor(home_floor, pattern, rng, fallback)
 	return token
 
 

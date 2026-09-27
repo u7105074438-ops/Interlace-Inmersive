@@ -213,7 +213,8 @@ func _build() -> void:
 	_add_stamp()
 
 
-## Sello sobre el pie de la torre (lado izquierdo): nunca tapa el texto ni los botones.
+## Sello sobre el tercio alto de la torre (lado izquierdo): nunca tapa el texto, los botones ni las
+## plantas resaltadas (la cima en las victorias, el archivo o la mesa del primer día en las derrotas).
 func _add_stamp() -> void:
 	var entry: Array = STAMPS.get(ending_id, STAMPS.get(str(_ending.get("category", "")), []))
 	if entry.is_empty():
@@ -224,9 +225,9 @@ func _add_stamp() -> void:
 	stamp.ink = MenuKit.axis_color(str(entry[1]))
 	stamp.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	stamp.anchor_left = 0.03
-	stamp.anchor_top = 0.72
+	stamp.anchor_top = 0.3
 	stamp.anchor_right = 0.37
-	stamp.anchor_bottom = 0.86
+	stamp.anchor_bottom = 0.44
 	add_child(stamp)
 	stamp.scale = Vector2.ONE * 1.8
 	stamp.modulate.a = 0.0
@@ -373,6 +374,7 @@ func _start_typing() -> void:
 	var speed: float = maxf(MenuKit.bal_float("menus.epilogo.caracteres_por_segundo"), 1.0)
 	_text_label.visible_characters = 0
 	_typing = true
+	_area.hint_enabled = false
 	_tween = create_tween()
 	_tween.tween_method(_set_typed, 0, total, total / speed)
 	_tween.tween_callback(finish_typing)
@@ -393,6 +395,7 @@ func finish_typing() -> void:
 		_tween.kill()
 	_typing = false
 	_text_label.visible_characters = -1
+	_area.hint_enabled = true
 	if _buttons_ready:
 		return
 	var delay: float = maxf(MenuKit.bal_float("menus.epilogo.retardo_botones_segundos"), 0.01)

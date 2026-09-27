@@ -14,6 +14,8 @@ const WAIT_STEPS := 300
 const FAKE_NPC_SOURCE := "extends Node2D\nvar npc_id: String = \"\"\nvar occupation_id: String = \"\"\n"
 const TEST_HZ := 440.0
 const STRETCH_TEMPO := 0.9
+const STRETCH_LOOP_S := 6.0
+const STRETCH_OUT_S := 4
 const FAKE_SWITCHES := 16
 const PROFILE_DIR := "user://test_audio_profile"
 const TRITONE := 6
@@ -100,7 +102,8 @@ func _check_degradation_bands() -> void:
 	check(float(d3["atonal"]) >= 0.4 and clean3 <= 0.35 and float(d3["cuts_per_s"]) > 0.0,
 			"76-100: near-atonal and cuts out intermittently")
 	check(clean3 >= 0.25, "76-100: enough clean notes that the tune stays recognisable (%.2f)" % clean3)
-	check(float(d1["grain_s"]) > 0.0, "tempo changes are time-stretched (grain from balance)")
+	check(float(d1["jump_fade_s"]) > 0.0 and float(d1["jump_lead_s"]) > float(d1["jump_fade_s"]),
+			"tempo changes stretch each beat (crossfade ends before the next beat)")
 	var shifts: Array = table.get("atonal_semitonos", [])
 	var tritones: int = shifts.count(TRITONE) + shifts.count(-TRITONE)
 	check(not shifts.is_empty() and float(tritones) / float(shifts.size()) <= 0.2,
@@ -267,33 +270,38 @@ func _difference(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 	return acc / maxf(1.0, float(mini(a.size(), b.size())))
 
 
-## La pletina estira el tiempo sin transponer: un seno de 440 Hz a tempo 0,9 sigue a 440 Hz
-## (en modo cinta, sin granos, bajaría a 396 Hz).
+## La pletina estira el tiempo sin transponer: un seno de 440 Hz a tempo 0,9 sigue a 440 Hz y la
+## música avanza al 90 % (en modo cinta, sin saltos por pulso, bajaría a 396 Hz).
 func _check_time_stretch() -> void:
-	var sine: PackedFloat32Array = SynthDSP.silence(2.0, _rate)
-	SynthDSP.tone_into(sine, _rate, 0.0, 2.0, TEST_HZ, TEST_HZ, 0.5, SynthDSP.Wave.SINE, 0.0, 0.0)
+	var sine: PackedFloat32Array = SynthDSP.silence(STRETCH_LOOP_S, _rate)
+	SynthDSP.tone_into(sine, _rate, 0.0, STRETCH_LOOP_S, TEST_HZ, TEST_HZ, 0.5, SynthDSP.Wave.SINE, 0.0, 0.0)
 	var silent: PackedFloat32Array = PackedFloat32Array()
 	silent.resize(sine.size())
 	var stems: Dictionary = {"rate": _rate, "length": sine.size(), "acc": sine, "mel": [silent],
-			"switches": PackedInt32Array(), "piece": "test", "arrangement": "sine"}
-	var grain: float = AudioTuning.num("audio.degradacion.grano_s")
-	var stretched: float = _deck_frequency(stems, grain)
-	var tape: float = _deck_frequency(stems, 0.0)
-	check_near(stretched, TEST_HZ, TEST_HZ * 0.03, "slower tempo keeps the key (%.1f Hz)" % stretched)
-	check_near(tape, TEST_HZ * STRETCH_TEMPO, TEST_HZ * 0.03, "reference: tape mode would transpose (%.1f Hz)" % tape)
+			"switches": PackedInt32Array(), "piece": "test", "arrangement": "sine",
+			"spb": float(_rate) * 60.0 / AudioTuning.num("audio.piezas_bpm.muzak")}
+	var params: Dictionary = MuzakSynth.degradation(0.0)
+	params["tempo"] = STRETCH_TEMPO
+	var stretched: Vector2 = _deck_frequency(stems, params)
+	params.erase("jump_fade_s")
+	var tape: Vector2 = _deck_frequency(stems, params)
+	check_near(stretched.x, TEST_HZ, TEST_HZ * 0.015, "slower tempo keeps the key (%.1f Hz)" % stretched.x)
+	check_near(stretched.y, STRETCH_TEMPO, 0.03, "…while the music advances at tempo 0.9 (%.3f)" % stretched.y)
+	check_near(tape.x, TEST_HZ * STRETCH_TEMPO, TEST_HZ * 0.015, "reference: tape mode transposes (%.1f Hz)" % tape.x)
 
 
-func _deck_frequency(stems: Dictionary, grain_s: float) -> float:
+## (frecuencia por cruces por cero, avance musical por segundo de salida).
+func _deck_frequency(stems: Dictionary, params: Dictionary) -> Vector2:
 	var deck: MuzakDeck = MuzakDeck.new()
 	deck.setup(_rate, 1, 0.0, 0.0)
 	deck.load_stems_now(stems)
-	deck.set_degradation({"tempo": STRETCH_TEMPO, "grain_s": grain_s, "lowpass_hz": 10000.0}, true)
-	var out: PackedVector2Array = deck.process(_rate)
+	deck.set_degradation(params, true)
+	var out: PackedVector2Array = deck.process(_rate * STRETCH_OUT_S)
 	var crossings: int = 0
 	for i: int in range(1, out.size()):
 		if out[i - 1].x < 0.0 and out[i].x >= 0.0:
 			crossings += 1
-	return float(crossings) * float(_rate) / float(out.size())
+	return Vector2(float(crossings) / float(STRETCH_OUT_S), deck.get_position_s() / float(STRETCH_OUT_S))
 
 
 ## Pistas sintéticas (baratas) para probar los cambios de pistas de la pletina.
@@ -307,7 +315,7 @@ func _fake_stems(arrangement: String, variants: int) -> Dictionary:
 	for k: int in FAKE_SWITCHES:
 		switches.append(k * _rate / FAKE_SWITCHES)
 	return {"rate": _rate, "length": _rate, "acc": acc, "mel": mel, "switches": switches, "piece": "muzak",
-			"arrangement": arrangement, "degradable": true}
+			"arrangement": arrangement, "degradable": true, "spb": float(_rate) / float(FAKE_SWITCHES / 2)}
 
 
 func _check_deck_swaps() -> void:

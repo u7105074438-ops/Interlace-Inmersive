@@ -298,7 +298,7 @@ static func _draw_back_hair(canvas: CharacterCanvas, rig: CharacterRig, style: D
 	var hair: Color = rig.colors["hair"]
 	if back < 0.05 and float(style["sides"]) < 0.9 and vol < 0.2:
 		return
-	var w: float = head_r.x * (1.12 + vol * 0.9)
+	var w: float = head_r.x * float(style.get("back_w", 1.12 + vol * 0.9))
 	var top: float = HEAD_C.y - head_r.y * (1.0 + vol * 0.6)
 	var bottom: float = HEAD_C.y + head_r.y * (0.35 + back * 1.1)
 	var shape: PackedVector2Array = CharacterStyle.arc(Vector2(50, top + w), Vector2(w, w), PI, TAU, 14)

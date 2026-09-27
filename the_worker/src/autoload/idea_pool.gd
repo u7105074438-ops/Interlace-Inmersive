@@ -471,7 +471,8 @@ func present(idea_id: String) -> Dictionary:
 		if not accuser.is_empty():
 			_record_clash(idea, accuser, stage)
 	_fill_contest(result, stage)
-	if not result["contested"] or result["contest_result"] == IdeaPresentation.RESULT_WIN:
+	if idea != null and (not result["contested"]
+			or result["contest_result"] == IdeaPresentation.RESULT_WIN):
 		_grant_player_merit(idea, overrides, result)
 	return result
 

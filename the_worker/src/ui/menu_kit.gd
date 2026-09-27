@@ -27,6 +27,8 @@ const FONT_TITLE := 150
 const OUTLINE := 4
 const SHADOW := 7
 const MIN_TOUCH := 64
+## Margen lateral del memorándum compacto a tamaño de texto 1 (se reduce con texto mayor).
+const COMPACT_SIDE_MARGIN := 260.0
 
 ## Nombre semántico → [banda, clave de paleta] de art_bands.json.
 const SEMANTIC: Dictionary = {
@@ -48,6 +50,8 @@ static var _color_cache: Dictionary = {}
 static var _cache_frame: int = -1
 static var _cache_hc: bool = false
 static var _cache_scale: float = 1.0
+## Sube cada vez que cambia la paleta efectiva (alto contraste): las capas cacheadas se repintan.
+static var _palette_version: int = 0
 
 
 # ─── Balance ───────────────────────────────────────────────────
@@ -154,8 +158,15 @@ static func _refresh_cache() -> void:
 	var hc: bool = SettingsMenu.get_bool("high_contrast")
 	if hc != _cache_hc:
 		_color_cache.clear()
+		_palette_version += 1
 	_cache_hc = hc
 	_cache_scale = _read_text_scale()
+
+
+## Versión de la paleta efectiva: cambia al activar o desactivar el alto contraste.
+static func palette_version() -> int:
+	_refresh_cache()
+	return _palette_version
 
 
 ## true con el ajuste de alto contraste activo (§13.10).
@@ -490,8 +501,9 @@ static func button(text: String, variation: String = "") -> Button:
 static func memo_frame(title_text: String, kicker_text: String, compact: bool = false) -> Dictionary:
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var side_margin: int = roundi(COMPACT_SIDE_MARGIN / text_scale()) if compact else 96
 	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 260 if compact else 96)
+		margin.add_theme_constant_override("margin_" + side, side_margin)
 	for side: String in ["top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 36 if compact else 44)
 	var panel: PanelContainer = PanelContainer.new()
@@ -571,6 +583,15 @@ static func poster_text(l: Label, font_kind: String, size: int, fill: Color, sha
 	l.add_theme_constant_override("shadow_offset_x", maxi(3, size / 18))
 	l.add_theme_constant_override("shadow_offset_y", maxi(3, size / 18))
 	l.add_theme_constant_override("shadow_outline_size", maxi(4, size / 10))
+
+
+## Reduce el cuerpo de una etiqueta de una línea para que quepa en `width` (nunca lo agranda).
+static func fit_label(l: Label, base_size: int, width: float) -> void:
+	var f: Font = l.get_theme_font("font")
+	var tw: float = f.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, base_size).x
+	var fitted: int = base_size if tw <= width or width <= 0.0 else maxi(8, floori(base_size * width / tw))
+	if l.get_theme_font_size("font_size") != fitted:
+		l.add_theme_font_size_override("font_size", fitted)
 
 
 ## Traducción con relleno de formato seguro ({clave} → valor).

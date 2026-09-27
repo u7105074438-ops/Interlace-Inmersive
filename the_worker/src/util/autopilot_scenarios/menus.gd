@@ -68,6 +68,7 @@ func _unmount(control: Control) -> void:
 func _title_and_screens() -> void:
 	var menu: MainMenu = _mount(MainMenu.new()) as MainMenu
 	await _pilot.seconds(SETTLE * 2.0)
+	await _report_cost("idle title")
 	await _pilot.shot("menu_title")
 	menu.open_settings()
 	await _pilot.seconds(SETTLE)
@@ -87,6 +88,18 @@ func _title_and_screens() -> void:
 	await _pilot.seconds(SETTLE)
 	await _pilot.shot("gallery")
 	await _unmount(menu)
+
+
+## Coste de dibujo por fotograma (QA de rendimiento, BUILD_NOTES §6): media de unos fotogramas.
+func _report_cost(label: String) -> void:
+	var calls: float = 0.0
+	var prims: float = 0.0
+	var frames: int = 10
+	for i: int in frames:
+		await _pilot.frames(1)
+		calls += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+		prims += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
+	print("[menus] %s: %.0f draw calls, %.0f primitives per frame" % [label, calls / frames, prims / frames])
 
 
 func _high_contrast(menu: MainMenu) -> void:
@@ -165,6 +178,7 @@ func _opening() -> void:
 		cine.seek(float(moment[1]))
 		await _pilot.seconds(0.4)
 		await _pilot.shot(str(moment[0]))
+	await _report_cost("opening (title card)")
 	GameLaunch.clear()
 	await _unmount(cine)
 

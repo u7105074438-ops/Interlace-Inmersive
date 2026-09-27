@@ -6,19 +6,21 @@ extends RefCounted
 
 ## Lee las pistas de MuzakSynth.render_piece() y elige por nota la variante limpia / desafinada /
 ## atonal, con silencios anómalos, cortes, siseo y pérdida de agudos (§14.9).
-## Tempo y tono van separados (§14.9: 26-50 solo "reducción leve del tempo"): el ancla avanza a
-## tempo × velocidad y dos cabezas de lectura con ventanas triangulares cruzadas (granos de
-## `grain_s`) leen a la velocidad de la cinta, que solo cambia con la irregularidad y el wow &
-## flutter (la "oscilación de tono" de 51-75). Con tempo 1 las dos cabezas coinciden y el coste es
-## el de una lectura. Lo llama AudioDirector solo con los frames que el generador admite (sin
-## bucles de espera). También sirve para el render sin conexión (WAV, tests).
+## Tempo y tono van separados (§14.9: 26-50 solo "reducción leve del tempo"): la cabeza lee a la
+## velocidad de la cinta (que solo cambia con la irregularidad y el wow & flutter: la "oscilación de
+## tono" de 51-75) y el tempo se consigue alargando cada pulso: `jump_lead_s` antes de cada tiempo
+## (la cola de la nota anterior, nunca un ataque) la cabeza retrocede spb × (1/tempo − 1) muestras
+## con un fundido de `jump_fade_s`. El tono no se mueve; el artefacto es un leve tartamudeo por
+## pulso ("debe sonar económica"). Sin spb en las pistas o sin fundido, modo cinta (tempo = tono).
+## Lo llama AudioDirector solo con los frames que el generador admite (sin bucles de espera).
+## También sirve para el render sin conexión (WAV, tests).
 
 const BLOCK := 64
 const FADE_S := 0.006
 const JITTER_SMOOTH_S := 0.35
 const SILENT_GAIN := 0.001
 const HISS_SMOOTH := 0.5
-const DRIFT_EPS := 0.0001
+const MIN_TEMPO := 0.25
 const HALF := 0.5
 const EVENT_DROPOUT := "dropout"
 const EVENT_CUT := "cut"
@@ -46,7 +48,14 @@ var _variant: int = 0
 var _target: Dictionary = {}
 var _cur: Dictionary = {"tempo": 1.0, "jitter": 0.0, "wow": 0.0, "flutter": 0.0, "hiss": 0.0,
 		"lowpass_hz": 0.0}
-var _grain_s: float = 0.0
+var _spb: float = 0.0
+var _jump_fade_s: float = 0.0
+var _jump_lead: float = 0.0
+var _jump_len: float = 0.0
+var _jump_at: float = INF
+var _xf_pos: float = 0.0
+var _xf_left: int = 0
+var _xf_len: int = 1
 var _jit: float = 0.0
 var _jit_target: float = 0.0
 var _jit_timer: float = 0.0
@@ -54,9 +63,6 @@ var _wow_ph: float = 0.0
 var _flut_ph: float = 0.0
 var _step: float = 1.0
 var _pitch: float = 1.0
-var _grain_ph: float = 0.0
-var _off_a: float = 0.0
-var _off_b: float = 0.0
 var _silence_left: int = 0
 var _silence_kills_hiss: bool = false
 var _g: float = 1.0
@@ -165,7 +171,9 @@ func load_stems_now(stems: Dictionary) -> void:
 func set_degradation(params: Dictionary, immediate: bool) -> void:
 	var first: bool = _target.is_empty()
 	_target = params.duplicate()
-	_grain_s = float(_target.get("grain_s", 0.0))
+	_jump_fade_s = float(_target.get("jump_fade_s", 0.0))
+	_jump_lead = float(_target.get("jump_lead_s", 0.0)) * float(_rate)
+	_jump_at = _next_jump_point(_pos)
 	if immediate or first or _smooth_s <= 0.0:
 		for key: String in _cur.keys():
 			_cur[key] = float(_target.get(key, _cur[key]))
@@ -189,6 +197,8 @@ func skip(seconds: float) -> void:
 		return
 	_pos = fmod(_pos + seconds * float(_rate) * float(_cur["tempo"]), float(_length))
 	_prev_pos = _pos
+	_xf_left = 0
+	_jump_at = _next_jump_point(_pos)
 
 
 ## Eventos desde la última llamada: "dropout", "cut", "interrupt", "loop".
@@ -228,10 +238,11 @@ func _apply_stems(stems: Dictionary, keep_position: bool) -> void:
 	_pos = fmod(_pos, float(new_len)) if keep_position else 0.0
 	_length = new_len
 	_loaded_id = stems_id(stems)
+	_spb = float(stems.get("spb", 0.0))
 	_prev_pos = _pos
 	_switch_idx = 0
-	_off_a = 0.0
-	_off_b = 0.0
+	_xf_left = 0
+	_jump_at = _next_jump_point(_pos)
 	_variant = MuzakSynth.VARIANT_CLEAN
 
 
@@ -244,15 +255,18 @@ func _update_block(n: int) -> void:
 	var wobble: float = float(_cur["wow"]) * sin(TAU * _wow_ph) \
 			+ float(_cur["flutter"]) * sin(TAU * _flut_ph)
 	_pitch = maxf(0.0, (1.0 + _jit) * (1.0 + wobble))
-	_step = _pitch * float(_cur["tempo"])
+	var tempo: float = maxf(MIN_TEMPO, float(_cur["tempo"]))
+	var jumps: bool = _spb > 0.0 and _jump_fade_s > 0.0
+	_step = _pitch if jumps else _pitch * tempo
+	_jump_len = _spb * (1.0 / tempo - 1.0) if jumps else 0.0
 	_check_switches()
 	_schedule_silences(dt)
 	if not _pending.is_empty() and _swap_g < SILENT_GAIN:
 		_apply_stems(_pending, _pending_keep_pos)
 		_pending = {}
 	if record_telemetry:
-		_tele_rate.append(_step)
-		_tele_pitch.append(_pitch if _grain_s > 0.0 else _step)
+		_tele_rate.append(_pitch * float(_cur["tempo"]))
+		_tele_pitch.append(_step)
 		_tele_gain.append(_g * _swap_g)
 		_tele_variant.append(_variant)
 
@@ -260,13 +274,7 @@ func _update_block(n: int) -> void:
 func _render_block(out: PackedVector2Array, from: int, n: int) -> void:
 	var dry: PackedFloat32Array = PackedFloat32Array()
 	dry.resize(n)
-	var drift: float = _pitch - _step if _grain_s > 0.0 else 0.0
-	if absf(drift) < DRIFT_EPS:
-		drift = 0.0
-	if drift == 0.0 and _off_a == 0.0 and _off_b == 0.0:
-		_read_plain(dry, n)
-	else:
-		_read_grains(dry, n, drift)
+	_read_block(dry, n)
 	var noise: PackedFloat32Array = SynthDSP.noise_table()
 	var fade_k: float = _fade_coef(FADE_S)
 	var swap_k: float = _fade_coef(_swap_fade_s)
@@ -286,8 +294,9 @@ func _render_block(out: PackedVector2Array, from: int, n: int) -> void:
 	_silence_left = maxi(0, _silence_left - n)
 
 
-## Una sola cabeza (tempo = velocidad de lectura): interpolación lineal de acompañamiento + melodía.
-func _read_plain(dry: PackedFloat32Array, n: int) -> void:
+## Lectura con interpolación lineal de acompañamiento + melodía; durante un salto atrás mezcla la
+## cabeza vieja (que sigue) con la nueva (que repite la cola) hasta completar el fundido.
+func _read_block(dry: PackedFloat32Array, n: int) -> void:
 	var acc: PackedFloat32Array = _acc
 	var mel: PackedFloat32Array = _mel[mini(_variant, _mel.size() - 1)]
 	var lf: float = float(_length)
@@ -298,54 +307,46 @@ func _read_plain(dry: PackedFloat32Array, n: int) -> void:
 		var ip: int = int(pos)
 		var ip2: int = ip + 1 if ip < last else 0
 		var fr: float = pos - float(ip)
-		dry[i] = acc[ip] + (acc[ip2] - acc[ip]) * fr + mel[ip] + (mel[ip2] - mel[ip]) * fr
+		var s: float = acc[ip] + (acc[ip2] - acc[ip]) * fr + mel[ip] + (mel[ip2] - mel[ip]) * fr
+		if _xf_left > 0:
+			var jp: int = int(_xf_pos)
+			var jp2: int = jp + 1 if jp < last else 0
+			var jf: float = _xf_pos - float(jp)
+			var old: float = acc[jp] + (acc[jp2] - acc[jp]) * jf + mel[jp] + (mel[jp2] - mel[jp]) * jf
+			s += (old - s) * float(_xf_left) / float(_xf_len)
+			_xf_pos = fposmod(_xf_pos + step, lf)
+			_xf_left -= 1
+		dry[i] = s
 		pos += step
 		if pos >= lf:
 			pos -= lf
+			_jump_at = _next_jump_point(pos)
+		elif pos >= _jump_at:
+			pos = _jump(pos)
 	_pos = pos
 
 
-## Dos cabezas desfasadas medio grano: cada una lee a la velocidad de la cinta desde el ancla y se
-## reengancha a él cuando su ventana vale cero (estiramiento temporal barato: "debe sonar económica").
-func _read_grains(dry: PackedFloat32Array, n: int, drift: float) -> void:
-	var acc: PackedFloat32Array = _acc
-	var mel: PackedFloat32Array = _mel[mini(_variant, _mel.size() - 1)]
-	var lf: float = float(_length)
-	var last: int = _length - 1
-	var gstep: float = 1.0 / maxf(1.0, _grain_s * float(_rate))
-	var step: float = _step
-	var pos: float = _pos
-	var ga: float = _grain_ph
-	var oa: float = _off_a
-	var ob: float = _off_b
-	for i: int in n:
-		var pa: float = fposmod(pos + oa, lf)
-		var pb: float = fposmod(pos + ob, lf)
-		var ia: int = int(pa)
-		var ib: int = int(pb)
-		var ia2: int = ia + 1 if ia < last else 0
-		var ib2: int = ib + 1 if ib < last else 0
-		var fa: float = pa - float(ia)
-		var fb: float = pb - float(ib)
-		var wa: float = 1.0 - absf(2.0 * ga - 1.0)
-		dry[i] = (acc[ia] + (acc[ia2] - acc[ia]) * fa + mel[ia] + (mel[ia2] - mel[ia]) * fa) * wa \
-				+ (acc[ib] + (acc[ib2] - acc[ib]) * fb + mel[ib] + (mel[ib2] - mel[ib]) * fb) * (1.0 - wa)
-		var before: float = ga
-		ga += gstep
-		if ga >= 1.0:
-			ga -= 1.0
-			oa = 0.0
-		elif before < HALF and ga >= HALF:
-			ob = 0.0
-		oa += drift
-		ob += drift
-		pos += step
-		if pos >= lf:
-			pos -= lf
-	_pos = pos
-	_grain_ph = ga
-	_off_a = oa
-	_off_b = ob
+## Llega el punto de salto de este pulso: programa el del siguiente y, si el tempo lo pide,
+## retrocede `_jump_len` muestras con fundido cruzado. Devuelve la nueva posición de lectura.
+func _jump(pos: float) -> float:
+	var boundary: float = _jump_at + _jump_lead
+	_jump_at = boundary + _spb - _jump_lead
+	if _jump_at >= float(_length):
+		_jump_at = INF
+	if _jump_len < 1.0:
+		return pos
+	_xf_pos = pos
+	_xf_len = maxi(1, int(_jump_fade_s * float(_rate)))
+	_xf_left = _xf_len
+	return fposmod(pos - _jump_len, float(_length))
+
+
+## Siguiente punto de salto (jump_lead antes del próximo pulso) tras `pos`; INF si no hay.
+func _next_jump_point(pos: float) -> float:
+	if _spb <= 0.0 or _length <= 0:
+		return INF
+	var jp: float = (floorf((pos + _jump_lead) / _spb) + 1.0) * _spb - _jump_lead
+	return jp if jp < float(_length) else INF
 
 
 func _fade_coef(seconds: float) -> float:
@@ -372,7 +373,7 @@ func _update_jitter(dt: float) -> void:
 
 
 func _check_switches() -> void:
-	if _pos < _prev_pos:
+	if _pos < _prev_pos - float(_length) * HALF:
 		_switch_idx = 0
 		_events.append(EVENT_LOOP)
 	_prev_pos = _pos

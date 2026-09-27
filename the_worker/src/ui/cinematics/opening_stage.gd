@@ -845,7 +845,7 @@ func _draw_commuters() -> void:
 	for k: int in 3:
 		var t: float = fmod(idle_time * 0.05 + k * 0.33, 1.0)
 		var x: float = lerpf(-120.0, 2040.0, t)
-		_draw_walker(Vector2(x, 690.0 + k * 8.0), 190.0 + k * 8.0, idle_time * 1.4 + k * 0.3, false, false, k)
+		_draw_walker(Vector2(x, 672.0 + k * 6.0), 168.0 + k * 6.0, idle_time * 1.4 + k * 0.3, false, false, k)
 
 
 ## Recorrido del protagonista: llega por delante de la fila, ficha, cruza su torniquete (hacia el
@@ -926,8 +926,8 @@ func _draw_title_city(vis: Rect2) -> void:
 	draw_rect(Rect2(vis.position.x, ground, vis.size.x, vis.end.y - ground), MenuKit.color("ink"))
 	draw_line(Vector2(vis.position.x, ground), Vector2(vis.end.x, ground), MenuKit.color("amber"), 3.0)
 	var halo: Color = Color(MenuKit.color("amber"), 0.3 + 0.1 * sin(idle_time * 4.0))
-	draw_circle(Vector2(760, ground - 26), 34.0, halo)
-	MenuKit.draw_person(self, Vector2(760, ground), 52.0, MenuKit.color("amber"), MenuKit.color("paper"), MenuKit.color("ink"), true)
+	draw_circle(Vector2(826, ground - 26), 34.0, halo)
+	MenuKit.draw_person(self, Vector2(826, ground), 52.0, MenuKit.color("amber"), MenuKit.color("paper"), MenuKit.color("ink"), true)
 
 
 ## Torre en silueta: plantas por bandas (anchos de TowerArt), ventanas encendidas y antena.

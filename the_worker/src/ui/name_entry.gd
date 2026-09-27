@@ -224,10 +224,12 @@ func _contract_card(preset: String, group: ButtonGroup) -> Button:
 	var inner: VBoxContainer = _card_contents(preset)
 	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, CARD_PAD)
 	card.add_child(inner)
+	var heading: Label = inner.get_child(0) as Label
 	var sync: Callable = func() -> void:
+		MenuKit.fit_label(heading, MenuKit.fs(MenuKit.FONT_HEADING), card.size.x - CARD_PAD * 2)
 		card.custom_minimum_size.y = inner.get_combined_minimum_size().y + CARD_PAD * 2
 	inner.minimum_size_changed.connect(sync)
-	inner.resized.connect(sync)
+	card.resized.connect(sync)
 	sync.call_deferred()
 	_cards[preset] = card
 	return card
@@ -238,7 +240,9 @@ func _card_contents(preset: String) -> VBoxContainer:
 	var inner: VBoxContainer = VBoxContainer.new()
 	inner.name = "Contents"
 	inner.add_theme_constant_override("separation", 6)
-	var name_label: Label = MenuKit.label(tr(str(SettingsMenu.PRESET_NAME_KEYS[preset])).to_upper(), "TWHeading", true)
+	var name_label: Label = MenuKit.label(tr(str(SettingsMenu.PRESET_NAME_KEYS[preset])).to_upper(), "TWHeading")
+	name_label.name = "Heading"
+	name_label.clip_text = true
 	name_label.add_theme_font_size_override("font_size", MenuKit.fs(MenuKit.FONT_HEADING))
 	inner.add_child(name_label)
 	inner.add_child(MenuKit.label(tr("UI_CONTRACT_DESC_" + preset.to_upper()), "TWSmall", true))

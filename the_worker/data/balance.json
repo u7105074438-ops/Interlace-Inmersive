@@ -67,9 +67,7 @@
     "umbral_flagrancia": 1.0,
     "umbral_perdida_contacto": 0.1,
     "distancia_reconocimiento_disfraz": 3.0,
-    "distancia_clasificacion_uniforme": 6.0,
-    "perspicacia_por_nivel_alerta": 3,
-    "perspicacia_efectiva_max": 150
+    "distancia_clasificacion_uniforme": 6.0
   },
   "ruido": {
     "radio_sigiloso": 1.0,
@@ -538,7 +536,112 @@
     "radio_realce_interactivo": 2.5,
     "radio_uso_interactivo": 1.3,
     "espaciado_decoracion_pasillo": 5,
-    "proporcion_planta": 1.78
+    "proporcion_planta": 1.78,
+    "luz": {
+      "_nota": "FloorLighting (PASO 40): sombra multiplicativa horneada por tipo de iluminación de art_bands (lighting.type). ambiente [r,g,b]; radio en celdas; energia × art_bands lighting.intensity; cada = una luz de cada n luminarias de la rejilla (0 = ninguna); por_sala = una luz que cubre cada sala sin farolas (radio_sala × lado mayor).",
+      "texeles_por_celda": 2,
+      "fluorescent": {
+        "ambiente": [
+          0.95,
+          0.99,
+          0.91
+        ],
+        "radio": 0,
+        "energia": 0,
+        "cada": 0
+      },
+      "uniform": {
+        "ambiente": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "radio": 0,
+        "energia": 0,
+        "cada": 0
+      },
+      "indirect": {
+        "ambiente": [
+          0.94,
+          0.87,
+          0.77
+        ],
+        "radio": 0,
+        "energia": 0,
+        "cada": 0
+      },
+      "natural": {
+        "ambiente": [
+          1.0,
+          1.0,
+          0.98
+        ],
+        "radio": 0,
+        "energia": 0,
+        "cada": 0
+      },
+      "isolated_spots": {
+        "ambiente": [
+          0.34,
+          0.35,
+          0.37
+        ],
+        "radio": 3.4,
+        "energia": 2.2,
+        "cada": 2
+      },
+      "industrial": {
+        "ambiente": [
+          0.8,
+          0.76,
+          0.7
+        ],
+        "radio": 4.5,
+        "energia": 0.9,
+        "cada": 1
+      },
+      "streetlight": {
+        "ambiente": [
+          0.36,
+          0.4,
+          0.56
+        ],
+        "radio": 4.2,
+        "energia": 3.0,
+        "cada": 0,
+        "por_sala": true,
+        "radio_sala": 0.62
+      }
+    },
+    "parpadeo": {
+      "_nota": "Tubos fluorescentes que parpadean (the_pit): una de cada n luminarias; ráfaga de duracion s cada periodo_min + [0, periodo_var] s alternando alfa bajo/alto a frecuencia rad/s; charco de radio celdas y alfa.",
+      "cada": 5,
+      "duracion": 0.45,
+      "frecuencia": 55.0,
+      "bajo": 0.25,
+      "alto": 0.9,
+      "periodo_min": 3.5,
+      "periodo_var": 5.0,
+      "radio": 2.1,
+      "alfa": 0.11
+    },
+    "puertas": {
+      "_nota": "Door (puertas con lector, cerradura antigua, servicio y tornos): sensor = celdas a cada lado del hueco; apertura_s = tiempo mínimo abierta tras conceder acceso u open_for(); cierre_s = espera con el hueco libre antes de cerrar.",
+      "sensor": 1.3,
+      "apertura_s": 3.0,
+      "cierre_s": 0.6,
+      "acreditacion_torno": 1
+    },
+    "chispas": {
+      "_nota": "Chispas de la maquinaria de la nave (§14.3).",
+      "cantidad": 14,
+      "vida": 1.8,
+      "velocidad_min": 50.0,
+      "velocidad_max": 120.0,
+      "gravedad": 260.0
+    },
+    "cara_muro": 0.4,
+    "grosor_muro_dibujo": 0.42
   },
   "objetos": {
     "_nota": "Catálogo de objetos (§11.3), clave = id. category: ordinary | compromising (un objeto comprometedor hallado en un registro corporal es evidencia de peso definitivo, §12.4). value = valor nominal/reventa en €; stackable = varias unidades comparten posición del inventario (8 posiciones). kind: key, tool, card, food, supplies, clothing, uniform, cash, product, material, valuable, document, personal, post_tool. post_tool = herramienta de puesto (occupations.tools): la concede la silla, no ocupa inventario. El contenido de ordenadores y expedientes (npc_computer, computer, personnel_files) es información, no objeto. Los precios de tienda de balaclava/executive_suit mandan en economia.* (price_keys de clothes_shop).",
@@ -2246,7 +2349,21 @@
     "velocidad_barrido": 14.0,
     "enfriamiento_grabacion": 10.0,
     "intervalo_comprobacion": 0.2,
-    "espaciado_por_defecto": 12
+    "espaciado_por_defecto": 12,
+    "rayos": 40,
+    "refinado": 4,
+    "salto_refinado": 0.6,
+    "color_cuna": [
+      0.86,
+      0.16,
+      0.12
+    ],
+    "alfa_cuna_clara": 0.16,
+    "alfa_cuna_oscura": 0.11,
+    "alfa_cuna_alerta": 0.28,
+    "alfa_borde": 0.55,
+    "luminancia_clara": 0.55,
+    "tamano_cuerpo": 0.2
   },
   "audio": {
     "_nota": "Audio generado por código (§14.9-§14.11, §13.10). Hilo musical diegético que se degrada con la sospecha; efectos con subtítulo. Volúmenes lineales 0-1 salvo *_db.",
@@ -2277,7 +2394,7 @@
       "epilogue_hybrid": 104
     },
     "degradacion": {
-      "_nota": "§14.9. Banda = número de umbrales superados (sospecha > umbral). tempo = factor de tempo (sin transponer: estiramiento granular con granos de grano_s), irregular = desviación aleatoria de la velocidad de cinta, wow/flutter = profundidad de la oscilación de velocidad (estas tres sí mueven el tono), desafinadas/atonales = probabilidad por nota de la melodía, atonal_semitonos = saltos posibles (repetir un valor le da más peso), silencios/cortes por segundo, siseo = nivel de ruido de cinta, filtro_hz = pérdida de agudos.",
+      "_nota": "§14.9. Banda = número de umbrales superados (sospecha > umbral). tempo = factor de tempo SIN transponer (cada pulso se alarga: salto_antes_s antes del tiempo la cabeza retrocede con un fundido de salto_fundido_s), irregular = desviación aleatoria de la velocidad de cinta, wow/flutter = profundidad de la oscilación de velocidad (estas tres sí mueven el tono), desafinadas/atonales = probabilidad por nota de la melodía, atonal_semitonos = saltos posibles (repetir un valor le da más peso), silencios/cortes por segundo, siseo = nivel de ruido de cinta, filtro_hz = pérdida de agudos.",
       "umbrales": [
         25,
         50,
@@ -2361,7 +2478,8 @@
         0.4,
         1.6
       ],
-      "grano_s": 0.04
+      "salto_fundido_s": 0.012,
+      "salto_antes_s": 0.03
     },
     "corte_flagrancia_s": 1.0,
     "sfx": {
@@ -2451,51 +2569,54 @@
     "llegada_ventana_s": 3.0
   },
   "utilidad": {
-    "_nota": "PASO 16 / §7.5. Utilidad(acción) = sesgo + Σ rasgos[r] × rasgo/100 + creencia × Σ certezas de las creencias del personaje sobre el jugador + animo × ánimo (−1..1) + Σ relacion[k] × valor del registro (afecto/100, temor/100, deuda/100, agravios Σgravedad/registro.escala_utilidad_agravios, favores Σmagnitud/registro.escala_utilidad_favores) + rango × rango_jugador/33 + sospecha × sospecha/100 + reputacion × reputación/100 + oferta × ratio de oferta (0..1, solo sobornos). Ninguna regla explícita por rango: el término rango decide. report_to_superior y stay_silent (callar por temor) son extensiones del repertorio base.",
+    "_nota": "PASO 16 / §7.5. Utilidad(acción) = sesgo + Σ rasgos[r] × rasgo/100 + creencia × Σ certezas de las creencias del personaje sobre el jugador + animo × ánimo (−1..1) + Σ relacion[k] × valor del registro (afecto/100, temor/100, deuda/100, agravios Σgravedad/registro.escala_utilidad_agravios, favores Σmagnitud/registro.escala_utilidad_favores) + rango × rango_jugador/33 + sospecha × sospecha/100 + reputacion × reputación/100 + oferta × ratio de oferta (0..1, solo sobornos). Ninguna regla explícita por rango: el término rango decide. report_to_superior y stay_silent (callar por temor) son extensiones del repertorio base. Pesos de rasgos/creencia/rango/sospecha/reputación/sesgo de las acciones de reacción y de franja ajustados por programación lineal: cada arquetipo base elige su reacción de §12.2 con un jugador de rango 1 (≥ ~75 % de las variantes ±15), y George denuncia con rango 1 y calla con rango 28 para toda sospecha/reputación 0-100 y creencias previas (margen ≥ 0,25).",
     "work": {
       "rasgos": {
-        "perception": -1.6,
-        "ambition": -1.6,
-        "greed": -0.25,
-        "loyalty": -0.4,
-        "courage": -0.2,
-        "sociability": -0.15
+        "ambition": -2.83,
+        "loyalty": -1.99,
+        "greed": 0.0,
+        "courage": -0.78,
+        "perception": -0.76,
+        "sociability": -2.21
       },
-      "creencia": -0.8,
+      "creencia": -0.2,
       "animo": 0.3,
       "relacion": {},
       "rango": 0.0,
       "sospecha": 0.0,
       "reputacion": 0.0,
-      "sesgo": 3.15
+      "sesgo": 4.57
     },
     "gossip": {
       "rasgos": {
-        "sociability": 2.65,
-        "loyalty": -0.4,
-        "ambition": -0.1
+        "ambition": -2.54,
+        "loyalty": -3.0,
+        "greed": 0.92,
+        "courage": -0.67,
+        "perception": 1.51,
+        "sociability": 4.0
       },
-      "creencia": 0.5,
+      "creencia": 1.32,
       "animo": 0.1,
       "relacion": {
         "agravios": 0.4,
         "afecto": -0.2
       },
-      "rango": -0.3,
+      "rango": 0.0,
       "sospecha": 0.0,
       "reputacion": 0.0,
-      "sesgo": -1.65
+      "sesgo": -2.04
     },
     "report_to_security": {
       "rasgos": {
-        "loyalty": 1.0,
-        "courage": 1.4,
-        "ambition": 1.0,
-        "greed": -0.85,
-        "perception": 0.45,
-        "sociability": 0.2
+        "ambition": 1.5,
+        "loyalty": 0.83,
+        "greed": -0.48,
+        "courage": 0.71,
+        "perception": 2.63,
+        "sociability": -1.64
       },
-      "creencia": 1.0,
+      "creencia": 0.8,
       "animo": -0.2,
       "relacion": {
         "afecto": -0.5,
@@ -2504,20 +2625,21 @@
         "agravios": 0.4,
         "favores": -0.3
       },
-      "rango": -0.6,
-      "sospecha": 0.5,
-      "reputacion": -0.5,
-      "sesgo": -2.45
+      "rango": -1.7,
+      "sospecha": 0.3,
+      "reputacion": -0.3,
+      "sesgo": -2.38
     },
     "report_to_superior": {
       "rasgos": {
-        "loyalty": 2.45,
-        "ambition": 0.5,
-        "greed": -0.3,
-        "perception": -1.1,
-        "sociability": -1.25
+        "ambition": -1.45,
+        "loyalty": 4.0,
+        "greed": -2.77,
+        "courage": -2.69,
+        "perception": -0.79,
+        "sociability": -3.0
       },
-      "creencia": 0.8,
+      "creencia": 0.6,
       "animo": -0.1,
       "relacion": {
         "afecto": -0.4,
@@ -2526,21 +2648,21 @@
         "agravios": 0.3,
         "favores": -0.3
       },
-      "rango": -0.6,
-      "sospecha": 0.4,
-      "reputacion": -0.5,
-      "sesgo": -0.7
+      "rango": -1.0,
+      "sospecha": 0.3,
+      "reputacion": -0.3,
+      "sesgo": 1.62
     },
     "stay_silent": {
       "rasgos": {
-        "loyalty": -1.2,
-        "courage": -0.95,
-        "ambition": -0.6,
-        "greed": 0.15,
-        "perception": 1.0,
-        "sociability": 0.15
+        "ambition": -0.29,
+        "loyalty": -1.69,
+        "greed": 1.53,
+        "courage": -0.3,
+        "perception": 3.0,
+        "sociability": -1.86
       },
-      "creencia": 0.5,
+      "creencia": 0.6,
       "animo": 0.0,
       "relacion": {
         "afecto": 0.3,
@@ -2548,28 +2670,31 @@
         "deuda": 0.6,
         "favores": 0.3
       },
-      "rango": 0.4,
+      "rango": 0.5,
       "sospecha": 0.0,
       "reputacion": 0.0,
-      "sesgo": 0.55
+      "sesgo": 0.0
     },
     "confront_player": {
       "rasgos": {
-        "courage": 1.25,
-        "loyalty": -0.8,
-        "ambition": 0.4
+        "ambition": 0.0,
+        "loyalty": 0.0,
+        "greed": 0.0,
+        "courage": 1.0,
+        "perception": 0.0,
+        "sociability": 0.0
       },
-      "creencia": 0.6,
+      "creencia": 0.2,
       "animo": -0.3,
       "relacion": {
         "agravios": 0.4,
         "temor": -1.0,
         "afecto": -0.3
       },
-      "rango": -1.2,
-      "sospecha": 0.3,
-      "reputacion": -0.3,
-      "sesgo": -1.5
+      "rango": -0.5,
+      "sospecha": 0.0,
+      "reputacion": 0.0,
+      "sesgo": -0.63
     },
     "accept_bribe": {
       "rasgos": {
@@ -2606,7 +2731,12 @@
     },
     "generate_idea": {
       "rasgos": {
-        "ambition": 2.0
+        "ambition": 1.35,
+        "loyalty": -2.24,
+        "greed": 0.0,
+        "courage": 0.0,
+        "perception": 0.0,
+        "sociability": -0.95
       },
       "creencia": 0.0,
       "animo": 0.5,
@@ -2614,12 +2744,16 @@
       "rango": 0.0,
       "sospecha": 0.0,
       "reputacion": 0.0,
-      "sesgo": -1.5
+      "sesgo": 0.0
     },
     "rest": {
       "rasgos": {
-        "ambition": -1.0,
-        "loyalty": -0.5
+        "ambition": -3.0,
+        "loyalty": -2.43,
+        "greed": -0.11,
+        "courage": -0.88,
+        "perception": -0.67,
+        "sociability": -2.7
       },
       "creencia": 0.0,
       "animo": -1.5,
@@ -2627,13 +2761,18 @@
       "rango": 0.0,
       "sospecha": 0.0,
       "reputacion": 0.0,
-      "sesgo": 0.5
+      "sesgo": 4.98
     },
     "flee": {
       "rasgos": {
-        "courage": -1.25
+        "ambition": 0.0,
+        "loyalty": 0.0,
+        "greed": 0.0,
+        "courage": -1.0,
+        "perception": 0.0,
+        "sociability": 0.0
       },
-      "creencia": 0.4,
+      "creencia": 0.2,
       "animo": -0.2,
       "relacion": {
         "temor": 2.0
@@ -2641,7 +2780,7 @@
       "rango": 0.0,
       "sospecha": 0.0,
       "reputacion": 0.0,
-      "sesgo": -1.2
+      "sesgo": 0.0
     },
     "blackmail_player": {
       "rasgos": {
@@ -2663,29 +2802,32 @@
     },
     "sabotage_rival": {
       "rasgos": {
-        "ambition": 1.5,
-        "loyalty": -0.5,
-        "courage": 0.5
+        "ambition": 0.5,
+        "loyalty": 0.0,
+        "greed": 0.0,
+        "courage": 0.0,
+        "perception": 0.0,
+        "sociability": 0.0
       },
       "creencia": 0.0,
       "animo": -0.3,
       "relacion": {
         "agravios": 0.5
       },
-      "rango": -0.5,
+      "rango": 0.0,
       "sospecha": 0.0,
       "reputacion": 0.0,
-      "sesgo": -1.2
+      "sesgo": -2.22
     }
   },
   "registro": {
-    "_nota": "PASO 17 / §7.9 (NPCDirector). Gravedades y magnitudes en puntos; los agravios no decaen. precio_*: modificador del precio justo del soborno = clamp(1 + Σgravedad × precio_por_gravedad_agravio − Σmagnitud × precio_por_magnitud_favor, min, max). afecto_por_*: puntos de afecto por punto de gravedad/magnitud. deuda positiva = el personaje debe al jugador (suprime su denuncia; cada silencio consume deuda_consumida_por_silencio).",
+    "_nota": "PASO 17 / §7.9 (NPCDirector). Gravedades y magnitudes en puntos; los agravios no decaen. precio_*: modificador del precio justo del soborno = clamp(1 + Σgravedad × precio_por_gravedad_agravio − Σmagnitud × precio_por_magnitud_favor, min, max); la fórmula vive en Bribery.ledger_modifier_from y NPCDirector.get_bribe_price_modifier la delega (una sola fuente; valores = calibración de sobornos). afecto_por_*: puntos de afecto por punto de gravedad/magnitud. deuda positiva = el personaje debe al jugador (suprime su denuncia; cada silencio consume deuda_consumida_por_silencio).",
     "escala_utilidad_agravios": 20.0,
     "escala_utilidad_favores": 20.0,
     "afecto_por_gravedad_agravio": 2.0,
     "afecto_por_magnitud_favor": 2.0,
-    "precio_por_gravedad_agravio": 0.02,
-    "precio_por_magnitud_favor": 0.02,
+    "precio_por_gravedad_agravio": 0.05,
+    "precio_por_magnitud_favor": 0.04,
     "precio_modificador_min": 0.5,
     "precio_modificador_max": 3.0,
     "gravedad_silla_perdida": 10,
@@ -2719,10 +2861,15 @@
     "factor_denuncia_superior": 0.5,
     "dias_entre_denuncias": 1,
     "puntuacion_ascenso_merito": 1.0,
-    "puntuacion_ascenso_ambicion": 0.5
+    "puntuacion_ascenso_ambicion": 0.5,
+    "ocupaciones_vigilancia": [
+      "security_guard",
+      "guard_chief"
+    ],
+    "_nota_vigilancia": "Ocupaciones de vigilancia: get_effective_perception les suma Security.get_guard_perception_bonus() (nivel de alerta, §7.10)."
   },
   "rutinas": {
-    "_nota": "Posición estadística (§24.5, §20.1). hora_representativa_franja: momento del día que get_scheduled_location(npc, franja) consulta. minutos_paso: estancia en la sala de paso (via) al llegar/salir. minutos_por_sala_zona: la limpieza y las rondas cambian de sala cada N minutos.",
+    "_nota": "Posición estadística (§24.5, §20.1). hora_representativa_franja: momento del día que get_scheduled_location(npc, franja) consulta. minutos_paso: estancia en la sala de paso (via) al llegar/salir. minutos_por_sala_zona: la limpieza y las rondas cambian de sala cada N minutos. patrones_sala: ficha de rutina (floor_*) → fragmento del id de sala que la resuelve en la planta del personaje; sala_fotocopias_por_defecto: si la planta no tiene fotocopiadora. corrillo_fumadores: corrillo cuyas salidas cada 2 h añade la rutina. escaqueo_escalon_max: escalón máximo de los slackers (§24.3 paso 6).",
     "hora_representativa_franja": {
       "arrival": "08:45",
       "work_morning": "11:00",
@@ -2732,7 +2879,16 @@
       "night": "20:30"
     },
     "minutos_paso": 5,
-    "minutos_por_sala_zona": 60
+    "minutos_por_sala_zona": 60,
+    "patrones_sala": {
+      "floor_meeting_room": "meeting",
+      "floor_toilets": "_toilets",
+      "floor_pantry": "pantry",
+      "floor_copyroom": "copyroom"
+    },
+    "sala_fotocopias_por_defecto": "main_copyroom",
+    "corrillo_fumadores": "smokers_circle",
+    "escaqueo_escalon_max": 3
   },
   "grafo_social": {
     "_nota": "SocialGraph (PASO 15, §7.7, §19.6). Corrillo: cada par con vínculo que coincide en él conversa con probabilidad clamp(fuerza × amplificación del corrillo × propagation_bonus del arquetipo × sociabilidad ÷ sociabilidad_referencia, 0, 1); los tipos de tipos_propagacion_total conversan siempre (pareja: propagación total). Certeza transmitida = certeza del emisor × degradation del tipo de vínculo (si no tiene: creencias.descuento_por_transmision), factor acotado a creencias.amplificacion_rumor_max y certeza a 1 (§7.2, §7.13: 0,35 → 0,26 por departamento). rondas_por_corrillo = saltos por sesión. tipos_alcanzan_ausentes: el destinatario no necesita estar en el corrillo (la información relevante asciende al superior). arquetipos_sin_vinculos: sin aristas sociales (rookie, §8.3). Aislado = menos de min_vinculos_no_aislado vínculos salientes que propagan. Corrillos con interval_hours: cada N horas desde hora_primer_corrillo_periodico hasta tiempo.hora_fin_jornada (fumadores 10:00, como routine_common_modifiers). Deuda (§7.7, suprime la denuncia temporalmente): pierde deuda_decaimiento_diario de fuerza por jornada y desaparece al llegar a 0. kill_rumour entierra un hecho durante dias_rumor_enterrado jornadas. max_entradas_chat: tope del registro del chat legible por IT. paso_fuerza: redondeo de las fuerzas sorteadas (expediente legible y guardado JSON exacto).",
@@ -2749,10 +2905,11 @@
     ],
     "min_vinculos_no_aislado": 2,
     "hora_primer_corrillo_periodico": 10,
-    "deuda_decaimiento_diario": 0.01,
-    "dias_rumor_enterrado": 7,
+    "deuda_decaimiento_diario": 0.05,
+    "dias_rumor_enterrado": 1,
     "max_entradas_chat": 300,
-    "paso_fuerza": 0.01
+    "paso_fuerza": 0.01,
+    "amplificacion_secreto_descubierto": 1.0
   },
   "empresa": {
     "_nota": "Company (§6, §9.2, §9.10, §11.7, §19.8; PASO 21 y 32). Mérito del jugador en puntos; fundamentales por jornada (market.json starting_fundamentals). Ventanas en jornadas. cargos_*: ids de occupations.json.",
@@ -2826,5 +2983,84 @@
     "mecha_max_semanas_por_cargo": {
       "b10_director": 2
     }
+  },
+  "ordenador": {
+    "_nota": "StellarOS (§13.3, §15.1, PASO 22/25). Arrays *_por_nivel indexados por computer_tier-1 (occupations.json, 1..8): el terminal mejora con el rango. Tiempos en segundos REALES (el reloj de juego sigue corriendo a tiempo.velocidad_en_ordenador mientras tanto: un ordenador lento cuesta minutos de jornada). anuncio_emergente 0 = sin anuncios.",
+    "arranque_segundos_por_nivel": [
+      7.0,
+      5.5,
+      4.0,
+      3.0,
+      2.0,
+      1.2,
+      0.4,
+      0.0
+    ],
+    "anuncios_arranque_por_nivel": [
+      3,
+      3,
+      2,
+      2,
+      1,
+      1,
+      0,
+      0
+    ],
+    "retardo_ventana_segundos_por_nivel": [
+      1.2,
+      0.9,
+      0.6,
+      0.45,
+      0.3,
+      0.15,
+      0.05,
+      0.0
+    ],
+    "anuncio_emergente_segundos_por_nivel": [
+      11.0,
+      15.0,
+      24.0,
+      40.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "anuncio_emergente_max_simultaneos": 2,
+    "aspecto_por_nivel": [
+      "retro",
+      "retro",
+      "classic",
+      "classic",
+      "luna",
+      "luna",
+      "sovereign",
+      "sovereign"
+    ],
+    "banda_por_nivel": [
+      "the_pit",
+      "the_pit",
+      "the_specialists",
+      "the_specialists",
+      "the_power",
+      "the_power",
+      "the_throne",
+      "the_throne"
+    ],
+    "asistente_caracteres_por_segundo_por_nivel": [
+      45,
+      60,
+      90,
+      120,
+      180,
+      260,
+      420,
+      900
+    ],
+    "correo_reputacion_respuesta_erronea": -0.5,
+    "cuaderno_max_caracteres": 6000,
+    "cuaderno_max_entradas": 40,
+    "intrusion_inicio_sesion_segundos": 1.2,
+    "objeto_copia_documento": "foreign_document"
   }
 }

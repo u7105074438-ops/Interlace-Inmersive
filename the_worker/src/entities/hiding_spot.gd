@@ -22,7 +22,7 @@ func setup_spot(entry: Dictionary, p_room_id: String, p_cell_px: float, center_p
 	spot_type = str(entry.get("type", ""))
 	capacity = int(entry.get("capacity", 0))
 	can_hide_body = bool(entry.get("can_hide_body", false))
-	setup(str(entry["id"]), HIDING_TYPE, p_room_id, entry, p_cell_px, center_px)
+	setup(str(entry["id"]), HIDING_TYPE, p_room_id, entry.duplicate(true), p_cell_px, center_px)
 	add_to_group(HIDING_GROUP)
 
 

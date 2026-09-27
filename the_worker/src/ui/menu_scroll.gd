@@ -16,14 +16,23 @@ extends Control
 const MIN_VISIBLE := 160.0
 const FADE_PX := 72.0
 const PILL_PAD := 14.0
+## Fotogramas tras aparecer en que el foco inicial no desplaza (la maquetación aún se asienta).
+const SETTLE_FRAMES := 3
 
 var scroll: ScrollContainer
 var fade_color: Color = Color(0, 0, 0, 0)
+## false oculta el aviso «Más» (p. ej. mientras un texto se escribe solo).
+var hint_enabled: bool = true:
+	set(value):
+		hint_enabled = value
+		if _hint != null:
+			_hint.queue_redraw()
 var _content: Control
 var _hint: Control
 var _fit_root: Control
 var _fit_panel: Control
 var _fit_queued: bool = false
+var _ready_frame: int = 0
 
 
 func _init() -> void:
@@ -49,6 +58,7 @@ func _ready() -> void:
 	bar.changed.connect(_hint.queue_redraw)
 	bar.visibility_changed.connect(_hint.queue_redraw)
 	resized.connect(_queue_fit)
+	_ready_frame = Engine.get_process_frames()
 	get_viewport().gui_focus_changed.connect(_on_focus_changed)
 	_queue_fit()
 
@@ -74,10 +84,20 @@ func has_more_below() -> bool:
 	return bar.max_value - bar.page > 1.0 and bar.value < bar.max_value - bar.page - 1.0
 
 
-## Desplaza lo justo para ver el control enfocado (primero su borde superior).
+## Desplaza lo justo para ver el control enfocado (primero su borde superior). El foco inicial no
+## desplaza; los demás se atienden un fotograma después, con la maquetación ya asentada.
 func _on_focus_changed(control: Control) -> void:
 	if _content == null or control == null or not _content.is_ancestor_of(control):
 		return
+	if Engine.get_process_frames() - _ready_frame < SETTLE_FRAMES:
+		return
+	await get_tree().process_frame
+	if is_instance_valid(control) and control.is_inside_tree():
+		reveal(control)
+
+
+## Desplaza lo mínimo para que `control` (del contenido) se vea, priorizando su borde superior.
+func reveal(control: Control) -> void:
 	var top: float = control.get_global_rect().position.y - _content.get_global_rect().position.y
 	var bottom: float = top + control.size.y
 	var view: float = scroll.size.y
@@ -118,7 +138,7 @@ func available_height() -> float:
 
 
 func _draw_hint() -> void:
-	if not has_more_below():
+	if not hint_enabled or not has_more_below():
 		return
 	var bar: VScrollBar = scroll.get_v_scroll_bar()
 	var w: float = size.x - (bar.size.x if bar.visible else 0.0)
@@ -126,18 +146,19 @@ func _draw_hint() -> void:
 	var clear: Color = Color(fade_color, 0.0)
 	_hint.draw_polygon(PackedVector2Array([Vector2(0, size.y - fade_h), Vector2(w, size.y - fade_h),
 			Vector2(w, size.y), Vector2(0, size.y)]), PackedColorArray([clear, clear, fade_color, fade_color]))
-	_draw_pill(Vector2(w * 0.5, size.y - PILL_PAD * 1.6))
+	_draw_pill(w - PILL_PAD * 0.5, size.y - PILL_PAD * 1.6)
 
 
-## Píldora de tinta con «Más» y un chevrón hacia abajo.
-func _draw_pill(center: Vector2) -> void:
+## Píldora de tinta con «Más» y un chevrón hacia abajo, pegada a la derecha (junto a la barra).
+func _draw_pill(right: float, center_y: float) -> void:
 	var f: Font = MenuKit.font("bold")
 	var fsize: int = MenuKit.fs(MenuKit.FONT_SMALL)
 	var text: String = tr("UI_SCROLL_MORE").to_upper()
 	var tw: float = f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 	var chevron_w: float = fsize * 0.8
-	var pill: Rect2 = Rect2(center.x - (tw + chevron_w + PILL_PAD * 3.0) * 0.5, center.y - fsize * 0.75,
-			tw + chevron_w + PILL_PAD * 3.0, fsize * 1.5)
+	var pill_w: float = tw + chevron_w + PILL_PAD * 3.0
+	var center: Vector2 = Vector2(right - pill_w * 0.5, center_y)
+	var pill: Rect2 = Rect2(center.x - pill_w * 0.5, center.y - fsize * 0.75, pill_w, fsize * 1.5)
 	_hint.draw_rect(pill, MenuKit.color("ink"))
 	_hint.draw_rect(pill, MenuKit.color("amber"), false, 2.0)
 	var baseline: float = center.y + fsize * 0.34

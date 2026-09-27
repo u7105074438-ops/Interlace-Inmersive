@@ -8,6 +8,13 @@ extends Node2D
 ##   load_floor(floor) · get_current_floor() · get_room_at(world_pos) · get_room_rect_px(room_id)
 ##   cell_to_world(floor_cell) · find_path(from_px, to_room_id) · get_spawn_point(room_id)
 ##   get_interactables_in_room(room_id)
+## Coordenadas: las posiciones "world"/px son globales (se convierten con to_local/to_global, así
+## que game_root puede desplazar el streamer); get_room_rect_px devuelve px globales también.
+## Puertas con control de acceso (Door): get_door_node(a, b), get_door_by_id(id), get_doors();
+## set_door_policy(Callable(door, body) -> bool) decide si el jugador pasa (por defecto: su
+## acreditación y acceso especial; lectores y tornos anotan el paso en Security.log_card_access).
+## floor_changed lo emite SOLO el streamer, al cargar otra planta (el diálogo de planta llama a
+## load_floor; no debe emitirlo él también).
 ## Solo la planta actual existe como nodos; los planos (FloorLayout) de la actual y las adyacentes
 ## quedan en caché. Emite EventBus.room_exited/room_entered(room, true) al cambiar el jugador de sala
 ## (cada fotograma físico) y EventBus.floor_changed(old, new) al cargar otra planta (en la primera
@@ -17,10 +24,14 @@ extends Node2D
 
 signal floor_loaded(floor_number: int)
 signal door_crossed(door: Dictionary, from_room: String, to_room: String)
+## Reenvío de Door.access_requested (el jugador ante una puerta que no se le abre).
+signal door_access_requested(door: Door)
 
 const GROUP := "floor_streamer"
 const PLAYER_GROUP := "player"
-const DIAGONAL_COST := 1.41421356
+const PLAYER_CARD := "player"
+const MODE_AND := "and"
+const MODE_OR := "or"
 const NO_CELL := Vector2i(-1, -1)
 const ADJACENT_FLOORS := [-1, 1]
 const NO_INITIAL_FLOOR := -9999
@@ -45,6 +56,7 @@ var _astar: AStar2D = AStar2D.new()
 var _spawn_cells: Dictionary = {}
 var _player: Node2D = null
 var _player_room: String = ""
+var _door_policy: Callable = Callable()
 
 
 func _ready() -> void:
@@ -115,6 +127,9 @@ func _build_nodes() -> void:
 	_actor_layer.add_child(_props_root)
 	_actor_layer.move_child(_props_root, 0)
 	_index = RoomBuilder.build_floor(_plan, _floor_root, _props_root)
+	for door: Door in get_doors():
+		door.policy = _apply_door_policy
+		door.access_requested.connect(func(d: Door, _body: Node2D) -> void: door_access_requested.emit(d))
 
 
 ## Plano (en caché) de cualquier planta.
@@ -145,9 +160,9 @@ func get_actor_layer() -> Node2D:
 	return _actor_layer
 
 
-## Rectángulo de la planta en px (para límites de cámara y el mapa).
+## Rectángulo de la planta en px globales (para límites de cámara y el mapa).
 func get_floor_rect_px() -> Rect2:
-	return Rect2(Vector2.ZERO, Vector2(_plan.get("size", Vector2i.ZERO)) * _cell)
+	return Rect2(global_position, Vector2(_plan.get("size", Vector2i.ZERO)) * _cell)
 
 
 # ─── Geometría ────────────────────────────────────────────────
@@ -165,16 +180,17 @@ func get_room_rect_px(room_id: String) -> Rect2:
 	if not rooms.has(room_id):
 		return Rect2()
 	var r: Rect2i = rooms[room_id]
-	return Rect2(Vector2(r.position) * _cell, Vector2(r.size) * _cell)
+	return Rect2(to_global(Vector2(r.position) * _cell), Vector2(r.size) * _cell)
 
 
-## Centro en px de una celda de planta.
+## Centro en px globales de una celda de planta.
 func cell_to_world(floor_cell: Vector2i) -> Vector2:
-	return (Vector2(floor_cell) + Vector2(0.5, 0.5)) * _cell
+	return to_global((Vector2(floor_cell) + Vector2(0.5, 0.5)) * _cell)
 
 
 func world_to_cell(world_pos: Vector2) -> Vector2i:
-	return Vector2i(floori(world_pos.x / _cell), floori(world_pos.y / _cell))
+	var local: Vector2 = to_local(world_pos)
+	return Vector2i(floori(local.x / _cell), floori(local.y / _cell))
 
 
 func _cell_index(c: Vector2i) -> int:
@@ -228,15 +244,78 @@ func get_cameras() -> Array[SecurityCamera]:
 	return out
 
 
-## Puestos de trabajo de una sala: [{owner, type, furniture_index, cell, pos (px), facing}].
+## Puestos de trabajo de una sala: [{owner, type, furniture_index, cell, pos (px globales: el
+## punto exacto de la silla), facing}]. Un actor con su origen en `pos` queda sentado y visible.
 func get_seats_in_room(room_id: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	out.assign(_index.get("seats", {}).get(room_id, []))
+	for seat: Dictionary in _index.get("seats", {}).get(room_id, []):
+		out.append(seat.merged({"pos": to_global(seat["pos"])}, true))
 	return out
 
 
 func get_room_node(room_id: String) -> Node2D:
 	return _index.get("rooms", {}).get(room_id) as Node2D
+
+
+# ─── Puertas con control de acceso ────────────────────────────
+
+func get_doors() -> Array[Door]:
+	var out: Array[Door] = []
+	out.assign(_index.get("doors", []))
+	return out
+
+
+## Nodo Door de la puerta entre a y b (en cualquier orden), o null si es un hueco normal.
+func get_door_node(a: String, b: String) -> Door:
+	for door: Door in get_doors():
+		if (door.room_a == a and door.room_b == b) or (door.room_a == b and door.room_b == a):
+			return door
+	return null
+
+
+## Door por id ("door_<a>_<b>", o el id del interactivo del torno), o null.
+func get_door_by_id(door_id: String) -> Door:
+	for door: Door in get_doors():
+		if door.door_id == door_id:
+			return door
+	return null
+
+
+## Sustituye la política de acceso del jugador (Callable(door: Door, body: Node2D) -> bool).
+## Callable() vacío restaura la de por defecto.
+func set_door_policy(policy: Callable) -> void:
+	_door_policy = policy
+
+
+func _apply_door_policy(door: Door, body: Node2D) -> bool:
+	if _door_policy.is_valid():
+		return bool(_door_policy.call(door, body))
+	return default_door_policy(door, body)
+
+
+## Por defecto: cerradura antigua nunca (la abre el interactivo lock_old con llaves); el resto si la
+## acreditación del jugador llega y, si la sala pide acceso especial, según su modo (and/or).
+## Lectores y tornos dejan constancia en Security (card_reader_logged). Servicio: sin registro.
+func default_door_policy(door: Door, _body: Node2D) -> bool:
+	if door.kind == Door.KIND_OLD_LOCK or not _player_meets(door):
+		return false
+	if door.kind != Door.KIND_SERVICE:
+		Security.log_card_access(door.door_id, PLAYER_CARD, GameClock.get_day(), GameClock.get_hour(), door.room_b)
+	return true
+
+
+func _player_meets(door: Door) -> bool:
+	var level_ok: bool = PlayerState.get_clearance() >= door.clearance
+	if door.special_access.is_empty():
+		return level_ok
+	var occupation: OccupationData = PlayerState.get_occupation()
+	var special_ok: bool = false
+	for tag: String in door.special_access:
+		if occupation != null and occupation.special_access.has(tag):
+			special_ok = true
+	if door.special_mode == MODE_OR:
+		return level_ok or special_ok
+	return level_ok and special_ok if door.special_mode == MODE_AND else level_ok
 
 
 # ─── Navegación ───────────────────────────────────────────────
@@ -273,17 +352,18 @@ func _mark_room(room_id: String, owner: int) -> void:
 			_walkable[i] = 0 if blocked.has(Vector2i(x, y)) else 1
 	if room == null:
 		return
-	for entry: Dictionary in room.furniture:
-		if str(entry["type"]) == "cubicle":
-			_block_cubicle_sides(entry, rect.position)
+	for entry: Dictionary in FloorLayout.room_furniture(room):
+		if FurniturePainter.is_enclosure(str(entry["type"])):
+			_block_enclosure_sides(entry, rect.position)
 
 
-## Las mamparas laterales del cubículo impiden entrar por los costados de la fila del asiento.
-func _block_cubicle_sides(entry: Dictionary, origin: Vector2i) -> void:
+## Las mamparas laterales de un recinto (cubículo, cabina) impiden entrar por los costados de su
+## fila abierta: solo se entra por delante.
+func _block_enclosure_sides(entry: Dictionary, origin: Vector2i) -> void:
 	var fp: Rect2i = FurniturePainter.footprint(entry)
-	var seat_y: int = origin.y + FurniturePainter.seat_cell(entry).y
-	var left: Vector2i = Vector2i(origin.x + fp.position.x, seat_y)
-	var right: Vector2i = Vector2i(origin.x + fp.end.x - 1, seat_y)
+	var row: int = origin.y + FurniturePainter.open_row(entry)
+	var left: Vector2i = Vector2i(origin.x + fp.position.x, row)
+	var right: Vector2i = Vector2i(origin.x + fp.end.x - 1, row)
 	_blocked_edges[_edge_key(left, left + Vector2i.LEFT)] = true
 	_blocked_edges[_edge_key(right, right + Vector2i.RIGHT)] = true
 
@@ -297,7 +377,7 @@ func _add_nav_points(size: Vector2i) -> void:
 		for x: int in size.x:
 			var i: int = y * size.x + x
 			if _cell_owner[i] > 0 and _walkable[i] == 1:
-				_astar.add_point(i, cell_to_world(Vector2i(x, y)))
+				_astar.add_point(i, (Vector2(x, y) + Vector2(0.5, 0.5)) * _cell)
 
 
 func _can_step(a: Vector2i, b: Vector2i) -> bool:
@@ -372,14 +452,17 @@ func find_path_to_point(from_px: Vector2, to_px: Vector2) -> PackedVector2Array:
 	var b: int = _nearest_point(to_px)
 	if a < 0 or b < 0:
 		return PackedVector2Array()
-	return _simplify(_astar.get_point_path(a, b))
+	var path: PackedVector2Array = _simplify(_astar.get_point_path(a, b))
+	for i: int in path.size():
+		path[i] = to_global(path[i])
+	return path
 
 
 func _nearest_point(px: Vector2) -> int:
 	var i: int = _cell_index(world_to_cell(px))
 	if i >= 0 and _astar.has_point(i) and not _astar.get_point_connections(i).is_empty():
 		return i
-	return _astar.get_closest_point(px)
+	return _astar.get_closest_point(to_local(px))
 
 
 func _simplify(path: PackedVector2Array) -> PackedVector2Array:

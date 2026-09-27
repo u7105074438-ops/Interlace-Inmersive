@@ -14,9 +14,8 @@ extends Node2D
 const LAYER_FLOOR := 0
 const LAYER_WALLS := 1
 const LAYER_LIGHT := 2
-const WALL_MOUNTED: Array[String] = ["motivational_poster", "mirror"]
+const WALL_MOUNTED: Array[String] = ["motivational_poster", "mirror", "wall_clock", "fire_extinguisher"]
 const FLAT_FIRST: Array[String] = ["rug", "runway", "helipad", "window_wall"]
-const FACE_RATIO := 0.55
 const LIGHT_ALPHA := 0.13
 const AO_DEPTH := 0.45
 const AO_ALPHA := 0.22
@@ -28,28 +27,28 @@ const STAIN := Color(0.18, 0.16, 0.08, 0.13)
 const GROUT := Color(0, 0, 0, 0.09)
 const HATCH := Color(1, 1, 1, 0.05)
 const C_READER := Color("#26292e")
-const C_LED_LOCKED := Color("#ff5a4a")
 const C_LED_SERVICE := Color("#ffb347")
 const C_BRASS := Color("#c9a24a")
 const C_STEEL := Color("#aeb6bb")
 const C_HAZARD := Color("#f2c230")
 const C_EXIT_GREEN := Color("#39d97a")
-const C_EXTINGUISHER := Color("#d33a2c")
 const C_ROAD_LINE := Color("#e8d27a")
 const C_KERB := Color("#8c8f96")
 const C_MARBLE_VEIN := Color(0.5, 0.48, 0.44, 0.22)
 const C_MARBLE_GOLD := Color(0.78, 0.64, 0.33, 0.35)
-const C_LIGHT_WARM := Color(1.0, 0.86, 0.6)
-const C_LIGHT_COOL := Color(0.9, 1.0, 0.92)
 const LIGHT_GRID_CELLS := 4
-const FLICKER_EVERY := 5
+const WARM_LIT_TYPES: Array[String] = ["executive_desk", "bar_counter", "meeting_table", "sofa", "podium"]
 const POSTER_SPACING := {"high": 6, "medium": 10, "low": 16, "none": 0}
+## Material de suelo por palabra completa del id de sala (tokens separados por "_"). Un id que
+## no encaja con su palabra va en MATERIAL_BY_ID; una sala puede fijarlo con "floor_material".
 const MATERIAL_BY_KEYWORD: Dictionary = {
 	"toilets": "tile", "pantry": "tile", "kitchen": "tile", "infirmary": "tile", "spa": "tile",
-	"cafeteria": "tile", "break_room": "tile", "garage": "concrete", "warehouse": "concrete",
+	"cafeteria": "tile", "break": "tile", "garage": "concrete", "warehouse": "concrete",
 	"dock": "concrete", "workshop": "concrete", "store": "concrete", "gym": "rubber",
-	"terrace": "deck", "machine_room": "concrete", "server": "raised", "backup": "raised",
+	"terrace": "deck", "machine": "concrete", "server": "raised", "backup": "raised",
 }
+const MATERIAL_BY_ID: Dictionary = {"flagship_store": "shop_tile"}
+const KEY_FLOOR_MATERIAL := "floor_material"
 
 var layer: int = LAYER_FLOOR
 var room: RoomData = null
@@ -146,9 +145,13 @@ static func material_for(p_room: RoomData, band_id: String, spine: bool) -> Stri
 	var kind: String = FloorLayout.transit_kind_of(p_room)
 	if kind == FloorLayout.TRANSIT_SERVICE_STAIRS or kind == FloorLayout.TRANSIT_FREIGHT:
 		return "concrete"
-	for keyword: String in MATERIAL_BY_KEYWORD:
-		if id.contains(keyword):
-			return str(MATERIAL_BY_KEYWORD[keyword])
+	if p_room.extra.has(KEY_FLOOR_MATERIAL):
+		return str(p_room.extra[KEY_FLOOR_MATERIAL])
+	if MATERIAL_BY_ID.has(id):
+		return str(MATERIAL_BY_ID[id])
+	for token: String in id.split("_"):
+		if MATERIAL_BY_KEYWORD.has(token):
+			return str(MATERIAL_BY_KEYWORD[token])
 	if band_id == "the_guts":
 		return "concrete"
 	if band_id == "the_throne":
@@ -193,6 +196,16 @@ func _t() -> float:
 	return Database.get_balance_float("mundo.grosor_muro") * cell
 
 
+func _t_draw() -> float:
+	return Database.get_balance_float("mundo.grosor_muro_dibujo") * cell
+
+
+## Alto de la cara norte del muro en 3/4 (mundo.cara_muro celdas; ≈ radio de un actor, para que
+## quien pisa la fila de arriba quede al pie del muro y no encima).
+func _face() -> float:
+	return Database.get_balance_float("mundo.cara_muro") * cell
+
+
 # ─── Suelo ────────────────────────────────────────────────────
 
 func _draw_floor_layer() -> void:
@@ -214,7 +227,7 @@ func _draw_wall_occlusion(size: Vector2) -> void:
 	var depth: float = cell * AO_DEPTH
 	var dark: Color = Color(0, 0, 0, AO_ALPHA)
 	var none: Color = Color(0, 0, 0, 0)
-	var top: float = cell * FACE_RATIO
+	var top: float = _face() + _t_draw() * 0.5
 	var edges: Array = [[Vector2(0, top), Vector2(size.x, top), Vector2(0, 1)],
 			[Vector2(0, size.y), Vector2(size.x, size.y), Vector2(0, -1)],
 			[Vector2.ZERO, Vector2(0, size.y), Vector2(1, 0)], [Vector2(size.x, 0), size, Vector2(-1, 0)]]
@@ -522,31 +535,35 @@ func _footprint_px(entry: Dictionary) -> Rect2:
 
 # ─── Muros, puertas y ventanas ────────────────────────────────
 
-## Huecos por lado [[Vector2(desde, hasta)…] ×4] en celdas locales (puertas y salidas).
-func openings() -> Array:
+## Huecos por lado [[Vector2(desde, hasta)…] ×4] en celdas locales (puertas y, para el dibujo,
+## las salidas al exterior, que son puertas de cristal cerradas: se cruzan con su interactivo).
+func openings(include_exits: bool = true) -> Array:
 	var out: Array = [[], [], [], []]
 	for door: Dictionary in doors:
 		_add_opening(out, door["cell"], door["vertical"], int(door["width"]))
-	for t: Dictionary in exits:
-		_add_opening(out, t["door_cell"], t["door_vertical"], Database.get_balance_int("mundo.ancho_puerta"))
+	if include_exits:
+		for t: Dictionary in exits:
+			_add_opening(out, t["door_cell"], t["door_vertical"], Database.get_balance_int("mundo.ancho_puerta"))
 	for side: int in 4:
 		(out[side] as Array).sort()
 	return out
 
 
-## Tramos de muro [[lado, Vector2(desde, hasta)]…] en celdas locales (para colisiones).
+## Tramos de muro [[lado, Vector2(desde, hasta)]…] en celdas locales para colisiones: las salidas
+## no son hueco (sus puertas de cristal cierran el paso; solo se cruzan con el interactivo).
 func wall_segments() -> Array:
 	var out: Array = []
-	var holes: Array = openings()
+	var holes: Array = openings(false)
 	for side: int in 4:
 		for seg: Vector2 in _segments(side, holes[side]):
 			out.append([side, seg])
 	return out
 
 
-## Rectángulo en px locales del tramo de muro (grosor mundo.grosor_muro centrado en el borde).
-func segment_rect(side: int, seg: Vector2) -> Rect2:
-	var t: float = _t()
+## Rectángulo en px locales del tramo de muro centrado en el borde: grosor mundo.grosor_muro
+## (colisión) o, con `drawn`, mundo.grosor_muro_dibujo (más grueso: se lee a zoom de planta).
+func segment_rect(side: int, seg: Vector2, drawn: bool = false) -> Rect2:
+	var t: float = _t_draw() if drawn else _t()
 	match side:
 		FloorLayout.SIDE_TOP:
 			return Rect2(seg.x * cell - t * 0.5, -t * 0.5, (seg.y - seg.x) * cell + t, t)
@@ -637,27 +654,27 @@ func _has_windows() -> bool:
 			and str(style["transit"]).is_empty() and not is_spine
 
 
-## Color de coronación de muro (vista cenital): oscuro para que las salas se lean de lejos.
+## Color de coronación de muro (vista cenital, de la paleta): oscuro para leerse de lejos.
 func _cap() -> Color:
 	match str(style["band"]):
 		"the_throne":
-			return Color("#232327")
+			return _c("outline").lightened(0.08)
 		"the_power":
-			return Color("#3b2819")
+			return _c("shadow").lightened(0.08)
 		"the_guts", "exterior":
 			return _c("wall").lightened(0.08)
 	return _c("wall").darkened(0.5)
 
 
 func _draw_north_face(holes: Array) -> void:
-	var face: float = cell * FACE_RATIO
-	var t: float = _t()
+	var face: float = _face()
+	var y: float = _t_draw() * 0.5
 	for seg: Vector2 in _segments(FloorLayout.SIDE_TOP, holes):
-		var r: Rect2 = Rect2(seg.x * cell, t * 0.5, (seg.y - seg.x) * cell, face)
+		var r: Rect2 = Rect2(seg.x * cell, y, (seg.y - seg.x) * cell, face)
 		_face_fill(r)
 		if _has_windows():
 			for part: Vector2 in _exterior_parts(FloorLayout.SIDE_TOP, seg):
-				_draw_face_windows(Rect2(part.x * cell, t * 0.5, (part.y - part.x) * cell, face))
+				_draw_face_windows(Rect2(part.x * cell, y, (part.y - part.x) * cell, face))
 	if is_spine:
 		_draw_spine_decor(holes)
 
@@ -665,17 +682,16 @@ func _draw_north_face(holes: Array) -> void:
 ## Cara norte del muro (vista 3/4) con el acabado de la banda.
 func _face_fill(r: Rect2) -> void:
 	var wall: Color = _c("wall")
-	var band: String = str(style["band"])
 	draw_rect(r, wall)
 	draw_rect(Rect2(r.position.x, r.position.y + r.size.y * 0.62, r.size.x, r.size.y * 0.38), wall.darkened(0.08))
-	match band:
+	match str(style["band"]):
 		"the_power":
 			var panel: Rect2 = Rect2(r.position.x, r.position.y + r.size.y * 0.42, r.size.x, r.size.y * 0.58)
-			draw_rect(panel, Color("#6f4b2e"))
+			draw_rect(panel, _c("floor"))
 			for x: int in int(r.size.x / (cell * 0.5)):
 				draw_line(Vector2(r.position.x + x * cell * 0.5, panel.position.y + 3), Vector2(r.position.x + x * cell * 0.5,
-						panel.end.y - 5), Color("#5a3b22"), 1.0)
-			draw_line(panel.position, Vector2(panel.end.x, panel.position.y), C_BRASS, 2.0)
+						panel.end.y - 5), _c("floor").darkened(0.2), 1.0)
+			draw_line(panel.position, Vector2(panel.end.x, panel.position.y), _c("accent"), 2.0)
 		"the_throne":
 			draw_rect(Rect2(r.position.x, r.position.y + 2, r.size.x, r.size.y - 6), _c("window").lerp(wall, 0.35))
 			for x: int in int(r.size.x / cell) + 1:
@@ -703,9 +719,8 @@ func _draw_face_windows(r: Rect2) -> void:
 	var band: String = str(style["band"])
 	var glass: Color = _c("window")
 	var pane: float = cell * (1.0 if band == "the_throne" else 1.5)
-	var count: int = int(r.size.x / pane)
 	var frame: Color = _c("accent") if band in ["the_throne", "the_power"] else _cap()
-	for i: int in count:
+	for i: int in int(r.size.x / pane):
 		var w: Rect2 = Rect2(r.position.x + i * pane + 5.0, r.position.y + 3.0, pane - 10.0, r.size.y * 0.62)
 		if band == "the_throne":
 			w = Rect2(r.position.x + i * pane, r.position.y + 1.0, pane, r.size.y - 5.0)
@@ -718,20 +733,15 @@ func _draw_face_windows(r: Rect2) -> void:
 ## Pasillo: extintores, carteles motivacionales según la densidad de la banda y señal de salida.
 func _draw_spine_decor(holes: Array) -> void:
 	var spacing: int = int(POSTER_SPACING.get(str(style["posters"]), 0))
-	var face: float = cell * FACE_RATIO
-	var y: float = _t() * 0.5
+	var bottom: float = _t_draw() * 0.5 + _face()
 	for x: int in range(3, rect.size.x - 2, 9):
 		if not _in_holes(holes, x):
-			var ext: Rect2 = Rect2(x * cell + cell * 0.38, y + face * 0.3, cell * 0.24, face * 0.62)
-			draw_rect(ext, C_EXTINGUISHER)
-			draw_rect(Rect2(ext.position, Vector2(ext.size.x, 3)), Color("#1b1b1b"))
-			draw_rect(ext, _c("outline"), false, 1.5)
+			_painter.draw_item(self, {"type": "fire_extinguisher", "pos": Vector2i(x, 0)}, Rect2(x * cell, bottom, cell, cell))
 	if spacing > 0:
 		for x: int in range(6, rect.size.x - 2, spacing):
 			if not _in_holes(holes, x):
-				_painter.draw_item(self, {"type": "motivational_poster", "pos": Vector2i(x, 0)},
-						Rect2(x * cell, y + face * 0.95, cell, cell))
-	var sign: Rect2 = Rect2(cell * 0.6, y + 3.0, cell * 0.8, face * 0.4)
+				_painter.draw_item(self, {"type": "motivational_poster", "pos": Vector2i(x, 0)}, Rect2(x * cell, bottom, cell, cell))
+	var sign: Rect2 = Rect2(cell * 0.6, _t_draw() * 0.5 + 3.0, cell * 0.8, _face() * 0.55)
 	draw_rect(sign, C_EXIT_GREEN)
 	draw_rect(sign, _c("outline"), false, 1.5)
 	draw_colored_polygon(PackedVector2Array([sign.get_center() + Vector2(-6, -4), sign.get_center() + Vector2(6, 0),
@@ -745,19 +755,21 @@ func _in_holes(holes: Array, x: int) -> bool:
 	return false
 
 
+## Elementos colgados en la cara norte (carteles, espejos, relojes, extintores): el pie de su
+## dibujo queda en el pie de la cara del muro.
 func _draw_wall_mounted() -> void:
 	for entry: Dictionary in _furniture:
 		if WALL_MOUNTED.has(str(entry["type"])):
 			var r: Rect2 = _footprint_px(entry)
-			r.position.y += cell * FACE_RATIO * 0.95
+			r.position.y = _t_draw() * 0.5 + _face()
 			_painter.draw_item(self, entry, r)
 
 
 func _draw_wall_segment(side: int, seg: Vector2) -> void:
-	var r: Rect2 = segment_rect(side, seg)
+	var r: Rect2 = segment_rect(side, seg, true)
 	draw_rect(r, _cap())
 	if str(style["band"]) in ["the_throne", "the_power"]:
-		var inner: Rect2 = r.grow(-_t() * 0.32)
+		var inner: Rect2 = r.grow(-_t_draw() * 0.32)
 		if inner.size.x > 0.0 and inner.size.y > 0.0:
 			draw_rect(inner, _c("accent").darkened(0.15))
 	draw_rect(r, _c("outline"), false, OUTLINE_W)
@@ -768,7 +780,7 @@ func _draw_wall_segment(side: int, seg: Vector2) -> void:
 
 ## Ventana dentro del grosor del muro (lados sur, este y oeste).
 func _draw_wall_window(side: int, part: Vector2) -> void:
-	var t: float = _t()
+	var t: float = _t_draw()
 	var band: String = str(style["band"])
 	var margin: float = 0.35 if band != "the_throne" else 0.05
 	var from: float = (part.x + margin) * cell
@@ -785,39 +797,52 @@ func _draw_wall_window(side: int, part: Vector2) -> void:
 			r = Rect2(rect.size.x * cell - t * 0.32, from, t * 0.64, to - from)
 	draw_rect(r, _c("window").lightened(0.1))
 	var mullion: float = cell * (2.0 if band != "the_pit" else 1.5)
-	var length: float = to - from
-	for i: int in int(length / mullion) + 1:
+	for i: int in int((to - from) / mullion) + 1:
 		var a: Vector2 = r.position + (Vector2(i * mullion, 0) if side == FloorLayout.SIDE_BOTTOM else Vector2(0, i * mullion))
 		var b: Vector2 = a + (Vector2(0, r.size.y) if side == FloorLayout.SIDE_BOTTOM else Vector2(r.size.x, 0))
 		draw_line(a, b, _c("accent") if band in ["the_throne", "the_power"] else _cap(), 2.0)
 
 
-## Puerta: umbral en el hueco, jambas, hoja abierta hacia la sala b y lector/candado según tipo.
+## Puerta: umbral de color por tipo, marco a ambos lados y hoja. Las puertas con control de
+## acceso (lector, cerradura antigua, servicio) dibujan su hoja y lector en su nodo Door (estado
+## abierto/cerrado); aquí solo umbral y marco. Ascensor: puertas correderas de acero.
 func _draw_door(door: Dictionary) -> void:
-	var t: float = _t()
+	var t: float = _t_draw()
 	var vertical: bool = door["vertical"]
 	var start: Vector2 = (Vector2(door["cell"]) - Vector2(rect.position)) * cell
 	var span: float = float(door["width"]) * cell
 	var along: Vector2 = Vector2(0, 1) if vertical else Vector2(1, 0)
 	var across: Vector2 = Vector2(1, 0) if vertical else Vector2(0, 1)
 	var into_b: Vector2 = across * (1.0 if _b_is_positive(door) else -1.0)
-	var threshold: Rect2 = Rect2(start - across * t * 0.5, along * span + across * t).abs()
-	draw_rect(threshold, _c("floor").lightened(0.12))
-	draw_rect(threshold, _c("outline").lerp(_c("floor"), 0.5), false, 1.0)
 	var kind: String = str(door["kind"])
+	var threshold: Rect2 = Rect2(start - across * t * 0.5, along * span + across * t).abs()
+	draw_rect(threshold, _threshold_color(kind))
+	draw_rect(threshold.grow(-3.0), _c("outline").lerp(_threshold_color(kind), 0.6), false, 1.5)
 	if _door_room_kind(door) == FloorLayout.TRANSIT_ELEVATOR:
 		_draw_sliding_door(threshold, along)
-	else:
-		_draw_leaf(start + into_b * t * 0.5, along, into_b, span, kind)
+	elif not FloorLayout.is_controlled_door(door):
+		_draw_leaf(start + into_b * t * 0.5, along, into_b, span)
 	for end: Vector2 in [start, start + along * span]:
-		var post: Rect2 = Rect2(end - Vector2(t, t) * 0.5, Vector2(t, t))
-		draw_rect(post, _cap().darkened(0.2))
-		draw_rect(post, _c("outline"), false, 1.5)
-	if kind == FloorLayout.DOOR_READER or kind == FloorLayout.DOOR_SERVICE:
-		var reader_c: Vector2 = start + along * (span + t * 1.2) - into_b * t * 0.95
-		draw_rect(Rect2(reader_c - Vector2(5, 6), Vector2(10, 12)), C_READER)
-		draw_rect(Rect2(reader_c - Vector2(5, 6), Vector2(10, 12)), _c("outline"), false, 1.0)
-		draw_circle(reader_c + Vector2(0, -2), 2.4, C_LED_LOCKED if kind == FloorLayout.DOOR_READER else C_LED_SERVICE)
+		var post: Rect2 = Rect2(end - Vector2(t, t) * 0.62, Vector2(t, t) * 1.24)
+		draw_rect(post, _cap().lightened(0.12))
+		draw_rect(post, _c("outline"), false, 2.0)
+	if FloorLayout.is_controlled_door(door) and kind != FloorLayout.DOOR_OLD_LOCK:
+		var reader_c: Vector2 = start + along * (span + t * 1.25) - into_b * t * 0.95
+		draw_rect(Rect2(reader_c - Vector2(6, 8), Vector2(12, 16)), C_READER)
+		draw_rect(Rect2(reader_c - Vector2(6, 8), Vector2(12, 16)), _c("outline"), false, 1.5)
+		draw_rect(Rect2(reader_c + Vector2(-3, 1), Vector2(6, 4)), C_LED_SERVICE if kind == FloorLayout.DOOR_SERVICE else C_STEEL)
+
+
+## Umbral del hueco: acento de la banda (lector), madera (antigua), rayas de peligro (servicio).
+func _threshold_color(kind: String) -> Color:
+	match kind:
+		FloorLayout.DOOR_READER:
+			return _c("accent").lerp(_c("floor"), 0.35)
+		FloorLayout.DOOR_OLD_LOCK:
+			return _c("furniture").darkened(0.35)
+		FloorLayout.DOOR_SERVICE:
+			return C_HAZARD.darkened(0.25)
+	return _c("floor").lightened(0.18)
 
 
 func _b_is_positive(door: Dictionary) -> bool:
@@ -832,31 +857,18 @@ func _door_room_kind(door: Dictionary) -> String:
 	return FloorLayout.transit_kind_of(b) if b != null else ""
 
 
-## Hoja abierta 90º, pegada al muro por la bisagra (símbolo de plano, sin arco).
-func _draw_leaf(hinge_line: Vector2, along: Vector2, into_b: Vector2, span: float, kind: String) -> void:
+## Hoja abierta 90º hacia la sala b, gruesa, con arco de barrido y pomo (se lee a zoom de móvil).
+func _draw_leaf(hinge_line: Vector2, along: Vector2, into_b: Vector2, span: float) -> void:
 	var col: Color = _c("furniture").darkened(0.1)
-	match kind:
-		FloorLayout.DOOR_OLD_LOCK:
-			col = Color("#7a5230")
-		FloorLayout.DOOR_SERVICE:
-			col = Color("#8d969b")
-		FloorLayout.DOOR_READER:
-			col = _c("accent")
-	var thick: float = cell * 0.13
-	var length: float = span * 0.86
+	var thick: float = cell * 0.2
+	var length: float = span * 0.9
 	var hinge: Vector2 = hinge_line + along * thick * 0.5
+	draw_arc(hinge - along * thick * 0.5, length, along.angle(), into_b.angle(), 14, Color(_c("outline"), 0.45), 2.0)
 	var leaf: Rect2 = Rect2(hinge - along * thick * 0.5, into_b * length + along * thick).abs()
 	draw_rect(Rect2(leaf.position + Vector2(2, 3), leaf.size), Color(0, 0, 0, 0.25))
 	draw_rect(leaf, col)
-	draw_rect(leaf, _c("outline"), false, 1.5)
-	var knob: Vector2 = hinge + into_b * length * 0.85 + along * thick * 0.9
-	if kind == FloorLayout.DOOR_OLD_LOCK:
-		draw_circle(knob, 3.5, C_BRASS)
-		draw_circle(knob, 1.3, Color("#1b1b1b"))
-	elif kind == FloorLayout.DOOR_SERVICE:
-		draw_line(hinge + into_b * length * 0.25, hinge + into_b * length * 0.7, C_HAZARD, thick * 0.5)
-	else:
-		draw_circle(knob, 2.2, C_STEEL)
+	draw_rect(leaf, _c("outline"), false, 2.0)
+	draw_circle(hinge + into_b * length * 0.82 + along * thick * 0.9, 3.0, C_STEEL)
 
 
 func _draw_sliding_door(threshold: Rect2, along: Vector2) -> void:
@@ -868,96 +880,113 @@ func _draw_sliding_door(threshold: Rect2, along: Vector2) -> void:
 		draw_line(panel.get_center() - along * 4.0, panel.get_center() + along * 4.0, C_STEEL.lightened(0.3), 2.0)
 
 
-## Puertas de cabina del ascensor en el muro opuesto a su entrada, con indicador de planta.
+## Cabina del ascensor en el fondo (muro opuesto a la entrada): marco, puertas de acero,
+## indicador de planta encendido y botonera de llamada junto a la puerta.
 func _draw_elevator_car(holes: Array) -> void:
 	if str(style["transit"]) != FloorLayout.TRANSIT_ELEVATOR:
 		return
 	var entry_on_top: bool = not (holes[FloorLayout.SIDE_TOP] as Array).is_empty()
-	var w: float = cell * 2.4
+	var w: float = minf(cell * 3.0, rect.size.x * cell - cell * 1.2)
 	var x: float = rect.size.x * cell * 0.5 - w * 0.5
-	var y: float = rect.size.y * cell - _t() * 0.5 - cell * 0.18 if entry_on_top else _t() * 0.5
-	var doors: Rect2 = Rect2(x, y, w, cell * FACE_RATIO if not entry_on_top else cell * 0.18)
-	draw_rect(doors.grow(4.0), _cap().darkened(0.1))
+	var y: float = rect.size.y * cell - _t_draw() * 0.5 - cell * 1.1 if entry_on_top else _t_draw() * 0.5
+	var shaft: Rect2 = Rect2(x, y, w, cell * 1.1 if entry_on_top else _face() + cell * 0.7)
+	draw_rect(shaft.grow(5.0), _cap())
+	draw_rect(shaft.grow(5.0), _c("outline"), false, 2.0)
 	for k: int in 2:
-		var panel: Rect2 = Rect2(x + k * w * 0.5 + 1.0, doors.position.y, w * 0.5 - 2.0, doors.size.y)
-		draw_rect(panel, C_STEEL)
+		var panel: Rect2 = Rect2(x + k * w * 0.5 + 1.5, shaft.position.y, w * 0.5 - 3.0, shaft.size.y)
+		draw_rect(panel, C_STEEL.lerp(_c("wall"), 0.2))
+		draw_rect(Rect2(panel.position, Vector2(panel.size.x, panel.size.y * 0.3)), C_STEEL.lightened(0.18))
 		draw_rect(panel, _c("outline"), false, 1.5)
-	var lamp: Vector2 = Vector2(x + w * 0.5, doors.position.y - 6.0 if not entry_on_top else doors.end.y + 6.0)
-	draw_rect(Rect2(lamp - Vector2(10, 4), Vector2(20, 8)), Color("#1b1d21"))
-	draw_colored_polygon(PackedVector2Array([lamp + Vector2(-4, 2), lamp + Vector2(4, 2), lamp + Vector2(0, -3)]), C_LED_SERVICE)
+	var lamp: Vector2 = Vector2(x + w * 0.5, shaft.position.y - 12.0 if not entry_on_top else shaft.end.y + 12.0)
+	draw_rect(Rect2(lamp - Vector2(16, 6), Vector2(32, 12)), Color("#15171b"))
+	draw_rect(Rect2(lamp - Vector2(16, 6), Vector2(32, 12)), _c("outline"), false, 1.5)
+	draw_colored_polygon(PackedVector2Array([lamp + Vector2(-5, 3), lamp + Vector2(5, 3), lamp + Vector2(0, -4)]), C_LED_SERVICE)
+	var panel_c: Vector2 = Vector2(shaft.end.x + cell * 0.45, shaft.get_center().y)
+	draw_rect(Rect2(panel_c - Vector2(7, 12), Vector2(14, 24)), C_STEEL.darkened(0.2))
+	draw_rect(Rect2(panel_c - Vector2(7, 12), Vector2(14, 24)), _c("outline"), false, 1.5)
+	draw_circle(panel_c + Vector2(0, -5), 3.5, C_EXIT_GREEN)
+	draw_circle(panel_c + Vector2(0, 5), 3.5, C_LED_SERVICE)
 
 
+## Salida al exterior: puertas dobles de cristal cerradas (colisión en RoomBuilder), felpudo y cartel.
 func _draw_exit_door(t: Dictionary) -> void:
 	var width: float = Database.get_balance_int("mundo.ancho_puerta") * cell
 	var start: Vector2 = (Vector2(t["door_cell"]) - Vector2(rect.position)) * cell
 	var along: Vector2 = Vector2(0, 1) if t["door_vertical"] else Vector2(1, 0)
-	var thick: float = _t()
-	var mat: Rect2 = Rect2(start - Vector2(thick, thick) * 0.5, along * width + Vector2(thick, thick)).abs()
-	draw_rect(mat, Color("#2e3238"))
-	for k: int in 2:
-		var a: Vector2 = start + along * (k * width * 0.52)
-		var r: Rect2 = Rect2(a - Vector2(thick, thick) * 0.3, along * width * 0.46 + Vector2(thick, thick) * 0.6).abs()
-		draw_rect(r, _c("window").lightened(0.2))
-		draw_rect(r, _c("outline"), false, 1.5)
+	var thick: float = _t_draw()
 	var inward: Vector2 = (Vector2(1, 0) if t["door_vertical"] else Vector2(0, 1))
 	if Vector2i(t["cell"]) != Vector2i(t["door_cell"]):
 		inward = -inward
-	var sign_pos: Vector2 = start + along * width * 0.5 + inward * cell * 0.5
-	draw_rect(Rect2(sign_pos - Vector2(11, 6), Vector2(22, 12)), C_EXIT_GREEN)
-	draw_rect(Rect2(sign_pos - Vector2(11, 6), Vector2(22, 12)), _c("outline"), false, 1.0)
-	draw_colored_polygon(PackedVector2Array([sign_pos + Vector2(-5, -3), sign_pos + Vector2(5, 0), sign_pos + Vector2(-5, 3)]),
+	var mat: Rect2 = Rect2(start + inward * thick * 0.5, along * width + inward * cell * 0.7).abs()
+	draw_rect(mat, _c("shadow").darkened(0.2))
+	draw_rect(mat.grow(-4.0), _c("accent").darkened(0.2), false, 2.0)
+	for k: int in 2:
+		var a: Vector2 = start + along * (k * width * 0.5)
+		var r: Rect2 = Rect2(a - Vector2(thick, thick) * 0.4, along * width * 0.5 + Vector2(thick, thick) * 0.8).abs()
+		draw_rect(r, _c("window").lightened(0.25))
+		draw_rect(r, _c("outline"), false, 2.0)
+		draw_line(r.get_center() - along * 6.0, r.get_center() + along * 6.0, C_STEEL, 3.0)
+	for end: Vector2 in [start, start + along * width]:
+		draw_rect(Rect2(end - Vector2(thick, thick) * 0.62, Vector2(thick, thick) * 1.24), _cap().lightened(0.12))
+	var sign_pos: Vector2 = start + along * width * 0.5 + inward * cell * 1.05
+	draw_rect(Rect2(sign_pos - Vector2(14, 8), Vector2(28, 16)), C_EXIT_GREEN)
+	draw_rect(Rect2(sign_pos - Vector2(14, 8), Vector2(28, 16)), _c("outline"), false, 1.5)
+	draw_colored_polygon(PackedVector2Array([sign_pos + Vector2(-6, -4), sign_pos + Vector2(6, 0), sign_pos + Vector2(-6, 4)]),
 			Color.WHITE)
 
 
 # ─── Luz ──────────────────────────────────────────────────────
 
+## Luz aditiva por banda (color "light" de la paleta; alfa × art_bands lighting.intensity).
 func _draw_light_layer() -> void:
 	var lighting: Dictionary = style.get("lighting", {})
+	var strength: float = float(lighting.get("intensity", 1.0))
 	match str(lighting.get("type", "")):
 		"fluorescent":
-			_light_panels(C_LIGHT_COOL, LIGHT_ALPHA)
+			_light_panels(_c("light"), LIGHT_ALPHA * strength)
 		"uniform":
-			_light_panels(Color.WHITE, LIGHT_ALPHA * 0.7)
+			_light_panels(_c("light"), LIGHT_ALPHA * 0.7 * strength)
 		"indirect":
-			_light_wall_wash()
+			_light_wall_wash(strength)
 		"natural":
-			_light_sun_shafts()
+			_light_sun_shafts(strength)
 
 
-## Rejilla de luminarias: charcos suaves (los que parpadean los pone RoomBuilder como nodos).
+## Rejilla de luminarias: charcos suaves (los que parpadean los pone FloorLighting como nodos).
 func _light_panels(col: Color, alpha: float) -> void:
+	var flicker: bool = bool(style["lighting"].get("flicker", false))
 	for pos: Vector2 in light_points():
-		var i: int = int(pos.x * 3.0 + pos.y * 7.0)
-		if bool(style["lighting"].get("flicker", false)) and i % FLICKER_EVERY == 0:
+		if flicker and FloorLighting.is_flicker_point(pos):
 			continue
-		draw_light_pool(self, pos, cell * LIGHT_RADIUS_CELLS, col, alpha)
+		FloorLighting.draw_light_pool(self, pos, cell * LIGHT_RADIUS_CELLS, col, alpha)
 
 
-## Centros de luminaria (px locales) en rejilla de LIGHT_GRID_CELLS celdas.
+## Centros de luminaria (px locales) de esta sala.
 func light_points() -> Array[Vector2]:
+	return grid_points(rect.size, is_spine, cell)
+
+
+## Centros de luminaria (px locales) en rejilla de LIGHT_GRID_CELLS celdas (más espaciada en el eje).
+static func grid_points(size: Vector2i, spine: bool, cell_px: float) -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	var step: int = LIGHT_GRID_CELLS if not is_spine else LIGHT_GRID_CELLS + 2
-	var y: float = rect.size.y * 0.5 if rect.size.y < LIGHT_GRID_CELLS * 2 else LIGHT_GRID_CELLS * 0.5
-	while y < rect.size.y:
-		var x: float = minf(LIGHT_GRID_CELLS * 0.5, rect.size.x * 0.5)
-		while x < rect.size.x:
-			out.append(Vector2(x, y) * cell)
+	var step: int = LIGHT_GRID_CELLS if not spine else LIGHT_GRID_CELLS + 2
+	var y: float = size.y * 0.5 if size.y < LIGHT_GRID_CELLS * 2 else LIGHT_GRID_CELLS * 0.5
+	while y < size.y:
+		var x: float = minf(LIGHT_GRID_CELLS * 0.5, size.x * 0.5)
+		while x < size.x:
+			out.append(Vector2(x, y) * cell_px)
 			x += step
 		y += LIGHT_GRID_CELLS
 	return out
 
 
-## Charco de luz suave (textura radial compartida); aditivo si el lienzo usa ese material.
-static func draw_light_pool(ci: CanvasItem, c: Vector2, radius: float, col: Color, alpha: float) -> void:
-	ci.draw_texture_rect(RoomBuilder.light_texture(), Rect2(c - Vector2(radius, radius), Vector2(radius, radius) * 2.0),
-			false, Color(col.r, col.g, col.b, alpha))
-
-
-func _light_wall_wash() -> void:
+## Luz cálida indirecta (the_power): baño en la base de los muros y charcos sobre los muebles nobles.
+func _light_wall_wash(strength: float) -> void:
 	var size: Vector2 = _size_px()
 	var depth: float = cell * 1.1
-	var warm: Color = Color(C_LIGHT_WARM.r, C_LIGHT_WARM.g, C_LIGHT_WARM.b, 0.09)
-	var none: Color = Color(C_LIGHT_WARM.r, C_LIGHT_WARM.g, C_LIGHT_WARM.b, 0.0)
+	var warm_c: Color = _c("light")
+	var warm: Color = Color(warm_c, 0.09 * strength)
+	var none: Color = Color(warm_c, 0.0)
 	var edges: Array = [[Vector2.ZERO, Vector2(size.x, 0), Vector2(0, 1)],
 			[Vector2(0, size.y), Vector2(size.x, size.y), Vector2(0, -1)],
 			[Vector2.ZERO, Vector2(0, size.y), Vector2(1, 0)], [Vector2(size.x, 0), size, Vector2(-1, 0)]]
@@ -968,13 +997,14 @@ func _light_wall_wash() -> void:
 		draw_polygon(PackedVector2Array([a, b, b + n * depth, a + n * depth]),
 				PackedColorArray([warm, warm, none, none]))
 	for entry: Dictionary in _furniture:
-		if str(entry["type"]) in ["executive_desk", "bar_counter", "meeting_table", "sofa", "podium"]:
-			draw_light_pool(self, _footprint_px(entry).get_center(), cell * 2.2, C_LIGHT_WARM, 0.16)
+		if str(entry["type"]) in WARM_LIT_TYPES:
+			FloorLighting.draw_light_pool(self, _footprint_px(entry).get_center(), cell * 2.2, warm_c, 0.16 * strength)
 
 
-func _light_sun_shafts() -> void:
-	var sun: Color = Color(1.0, 0.98, 0.9, 0.12)
-	var none: Color = Color(1.0, 0.98, 0.9, 0.0)
+## Haces de sol oblicuos que entran por las ventanas del norte (the_throne).
+func _light_sun_shafts(strength: float) -> void:
+	var sun: Color = Color(_c("light"), 0.12 * strength)
+	var none: Color = Color(_c("light"), 0.0)
 	var slant: Vector2 = Vector2(cell * 1.2, cell * 3.4)
 	for seg: Vector2 in _exterior_parts(FloorLayout.SIDE_TOP, Vector2(0, rect.size.x)):
 		var x: float = seg.x * cell
@@ -983,143 +1013,3 @@ func _light_sun_shafts() -> void:
 			draw_polygon(PackedVector2Array([Vector2(x, 0), Vector2(x + w, 0), Vector2(x + w, 0) + slant, Vector2(x, 0) + slant]),
 					PackedColorArray([sun, sun, none, none]))
 			x += cell * 1.8
-
-
-# ─── Fondo de planta: ciudad a los pies, tierra, patio o calle nocturna ──
-
-class Backdrop extends Node2D:
-	const EXTRA_CELLS := 30
-	const BLOCK_CELLS := 9.0
-	const Z_BACKDROP := -40
-	const CITY_BASE: Dictionary = {
-		"the_pit": Color("#2c3230"), "the_specialists": Color("#2a3644"), "the_power": Color("#23252d"),
-		"the_throne": Color("#7f93a3"),
-	}
-	const C_EARTH := Color("#161715")
-	const C_YARD := Color("#34332f")
-	const C_NIGHT := Color("#141821")
-	const C_WINDOW_LIT := Color("#ffd98a")
-	const C_TREE := Color("#24442d")
-	const ROOM_SHADOW := Color(0, 0, 0, 0.42)
-
-	var plan: Dictionary = {}
-	var cell: float = 48.0
-	var band: String = ""
-	var pal: Dictionary = {}
-	var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
-
-	func setup(p_plan: Dictionary, p_cell: float) -> void:
-		plan = p_plan
-		cell = p_cell
-		band = str(plan.get("band", ""))
-		pal = RoomPainter.palette_of(Database.get_art_band(band))
-		z_as_relative = false
-		z_index = Z_BACKDROP
-		name = "Backdrop"
-
-	func _draw() -> void:
-		_rng.seed = hash(int(plan.get("floor", 0)))
-		var size: Vector2 = Vector2(plan.get("size", Vector2i.ONE)) * cell
-		var extra: Vector2 = Vector2.ONE * EXTRA_CELLS * cell
-		var outer: Rect2 = Rect2(-extra, size + extra * 2.0)
-		match band:
-			"the_guts":
-				_earth(outer)
-			"exterior":
-				_blocks(outer, C_NIGHT, true)
-			"factory":
-				_yard(outer)
-			_:
-				_hatch(outer, CITY_BASE.get(band, C_NIGHT))
-		_room_shadows()
-		for mark: Dictionary in plan.get("landmarks", []):
-			var r: Rect2i = mark["rect"]
-			_facade(Rect2(Vector2(r.position) * cell, Vector2(r.size) * cell))
-
-	## Manzanas vistas desde lo alto: tejados apenas contrastados, calles y (de noche) ventanas.
-	func _blocks(outer: Rect2, base: Color, night: bool) -> void:
-		draw_rect(outer, base)
-		var step: float = cell * BLOCK_CELLS
-		var y: float = outer.position.y
-		while y < outer.end.y:
-			var x: float = outer.position.x
-			while x < outer.end.x:
-				var b: Rect2 = Rect2(x + cell, y + cell, step - cell * 2.0, step - cell * 2.0)
-				draw_rect(b, base.lightened(_rng.randf_range(0.02, 0.07)))
-				draw_rect(b.grow(-cell * 0.6), base.lightened(_rng.randf_range(0.0, 0.04)))
-				if night:
-					_night_detail(b, base)
-				x += step
-			y += step
-
-	## Torre: fondo liso con trama diagonal tenue (el vacío alrededor del forjado).
-	func _hatch(outer: Rect2, base: Color) -> void:
-		draw_rect(outer, base)
-		var step: float = cell * 0.75
-		var line: Color = base.lightened(0.06)
-		var t: float = 0.0
-		while t < outer.size.x + outer.size.y:
-			var a: Vector2 = outer.position + Vector2(t - outer.size.y, 0.0)
-			draw_line(a, a + Vector2(outer.size.y, outer.size.y), line, 1.5)
-			t += step
-
-	func _night_detail(b: Rect2, base: Color) -> void:
-		for i: int in 5:
-			var w: Vector2 = b.position + Vector2(_rng.randf() * b.size.x, _rng.randf() * b.size.y)
-			draw_rect(Rect2(w, Vector2(5, 5)), C_WINDOW_LIT.darkened(0.2) if _rng.randf() < 0.5 else base.lightened(0.12))
-		for i: int in 2:
-			var t: Vector2 = b.position + Vector2(_rng.randf() * b.size.x, b.size.y + cell * 0.5)
-			draw_circle(t, cell * 0.55, C_TREE)
-			draw_circle(t + Vector2(-cell * 0.15, -cell * 0.15), cell * 0.25, C_TREE.lightened(0.12))
-
-	func _earth(outer: Rect2) -> void:
-		draw_rect(outer, C_EARTH)
-		for i: int in int(outer.get_area() / (cell * cell * 4.0)):
-			var p: Vector2 = outer.position + Vector2(_rng.randf() * outer.size.x, _rng.randf() * outer.size.y)
-			draw_circle(p, _rng.randf_range(2.0, 6.0), C_EARTH.lightened(_rng.randf_range(0.02, 0.06)))
-
-	func _yard(outer: Rect2) -> void:
-		draw_rect(outer, C_YARD)
-		var x: float = outer.position.x
-		while x < outer.end.x:
-			draw_line(Vector2(x, outer.position.y), Vector2(x, outer.end.y), Color(1, 1, 1, 0.04), 2.0)
-			x += cell * 3.0
-
-	## Sombra arrojada de cada sala sobre el fondo (maqueta recortada).
-	func _room_shadows() -> void:
-		var offset: Vector2 = Vector2(cell * 0.22, cell * 0.32)
-		for r: Rect2i in plan.get("rooms", {}).values():
-			var px: Rect2 = Rect2(Vector2(r.position) * cell, Vector2(r.size) * cell)
-			draw_rect(Rect2(px.position + offset, px.size).grow(cell * 0.1), Color(0, 0, 0, ROOM_SHADOW.a * 0.5))
-			draw_rect(Rect2(px.position + offset, px.size), ROOM_SHADOW)
-
-	## Fachada de la sede en el exterior: cristal, ventanas encendidas, marquesina y estrella.
-	func _facade(r: Rect2) -> void:
-		draw_rect(Rect2(r.position + Vector2(10, 14), r.size), Color(0, 0, 0, 0.45))
-		draw_rect(r, Color("#1b2430"))
-		var band_h: float = cell * 1.1
-		var rows: int = int((r.size.y - cell) / band_h)
-		for row: int in rows:
-			var strip: Rect2 = Rect2(r.position.x + 8.0, r.position.y + row * band_h + 8.0, r.size.x - 16.0, band_h * 0.62)
-			draw_rect(strip, Color("#2d4058"))
-			var x: float = strip.position.x
-			while x < strip.end.x - cell:
-				var w: float = cell * _rng.randf_range(0.8, 2.4)
-				if _rng.randf() < 0.4:
-					draw_rect(Rect2(x, strip.position.y, minf(w, strip.end.x - x), strip.size.y), C_WINDOW_LIT.darkened(0.25))
-				x += w
-			for k: int in int(strip.size.x / cell) + 1:
-				draw_line(Vector2(strip.position.x + k * cell, strip.position.y), Vector2(strip.position.x + k * cell,
-						strip.end.y), Color("#131a24"), 2.0)
-		var canopy: Rect2 = Rect2(r.position.x, r.end.y - cell * 0.7, r.size.x, cell * 0.7)
-		draw_rect(canopy, pal.get("accent", Color.GOLD).darkened(0.3))
-		draw_line(canopy.position, Vector2(canopy.end.x, canopy.position.y), pal.get("accent", Color.GOLD), 3.0)
-		draw_rect(r, pal.get("outline", Color.BLACK), false, 3.0)
-		var c: Vector2 = Vector2(r.get_center().x, r.position.y + r.size.y * 0.4)
-		var star: PackedVector2Array = []
-		for k: int in 10:
-			star.append(c + Vector2.UP.rotated(k * TAU / 10.0) * cell * (1.6 if k % 2 == 0 else 0.68))
-		draw_colored_polygon(star, pal.get("accent", Color.GOLD))
-		var loop: PackedVector2Array = star.duplicate()
-		loop.append(star[0])
-		draw_polyline(loop, pal.get("outline", Color.BLACK), 2.5)

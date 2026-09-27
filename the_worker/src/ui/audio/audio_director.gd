@@ -63,6 +63,8 @@ const PERCENT := 100.0
 const MIN_LINEAR := 0.0001
 const NO_FLOOR := -1000000
 const NEVER := -1.0e9
+## Grupo de FloorStreamer (por nombre: el audio no depende de que el mundo compile).
+const STREAMER_GROUP := "floor_streamer"
 
 ## Directores vivos en orden de llegada; el último es el activo.
 static var _stack: Array[AudioDirector] = []
@@ -863,29 +865,32 @@ func _is_seated(node: Node2D) -> bool:
 func _is_in_view(pos: Vector2) -> bool:
 	if not _view.has_area() or not _view.has_point(pos):
 		return false
-	var streamer: FloorStreamer = _streamer()
-	if streamer == null or _player_room.is_empty():
+	var streamer: Node2D = _streamer()
+	if streamer == null or _player_room.is_empty() or not streamer.has_method("get_room_at"):
 		return true
-	return streamer.get_room_at(streamer.to_local(pos)) == _player_room
+	return str(streamer.call("get_room_at", streamer.to_local(pos))) == _player_room
 
 
+## Asientos de la planta cargada (FloorStreamer.get_seats_in_room de cada sala), en coordenadas globales.
 func _refresh_seats() -> void:
-	var streamer: FloorStreamer = _streamer()
-	if streamer == null:
+	var streamer: Node2D = _streamer()
+	if streamer == null or not streamer.has_method("get_seats_in_room"):
 		_seats = PackedVector2Array()
 		_seat_floor = NO_FLOOR
 		return
-	if streamer.get_current_floor() == _seat_floor and not _seats.is_empty():
+	var current: int = int(streamer.call("get_current_floor"))
+	if current == _seat_floor and not _seats.is_empty():
 		return
-	_seat_floor = streamer.get_current_floor()
+	_seat_floor = current
 	_seats = PackedVector2Array()
-	for room_id: Variant in (streamer.get_plan().get("rooms", {}) as Dictionary).keys():
-		for seat: Dictionary in streamer.get_seats_in_room(str(room_id)):
-			_seats.append(streamer.to_global(seat["pos"]))
+	var plan: Dictionary = streamer.call("get_plan")
+	for room_id: Variant in (plan.get("rooms", {}) as Dictionary).keys():
+		for seat: Variant in streamer.call("get_seats_in_room", str(room_id)):
+			_seats.append(streamer.to_global((seat as Dictionary)["pos"]))
 
 
-func _streamer() -> FloorStreamer:
-	return get_tree().get_first_node_in_group(FloorStreamer.GROUP) as FloorStreamer
+func _streamer() -> Node2D:
+	return get_tree().get_first_node_in_group(STREAMER_GROUP) as Node2D
 
 
 ## Rectángulo del mundo que se ve en pantalla (vacío si no hay vista).

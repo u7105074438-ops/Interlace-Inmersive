@@ -24,7 +24,8 @@ const KEY_DEPARTMENTS := "departments"
 const KEY_SLOTS := "slots"
 const KEY_NOTE := "_nota"
 ## Escalón máximo con indicador slacker (§24.3 paso 6: escalones 1 a 3).
-const SLACKER_MAX_TIER := 3
+## Escalón máximo de los slackers (§24.3 paso 6: escalones 1-3), en balance.json.
+const B_SLACKER_MAX_TIER := "rutinas.escaqueo_escalon_max"
 ## RR. HH. incorpora siempre un Rookie cuando nadie cualifica para una vacante (§6.3).
 const HIRE_ARCHETYPE := "rookie"
 
@@ -267,12 +268,11 @@ func _home_address_for(tier: int) -> String:
 func _roll_slacker(tier: int, external: bool) -> bool:
 	var probability: float = float(_rules.get("slacker_probability_tier_1_3", 0.0))
 	var roll: float = _rng.randf()
-	if tier > SLACKER_MAX_TIER:
+	if tier > Database.get_balance_int(B_SLACKER_MAX_TIER):
 		return false
 	if external and bool(_rules.get("slacker_excludes_external", true)):
 		return false
 	return roll < probability
-
 
 
 func _roll_gatherings(npc: NPCRuntime) -> Array[String]:

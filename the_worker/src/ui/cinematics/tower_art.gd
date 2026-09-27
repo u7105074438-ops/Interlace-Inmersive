@@ -5,7 +5,8 @@ class_name TowerArt
 extends Control
 
 ## Uso: añadir como hijo, ajustar tamaño/anclas y propiedades públicas.
-## Dos capas: el corte estático se dibuja en _draw() SOLO cuando cambia algo (tamaño o propiedad);
+## Dos capas: el corte estático se pinta SOLO cuando cambia algo (tamaño o propiedad), en una
+## textura (CachedCanvas: una llamada de dibujo por fotograma) o directo si cache_static = false;
 ## una capa hija «Live» redibuja cada fotograma únicamente lo animado (baliza, humo, cinta, parpadeo
 ## de fluorescentes, ascensor y figura). animate = false congela también esa capa.
 ## floor_rect(f) da el rectángulo local de una planta para colocar otros elementos encima.
@@ -68,6 +69,14 @@ const PEOPLE_BY_DENSITY: Dictionary = {
 		_changed()
 ## Anima la capa viva (baliza, humo, figura...). false = torre congelada (sin trabajo por fotograma).
 @export var animate: bool = true
+## Pinta el corte estático una vez en una textura (CachedCanvas): una sola llamada de dibujo por
+## fotograma. false = dibujo directo (la apertura, que cambia de tamaño cada fotograma).
+@export var cache_static: bool = true:
+	set(value):
+		cache_static = value
+		if _cache != null:
+			_cache.visible = value
+		_changed()
 ## Sombra plana desplazada detrás del edificio (profundidad sobre el fondo).
 @export var drop_shadow: bool = true:
 	set(value):
@@ -135,6 +144,9 @@ var elevator_floor: float = 0.0:
 		_live_changed()
 
 var _live: Control
+var _cache: CachedCanvas
+## Lienzo del pintado estático en curso (self o el lienzo de la caché).
+var _ci: CanvasItem
 var _time: float = 0.0
 var _unit: float = 10.0
 var _cx: float = 0.0
@@ -142,9 +154,16 @@ var _ground: float = 0.0
 var _layout_size: Vector2 = Vector2(-1, -1)
 var _layout_flags: int = -1
 var _layout_anchor: float = -1.0
+var _palette_seen: int = -1
 
 
 func _init() -> void:
+	_ci = self
+	_cache = CachedCanvas.new()
+	_cache.name = "Static"
+	_cache.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_cache.painter = _paint
+	add_child(_cache, false, Node.INTERNAL_MODE_FRONT)
 	_live = Control.new()
 	_live.name = "Live"
 	_live.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -155,6 +174,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_palette_seen = MenuKit.palette_version()
 	resized.connect(_changed)
 	if mist_color.a <= 0.0:
 		mist_color = MenuKit.color("paper_dim")
@@ -166,13 +186,24 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
+	if _palette_seen != MenuKit.palette_version():
+		_palette_seen = MenuKit.palette_version()
+		_changed()
 	if animate and is_visible_in_tree():
 		_time += delta
 		_live.queue_redraw()
 
 
+## Repinta ambas capas (colores, idioma o ajustes cambiados desde fuera).
+func refresh() -> void:
+	_changed()
+
+
 func _changed() -> void:
-	queue_redraw()
+	if cache_static and _cache != null:
+		_cache.refresh()
+	else:
+		queue_redraw()
 	_live_changed()
 
 
@@ -301,6 +332,13 @@ func _veiled(c: Color) -> Color:
 # ─── Capa estática ─────────────────────────────────────────────
 
 func _draw() -> void:
+	if not cache_static:
+		_paint(self)
+
+
+## Pinta el corte estático en `canvas` (este control o el lienzo interno de la caché).
+func _paint(canvas: CanvasItem) -> void:
+	_ci = canvas
 	_compute_layout()
 	if show_ground:
 		_draw_ground()
@@ -327,32 +365,32 @@ func _draw_drop_shadow() -> void:
 	var off: Vector2 = Vector2(_unit * 0.35, _unit * 0.25)
 	for f: int in range(0, TOP_FLOOR + 1):
 		var r: Rect2 = floor_rect(f)
-		draw_rect(Rect2(r.position + off, r.size), shade)
+		_ci.draw_rect(Rect2(r.position + off, r.size), shade)
 	var roof: Rect2 = floor_rect(ROOF)
-	draw_rect(Rect2(roof.position + off, roof.size), shade)
+	_ci.draw_rect(Rect2(roof.position + off, roof.size), shade)
 	if show_factory:
 		var fr: Rect2 = floor_rect(factory_floor())
-		draw_rect(Rect2(fr.position + off, fr.size), shade)
+		_ci.draw_rect(Rect2(fr.position + off, fr.size), shade)
 
 
 func _draw_ground() -> void:
 	var guts: Dictionary = MenuKit.band_palette("the_guts")
 	var street: Dictionary = MenuKit.band_palette("exterior")
-	draw_rect(Rect2(0, _ground, size.x, size.y - _ground), guts.get("shadow", Color.BLACK))
+	_ci.draw_rect(Rect2(0, _ground, size.x, size.y - _ground), guts.get("shadow", Color.BLACK))
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = hash("tower_earth")
 	var pebble: Color = guts.get("carpet", Color.DIM_GRAY)
 	for i: int in 60:
 		var p: Vector2 = Vector2(rng.randf() * size.x, _ground + _unit * 0.6 + rng.randf() * (size.y - _ground))
-		draw_circle(p, _unit * rng.randf_range(0.04, 0.12), pebble)
+		_ci.draw_circle(p, _unit * rng.randf_range(0.04, 0.12), pebble)
 	var road_h: float = _unit * 0.32
-	draw_rect(Rect2(0, _ground - road_h * 0.25, size.x, road_h), street.get("floor", Color.DIM_GRAY))
-	draw_line(Vector2(0, _ground - road_h * 0.25), Vector2(size.x, _ground - road_h * 0.25),
+	_ci.draw_rect(Rect2(0, _ground - road_h * 0.25, size.x, road_h), street.get("floor", Color.DIM_GRAY))
+	_ci.draw_line(Vector2(0, _ground - road_h * 0.25), Vector2(size.x, _ground - road_h * 0.25),
 			street.get("outline", Color.BLACK), _lw())
 	var dash: float = _unit * 0.8
 	var x: float = 0.0
 	while x < size.x:
-		draw_line(Vector2(x, _ground + road_h * 0.3), Vector2(x + dash * 0.5, _ground + road_h * 0.3),
+		_ci.draw_line(Vector2(x, _ground + road_h * 0.3), Vector2(x + dash * 0.5, _ground + road_h * 0.3),
 				street.get("accent", Color.YELLOW), maxf(1.0, _unit * 0.05))
 		x += dash
 
@@ -360,17 +398,17 @@ func _draw_ground() -> void:
 func _draw_floor(f: int, r: Rect2) -> void:
 	var band: Dictionary = MenuKit.band_for_floor(f)
 	var pal: Dictionary = band.get("colors", {})
-	draw_rect(r, pal.get("wall", Color.GRAY))
+	_ci.draw_rect(r, pal.get("wall", Color.GRAY))
 	if f >= 0:
 		_draw_windows(f, r, pal)
 	else:
 		_draw_pipes(r, pal)
 	var carpet_h: float = r.size.y * 0.2
-	draw_rect(Rect2(r.position.x, r.end.y - carpet_h, r.size.x, carpet_h), pal.get("carpet", Color.GRAY))
+	_ci.draw_rect(Rect2(r.position.x, r.end.y - carpet_h, r.size.x, carpet_h), pal.get("carpet", Color.GRAY))
 	_draw_furniture(f, r, band)
 	_draw_shaft_and_stairs(r, pal)
-	draw_rect(Rect2(r.position.x, r.end.y - _lw() * 1.5, r.size.x, _lw() * 1.5), pal.get("outline", Color.BLACK))
-	draw_rect(r, pal.get("outline", Color.BLACK), false, _lw())
+	_ci.draw_rect(Rect2(r.position.x, r.end.y - _lw() * 1.5, r.size.x, _lw() * 1.5), pal.get("outline", Color.BLACK))
+	_ci.draw_rect(r, pal.get("outline", Color.BLACK), false, _lw())
 
 
 ## Ventanas de una planta (rectángulos locales), compartidas por la capa estática y la viva.
@@ -397,16 +435,16 @@ func _draw_windows(f: int, r: Rect2, pal: Dictionary) -> void:
 	var thin: float = maxf(1.0, _lw() * 0.6)
 	for i: int in rects.size():
 		var wr: Rect2 = rects[i]
-		draw_rect(wr, pal.get("light", Color.WHITE) if _is_lit(f, i) else pal.get("window", Color.GRAY))
-		draw_line(wr.position + Vector2(wr.size.x * 0.2, wr.size.y * 0.8),
+		_ci.draw_rect(wr, pal.get("light", Color.WHITE) if _is_lit(f, i) else pal.get("window", Color.GRAY))
+		_ci.draw_line(wr.position + Vector2(wr.size.x * 0.2, wr.size.y * 0.8),
 				wr.position + Vector2(wr.size.x * 0.55, wr.size.y * 0.2), Color(1, 1, 1, 0.35), thin)
-		draw_rect(wr, pal.get("outline", Color.BLACK), false, thin)
+		_ci.draw_rect(wr, pal.get("outline", Color.BLACK), false, thin)
 
 
 func _draw_pipes(r: Rect2, pal: Dictionary) -> void:
 	var y: float = r.position.y + r.size.y * 0.18
-	draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), pal.get("furniture", Color.BROWN), _unit * 0.12)
-	draw_line(Vector2(r.position.x, y + _unit * 0.16), Vector2(r.end.x, y + _unit * 0.16),
+	_ci.draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), pal.get("furniture", Color.BROWN), _unit * 0.12)
+	_ci.draw_line(Vector2(r.position.x, y + _unit * 0.16), Vector2(r.end.x, y + _unit * 0.16),
 			pal.get("accent", Color.GREEN), _unit * 0.06)
 	var lamp_count: int = 3
 	var beam: Color = Color(pal.get("light", Color.WHITE), 0.22)
@@ -416,8 +454,8 @@ func _draw_pipes(r: Rect2, pal: Dictionary) -> void:
 			Vector2(lx - _unit * 0.1, y + _unit * 0.2), Vector2(lx + _unit * 0.1, y + _unit * 0.2),
 			Vector2(lx + _unit * 0.55, r.end.y - r.size.y * 0.2), Vector2(lx - _unit * 0.55, r.end.y - r.size.y * 0.2),
 		]
-		draw_colored_polygon(cone, beam)
-		draw_circle(Vector2(lx, y + _unit * 0.2), _unit * 0.08, pal.get("light", Color.WHITE))
+		_ci.draw_colored_polygon(cone, beam)
+		_ci.draw_circle(Vector2(lx, y + _unit * 0.2), _unit * 0.08, pal.get("light", Color.WHITE))
 
 
 func _draw_furniture(f: int, r: Rect2, band: Dictionary) -> void:
@@ -442,21 +480,21 @@ func _draw_desk(base: Vector2, band_id: String, pal: Dictionary, f: int) -> void
 	var h: float = _unit * 0.3
 	if band_id == "the_guts":
 		var crate: Rect2 = Rect2(base.x - _unit * 0.35, base.y - _unit * 0.42, _unit * 0.7, _unit * 0.42)
-		draw_rect(crate, pal.get("furniture", Color.BROWN))
-		draw_rect(crate, ink, false, maxf(1.0, _lw() * 0.7))
+		_ci.draw_rect(crate, pal.get("furniture", Color.BROWN))
+		_ci.draw_rect(crate, ink, false, maxf(1.0, _lw() * 0.7))
 		return
 	var top: Rect2 = Rect2(base.x - w * 0.5, base.y - h, w, _unit * 0.08)
-	draw_rect(Rect2(base.x - w * 0.42, base.y - h, _unit * 0.06, h), ink)
-	draw_rect(Rect2(base.x + w * 0.42 - _unit * 0.06, base.y - h, _unit * 0.06, h), ink)
-	draw_rect(top, pal.get("furniture", Color.BEIGE))
-	draw_rect(top, ink, false, maxf(1.0, _lw() * 0.6))
+	_ci.draw_rect(Rect2(base.x - w * 0.42, base.y - h, _unit * 0.06, h), ink)
+	_ci.draw_rect(Rect2(base.x + w * 0.42 - _unit * 0.06, base.y - h, _unit * 0.06, h), ink)
+	_ci.draw_rect(top, pal.get("furniture", Color.BEIGE))
+	_ci.draw_rect(top, ink, false, maxf(1.0, _lw() * 0.6))
 	if band_id == "the_throne":
 		var plant: Color = MenuKit.band_palette("the_pit").get("accent", Color.GREEN)
-		draw_circle(Vector2(base.x + w * 0.62, base.y - _unit * 0.28), _unit * 0.2, plant)
+		_ci.draw_circle(Vector2(base.x + w * 0.62, base.y - _unit * 0.28), _unit * 0.2, plant)
 		return
 	var screen: Rect2 = Rect2(base.x - _unit * 0.18, base.y - h - _unit * 0.26, _unit * 0.36, _unit * 0.24)
-	draw_rect(screen, ink)
-	draw_rect(screen.grow(-_unit * 0.04), pal.get("accent", Color.BLUE) if f % 2 == 0 else pal.get("window", Color.GRAY))
+	_ci.draw_rect(screen, ink)
+	_ci.draw_rect(screen.grow(-_unit * 0.04), pal.get("accent", Color.BLUE) if f % 2 == 0 else pal.get("window", Color.GRAY))
 
 
 func _draw_people(f: int, floor_y: float, inner_l: float, inner_r: float, band: Dictionary) -> void:
@@ -465,7 +503,7 @@ func _draw_people(f: int, floor_y: float, inner_l: float, inner_r: float, band: 
 	var body: Color = pal.get("shadow", Color.DIM_GRAY)
 	for i: int in count:
 		var x: float = lerpf(inner_l, inner_r, _hash01(f * 53 + i * 11))
-		MenuKit.draw_person(self, Vector2(x, floor_y), _unit * 0.55, body, body.lightened(0.15),
+		MenuKit.draw_person(_ci, Vector2(x, floor_y), _unit * 0.55, body, body.lightened(0.15),
 				pal.get("outline", Color.BLACK))
 
 
@@ -473,15 +511,15 @@ func _draw_turnstiles(base: Vector2, pal: Dictionary) -> void:
 	var accent: Color = MenuKit.band_palette("exterior").get("accent", Color.YELLOW)
 	for i: int in 3:
 		var x: float = base.x + (i - 1) * _unit * 0.42
-		draw_rect(Rect2(x - _unit * 0.08, base.y - _unit * 0.36, _unit * 0.16, _unit * 0.36), pal.get("outline", Color.BLACK))
-		draw_line(Vector2(x, base.y - _unit * 0.3), Vector2(x + _unit * 0.2, base.y - _unit * 0.3), accent, maxf(1.0, _lw()))
+		_ci.draw_rect(Rect2(x - _unit * 0.08, base.y - _unit * 0.36, _unit * 0.16, _unit * 0.36), pal.get("outline", Color.BLACK))
+		_ci.draw_line(Vector2(x, base.y - _unit * 0.3), Vector2(x + _unit * 0.2, base.y - _unit * 0.3), accent, maxf(1.0, _lw()))
 
 
 func _draw_shaft_and_stairs(r: Rect2, pal: Dictionary) -> void:
 	var shaft: Rect2 = Rect2(r.position.x + _unit * 0.15, r.position.y, _unit * SHAFT_UNITS, r.size.y)
-	draw_rect(shaft, pal.get("shadow", Color.DIM_GRAY))
+	_ci.draw_rect(shaft, pal.get("shadow", Color.DIM_GRAY))
 	var rail: Color = pal.get("outline", Color.BLACK)
-	draw_line(shaft.position + Vector2(shaft.size.x * 0.5, 0), Vector2(shaft.get_center().x, shaft.end.y), rail, maxf(1.0, _lw() * 0.5))
+	_ci.draw_line(shaft.position + Vector2(shaft.size.x * 0.5, 0), Vector2(shaft.get_center().x, shaft.end.y), rail, maxf(1.0, _lw() * 0.5))
 	var sx0: float = r.end.x - _unit * (SHAFT_UNITS + 0.9)
 	var sx1: float = r.end.x - _unit * 0.35
 	var steps: int = 5
@@ -489,8 +527,8 @@ func _draw_shaft_and_stairs(r: Rect2, pal: Dictionary) -> void:
 	for i: int in steps + 1:
 		var t: float = float(i) / steps
 		pts.append(Vector2(lerpf(sx0, sx1, t), r.end.y - r.size.y * 0.2 - (r.size.y * 0.8) * t))
-	draw_polyline(pts, pal.get("furniture", Color.BEIGE).darkened(0.35), maxf(2.0, _unit * 0.1))
-	draw_polyline(pts, rail, maxf(1.0, _lw() * 0.5))
+	_ci.draw_polyline(pts, pal.get("furniture", Color.BEIGE).darkened(0.35), maxf(2.0, _unit * 0.1))
+	_ci.draw_polyline(pts, rail, maxf(1.0, _lw() * 0.5))
 
 
 func _draw_band_seams() -> void:
@@ -502,21 +540,21 @@ func _draw_band_seams() -> void:
 			var r: Rect2 = floor_rect(f)
 			var accent: Color = (band.get("colors", {}) as Dictionary).get("accent", Color.WHITE)
 			var seam: Rect2 = Rect2(r.position.x - _unit * 0.25, r.end.y - _unit * 0.1, r.size.x + _unit * 0.5, _unit * 0.2)
-			draw_rect(seam, accent)
-			draw_rect(seam, MenuKit.color("ink"), false, _lw())
+			_ci.draw_rect(seam, accent)
+			_ci.draw_rect(seam, MenuKit.color("ink"), false, _lw())
 		previous = band_id
 
 
 func _draw_roof(r: Rect2) -> void:
 	var pal: Dictionary = MenuKit.band_palette("the_throne")
 	var ink: Color = pal.get("outline", Color.BLACK)
-	draw_rect(r, pal.get("wall", Color.WHITE))
-	draw_rect(r, ink, false, _lw())
+	_ci.draw_rect(r, pal.get("wall", Color.WHITE))
+	_ci.draw_rect(r, ink, false, _lw())
 	var pad_c: Vector2 = Vector2(r.position.x + r.size.x * 0.3, r.position.y - _unit * 0.05)
-	draw_line(pad_c + Vector2(-_unit * 0.7, 0), pad_c + Vector2(_unit * 0.7, 0), ink, _unit * 0.12)
+	_ci.draw_line(pad_c + Vector2(-_unit * 0.7, 0), pad_c + Vector2(_unit * 0.7, 0), ink, _unit * 0.12)
 	var mast_top: Vector2 = _mast_top()
-	draw_line(Vector2(mast_top.x, r.position.y), mast_top, ink, maxf(2.0, _unit * 0.1))
-	draw_line(Vector2(mast_top.x - _unit * 0.3, r.position.y - _unit * 0.6), Vector2(mast_top.x + _unit * 0.3, r.position.y - _unit * 0.6), ink, _lw())
+	_ci.draw_line(Vector2(mast_top.x, r.position.y), mast_top, ink, maxf(2.0, _unit * 0.1))
+	_ci.draw_line(Vector2(mast_top.x - _unit * 0.3, r.position.y - _unit * 0.6), Vector2(mast_top.x + _unit * 0.3, r.position.y - _unit * 0.6), ink, _lw())
 	if show_sign:
 		_draw_sign(Rect2(r.position.x + r.size.x * 0.02, r.position.y - _unit * 1.05, r.size.x * 0.6, _unit * 0.8))
 
@@ -528,17 +566,17 @@ func _mast_top() -> Vector2:
 
 func _draw_sign(r: Rect2) -> void:
 	var ink: Color = MenuKit.color("ink")
-	draw_rect(Rect2(r.position.x + r.size.x * 0.2, r.end.y, _unit * 0.08, _unit * 0.25), ink)
-	draw_rect(Rect2(r.end.x - r.size.x * 0.2, r.end.y, _unit * 0.08, _unit * 0.25), ink)
-	draw_rect(r, MenuKit.color("night"))
-	draw_rect(r, ink, false, _lw())
+	_ci.draw_rect(Rect2(r.position.x + r.size.x * 0.2, r.end.y, _unit * 0.08, _unit * 0.25), ink)
+	_ci.draw_rect(Rect2(r.end.x - r.size.x * 0.2, r.end.y, _unit * 0.08, _unit * 0.25), ink)
+	_ci.draw_rect(r, MenuKit.color("night"))
+	_ci.draw_rect(r, ink, false, _lw())
 	var star_c: Vector2 = Vector2(r.position.x + r.size.y * 0.5, r.get_center().y)
-	draw_colored_polygon(_star(star_c, r.size.y * 0.34, r.size.y * 0.15), MenuKit.color("amber"))
+	_ci.draw_colored_polygon(_star(star_c, r.size.y * 0.34, r.size.y * 0.15), MenuKit.color("amber"))
 	var text: String = tr("UI_COMPANY_NAME")
 	var f: Font = MenuKit.font("bold")
 	var avail: float = r.size.x - r.size.y * 1.1
 	var fsize: int = _fit_size(f, text, maxi(8, roundi(r.size.y * 0.5)), avail)
-	draw_string(f, Vector2(r.position.x + r.size.y * 0.95, r.get_center().y + fsize * 0.36), text,
+	_ci.draw_string(f, Vector2(r.position.x + r.size.y * 0.95, r.get_center().y + fsize * 0.36), text,
 			HORIZONTAL_ALIGNMENT_LEFT, avail, fsize, MenuKit.color("lamp"))
 
 
@@ -559,21 +597,21 @@ func _draw_factory(r: Rect2) -> void:
 	for i: int in teeth:
 		roof.append(Vector2(r.position.x + i * tooth_w, r.position.y - _unit * 0.7))
 		roof.append(Vector2(r.position.x + (i + 1) * tooth_w, r.position.y))
-	draw_colored_polygon(roof, pal.get("wall", Color.GRAY))
+	_ci.draw_colored_polygon(roof, pal.get("wall", Color.GRAY))
 	for i: int in teeth:
 		var x0: float = r.position.x + i * tooth_w
 		var glass: PackedVector2Array = [Vector2(x0, r.position.y - _unit * 0.7), Vector2(x0 + _unit * 0.18, r.position.y - _unit * 0.62),
 			Vector2(x0 + _unit * 0.18, r.position.y), Vector2(x0, r.position.y)]
-		draw_colored_polygon(glass, pal.get("window", Color.GRAY))
-	draw_polyline(roof, ink, _lw())
+		_ci.draw_colored_polygon(glass, pal.get("window", Color.GRAY))
+	_ci.draw_polyline(roof, ink, _lw())
 	var ch: Rect2 = _chimney_rect(r)
-	draw_rect(ch, pal.get("shadow", Color.DIM_GRAY))
-	draw_rect(Rect2(ch.position.x, ch.position.y + _unit * 0.3, ch.size.x, _unit * 0.18), pal.get("accent", Color.ORANGE))
-	draw_rect(ch, ink, false, _lw())
-	draw_rect(r, pal.get("wall", Color.GRAY))
-	draw_rect(Rect2(r.position.x, r.end.y - r.size.y * 0.12, r.size.x, r.size.y * 0.12), pal.get("carpet", Color.DIM_GRAY))
+	_ci.draw_rect(ch, pal.get("shadow", Color.DIM_GRAY))
+	_ci.draw_rect(Rect2(ch.position.x, ch.position.y + _unit * 0.3, ch.size.x, _unit * 0.18), pal.get("accent", Color.ORANGE))
+	_ci.draw_rect(ch, ink, false, _lw())
+	_ci.draw_rect(r, pal.get("wall", Color.GRAY))
+	_ci.draw_rect(Rect2(r.position.x, r.end.y - r.size.y * 0.12, r.size.x, r.size.y * 0.12), pal.get("carpet", Color.DIM_GRAY))
 	_draw_machines(r, pal)
-	draw_rect(r, ink, false, _lw())
+	_ci.draw_rect(r, ink, false, _lw())
 
 
 func _chimney_rect(r: Rect2) -> Rect2:
@@ -587,22 +625,22 @@ func _belt_y(r: Rect2) -> float:
 func _draw_machines(r: Rect2, pal: Dictionary) -> void:
 	var ink: Color = pal.get("outline", Color.BLACK)
 	var belt_y: float = _belt_y(r)
-	draw_line(Vector2(r.position.x + _unit * 0.4, belt_y), Vector2(r.end.x - _unit * 0.4, belt_y), ink, _unit * 0.12)
+	_ci.draw_line(Vector2(r.position.x + _unit * 0.4, belt_y), Vector2(r.end.x - _unit * 0.4, belt_y), ink, _unit * 0.12)
 	for i: int in 2:
 		var m: Rect2 = Rect2(r.position.x + r.size.x * (0.18 + i * 0.5), r.position.y + r.size.y * 0.18, _unit * 1.3, _unit * 1.0)
-		draw_rect(m, pal.get("furniture", Color.ORANGE))
-		draw_rect(Rect2(m.position.x + _unit * 0.2, m.position.y + _unit * 0.2, _unit * 0.5, _unit * 0.3), pal.get("accent", Color.ORANGE).darkened(0.3))
-		draw_rect(m, ink, false, _lw())
+		_ci.draw_rect(m, pal.get("furniture", Color.ORANGE))
+		_ci.draw_rect(Rect2(m.position.x + _unit * 0.2, m.position.y + _unit * 0.2, _unit * 0.5, _unit * 0.3), pal.get("accent", Color.ORANGE).darkened(0.3))
+		_ci.draw_rect(m, ink, false, _lw())
 
 
 func _draw_shell() -> void:
 	var ink: Color = MenuKit.color("ink")
 	for f: int in range(LOWEST, TOP_FLOOR + 1):
 		var r: Rect2 = floor_rect(f)
-		draw_line(r.position, Vector2(r.position.x, r.end.y), ink, _lw() * 2.0)
-		draw_line(Vector2(r.end.x, r.position.y), r.end, ink, _lw() * 2.0)
+		_ci.draw_line(r.position, Vector2(r.position.x, r.end.y), ink, _lw() * 2.0)
+		_ci.draw_line(Vector2(r.end.x, r.position.y), r.end, ink, _lw() * 2.0)
 	var top: Rect2 = floor_rect(TOP_FLOOR)
-	draw_line(top.position, Vector2(top.end.x, top.position.y), ink, _lw() * 2.0)
+	_ci.draw_line(top.position, Vector2(top.end.x, top.position.y), ink, _lw() * 2.0)
 
 
 ## Marco ámbar de la planta resaltada; la flecha va junto a la etiqueta (si hay etiquetas) o al
@@ -613,7 +651,7 @@ func _draw_highlight() -> void:
 	var r: Rect2 = floor_rect(highlight_floor)
 	if r.size == Vector2.ZERO:
 		return
-	draw_rect(r.grow(_unit * 0.08), MenuKit.color("amber"), false, _lw() * 2.2)
+	_ci.draw_rect(r.grow(_unit * 0.08), MenuKit.color("amber"), false, _lw() * 2.2)
 	if highlight_floor == factory_floor():
 		_draw_arrow(Vector2(r.get_center().x, r.position.y - _unit * 0.85), Vector2.DOWN)
 	elif not show_labels:
@@ -625,8 +663,8 @@ func _draw_arrow(tip: Vector2, dir: Vector2) -> void:
 	var back: Vector2 = -dir * _unit * 0.6
 	var side: Vector2 = Vector2(-dir.y, dir.x) * _unit * 0.35
 	var arrow: PackedVector2Array = [tip, tip + back + side, tip + back - side]
-	draw_colored_polygon(arrow, MenuKit.color("amber"))
-	draw_polyline(arrow + PackedVector2Array([arrow[0]]), MenuKit.color("ink"), _lw())
+	_ci.draw_colored_polygon(arrow, MenuKit.color("amber"))
+	_ci.draw_polyline(arrow + PackedVector2Array([arrow[0]]), MenuKit.color("ink"), _lw())
 
 
 func _draw_floor_labels() -> void:
@@ -640,8 +678,8 @@ func _draw_floor_labels() -> void:
 		var tw: float = f_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 		var pos: Vector2 = Vector2(x - tw, r.get_center().y + fsize * 0.35)
 		var hot: bool = f == highlight_floor
-		draw_string_outline(f_font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, maxi(2, fsize / 5), ink)
-		draw_string(f_font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, MenuKit.color("amber") if hot else MenuKit.color("paper"))
+		_ci.draw_string_outline(f_font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, maxi(2, fsize / 5), ink)
+		_ci.draw_string(f_font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, MenuKit.color("amber") if hot else MenuKit.color("paper"))
 		if hot:
 			_draw_arrow(Vector2(x - tw - _unit * 0.15, r.get_center().y), Vector2.RIGHT)
 
@@ -665,9 +703,9 @@ func _draw_band_names() -> void:
 		var hi: Rect2 = floor_rect(clampi(int(floors.max()), LOWEST, TOP_FLOOR))
 		var accent: Color = (band.get("colors", {}) as Dictionary).get("accent", Color.WHITE)
 		var leader_y: float = hi.get_center().y
-		draw_dashed_line(Vector2(hi.end.x + _unit * 0.2, leader_y), Vector2(x, leader_y), Color(accent, 0.8),
+		_ci.draw_dashed_line(Vector2(hi.end.x + _unit * 0.2, leader_y), Vector2(x, leader_y), Color(accent, 0.8),
 				maxf(1.0, _lw() * 0.6), _unit * 0.22)
-		draw_line(Vector2(x, hi.position.y + _unit * 0.1), Vector2(x, lo.end.y - _unit * 0.1), accent, _lw() * 1.6)
+		_ci.draw_line(Vector2(x, hi.position.y + _unit * 0.1), Vector2(x, lo.end.y - _unit * 0.1), accent, _lw() * 1.6)
 		var text: String = tr(str(band.get("name_key", ""))).to_upper()
 		_draw_band_text(text, Vector2(x + _unit * 0.3, (hi.position.y + lo.end.y) * 0.5), fsize, accent.lightened(0.25))
 
@@ -685,8 +723,8 @@ func _draw_band_text(text: String, left_mid: Vector2, fsize: int, fill: Color) -
 	var y: float = left_mid.y - line_h * (lines.size() - 1) * 0.5 + fsize * 0.35
 	for line: String in lines:
 		var size_i: int = _fit_size(f_font, line, fsize, avail)
-		draw_string_outline(f_font, Vector2(left_mid.x, y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, size_i, maxi(2, size_i / 5), ink)
-		draw_string(f_font, Vector2(left_mid.x, y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, size_i, fill)
+		_ci.draw_string_outline(f_font, Vector2(left_mid.x, y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, size_i, maxi(2, size_i / 5), ink)
+		_ci.draw_string(f_font, Vector2(left_mid.x, y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, size_i, fill)
 		y += line_h
 
 
@@ -706,9 +744,9 @@ func _draw_mist() -> void:
 		var h: float = size.y * 0.22
 		var c: Color = Color(mist_color, clampf(mist * (0.35 + 0.1 * i), 0.0, 1.0))
 		var clear: Color = Color(c, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(0, y - h), Vector2(size.x, y - h), Vector2(size.x, y), Vector2(0, y)]),
+		_ci.draw_polygon(PackedVector2Array([Vector2(0, y - h), Vector2(size.x, y - h), Vector2(size.x, y), Vector2(0, y)]),
 				PackedColorArray([clear, clear, c, c]))
-		draw_polygon(PackedVector2Array([Vector2(0, y), Vector2(size.x, y), Vector2(size.x, y + h), Vector2(0, y + h)]),
+		_ci.draw_polygon(PackedVector2Array([Vector2(0, y), Vector2(size.x, y), Vector2(size.x, y + h), Vector2(0, y + h)]),
 				PackedColorArray([c, c, clear, clear]))
 
 
@@ -716,10 +754,10 @@ func _draw_tint() -> void:
 	if tint.a <= 0.0:
 		return
 	for f: int in range(LOWEST, TOP_FLOOR + 1):
-		draw_rect(floor_rect(f), tint)
-	draw_rect(floor_rect(ROOF), tint)
+		_ci.draw_rect(floor_rect(f), tint)
+	_ci.draw_rect(floor_rect(ROOF), tint)
 	if show_factory:
-		draw_rect(floor_rect(factory_floor()), tint)
+		_ci.draw_rect(floor_rect(factory_floor()), tint)
 
 
 # ─── Capa viva (cada fotograma, solo lo que se mueve) ──────────

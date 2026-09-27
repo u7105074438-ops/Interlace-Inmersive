@@ -7,7 +7,7 @@ extends RefCounted
 ## Contrato (BUILD_NOTES §14): compute(floor) → FloorPlan. Misma entrada → misma salida.
 ## Coordenadas en celdas de planta (1 celda = mundo.px_por_unidad px), origen arriba-izquierda.
 ##   rooms:  {room_id: Rect2i}  (ids de copia transversal "corridors_low@3"; orden = colocación)
-##   doors:  [{a, b, cell, vertical, kind, width, clearance, special_access, walkable}]
+##   doors:  [{id, a, b, cell, vertical, kind, width, clearance, special_access, walkable}]
 ##           vertical=false → muro horizontal en la línea y=cell.y, hueco x∈[cell.x, cell.x+width)
 ##           vertical=true  → muro vertical en la línea x=cell.x, hueco y∈[cell.y, cell.y+width)
 ##           a = sala desde la que se llega (eje o sala madre), b = sala a la que se entra.
@@ -47,14 +47,30 @@ const TRANSIT_BY_INTERACTABLE: Dictionary = {
 const LEFT_CAP_KINDS: Array[String] = [TRANSIT_ELEVATOR, TRANSIT_STAIRS]
 ## Sala núcleo de las plantas sin pasillo (§22): la circulación nace de ella.
 const HUB_ROOMS: Dictionary = {
-	-3: "service_tunnel", -2: "dead_archive", -1: "service_stairs", 0: "turnstiles",
+	-3: "service_tunnel", -2: "dead_archive", -1: "service_stairs", 0: "main_reception",
 	21: "rooftop_terrace", 100: "assembly_line", 200: "street",
 }
-## Núcleos que se estiran como eje aunque no sean alargados: el control de torniquetes de la planta
-## baja es el vestíbulo de ascensores (recepción, tienda y cafetería se abren a él). Si el eje es
-## una sala de tránsito (escalera), su tramo ocupa el arranque del eje (ancho de datos).
-## En S1 el rellano de la escalera de servicio hace de pasillo técnico (garaje, vestuarios, taller).
-const STRETCHED_HUBS: Array[String] = ["turnstiles", "service_stairs"]
+## Núcleos que se estiran como eje aunque no sean alargados. Si el eje es una sala de tránsito
+## (escalera), su tramo ocupa el arranque del eje (ancho de datos). En S1 el rellano de la escalera
+## de servicio hace de pasillo técnico (garaje, vestuarios, taller).
+const STRETCHED_HUBS: Array[String] = ["service_stairs"]
+## Control de acceso (§22.4 "Control de torniquetes", §5.6): una sala con una fila de tornos es
+## una compuerta. Se cuelga, a su tamaño de datos, bajo la sala núcleo que la enlaza (alineada a su
+## derecha); la fila de tornos (cerrada con barandillas generadas) separa su lado público (norte,
+## hacia el núcleo) del seguro (sur). Sus enlaces con acreditación ≥ 1 se adosan al lado seguro en
+## huecos fijos (ascensores bajo ella, escalera a la izquierda, uno más a la derecha) y, si no caben,
+## a su vestíbulo público (derecha); los públicos (acreditación 0) van al núcleo. Lo que no enlaza
+## con nada en esa planta (escalera de servicio) se adosa al lado seguro, no al vestíbulo.
+const GATE_FURNITURE := "turnstile"
+const GATE_BARRIER := "barrier"
+const SIDE_SECURE := "secure"
+const SIDE_PUBLIC := "public"
+const SLOT_BOTTOM_RIGHT := "bottom_right"
+const SLOT_BOTTOM_LEFT := "bottom_left"
+const SLOT_LEFT := "left"
+const SLOT_RIGHT := "right"
+const SLOT_PUBLIC_RIGHT := "public_right"
+const GATE_SLOTS: Array[String] = [SLOT_BOTTOM_RIGHT, SLOT_BOTTOM_LEFT, SLOT_LEFT, SLOT_RIGHT, SLOT_PUBLIC_RIGHT]
 const KEY_FULL_WIDTH := "full_floor_width"
 const KEY_VIRTUAL := "virtual"
 const KEY_BASE_ID := "base_id"
@@ -66,6 +82,9 @@ const LOCK_TYPE := "lock_old"
 const LOCK_TARGET_DOOR := "door"
 const LOCK_TARGET_PREFIX := "door:"
 const READER_MIN_CLEARANCE := 2
+## Puertas con nodo Door (se abren, cierran y bloquean); las "normal" son huecos abiertos.
+const CONTROLLED_DOORS: Array[String] = [DOOR_READER, DOOR_OLD_LOCK, DOOR_SERVICE]
+const DOOR_ID_FORMAT := "door_%s_%s"
 const EXIT_ID_FORMAT := "exit_%s_%s"
 const CORRIDOR_CAMERA_FORMAT := "%s_cam_%d"
 const HUGE_SCORE := 1.0e18
@@ -112,6 +131,9 @@ class Ctx extends RefCounted:
 	var door_width: int = 2
 	var corner: int = 1
 	var min_overlap: int = 4
+	var gates: Dictionary = {}
+	var gate_side: Dictionary = {}
+	var apron_side: Dictionary = {}
 
 
 # ─── API pública ──────────────────────────────────────────────
@@ -147,6 +169,16 @@ static func rooms_on_floor(floor: int) -> Array[RoomData]:
 ## Id base de una sala (quita el sufijo de copia transversal "@planta").
 static func base_id(room_id: String) -> String:
 	return DatabaseSystem.get_room_base_id(room_id)
+
+
+## Puerta con nodo Door (lector, cerradura antigua, servicio): se abre, se cierra y se bloquea.
+static func is_controlled_door(door: Dictionary) -> bool:
+	return bool(door.get("walkable", false)) and CONTROLLED_DOORS.has(str(door.get("kind", "")))
+
+
+## Bloqueada al construir: lector y cerradura antigua siempre; servicio si la sala pide acreditación.
+static func door_starts_locked(door: Dictionary) -> bool:
+	return str(door["kind"]) != DOOR_SERVICE or int(door.get("clearance", 0)) >= READER_MIN_CLEARANCE
 
 
 ## Tránsito del plano con ese id o cuya sala coincide ({} si no hay).
@@ -316,8 +348,21 @@ static func _make_context(floor_number: int) -> Ctx:
 		ctx.links[room.id] = [] as Array[String]
 	for id: String in ctx.ids:
 		_read_links(ctx, ctx.defs[id])
+		var row: int = _gate_row(ctx.defs[id])
+		if row >= 0:
+			ctx.gates[id] = row
 	ctx.spine = _choose_spine(ctx)
 	return ctx
+
+
+## Fila de tornos de una sala (celdas locales) o -1 si no es una compuerta.
+static func _gate_row(room: RoomData) -> int:
+	var row: int = -1
+	for entry: Dictionary in room.furniture:
+		if str(entry["type"]) == GATE_FURNITURE:
+			var y: int = (entry["pos"] as Vector2i).y
+			row = y if row < 0 else mini(row, y)
+	return row
 
 
 static func _read_links(ctx: Ctx, room: RoomData) -> void:
@@ -612,8 +657,11 @@ static func _place_right_cap(ctx: Ctx, cap: Array[String], length: int, height: 
 static func _layout_hub(ctx: Ctx) -> void:
 	var hub_def: RoomData = ctx.defs[ctx.spine]
 	ctx.rects[ctx.spine] = Rect2i(Vector2i.ZERO, hub_def.size)
-	_reserve_exit_apron(ctx, ctx.spine, SIDE_BOTTOM)
+	var gate: String = _linked_gate(ctx, ctx.spine)
+	_reserve_exit_apron(ctx, ctx.spine, SIDE_BOTTOM if gate.is_empty() else SIDE_TOP)
 	var queue: Array[String] = [ctx.spine]
+	if not gate.is_empty():
+		queue.append_array(_place_gate(ctx, gate))
 	while not queue.is_empty():
 		var current: String = queue.pop_front()
 		for other: String in _by_area_desc(ctx, ctx.links[current]):
@@ -637,7 +685,10 @@ static func _by_area_desc(ctx: Ctx, ids: Array[String]) -> Array[String]:
 
 
 ## Coloca `id` adosada a `parent_id` (búsqueda de huecos determinista). false si no cabe.
+## Lo que se cuelga de una compuerta ya montada va a la sala de la que ella cuelga (lado público).
 static func _attach(ctx: Ctx, id: String, parent_id: String) -> bool:
+	if ctx.gates.has(parent_id) and ctx.parent.has(parent_id) and _is_placed(ctx, parent_id):
+		parent_id = str(ctx.parent[parent_id])
 	var size: Vector2i = (ctx.defs[id] as RoomData).size
 	var rect: Rect2i = _find_adjacent(ctx, size, ctx.rects[parent_id], ctx.min_overlap)
 	if rect.size == Vector2i.ZERO:
@@ -649,6 +700,104 @@ static func _attach(ctx: Ctx, id: String, parent_id: String) -> bool:
 	if _has_cross(ctx, id):
 		_reserve_exit_apron(ctx, id, _outward_side(rect, ctx.rects[parent_id]))
 	return true
+
+
+# ─── Compuerta de tornos (planta baja) ────────────────────────
+
+## Compuerta enlazada con la sala `id` y aún sin colocar ("" si no hay).
+static func _linked_gate(ctx: Ctx, id: String) -> String:
+	for other: String in ctx.links[id]:
+		if ctx.gates.has(other) and not ctx.rects.has(other):
+			return other
+	return ""
+
+
+## Cuelga la compuerta bajo el núcleo (a su tamaño de datos, alineada a su derecha) y adosa sus
+## enlaces con acreditación en los huecos fijos. Devuelve las salas colocadas (para seguir el BFS).
+static func _place_gate(ctx: Ctx, gate: String) -> Array[String]:
+	var hub: Rect2i = ctx.rects[ctx.spine]
+	var size: Vector2i = (ctx.defs[gate] as RoomData).size
+	ctx.rects[gate] = Rect2i(hub.end.x - size.x, hub.end.y, size.x, size.y)
+	ctx.parent[gate] = ctx.spine
+	ctx.gate_side[gate] = SIDE_PUBLIC
+	var placed: Array[String] = []
+	var used: Dictionary = {}
+	for id: String in _gate_children(ctx, gate):
+		for slot: String in GATE_SLOTS:
+			if used.has(slot):
+				continue
+			var rect: Rect2i = _gate_slot(ctx, gate, slot, (ctx.defs[id] as RoomData).size)
+			if rect.size != Vector2i.ZERO and not _collides(ctx, rect):
+				ctx.rects[id] = rect
+				ctx.parent[id] = gate
+				ctx.gate_side[id] = SIDE_PUBLIC if slot == SLOT_PUBLIC_RIGHT else SIDE_SECURE
+				used[slot] = true
+				placed.append(id)
+				break
+	return placed
+
+
+## Enlaces de la compuerta que requieren tarjeta: tránsitos primero (ascensores, escaleras) y
+## después por área descendente.
+static func _gate_children(ctx: Ctx, gate: String) -> Array[String]:
+	var transit: Array[String] = []
+	var rest: Array[String] = []
+	for id: String in ctx.links[gate]:
+		if ctx.rects.has(id) or (ctx.defs[id] as RoomData).clearance_required < 1:
+			continue
+		if transit_kind_of(ctx.defs[id]).is_empty():
+			rest.append(id)
+		else:
+			transit.append(id)
+	transit.sort_custom(func(a: String, b: String) -> bool:
+		return LEFT_CAP_KINDS.find(transit_kind_of(ctx.defs[a])) < LEFT_CAP_KINDS.find(transit_kind_of(ctx.defs[b])))
+	transit.append_array(_by_area_desc(ctx, rest))
+	return transit
+
+
+## Hueco fijo junto a la compuerta para una sala de tamaño `size` (Rect2i() si no solapa lo justo).
+static func _gate_slot(ctx: Ctx, gate: String, slot: String, size: Vector2i) -> Rect2i:
+	var g: Rect2i = ctx.rects[gate]
+	var row: int = g.position.y + int(ctx.gates[gate])
+	var out: Rect2i = Rect2i()
+	match slot:
+		SLOT_BOTTOM_RIGHT:
+			out = Rect2i(g.end.x - size.x, g.end.y, size.x, size.y)
+		SLOT_BOTTOM_LEFT:
+			var right: Rect2i = _slot_rect(ctx, gate, SLOT_BOTTOM_RIGHT)
+			out = Rect2i((right.position.x if right.size.x > 0 else g.end.x) - size.x, g.end.y, size.x, size.y)
+		SLOT_LEFT:
+			out = Rect2i(g.position.x - size.x, g.end.y - size.y, size.x, size.y)
+		SLOT_RIGHT:
+			out = Rect2i(g.end.x, row + 1, size.x, size.y)
+		SLOT_PUBLIC_RIGHT:
+			out = Rect2i(g.end.x, row - size.y, size.x, size.y)
+	var wall: Dictionary = shared_wall(g, out)
+	return out if not wall.is_empty() and int(wall["length"]) >= ctx.door_width else Rect2i()
+
+
+## Rectángulo ya colocado en el hueco `slot` de la compuerta (Rect2i() si está libre).
+static func _slot_rect(ctx: Ctx, gate: String, slot: String) -> Rect2i:
+	var g: Rect2i = ctx.rects[gate]
+	for id: String in ctx.rects:
+		var r: Rect2i = ctx.rects[id]
+		if ctx.parent.get(id, "") == gate and slot == SLOT_BOTTOM_RIGHT and r.position.y == g.end.y and r.end.x == g.end.x:
+			return r
+	return Rect2i()
+
+
+## Tramo del muro compartido con una compuerta donde puede ir la puerta: su lado (público o
+## seguro) de la fila de tornos. Vector2i(desde, hasta) en celdas de planta; (-1, -1) sin límite.
+static func _gate_span(ctx: Ctx, a: String, b: String, wall: Dictionary) -> Vector2i:
+	var gate: String = a if ctx.gates.has(a) else (b if ctx.gates.has(b) else "")
+	if gate.is_empty() or not wall["vertical"]:
+		return Vector2i(-1, -1)
+	var other: String = b if gate == a else a
+	var g: Rect2i = ctx.rects[gate]
+	var row: int = g.position.y + int(ctx.gates[gate])
+	if ctx.gate_side.get(other, SIDE_PUBLIC) == SIDE_SECURE:
+		return Vector2i(row + 1, g.end.y)
+	return Vector2i(g.position.y, row)
 
 
 static func _has_cross(ctx: Ctx, id: String) -> bool:
@@ -805,7 +954,7 @@ static func _add_door(ctx: Ctx, a: String, b: String) -> void:
 			else Vector2i(start, int(wall["line"]))
 	var entered: RoomData = ctx.defs[b]
 	ctx.doors.append({
-		"a": a, "b": b, "cell": cell, "vertical": vertical, "width": ctx.door_width,
+		"id": DOOR_ID_FORMAT % [a, b], "a": a, "b": b, "cell": cell, "vertical": vertical, "width": ctx.door_width,
 		"kind": _door_kind(ctx, a, b), "clearance": entered.clearance_required,
 		"special_access": entered.special_access.duplicate(), "walkable": true,
 	})
@@ -889,7 +1038,8 @@ static func _has_old_lock_to(room: RoomData, other_id: String) -> bool:
 static func _add_vent_door(ctx: Ctx, pair: Dictionary) -> void:
 	var rect: Rect2i = ctx.rects[pair["a"]]
 	ctx.doors.append({
-		"a": pair["a"], "b": pair["b"], "cell": rect.position + (pair["pos"] as Vector2i),
+		"id": DOOR_ID_FORMAT % [pair["a"], pair["b"]], "a": pair["a"], "b": pair["b"],
+		"cell": rect.position + (pair["pos"] as Vector2i),
 		"vertical": false, "width": 1, "kind": DOOR_VENT, "clearance": 0,
 		"special_access": [], "walkable": false,
 	})

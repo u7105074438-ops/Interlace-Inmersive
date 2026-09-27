@@ -21,6 +21,10 @@ extends RefCounted
 const FPS_PATH := "animacion.fps_base"
 const VOLUME_PATH := "arte_personajes.escala_volumen_perfil"
 const CACHE_PATH := "arte_personajes.cache_poses"
+## Tope provisional de la caché si balance.json aún no está cargado (no se memoriza).
+const CACHE_FALLBACK := 256
+## Fracción de la caché que se conserva tras un vaciado parcial.
+const CACHE_KEEP := 0.75
 const HAIR_AGE_GREY_CHANCE: Array[float] = [0.0, 0.08, 0.4, 0.9]
 const DIRECTION_STEPS := 8
 const NO_LOOK := -1
@@ -67,7 +71,7 @@ const NAMED_LOOKS: Dictionary = {
 		"skin": 6, "palette": 2, "accessory": ""},
 	"statement_necklace": {"presentation": "f", "build": 3, "head": 11, "hair": 17, "hair_color": 4,
 		"skin": 0, "palette": 9, "accessory": ""},
-	"signet_ring": {"presentation": "m", "build": 4, "head": 18, "hair": 8, "hair_color": 6,
+	"signet_ring": {"presentation": "m", "build": 4, "head": 18, "hair": 18, "hair_color": 6,
 		"skin": 0, "palette": 7, "accessory": ""},
 	"gold_lapel_pin": {"presentation": "m", "build": 5, "head": 19, "hair": 23, "hair_color": 6,
 		"skin": 5, "palette": 0, "accessory": "", "volume_profile": "ceo"},
@@ -282,7 +286,9 @@ static func tic_for_archetype(archetype_id: String) -> String:
 ## Fotogramas por segundo de una animación (animacion.fps_base × multiplicador del catálogo).
 static func anim_fps(anim: String) -> float:
 	if _fps_base < 0.0:
-		_fps_base = Database.get_balance_float(FPS_PATH) if Database.has_balance(FPS_PATH) else 0.0
+		if not Database.has_balance(FPS_PATH):
+			return 0.0
+		_fps_base = Database.get_balance_float(FPS_PATH)
 	return _fps_base * float(CharacterAnim.info(anim)["fps"])
 
 
@@ -398,13 +404,15 @@ static func _evict_if_full() -> void:
 	for app_key: Array in _poses.keys():
 		_pose_count -= (_poses[app_key] as Dictionary).size()
 		_poses.erase(app_key)
-		if _pose_count <= limit * 3 / 4:
+		if float(_pose_count) <= float(limit) * CACHE_KEEP:
 			return
 
 
 static func _cache_limit() -> int:
 	if _cache_max <= 0:
-		_cache_max = maxi(Database.get_balance_int(CACHE_PATH), 1) if Database.has_balance(CACHE_PATH) else 1
+		if not Database.has_balance(CACHE_PATH):
+			return CACHE_FALLBACK
+		_cache_max = maxi(Database.get_balance_int(CACHE_PATH), 1)
 	return _cache_max
 
 

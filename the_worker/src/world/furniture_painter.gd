@@ -557,9 +557,10 @@ func _draw_whiteboard(ci: CanvasItem, r: Rect2) -> void:
 					Vector2(board.position.x + _rng.randf_range(0.3, 0.85) * board.size.x, y), _pick(C_BOOKS), _px(1.5))
 
 
+## Colgados (cartel, espejo, reloj, extintor): r.position.y es el pie de la cara norte del muro.
 func _draw_motivational_poster(ci: CanvasItem, r: Rect2) -> void:
-	var w: float = _px(30)
-	var poster: Rect2 = Rect2(r.get_center().x - w * 0.5, r.position.y - _px(16), w, _px(22))
+	var w: float = _px(26)
+	var poster: Rect2 = Rect2(r.get_center().x - w * 0.5, r.position.y - _px(19), w, _px(17))
 	_rect(ci, poster, _c("accent").lightened(0.25))
 	var img: Rect2 = _inset(poster, 3.0)
 	img.size.y *= 0.62
@@ -957,7 +958,7 @@ func _draw_sink(ci: CanvasItem, r: Rect2) -> void:
 
 
 func _draw_mirror(ci: CanvasItem, r: Rect2) -> void:
-	var m: Rect2 = Rect2(r.position.x + _px(8), r.position.y - _px(12), r.size.x - _px(16), _px(16))
+	var m: Rect2 = Rect2(r.position.x + _px(8), r.position.y - _px(17), r.size.x - _px(16), _px(14))
 	_rect(ci, m, Color("#cfe6f0"))
 	ci.draw_line(m.position + Vector2(_px(4), m.size.y - _px(3)), m.position + Vector2(_px(11), _px(3)),
 			Color(1, 1, 1, 0.8), _px(2))
@@ -1231,8 +1232,8 @@ func _draw_barrier(ci: CanvasItem, r: Rect2) -> void:
 
 ## Reloj de pared (colgado en la cara norte): esfera, agujas y marco.
 func _draw_wall_clock(ci: CanvasItem, r: Rect2) -> void:
-	var c: Vector2 = Vector2(r.get_center().x, r.position.y - _px(4))
-	_circle(ci, c, _px(8), C_PAPER)
+	var c: Vector2 = Vector2(r.get_center().x, r.position.y - _px(10))
+	_circle(ci, c, _px(7), C_PAPER)
 	ci.draw_line(c, c + Vector2(0, -_px(5.5)), Color("#1b1b1b"), _px(1.5))
 	ci.draw_line(c, c + Vector2(_px(4), _px(1.5)), Color("#1b1b1b"), _px(1.5))
 	ci.draw_circle(c, _px(1.4), C_RED_LED)
@@ -1240,7 +1241,7 @@ func _draw_wall_clock(ci: CanvasItem, r: Rect2) -> void:
 
 ## Extintor colgado (cara norte): cuerpo rojo, válvula negra y soporte.
 func _draw_fire_extinguisher(ci: CanvasItem, r: Rect2) -> void:
-	var ext: Rect2 = Rect2(r.get_center().x - _px(5), r.position.y - _px(16), _px(10), _px(20))
+	var ext: Rect2 = Rect2(r.get_center().x - _px(5), r.position.y - _px(17), _px(10), _px(15))
 	_poly(ci, _rounded(ext, _px(4)), Color("#d33a2c"))
 	ci.draw_rect(Rect2(ext.position.x + _px(2), ext.position.y - _px(3), ext.size.x - _px(4), _px(4)), Color("#1b1b1b"))
 	ci.draw_line(ext.position + Vector2(_px(2), _px(5)), ext.position + Vector2(_px(2), ext.size.y - _px(4)),

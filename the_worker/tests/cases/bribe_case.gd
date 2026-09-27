@@ -98,31 +98,39 @@ func _check_wages_and_fair_price() -> void:
 			"no seat, no role → the tier average wage")
 
 
-## Regresión: los puestos no jugables generados cobran su salario de rol, y el precio justo de
-## Bribery coincide con el de NPCDirector para toda la plantilla (sospecha 0).
+## Regresión: cada personaje cobra el salario de su ocupación o, sin silla jugable, el de su rol
+## (npcs_generation.json roles) — oráculo independiente de Bribery —, y el precio justo de
+## Bribery es el de NPCDirector para toda la plantilla.
 func _check_population_prices() -> void:
 	var wage_diffs: int = 0
 	var price_diffs: int = 0
 	var role_npc: NPCRuntime = null
 	for npc: NPCRuntime in NPCDirector.get_all_npcs():
-		if Bribery.npc_daily_wage(npc) != NPCDirector.get_daily_wage(npc.id):
+		if Bribery.npc_daily_wage(npc) != _expected_wage(npc):
 			wage_diffs += 1
 		for favour: String in ["look_away_once", "silence_witnessed", "bury_investigation"]:
-			if Bribery.fair_price(npc, favour, {"suspicion": 0.0}) \
-					!= NPCDirector.get_fair_bribe_price(npc.id, favour):
+			if Bribery.fair_price(npc, favour) != NPCDirector.get_fair_bribe_price(npc.id, favour):
 				price_diffs += 1
 		if role_npc == null and not npc.is_named and not NPCDirector.get_role(npc.id).is_empty():
 			role_npc = npc
 	check(NPCDirector.get_all_npcs().size() > 100, "the population is generated")
-	check_eq(wage_diffs, 0, "every NPC's bribe wage is NPCDirector's daily wage")
+	check_eq(wage_diffs, 0, "every NPC earns their occupation wage, or their role wage")
 	check_eq(price_diffs, 0, "Bribery.fair_price == NPCDirector.get_fair_bribe_price for all NPCs")
 	check(role_npc != null, "a generated role NPC exists")
 	if role_npc != null:
-		var role_wage: int = int(Database.get_role(NPCDirector.get_role(role_npc.id))["daily_wage"])
+		var role_wage: int = _expected_wage(role_npc)
 		check_eq(Bribery.npc_daily_wage(role_npc), role_wage,
-				"generated %s earns the %s role wage" % [role_npc.id, NPCDirector.get_role(role_npc.id)])
+				"generated %s earns the %s role wage (%d)"
+				% [role_npc.id, NPCDirector.get_role(role_npc.id), role_wage])
 		check_eq(Bribery.fair_price(role_npc, "silence_witnessed", _ctx({})), role_wage * 20,
 				"their silence costs role wage × 20")
+
+
+func _expected_wage(npc: NPCRuntime) -> int:
+	var occupation: OccupationData = Database.get_occupation(npc.occupation_id)
+	if occupation != null:
+		return occupation.daily_wage
+	return int(Database.get_role(NPCDirector.get_role(npc.id)).get("daily_wage", -1))
 
 
 ## §7.10: la sospecha encarece el soborno (sobornos.mod_precio_por_sospecha).
@@ -196,14 +204,17 @@ func _check_generated_incorruptibles() -> void:
 	check(not bool(decision["accepted"]), "an incorruptible never accepts, even with roll 0")
 	var checked: int = 0
 	var bribable: int = 0
+	var escapees: int = 0
 	for run_seed: int in [DEFAULT_SEED] + EXTRA_SEEDS:
 		new_run(run_seed)
 		for npc: NPCRuntime in NPCDirector.get_npcs_by_archetype("incorruptible"):
 			checked += 1
+			escapees += 0 if Bribery.is_unbribable(npc.traits) else 1
 			if _worst_case_p(npc, generous) > 0.0:
 				bribable += 1
 	check(checked > 10, "%d generated/named incorruptibles checked over %d seeds"
 			% [checked, EXTRA_SEEDS.size() + 1])
+	print("NOTE: %d of them fall outside the greed/loyalty rule" % escapees)
 	check_eq(bribable, 0, "no incorruptible of any seed has P > 0")
 	new_run()
 
@@ -355,7 +366,7 @@ func _check_live_ledger() -> void:
 	NPCDirector.add_favour(frank.id, "cover_up", 10)
 	check(Bribery.fair_price(frank, "lend_access", ctx) < after,
 			"NPCDirector favour lowers it again")
-	check_eq(Bribery.fair_price(frank, "lend_access", ctx),
+	check_eq(Bribery.fair_price(frank, "lend_access"),
 			NPCDirector.get_fair_bribe_price(frank.id, "lend_access"),
 			"same price as NPCDirector after ledger changes")
 

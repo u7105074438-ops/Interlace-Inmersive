@@ -86,15 +86,26 @@ func _check_named() -> void:
 	check(NPCDirector.is_slacker("npc_nate_brackley") and NPCDirector.is_slacker("npc_frank_rudd")
 			and not NPCDirector.is_slacker("npc_george_penn"), "named slackers come from data")
 	check_eq(NPCDirector.get_shift("npc_ludmila_petrova"), "night", "Ludmila is the night guard")
-	var ratio: float = Database.get_balance_float("percepcion.mod_sospecha_por_punto") \
-			/ Database.get_balance_float("percepcion.mod_perspicacia_por_punto")
-	var expected_perception: int = clampi(roundi(84 + PlayerState.get_suspicion() * ratio
-			+ Security.get_alert_level() * Database.get_balance_int(
-			"percepcion.perspicacia_por_nivel_alerta")), 0, 150)
-	check_eq(NPCDirector.get_effective_perception("npc_george_penn"), expected_perception,
-			"effective perception = perception + suspicion × 0.005/0.01 (+ alert)")
+	_check_effective_perception()
 	check_eq(NPCDirector.get_daily_wage("npc_amelia_cole"),
 			Database.get_occupation("hr_assistant").daily_wage, "wage comes from the occupation")
+
+
+## §7.10: la sospecha sube la perspicacia de todos; el nivel de alerta, solo la de los vigilantes
+## (la bonificación es de Security y se suma una única vez).
+func _check_effective_perception() -> void:
+	var ratio: float = Database.get_balance_float("percepcion.mod_sospecha_por_punto") \
+			/ Database.get_balance_float("percepcion.mod_perspicacia_por_punto")
+	EventBus.npc_reported_player.emit("npc_debbie_foyle", "security", 20.0, "wing_3b")
+	var suspicion: float = PlayerState.get_suspicion()
+	check(suspicion > 0.0, "a report raised the player's suspicion (%.1f)" % suspicion)
+	check_eq(NPCDirector.get_effective_perception("npc_george_penn"), roundi(84 + suspicion * ratio),
+			"effective perception = perception + suspicion × 0.005/0.01 (George, not a guard)")
+	check(not NPCDirector.is_guard("npc_george_penn") and NPCDirector.is_guard("npc_ludmila_petrova"),
+			"security guards are identified by npc.ocupaciones_vigilancia")
+	check_eq(NPCDirector.get_effective_perception("npc_ludmila_petrova"),
+			roundi(82 + suspicion * ratio) + Security.get_guard_perception_bonus(),
+			"guards add Security's alert-level bonus once (§7.10)")
 
 
 func _check_generated_rules() -> void:
@@ -325,15 +336,48 @@ func _check_hire() -> void:
 func _check_save_load() -> void:
 	NPCDirector.add_grievance("npc_george_penn", "seat_lost", 7)
 	NPCDirector.force_full_lod("npc_harlan_voss", "target")
+	NPCDirector.set_lod("npc_pearl_osgood", 1)
+	Blackmail.add_material(NPCDirector.get_npc("npc_alvin_pyne"), Blackmail.KIND_SILENCE_MEMORY,
+			"theft_small", GameClock.get_day())
+	EventBus.belief_created.emit("save_belief", "npc_george_penn", "player", 0.9)
 	var saved: Dictionary = NPCDirector.save_state()
 	var json: Variant = JSON.parse_string(JSON.stringify(saved))
 	NPCDirector.reset_for_new_run()
 	check(NPCDirector.get_all_npcs().is_empty(), "reset empties the population")
 	NPCDirector.load_state(json)
-	check_eq(JSON.parse_string(JSON.stringify(NPCDirector.save_state())), json,
-			"save → JSON → load → save reproduces the exact state")
+	var mismatch: String = _typed_mismatch(NPCDirector.save_state(), saved, "state")
+	check(mismatch.is_empty(), "save → JSON → load reproduces the exact typed state %s" % mismatch)
 	check_eq(NPCDirector.get_lod("npc_harlan_voss"), 0, "forced LOD survives the round trip")
+	check_eq(NPCDirector.get_lod("npc_pearl_osgood"), 1, "set_lod pin survives the round trip")
 	check_eq(NPCDirector.get_grievance_total("npc_george_penn"), 7, "ledger survives the round trip")
+	var material: Dictionary = NPCDirector.get_blackmail_material("npc_alvin_pyne")[0]
+	check(material["demand_day"] is int and material["deadline_day"] is int
+			and material["demands_made"] is int, "blackmail material numbers come back as int")
+
+
+## "" si a y b son iguales con los MISMOS tipos (int ≠ float); si no, la ruta de la diferencia.
+func _typed_mismatch(a: Variant, b: Variant, path: String) -> String:
+	if typeof(a) != typeof(b):
+		return "%s: %s vs %s" % [path, type_string(typeof(a)), type_string(typeof(b))]
+	if a is Dictionary:
+		if (a as Dictionary).size() != (b as Dictionary).size():
+			return "%s: keys %s vs %s" % [path, str(a.keys()), str(b.keys())]
+		for key: Variant in a:
+			if not (b as Dictionary).has(key):
+				return "%s.%s missing" % [path, str(key)]
+			var inner: String = _typed_mismatch(a[key], b[key], "%s.%s" % [path, str(key)])
+			if not inner.is_empty():
+				return inner
+		return ""
+	if a is Array:
+		if (a as Array).size() != (b as Array).size():
+			return "%s: size %d vs %d" % [path, a.size(), b.size()]
+		for i: int in (a as Array).size():
+			var inner: String = _typed_mismatch(a[i], b[i], "%s[%d]" % [path, i])
+			if not inner.is_empty():
+				return inner
+		return ""
+	return "" if a == b else "%s: %s vs %s" % [path, str(a), str(b)]
 
 
 ## Receptor genérico: bind() añade la etiqueta como último argumento.

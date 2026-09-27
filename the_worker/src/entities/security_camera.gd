@@ -10,6 +10,9 @@ extends Node2D
 ## un apagón (§22.1 electrical_room) puede usar call_group("security_cameras", "set_active", false).
 ## Visión: alcance camaras.alcance celdas, apertura camaras.angulo, barrido ±camaras.barrido/2 a
 ## camaras.velocidad_barrido º/s; la línea de visión la cortan muros (capa 1) y muebles altos (capa 2).
+## Cuña (§14.1 legibilidad): camaras.rayos rayos con refinado en los saltos (bordes de puerta y
+## jambas nítidos, sin astillas a través de muros); rojo de seguridad (camaras.color_cuna) con más
+## alfa sobre suelos claros (the_throne) y borde marcado; set_wedge_colors(banda) lo ajusta.
 
 signal player_spotted(camera_id: String)
 
@@ -17,14 +20,10 @@ const GROUP := "security_cameras"
 const PLAYER_GROUP := "player"
 const LOS_MASK := 0b11
 const Z_CAMERA := 30
-const RAYS := 14
 const C_BODY := Color("#2b2f36")
 const C_BODY_LIGHT := Color("#59616b")
 const C_LENS := Color("#0d1116")
 const C_LED := Color("#ff4040")
-const C_WEDGE := Color(1.0, 0.95, 0.85, 0.08)
-const C_WEDGE_EDGE := Color(1.0, 0.95, 0.85, 0.22)
-const C_WEDGE_ALERT := Color(1.0, 0.3, 0.25, 0.16)
 const C_OUTLINE := Color("#111317")
 const BLINK_SPEED := 2.0
 
@@ -43,6 +42,9 @@ var _cooldown: float = 0.0
 var _check_timer: float = 0.0
 var _seeing: bool = false
 var _wedge: PackedVector2Array = []
+var _wedge_fill: Color = Color(1, 0.2, 0.15, 0.12)
+var _wedge_edge: Color = Color(1, 0.2, 0.15, 0.5)
+var _wedge_alert: Color = Color(1, 0.2, 0.15, 0.28)
 var _time: float = 0.0
 var _player: Node2D = null
 
@@ -68,6 +70,18 @@ func setup(p_id: String, p_room_id: String, p_cell_px: float, center_px: Vector2
 
 func is_active() -> bool:
 	return _active
+
+
+## Colores de la cuña según la banda (record de art_bands): más opaca sobre suelos claros.
+func set_wedge_colors(band_record: Dictionary) -> void:
+	var rgb: Array = Database.get_balance("camaras.color_cuna")
+	var base: Color = Color(float(rgb[0]), float(rgb[1]), float(rgb[2]))
+	var floor_c: Color = Color(str(band_record.get("palette", {}).get("floor", "#808080")))
+	var light: bool = floor_c.get_luminance() >= Database.get_balance_float("camaras.luminancia_clara")
+	var fill_a: float = Database.get_balance_float("camaras.alfa_cuna_clara" if light else "camaras.alfa_cuna_oscura")
+	_wedge_fill = Color(base.darkened(0.15) if light else base.lightened(0.15), fill_a)
+	_wedge_edge = Color(_wedge_fill, Database.get_balance_float("camaras.alfa_borde"))
+	_wedge_alert = Color(base, Database.get_balance_float("camaras.alfa_cuna_alerta"))
 
 
 func set_active(active: bool) -> void:
@@ -134,30 +148,59 @@ func _ray_hit(from: Vector2, to: Vector2) -> Vector2:
 	return to if hit.is_empty() else (hit["position"] as Vector2)
 
 
+## Contorno de visión: camaras.rayos rayos y, donde dos vecinos difieren más de
+## camaras.salto_refinado celdas, bisección (camaras.refinado niveles) para bordes nítidos.
 func _rebuild_wedge() -> void:
-	var pts: PackedVector2Array = [Vector2.ZERO]
+	var rays: int = maxi(2, Database.get_balance_int("camaras.rayos"))
+	var depth: int = Database.get_balance_int("camaras.refinado")
 	var facing: Vector2 = get_facing()
-	for i: int in RAYS + 1:
-		var a: float = -_fov * 0.5 + _fov * i / RAYS
-		var target: Vector2 = global_position + facing.rotated(a) * _range_px
-		pts.append(to_local(_ray_hit(global_position, target)))
+	var pts: PackedVector2Array = [Vector2.ZERO]
+	var prev_a: float = -_fov * 0.5
+	var prev: Vector2 = _cast(facing, prev_a)
+	pts.append(prev)
+	for i: int in range(1, rays + 1):
+		var a: float = -_fov * 0.5 + _fov * i / rays
+		var hit: Vector2 = _cast(facing, a)
+		_refine(pts, facing, prev_a, prev, a, hit, depth)
+		pts.append(hit)
+		prev_a = a
+		prev = hit
 	_wedge = pts
+
+
+## Punto local donde acaba el rayo de ángulo `a` respecto a `facing`.
+func _cast(facing: Vector2, a: float) -> Vector2:
+	return to_local(_ray_hit(global_position, global_position + facing.rotated(a) * _range_px))
+
+
+func _refine(pts: PackedVector2Array, facing: Vector2, a0: float, p0: Vector2, a1: float, p1: Vector2,
+		depth: int) -> void:
+	var jump: float = Database.get_balance_float("camaras.salto_refinado") * cell_px
+	if depth <= 0 or absf(p0.length() - p1.length()) < jump:
+		return
+	var mid: float = (a0 + a1) * 0.5
+	var pm: Vector2 = _cast(facing, mid)
+	_refine(pts, facing, a0, p0, mid, pm, depth - 1)
+	pts.append(pm)
+	_refine(pts, facing, mid, pm, a1, p1, depth - 1)
 
 
 func _draw() -> void:
 	if _active and _wedge.size() >= 3:
-		draw_colored_polygon(_wedge, C_WEDGE_ALERT if _seeing else C_WEDGE)
+		draw_colored_polygon(_wedge, _wedge_alert if _seeing else _wedge_fill)
 		var edge: PackedVector2Array = _wedge.duplicate()
-		edge.remove_at(0)
-		draw_polyline(edge, C_WEDGE_EDGE, 1.0)
+		edge.append(_wedge[0])
+		draw_polyline(edge, _wedge_alert if _seeing else _wedge_edge, 2.0)
 	_draw_body()
 
 
+## Cuerpo de la cámara (camaras.tamano_cuerpo celdas): soporte al muro, carcasa, lente y piloto.
 func _draw_body() -> void:
 	var facing: Vector2 = get_facing()
 	var side: Vector2 = Vector2(-facing.y, facing.x)
-	var s: float = cell_px * 0.14
+	var s: float = cell_px * Database.get_balance_float("camaras.tamano_cuerpo")
 	draw_circle(Vector2(2, 3), s * 1.3, Color(0, 0, 0, 0.25))
+	draw_rect(Rect2(Vector2(-s * 0.5, -s * 0.5), Vector2(s, s)), C_BODY)
 	draw_circle(Vector2.ZERO, s * 0.9, C_BODY_LIGHT)
 	var body: PackedVector2Array = [-facing * s * 0.6 + side * s * 0.8, -facing * s * 0.6 - side * s * 0.8,
 			facing * s * 1.6 - side * s * 0.6, facing * s * 1.6 + side * s * 0.6]

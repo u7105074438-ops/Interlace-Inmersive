@@ -189,7 +189,8 @@ const HAIRS: Array[Array] = [
 ]
 ## Parámetros de cada estilo. hl = altura de la línea del pelo (0 flequillo bajo, 1 frente
 ## despejada); vol = volumen; sides = hasta dónde bajan los laterales (1 = mandíbula);
-## back = melena por detrás (1 = hombros); part = raya (-1..1); bumpy = contorno rizado.
+## back = melena por detrás (1 = hombros); part = raya (-1..1); bumpy = contorno rizado;
+## back_w = anchura de la melena trasera en la foto (× radio de la cabeza; por defecto según vol).
 const HAIR_STYLES: Dictionary = {
 	"bald": {"cap": false, "hl": 1.0, "vol": 0.0, "sides": 0.0, "back": 0.0, "part": 0.0},
 	"buzz": {"cap": true, "hl": 0.62, "vol": 0.02, "sides": 0.25, "back": 0.0, "part": 0.0},
@@ -221,7 +222,7 @@ const HAIR_STYLES: Dictionary = {
 	"bouffant": {"cap": true, "hl": 0.42, "vol": 0.3, "sides": 0.9, "back": 0.5, "part": 0.6,
 		"extra": "bouffant"},
 	"silver_mane": {"cap": true, "hl": 0.78, "vol": 0.1, "sides": 0.3, "back": 0.3,
-		"part": 0.0, "extra": "swept"},
+		"part": 0.0, "extra": "swept", "back_w": 1.02},
 	"mullet": {"cap": true, "hl": 0.5, "vol": 0.08, "sides": 0.35, "back": 0.8, "part": 0.0},
 }
 

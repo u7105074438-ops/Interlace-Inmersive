@@ -143,7 +143,8 @@ static func degradation_from(suspicion: float, table: Dictionary) -> Dictionary:
 		"flutter_hz": float(table.get("flutter_hz", 0.0)),
 		"dropout_s": _pair(table.get("silencio_s", [])), "cut_s": _pair(table.get("corte_s", [])),
 		"jitter_change_s": _pair(table.get("irregular_cambio_s", [])),
-		"grain_s": float(table.get("grano_s", 0.0)),
+		"jump_fade_s": float(table.get("salto_fundido_s", 0.0)),
+		"jump_lead_s": float(table.get("salto_antes_s", 0.0)),
 	}
 
 

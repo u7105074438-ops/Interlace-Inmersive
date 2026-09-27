@@ -297,6 +297,7 @@ func _build_layers() -> void:
 	_tower.show_people = true
 	_tower.reserve_label_space = true
 	_tower.elevator_visible = false
+	_tower.cache_static = false
 	add_child(_tower)
 	_front = OpeningStage.new()
 	_front.name = "Front"

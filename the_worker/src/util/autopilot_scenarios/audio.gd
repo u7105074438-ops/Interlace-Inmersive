@@ -24,11 +24,12 @@ const INGAME_ROOM := "wing_3b"
 const INGAME_OCCUPATION := "order_filer"
 const INGAME_TIME := Vector3i(3, 10, 42)
 const INGAME_MONEY := 1240
-const WALK_STEPS := 110
-const WALK_PX_PER_FRAME := 3.2
+const WALK_S := 2.6
+const WALK_PX_PER_S := 150.0
 const RADIO_OFFSET := Vector2(260, -170)
-const NPC_START_OFFSET := Vector2(-460, 30)
-const HIDDEN_START_OFFSET := Vector2(420, 0)
+const NPC_START_OFFSET := Vector2(-400, 30)
+const HIDDEN_START_DX := 380.0
+const PLAYER_SEAT_OFFSET := Vector2(0, 40)
 const SHEET_LAYER := 20
 
 var _args: Dictionary = {}
@@ -249,13 +250,12 @@ func _ingame_shot(pilot: Autopilot) -> void:
 	var streamer: FloorStreamer = FloorStreamer.new()
 	add_child(streamer)
 	streamer.load_floor(INGAME_FLOOR)
+	var layout: Dictionary = _ingame_layout(streamer)
 	var cam: Camera2D = Camera2D.new()
 	add_child(cam)
 	cam.make_current()
-	var seats: Array[Dictionary] = streamer.get_seats_in_room(INGAME_ROOM)
-	var home: Vector2 = seats[1]["pos"] if seats.size() > 1 else streamer.get_spawn_point(INGAME_ROOM)
-	cam.position = home + Vector2(0, 40)
-	var player: AudioFigure = _figure(streamer, home + Vector2(0, 40), 11, "player", "")
+	cam.position = layout["camera"]
+	var player: AudioFigure = _figure(streamer, layout["player"], 11, "player", "")
 	var ui: UIRoot = UIRoot.new()
 	add_child(ui)
 	var director: AudioDirector = AudioDirector.new()
@@ -263,7 +263,7 @@ func _ingame_shot(pilot: Autopilot) -> void:
 	await pilot.frames(SETTLE_FRAMES)
 	EventBus.floor_changed.emit(0, INGAME_FLOOR)
 	EventBus.suspicion_changed.emit(0.0, 62.0)
-	await _walk_npcs(pilot, streamer, player)
+	await _walk_npcs(pilot, streamer, player, layout["hidden"])
 	director.play_sfx("guard_radio", player.global_position + RADIO_OFFSET)
 	EventBus.phone_message_received.emit("npc_amelia_cole", "MSG_TEST", false)
 	await pilot.frames(SETTLE_FRAMES)
@@ -279,32 +279,47 @@ func _ingame_shot(pilot: Autopilot) -> void:
 	await pilot.frames(SETTLE_FRAMES)
 
 
+## El jugador en el puesto más cercano al pasillo (para oír a quien viene por él, tras la pared);
+## la cámara, un poco hacia dentro de la sala.
+func _ingame_layout(streamer: FloorStreamer) -> Dictionary:
+	var rect: Rect2 = streamer.get_room_rect_px(INGAME_ROOM)
+	var cell: float = RoomBuilder.cell_px()
+	var corridor_y: float = rect.get_center().y
+	for y: float in [rect.position.y - cell * 1.5, rect.end.y + cell * 1.5]:
+		var room: String = streamer.get_room_at(Vector2(rect.get_center().x, y))
+		if not room.is_empty() and room != INGAME_ROOM:
+			corridor_y = y
+			break
+	var seat_pos: Vector2 = streamer.get_spawn_point(INGAME_ROOM)
+	var best: float = INF
+	for seat: Dictionary in streamer.get_seats_in_room(INGAME_ROOM):
+		var p: Vector2 = seat["pos"]
+		if absf(p.y - corridor_y) < best:
+			best = absf(p.y - corridor_y)
+			seat_pos = p
+	var player: Vector2 = seat_pos + PLAYER_SEAT_OFFSET
+	return {"player": player, "hidden": Vector2(player.x + HIDDEN_START_DX, corridor_y),
+			"camera": player.lerp(rect.get_center(), 0.35)}
+
+
 ## Un compañero se acerca a la vista (pasos cerca) y otro por el pasillo, tras la pared (aviso).
-func _walk_npcs(pilot: Autopilot, streamer: FloorStreamer, player: Node2D) -> void:
+## Se mueven por tiempo real (no por fotograma): los pasos no dependen de la velocidad de captura.
+func _walk_npcs(pilot: Autopilot, streamer: FloorStreamer, player: Node2D, hidden_at: Vector2) -> void:
 	var walker: AudioFigure = _figure(streamer, player.position + NPC_START_OFFSET, 23, "npcs", "npc_walker")
 	walker.anim = "walk"
 	walker.facing = Vector2.RIGHT
-	var hidden: AudioFigure = _figure(streamer, _outside_room(streamer, player.position), 37, "npcs", "npc_hidden")
+	var hidden: AudioFigure = _figure(streamer, hidden_at, 37, "npcs", "npc_hidden")
 	hidden.anim = "walk"
 	hidden.facing = Vector2.LEFT
-	for i: int in WALK_STEPS:
-		walker.position.x += WALK_PX_PER_FRAME
-		hidden.position.x -= WALK_PX_PER_FRAME
+	var t: float = 0.0
+	while t < WALK_S:
+		var dt: float = get_process_delta_time()
+		t += dt
+		walker.position.x += WALK_PX_PER_S * dt
+		hidden.position.x -= WALK_PX_PER_S * dt
 		walker.queue_redraw()
 		hidden.queue_redraw()
 		await pilot.frames(1)
-
-
-## Punto del pasillo (fuera de la sala del jugador) a la derecha, a la altura más cercana.
-func _outside_room(streamer: FloorStreamer, near: Vector2) -> Vector2:
-	var rect: Rect2 = streamer.get_room_rect_px(INGAME_ROOM)
-	var cell: float = RoomBuilder.cell_px()
-	for y: float in [rect.end.y + cell * 1.5, rect.position.y - cell * 1.5]:
-		var p: Vector2 = Vector2(near.x + HIDDEN_START_OFFSET.x, y)
-		var room: String = streamer.get_room_at(p)
-		if not room.is_empty() and room != INGAME_ROOM:
-			return p
-	return near + HIDDEN_START_OFFSET
 
 
 func _figure(streamer: FloorStreamer, pos: Vector2, look_seed: int, group: String, npc_id: String) -> AudioFigure:
@@ -692,6 +707,8 @@ class BandVignette:
 		ci.draw_arc(spk, t.size.x * 0.11, 0.0, TAU, 16, outline, 1.5, true)
 		for k: int in 3:
 			ci.draw_circle(spk + Vector2((float(k) - 1.0) * t.size.x * 0.045, 0.0), 1.2, outline)
+		for k: int in 2:
+			ci.draw_arc(spk, t.size.x * (0.17 + 0.07 * float(k)), PI * 0.2, PI * 0.8, 8, _c(pal, "accent"), 1.5, true)
 		var desk: Rect2 = Rect2(t.position + t.size * Vector2(0.22, 0.5), t.size * Vector2(0.56, 0.2))
 		_box(ci, desk, _c(pal, "furniture"), outline)
 		_box(ci, Rect2(desk.position + Vector2(desk.size.x * 0.34, -t.size.y * 0.1), t.size * Vector2(0.18, 0.12)),
@@ -727,7 +744,8 @@ class BandVignette:
 				ci.draw_rect(Rect2(tower.position + tower.size * Vector2(0.18 + 0.4 * float(col), 0.12 + 0.28 * float(row)),
 						tower.size * Vector2(0.24, 0.14)), _c(pal, "window") if lit else _c(pal, "carpet"))
 		ci.draw_rect(Rect2(t.position.x, t.end.y - t.size.y * 0.24, t.size.x, t.size.y * 0.24), _c(pal, "floor"))
-		var pole: Vector2 = t.position + t.size * Vector2(0.78, 0.76)
-		ci.draw_line(pole, pole - Vector2(0.0, t.size.y * 0.46), outline, 2.0)
-		ci.draw_circle(pole - Vector2(0.0, t.size.y * 0.48), t.size.x * 0.07, _c(pal, "accent"))
-		ci.draw_circle(t.position + t.size * Vector2(0.84, 0.16), t.size.x * 0.06, _c(pal, "light"))
+		var pole: Vector2 = t.position + t.size * Vector2(0.8, 0.76)
+		ci.draw_line(pole, pole - Vector2(0.0, t.size.y * 0.4), outline, 2.0)
+		ci.draw_circle(pole - Vector2(0.0, t.size.y * 0.42), t.size.x * 0.07, _c(pal, "accent"))
+		ci.draw_circle(pole + Vector2(-t.size.x * 0.04, -t.size.y * 0.2), t.size.x * 0.13, Color(_c(pal, "accent"), 0.18))
+		ci.draw_circle(t.position + t.size * Vector2(0.72, 0.14), t.size.x * 0.06, _c(pal, "light"))

@@ -1,6 +1,6 @@
 # npc_director.gd — Estado completo de los personajes: población, rutinas, ánimo, registro, LOD y cuerpos.
 # PROPIETARIO DE: personajes (NPCRuntime) y perfiles de puesto, ubicación estadística y rutinas, ánimo, mérito, registro de relaciones (§7.9), material de chantaje, cuerpos y nivel de detalle (§19.5, §20).
-# ESCUCHA: day_advanced, time_band_changed, hour_passed, room_entered, floor_changed, belief_created, bribe_offered, bribe_result, seat_vacated, seat_filled, investigation_resolved, suspect_list_formed, case_went_cold, idea_acquired, idea_presented, blackmail_initiated, body_hidden.
+# ESCUCHA: day_advanced, time_band_changed, hour_passed, room_entered, floor_changed, belief_created, bribe_offered, bribe_result, npc_reported_player, seat_vacated, seat_filled, investigation_resolved, suspect_list_formed, case_went_cold, idea_acquired, idea_presented, blackmail_initiated, body_hidden.
 class_name NPCDirectorSystem
 extends Node
 
@@ -8,48 +8,70 @@ extends Node
 ## DECISIONES (contrato para el resto de sistemas):
 ##  · get_all_npcs() / get_npcs_* devuelven solo personajes EN PLANTILLA (no retirados).
 ##    get_npc(id) devuelve cualquiera, también retirados. is_alive() = no eliminado (un expulsado
-##    sigue vivo); is_active() = vivo y en plantilla.
-##  · Ubicación estadística: current_room = sala de su agenda del día a la hora del reloj
-##    (NPCRoutinePlanner). "" = fuera del edificio (floor = FLOOR_NONE). Se actualiza con
-##    time_band_changed, hour_passed y un temporizador (LOD 0/1 cada lod.intervalo_medio_segundos,
-##    LOD 2 cada lod.intervalo_estadistico_segundos) mientras el reloj corre. Los nodos del mundo
-##    pueden fijar la sala real con set_current_location().
+##    o jubilado sigue vivo); is_active() = vivo y en plantilla.
+##  · npc.state es el estado de RUTINA: idle | slacking | absent | removed. Las decisiones de
+##    utilidad no lo tocan: get_last_decision(npc) devuelve la última {action, trigger, day, minute}.
+##  · Ubicación: current_room = sala de su agenda del día (NPCRoutinePlanner); "" = fuera del
+##    edificio (floor = FLOOR_NONE). La agenda se aplica en time_band_changed, hour_passed y un
+##    temporizador (LOD 0/1 cada lod.intervalo_medio_segundos, LOD 2 cada
+##    lod.intervalo_estadistico_segundos) mientras el reloj corre, SALVO a los personajes que un nodo
+##    del mundo sitúa con set_current_location(): esa sala manda hasta release_current_location()
+##    o hasta que el personaje baja a LOD 2 (sin nodo, §20.1: posición inferida del horario).
 ##  · override_routine(npc, franja, sala) vale hasta el cambio de jornada; sala "" la anula.
-##  · Utilidad (§7.5) SOLO por eventos: belief_created (portador = personaje, sujeto = jugador),
-##    time_band_changed (personajes presentes en LOD 0/1) y bribe_offered (consultivo: el resultado
-##    real del soborno es de Bribery, §8.2). Se emite npc_decided(npc, acción, resumen) y, si la
-##    acción es report_to_security / report_to_superior, npc_reported_player(npc, tipo de evidencia
-##    "direct_witness" | "partial_witness", peso, sala). Peso = investigaciones.pesos_evidencia
-##    testigo_directo (certeza ≥ creencias.certeza_directa_completa) o testigo_parcial, × npc.
-##    factor_denuncia_superior si va al superior. Las creencias "reported:*" (eco de la propia
-##    denuncia en BeliefNet) y "caught_redhanded:*" (reacción de CaughtHandler, §12.2) no disparan
-##    evaluación. Deuda > 0 con el jugador (o SocialGraph.is_denunciation_suppressed) retira las
-##    denuncias del repertorio y consume registro.deuda_consumida_por_silencio cada vez que calla.
-##  · Registro (§7.9): los agravios no decaen nunca. Causas de vacante atribuidas al jugador:
-##    PLAYER_CAUSED_VACANCIES (agravio al titular saliente; favor a quien ocupe la silla).
+##  · Utilidad (§7.5) SOLO por eventos: belief_created (portador = personaje, sujeto = jugador,
+##    hecho negativo según BeliefNet.is_negative_fact), time_band_changed (personajes presentes en
+##    LOD 0/1) y bribe_offered (consultivo: el resultado real es de Bribery, §8.2). El término de
+##    creencias suma la certeza de la creencia disparadora y de las demás creencias NEGATIVAS del
+##    portador sobre el jugador (las positivas, p. ej. hard_worker, no cuentan). Las creencias
+##    "reported:*" (eco de la denuncia), "caught_redhanded:*" (CaughtHandler, §12.2) y
+##    "bribe_attempt:*" (Bribery) ni disparan ni suman.
+##  · Denuncias: npc_decided(npc, acción, resumen {channel, evidence_type, ...}) y
+##    npc_reported_player(npc, tipo, peso, sala). A Seguridad: tipo = pieza "direct_witness"
+##    (certeza ≥ creencias.certeza_directa_completa; peso investigaciones.pesos_evidencia.
+##    testigo_directo) o "partial_witness" (testigo_parcial). Al superior (§12.2 company_man):
+##    testigo directo → tipo = canal "superior" (BeliefNet: +10 y anotación en expediente;
+##    Security: pieza × factor del canal); parcial → "partial_witness" con peso × npc.
+##    factor_denuncia_superior. Una denuncia por personaje cada npc.dias_entre_denuncias jornadas,
+##    cuente quien cuente la denuncia (también CaughtHandler y Blackmail). Deuda > 0 con el jugador
+##    (registro o arista de deuda de SocialGraph) retira las denuncias del repertorio y consume
+##    registro.deuda_consumida_por_silencio cada vez que calla. Callar solo guarda «silencio con
+##    memoria» (Blackmail.add_material) si denunciar estaba disponible.
+##  · Registro (§7.9): los agravios no decaen nunca. Causas atribuidas al jugador =
+##    CompanySystem.PLAYER_CAUSES (una sola lista). remove_npc(id, causa del jugador) → agravio
+##    seat_lost al retirado (si sigue vivo) y friend_sunk a sus amistades/pareja (SocialGraph).
 ##    seat_filled(ocupación, "player") → agravio promotion_stolen al candidato con mayor mérito ×
-##    npc.puntuacion_ascenso_merito + ambición × npc.puntuacion_ascenso_ambicion.
-##    investigation_resolved(caso, "other_guilty", personaje) → agravio al condenado (inocente por
-##    construcción) y agravio friend_sunk a sus amistades/pareja en SocialGraph.
-##  · Material de chantaje (NPCRuntime.blackmail_material, esquema de Blackmail): stay_silent ante
-##    una creencia directa (certeza ≥ certeza_directa_completa) guarda «silencio con memoria» con
-##    Blackmail.add_material; sobornos y flagrancia los añaden Bribery y CaughtHandler.
-##    blackmail_player solo está disponible con material retenido ("held") cuya exigencia ya
-##    vence; la decisión es informativa: Blackmail.process_day emite blackmail_demanded.
+##    npc.puntuacion_ascenso_merito + ambición × npc.puntuacion_ascenso_ambicion; el favor de quien
+##    asciende por una vacante del jugador lo dicta Company.get_last_fill_context().
+##  · Precio del soborno: get_bribe_price_modifier / get_fair_bribe_price delegan en Bribery
+##    (ledger_modifier_from, fair_price, offer_ratio): una sola fórmula y un solo juego de claves.
+##  · Veredicto "other_guilty": Security.get_case_report(caso).culprit_innocent. Inocente
+##    (incriminado o incidente del jugador) → agravio wrongful_conviction, friend_sunk a sus aliados
+##    y remove_npc(culpable, "expelled"). Culpable de verdad → remove_npc(culpable, "convicted"):
+##    sin agravios y sin vacante atribuida al jugador.
+##  · Silla vaciada (seat_vacated) de un personaje EN PLANTILLA por una causa que no es un traslado
+##    (CompanySystem.CAUSE_PROMOTED / CAUSE_REASSIGNED): deja la empresa (removed_cause = causa:
+##    "retired", "fired"...), con los agravios de arriba si la causa es del jugador, y npc_removed
+##    se emite DIFERIDO (al terminar Company su cadena de reposición; Company ya no tiene su silla).
 ##  · Contrataciones (§6.3 paso 2): seat_filled(ocupación, id) con un id desconocido que
 ##    Company.is_hire(id) confirma crea un Rookie (NPCPopulationGenerator.create_hire).
-##    Favor/agravio de silla: manda Company.get_last_fill_context() (player_caused, grievance_to)
-##    cuando describe ese relleno; si no, las causas de seat_vacated y el mejor candidato propio.
-##  · Veredicto "other_guilty": agravio al condenado y a sus aliados y expulsión
-##    (remove_npc(culpable, "expelled")); Company vacía su silla al oír npc_removed.
+##  · Material de chantaje (NPCRuntime.blackmail_material, esquema de Blackmail): sobornos y
+##    flagrancia los añaden Bribery y CaughtHandler. blackmail_player solo está disponible con
+##    material retenido ("held") cuya exigencia ya vence; la decisión es informativa:
+##    Blackmail.process_day emite blackmail_demanded.
 ##  · Cuerpos: remove_npc(id, "eliminated"|"elimination") crea el registro de cuerpo
 ##    (body_created) y después emite npc_removed. Cada hora y franja, un cuerpo no oculto en la
 ##    sala de un personaje presente se descubre (body_discovered). La ausencia la detecta Security.
+##  · Perspicacia efectiva = rasgo + sospecha × (mod_sospecha_por_punto ÷ mod_perspicacia_por_punto)
+##    + Security.get_guard_perception_bonus() si su ocupación está en npc.ocupaciones_vigilancia
+##    (§7.10: el nivel de alerta solo afecta a los vigilantes). Perception no debe sumar ninguno
+##    de los dos términos otra vez.
 ##  · LOD (§20): LOD 0 = sala del jugador y adyacentes (lod.radio_salas_completo) hasta
 ##    lod.max_agentes_completo; LOD 1 = misma planta hasta lod.max_agentes_medio; LOD 2 = resto.
-##    Presupuesto total = SaveSystem.get_setting("max_agents") o lod.max_agentes_total.
-##    Siempre LOD 0 (sin contar ubicación ni tope): force_full_lod(), lista corta
-##    (suspect_list_formed) y deuda con el jugador.
+##    Presupuesto total = SaveSystem.get_setting("max_agents") o lod.max_agentes_total. La sala
+##    del jugador parte de PlayerState.get_room()/get_floor(). Siempre LOD 0 (sin contar ubicación
+##    ni tope): force_full_lod(), lista corta (suspect_list_formed) y deuda con el jugador (registro
+##    o arista de deuda de SocialGraph). set_lod() fija un nivel manual hasta clear_lod() (lo
+##    forzado sigue mandando).
 
 const PLAYER_ID := "player"
 const FLOOR_NONE := NPCRoutinePlanner.NO_FLOOR
@@ -57,10 +79,9 @@ const SAVE_CONTEXT := "save → npc_director"
 const SAVE_VERSION := 1
 const BODY_ID_PREFIX := "body_"
 const ELIMINATION_CAUSES: Array[String] = ["eliminated", "elimination"]
-## Causas de vacante que Company emite cuando la silla se vacía por obra del jugador.
-const PLAYER_CAUSED_VACANCIES: Array[String] = [
-	"expelled", "expulsion", "fired", "framed", "eliminated", "elimination", "demoted",
-	"demotion", "player_promoted", "player_lateral", "displaced_by_player",
+## Causas de seat_vacated que no sacan al personaje de la plantilla (cambia de silla).
+const STAFF_MOVE_CAUSES: Array[String] = [
+	CompanySystem.CAUSE_PROMOTED, CompanySystem.CAUSE_REASSIGNED,
 ]
 ## Company: contrataciones de RR. HH. (seat_filled de un id nuevo) y contexto del último relleno.
 const HIRE_CHECK := "is_hire"
@@ -71,12 +92,14 @@ const STOLEN_IDEA_METHODS: Array[String] = ["overhear", "steal_file"]
 ## Creencias cuya reacción decide otro módulo: eco de la propia denuncia (BeliefNet),
 ## flagrancia (CaughtHandler, §12.2) e intento de soborno (Bribery, tabla de rechazo de §8.2).
 const IGNORED_FACT_PREFIXES: Array[String] = ["reported", "caught_redhanded", "bribe_attempt"]
-const NEGATIVE_FACT_GETTER := "is_negative_fact"
-const CAUSE_CONVICTED := "expelled"
+## Veredicto "other_guilty": expulsión atribuible al jugador (inocente) o condena justa.
+const CAUSE_EXPELLED := "expelled"
+const CAUSE_CONVICTED := "convicted"
+## Clave del expediente de Security (get_case_report) que marca al condenado como inocente.
+const CASE_CULPRIT_INNOCENT := "culprit_innocent"
 const PROFILE_REPUTATION_DELTA := "reputation_delta"
 const ALLY_LINK_TYPES: Array[String] = ["friendship", "couple"]
 const RIVAL_LINK_TYPE := "rivalry"
-const SUPPRESSION_GETTER := "is_denunciation_suppressed"
 const SETTING_MAX_AGENTS := "max_agents"
 const BRIBE_REPORT_OUTCOMES: Array[String] = [
 	"denounce", "denounced", "report", "reported", "denunciation",
@@ -85,8 +108,6 @@ const BRIBE_SILENT_OUTCOMES: Array[String] = ["silence_with_memory", "silent", "
 ## Ofertas que no llegan a producirse (sin fondos, datos inválidos): no tocan el registro.
 const BRIBE_VOID_OUTCOMES: Array[String] = ["insufficient_funds", "invalid"]
 const BRIBE_COUNTER_OUTCOMES: Array[String] = ["counteroffer", "counter_offer"]
-## ratio_oferta = mín(oferta ÷ precio_justo, 2,0) ÷ 2,0 (§8.2).
-const OFFER_RATIO_CAP := 2.0
 
 # Tipos de agravio y favor (claves LEDGER_GRIEVANCE_* / LEDGER_FAVOUR_* en strings.csv).
 const GRIEVANCE_SEAT_LOST := "seat_lost"
@@ -116,14 +137,8 @@ const REASON_SHORTLIST := "shortlist"
 const STATE_ABSENT := "absent"
 const STATE_SLACKING := "slacking"
 const STATE_REMOVED := "removed"
-const ACTION_STATES: Dictionary = {
-	UtilityAI.WORK: "working", UtilityAI.REST: "resting", UtilityAI.GOSSIP: "gossiping",
-	UtilityAI.GENERATE_IDEA: "thinking", UtilityAI.SABOTAGE_RIVAL: "sabotaging",
-	UtilityAI.BLACKMAIL_PLAYER: "blackmailing", UtilityAI.REPORT_TO_SECURITY: "reporting",
-	UtilityAI.REPORT_TO_SUPERIOR: "reporting", UtilityAI.CONFRONT_PLAYER: "confronting",
-	UtilityAI.FLEE: "fleeing", UtilityAI.STAY_SILENT: NPCRuntime.STATE_IDLE,
-	UtilityAI.ACCEPT_BRIBE: NPCRuntime.STATE_IDLE, UtilityAI.REFUSE_BRIBE: NPCRuntime.STATE_IDLE,
-}
+## Claves de la última decisión (get_last_decision).
+const DECISION_INT_KEYS: Array[String] = ["day", "minute"]
 ## Rangos del manual (no ajustes): afecto −100..100, temor 0-100 (§7.9), ánimo −1..1,
 ## reputación de personaje 0-100 (BUILD_NOTES §13).
 const AFFECTION_LIMIT := 100
@@ -134,10 +149,6 @@ const REPUTATION_MAX := 100.0
 # Rutas de balance.json.
 const B_AFFECTION_PER_SEVERITY := "registro.afecto_por_gravedad_agravio"
 const B_AFFECTION_PER_MAGNITUDE := "registro.afecto_por_magnitud_favor"
-const B_PRICE_PER_SEVERITY := "registro.precio_por_gravedad_agravio"
-const B_PRICE_PER_MAGNITUDE := "registro.precio_por_magnitud_favor"
-const B_PRICE_MIN := "registro.precio_modificador_min"
-const B_PRICE_MAX := "registro.precio_modificador_max"
 const B_SEV_SEAT := "registro.gravedad_silla_perdida"
 const B_SEV_PROMOTION := "registro.gravedad_ascenso_arrebatado"
 const B_SEV_CONVICTION := "registro.gravedad_condena_injusta"
@@ -157,6 +168,10 @@ const B_MOOD_PROMOTION := "npc.animo_por_ascenso"
 const B_MOOD_SEAT_LOST := "npc.animo_por_silla_perdida"
 const B_MOOD_CONVICTION := "npc.animo_por_condena"
 const B_MOOD_IDEA := "npc.animo_por_idea_presentada"
+## Salto de ánimo del retirado según el agravio que registra.
+const REMOVAL_MOOD: Dictionary = {
+	GRIEVANCE_SEAT_LOST: B_MOOD_SEAT_LOST, GRIEVANCE_WRONGFUL_CONVICTION: B_MOOD_CONVICTION,
+}
 const B_MERIT_PER_AMBITION := "npc.merito_diario_por_ambicion"
 const B_MERIT_SABOTAGE := "npc.merito_sabotaje"
 const B_REP_BASE := "npc.reputacion_base"
@@ -172,8 +187,7 @@ const B_WEIGHT_DIRECT := "investigaciones.pesos_evidencia.testigo_directo"
 const B_WEIGHT_PARTIAL := "investigaciones.pesos_evidencia.testigo_parcial"
 const B_PER_POINT := "percepcion.mod_perspicacia_por_punto"
 const B_SUSPICION_POINT := "percepcion.mod_sospecha_por_punto"
-const B_ALERT_POINTS := "percepcion.perspicacia_por_nivel_alerta"
-const B_PERCEPTION_MAX := "percepcion.perspicacia_efectiva_max"
+const B_GUARD_OCCUPATIONS := "npc.ocupaciones_vigilancia"
 const B_LEVERAGE_WAIT := "chantaje.dias_espera_min"
 const B_LOD_RADIUS := "lod.radio_salas_completo"
 const B_LOD_MAX_FULL := "lod.max_agentes_completo"
@@ -181,7 +195,6 @@ const B_LOD_MAX_MEDIUM := "lod.max_agentes_medio"
 const B_LOD_MAX_TOTAL := "lod.max_agentes_total"
 const B_LOD_MEDIUM_SECONDS := "lod.intervalo_medio_segundos"
 const B_LOD_STAT_SECONDS := "lod.intervalo_estadistico_segundos"
-const B_BRIBE_DIFFICULTY := "precio_soborno"
 
 ## id → NPCRuntime (todos, también retirados).
 var _npcs: Dictionary = {}
@@ -197,8 +210,12 @@ var _forced_lod: Dictionary = {}
 var _shortlists: Dictionary = {}
 ## occupation_id → causa: vacantes abiertas por el jugador pendientes de ocupar.
 var _player_vacancies: Dictionary = {}
-## npc_id → jornada de su última denuncia.
+## npc_id → jornada de su última denuncia (de cualquier sistema).
 var _last_report: Dictionary = {}
+## npc_id → {action, trigger, day, minute}: última decisión de utilidad.
+var _last_decision: Dictionary = {}
+## npc_id → nivel fijado con set_lod() hasta clear_lod().
+var _lod_pins: Dictionary = {}
 var _player_room: String = ""
 var _player_floor: int = 0
 var _day: int = 0
@@ -213,6 +230,8 @@ var _weights: Dictionary = {}
 var _scales: Dictionary = {}
 var _generation_rules: Dictionary = {}
 var _emitting_report: bool = false
+## npc_id → true: sala real fijada por un nodo del mundo (set_current_location); no se guarda.
+var _world_located: Dictionary = {}
 var _timer: Timer = null
 var _tick: int = 0
 var _statistical_every: int = 1
@@ -237,6 +256,7 @@ func _connect_signals() -> void:
 	EventBus.belief_created.connect(_on_belief_created)
 	EventBus.bribe_offered.connect(_on_bribe_offered)
 	EventBus.bribe_result.connect(_on_bribe_result)
+	EventBus.npc_reported_player.connect(_on_npc_reported_player)
 	EventBus.seat_vacated.connect(_on_seat_vacated)
 	EventBus.seat_filled.connect(_on_seat_filled)
 	EventBus.investigation_resolved.connect(_on_investigation_resolved)
@@ -251,10 +271,15 @@ func _connect_signals() -> void:
 ## Vacía la población. generate_population() la (re)crea.
 func reset_for_new_run() -> void:
 	_clear_population()
-	_player_room = ""
-	_player_floor = 0
+	_seed_player_position()
 	_day = GameClock.get_day()
 	_rng.seed = GameClock.get_run_seed()
+
+
+## La sala y la planta del jugador parten de PlayerState (ya reiniciado, BUILD_NOTES §2).
+func _seed_player_position() -> void:
+	_player_room = PlayerState.get_room()
+	_player_floor = PlayerState.get_floor()
 
 
 func _clear_population() -> void:
@@ -266,6 +291,9 @@ func _clear_population() -> void:
 	_shortlists.clear()
 	_player_vacancies.clear()
 	_last_report.clear()
+	_last_decision.clear()
+	_lod_pins.clear()
+	_world_located.clear()
 	_plans.clear()
 	_planner = null
 	_emitting_report = false
@@ -285,6 +313,7 @@ func generate_population() -> void:
 		return
 	_day = GameClock.get_day()
 	_rng.seed = GameClock.get_run_seed()
+	_seed_player_position()
 	var rules: Dictionary = Database.get_raw("npcs_generation")
 	var generator: NPCPopulationGenerator = NPCPopulationGenerator.new(_rng, rules)
 	generator.generate()
@@ -408,9 +437,9 @@ func get_all_traits(npc_id: String) -> Dictionary:
 	return npc.traits.duplicate() if npc != null else {}
 
 
-## Perspicacia + sospecha × (mod_sospecha_por_punto ÷ mod_perspicacia_por_punto) + alerta ×
-## perspicacia_por_nivel_alerta, acotada a [0, perspicacia_efectiva_max]. Ya incluye la sospecha:
-## Perception no debe volver a sumarla.
+## Perspicacia + sospecha × (mod_sospecha_por_punto ÷ mod_perspicacia_por_punto) (§7.10) + la
+## bonificación de alerta de Security si es vigilante (npc.ocupaciones_vigilancia). Nunca < 0.
+## Ya incluye ambos términos: Perception no debe volver a sumarlos.
 func get_effective_perception(npc_id: String) -> int:
 	var npc: NPCRuntime = get_npc(npc_id)
 	if npc == null:
@@ -418,9 +447,17 @@ func get_effective_perception(npc_id: String) -> int:
 	var per_point: float = Database.get_balance_float(B_PER_POINT)
 	var ratio: float = Database.get_balance_float(B_SUSPICION_POINT) / per_point \
 			if per_point > 0.0 else 0.0
-	var value: float = float(npc.get_trait("perception")) + PlayerState.get_suspicion() * ratio \
-			+ float(Security.get_alert_level() * Database.get_balance_int(B_ALERT_POINTS))
-	return clampi(roundi(value), Validate.TRAIT_MIN, Database.get_balance_int(B_PERCEPTION_MAX))
+	var value: float = float(npc.get_trait("perception")) + PlayerState.get_suspicion() * ratio
+	if is_guard(npc_id):
+		value += float(Security.get_guard_perception_bonus())
+	return maxi(roundi(value), Validate.TRAIT_MIN)
+
+
+## Extra: vigilante (ocupación en npc.ocupaciones_vigilancia): le afecta el nivel de alerta.
+func is_guard(npc_id: String) -> bool:
+	var npc: NPCRuntime = get_npc(npc_id)
+	var guards: Variant = Database.get_balance(B_GUARD_OCCUPATIONS)
+	return npc != null and guards is Array and (guards as Array).has(npc.occupation_id)
 
 
 # ─── Registro de relaciones (§7.9, PASO 17) ───────────────────
@@ -498,23 +535,19 @@ func get_favour_total(npc_id: String) -> int:
 
 
 ## Extra: multiplicador del precio justo del soborno (§7.9): los agravios lo encarecen y los
-## favores lo abaratan. clamp(1 + Σgravedad × k_agravio − Σmagnitud × k_favor, min, max).
+## favores lo abaratan. Fórmula única de Bribery.ledger_modifier_from sobre el registro
+## (clamp(1 + Σgravedad × registro.precio_por_gravedad_agravio − Σmagnitud ×
+## registro.precio_por_magnitud_favor, min, max)). 1 si no es un personaje.
 func get_bribe_price_modifier(npc_id: String) -> float:
-	var modifier: float = 1.0 \
-			+ get_grievance_total(npc_id) * Database.get_balance_float(B_PRICE_PER_SEVERITY) \
-			- get_favour_total(npc_id) * Database.get_balance_float(B_PRICE_PER_MAGNITUDE)
-	return clampf(modifier, Database.get_balance_float(B_PRICE_MIN),
-			Database.get_balance_float(B_PRICE_MAX))
+	var npc: NPCRuntime = get_npc(npc_id)
+	return Bribery.ledger_modifier_from(npc.ledger) if npc != null else 1.0
 
 
-## Extra: precio justo (§8.2) = salario diario × multiplicador del favor × modificador del
-## registro × dificultad (precio_soborno). 0 si el favor no existe.
+## Extra: precio justo del favor (§8.2) tal como lo calcula Bribery.fair_price (salario ×
+## multiplicador × registro × dificultad × sospecha). 0 si no es un personaje.
 func get_fair_bribe_price(npc_id: String, favour_type: String) -> int:
-	var favour: Dictionary = Database.get_bribe_favour(favour_type)
-	var price: float = float(get_daily_wage(npc_id)) * float(favour.get("multiplier", 0)) \
-			* get_bribe_price_modifier(npc_id) \
-			* Database.get_difficulty_modifier(B_BRIBE_DIFFICULTY)
-	return roundi(price)
+	var npc: NPCRuntime = get_npc(npc_id)
+	return Bribery.fair_price(npc, favour_type) if npc != null else 0
 
 
 ## Extra: contribución del registro a la utilidad de denunciar (término relación de §7.5 para
@@ -604,7 +637,8 @@ func override_routine(npc_id: String, band: String, location: String) -> void:
 		npc.schedule_override.erase(band)
 	else:
 		npc.schedule_override[band] = location
-	if _planner != null and _planner.band_of_minute(_clock_minute()) == band:
+	if _planner != null and _planner.band_of_minute(_clock_minute()) == band \
+			and not _world_located.has(npc_id):
 		var loc: Dictionary = _location_at(npc, _clock_minute(), true)
 		_place(npc, str(loc["room"]), str(loc["activity"]))
 
@@ -635,12 +669,24 @@ func get_day_plan(npc_id: String) -> Array:
 	return _plan_for(npc).duplicate(true) if npc != null and _planner != null else []
 
 
-## Extra (nodos del mundo): sala real de un personaje en LOD 0/1.
+## Extra (nodos del mundo, §20.1): sala real de un personaje con nodo (LOD 0/1). La agenda deja
+## de moverlo hasta release_current_location() o hasta que baje a LOD 2.
 func set_current_location(npc_id: String, room_id: String) -> void:
 	var npc: NPCRuntime = get_npc(npc_id)
 	if npc != null and _is_active(npc):
 		npc.current_room = room_id
 		npc.floor = _floor_of(room_id, npc)
+		_world_located[npc_id] = true
+
+
+## Extra (nodos del mundo): el nodo desaparece; la agenda vuelve a situar al personaje.
+func release_current_location(npc_id: String) -> void:
+	_world_located.erase(npc_id)
+
+
+## Extra: true si un nodo del mundo manda sobre su sala (set_current_location).
+func is_world_located(npc_id: String) -> bool:
+	return _world_located.has(npc_id)
 
 
 func _location_at(npc: NPCRuntime, minute: int, include_minor: bool) -> Dictionary:
@@ -665,18 +711,21 @@ func _plan_for(npc: NPCRuntime) -> Array:
 	return plan
 
 
-## Recoloca a los personajes cuyo LOD está en [min_level, max_level] según la hora.
+## Recoloca según la hora a los personajes cuyo LOD está en [min_level, max_level], salvo los
+## que sitúa un nodo del mundo (set_current_location).
 func _update_locations(minute: int, min_level: int, max_level: int) -> void:
 	if _planner == null:
 		return
 	for id: String in _order:
 		var npc: NPCRuntime = _npcs[id]
-		if not _is_active(npc) or npc.lod < min_level or npc.lod > max_level:
+		if not _is_active(npc) or npc.lod < min_level or npc.lod > max_level \
+				or _world_located.has(id):
 			continue
 		var loc: Dictionary = _location_at(npc, minute, true)
 		_place(npc, str(loc["room"]), str(loc["activity"]))
 
 
+## Sala y estado de rutina (idle | slacking | absent); las decisiones no tocan el estado.
 func _place(npc: NPCRuntime, room: String, activity: String) -> void:
 	npc.current_room = room
 	npc.floor = _floor_of(room, npc)
@@ -684,7 +733,7 @@ func _place(npc: NPCRuntime, room: String, activity: String) -> void:
 		npc.state = STATE_ABSENT
 	elif activity == NPCRoutinePlanner.ACTIVITY_SLACKING:
 		npc.state = STATE_SLACKING
-	elif npc.state == STATE_ABSENT or npc.state == STATE_SLACKING:
+	else:
 		npc.state = NPCRuntime.STATE_IDLE
 
 
@@ -699,23 +748,69 @@ func _floor_of(room: String, npc: NPCRuntime) -> int:
 
 # ─── Estado vital y cuerpos ───────────────────────────────────
 
-## Expulsión o eliminación. "eliminated"/"elimination" crea el cuerpo (body_created) antes de
-## emitir npc_removed; Company vacía la silla al oírlo.
+## Expulsión o eliminación. Con causa del jugador (CompanySystem.PLAYER_CAUSES): agravio
+## seat_lost al retirado si sigue vivo y friend_sunk a sus aliados (§7.9). "eliminated" /
+## "elimination" crea el cuerpo (body_created) antes de emitir npc_removed; Company vacía la
+## silla al oírlo.
 func remove_npc(npc_id: String, cause: String) -> void:
 	var npc: NPCRuntime = get_npc(npc_id)
 	if npc == null or not _is_active(npc):
 		return
+	_grieve_removal(npc, cause, GRIEVANCE_SEAT_LOST, B_SEV_SEAT)
+	_take_off_staff(npc, cause)
+	EventBus.npc_removed.emit(npc_id, cause)
+
+
+## Extra: true si la causa de una vacante o retirada es obra del jugador (lista de Company).
+static func is_player_cause(cause: String) -> bool:
+	return CompanySystem.PLAYER_CAUSES.has(cause)
+
+
+## §7.9 «expulsión» y «hundir a un amigo»: solo si la causa es del jugador. El retirado registra
+## el agravio indicado (si sigue vivo) y sus amistades/pareja en plantilla, friend_sunk.
+func _grieve_removal(npc: NPCRuntime, cause: String, grievance: String,
+		severity_key: String) -> void:
+	if not is_player_cause(cause):
+		return
+	if not ELIMINATION_CAUSES.has(cause):
+		add_grievance(npc.id, grievance, Database.get_balance_int(severity_key))
+		_shift_mood(npc, Database.get_balance_float(str(REMOVAL_MOOD.get(grievance,
+				B_MOOD_SEAT_LOST))))
+	for link: Dictionary in SocialGraph.get_links(npc.id):
+		var ally: String = _link_target(link, npc.id)
+		if ALLY_LINK_TYPES.has(_link_type(link)) and ally != npc.id and is_active(ally):
+			add_grievance(ally, GRIEVANCE_FRIEND_SUNK, Database.get_balance_int(B_SEV_FRIEND))
+
+
+## Deja la plantilla (estado propio): cuerpo si es eliminación; sin sala, sin LOD forzado ni fijado.
+func _take_off_staff(npc: NPCRuntime, cause: String) -> void:
 	var room: String = _elimination_room(npc)
 	npc.removed_cause = cause
 	npc.state = STATE_REMOVED
 	npc.lod = NPCRuntime.LOD_STATISTICAL
-	_forced_lod.erase(npc_id)
+	_forced_lod.erase(npc.id)
+	_lod_pins.erase(npc.id)
+	_world_located.erase(npc.id)
 	if ELIMINATION_CAUSES.has(cause):
 		npc.alive = false
 		_create_body(npc, room)
 	npc.current_room = ""
 	npc.floor = FLOOR_NONE
-	EventBus.npc_removed.emit(npc_id, cause)
+	refresh_lod()
+
+
+## Company vació la silla de un personaje en plantilla sin darle otra (jubilación, despido...):
+## deja la empresa. npc_removed se anuncia diferido, cuando Company ha terminado su cadena.
+func _end_employment(npc: NPCRuntime, cause: String) -> void:
+	_grieve_removal(npc, cause, GRIEVANCE_SEAT_LOST, B_SEV_SEAT)
+	_take_off_staff(npc, cause)
+	_announce_removal.call_deferred(npc.id, cause)
+
+
+func _announce_removal(npc_id: String, cause: String) -> void:
+	var npc: NPCRuntime = get_npc(npc_id)
+	if npc != null and npc.removed_cause == cause:
+		EventBus.npc_removed.emit(npc_id, cause)
 
 
 func is_alive(npc_id: String) -> bool:
@@ -791,11 +886,21 @@ func _check_bodies() -> void:
 
 # ─── Nivel de detalle (§20, PASO 40) ──────────────────────────
 
-## 0 completo, 1 medio, 2 estadístico. Se recalcula en la siguiente reasignación salvo forzado.
+## 0 completo, 1 medio, 2 estadístico. Fija el nivel (fuera del presupuesto por ubicación)
+## hasta clear_lod(); un LOD 0 forzado por trama (force_full_lod, lista corta, deuda) manda.
 func set_lod(npc_id: String, level: int) -> void:
 	var npc: NPCRuntime = get_npc(npc_id)
-	if npc != null:
-		npc.lod = clampi(level, NPCRuntime.LOD_FULL, NPCRuntime.LOD_STATISTICAL)
+	if npc == null or not _is_active(npc):
+		return
+	_lod_pins[npc_id] = clampi(level, NPCRuntime.LOD_FULL, NPCRuntime.LOD_STATISTICAL)
+	if not _is_forced(npc):
+		npc.lod = int(_lod_pins[npc_id])
+
+
+## Extra: retira el nivel fijado con set_lod() y reasigna niveles.
+func clear_lod(npc_id: String) -> void:
+	if _lod_pins.erase(npc_id):
+		refresh_lod()
 
 
 func get_lod(npc_id: String) -> int:
@@ -830,7 +935,8 @@ func get_full_lod_reasons(npc_id: String) -> Array[String]:
 	var out: Array[String] = []
 	for reason: Variant in _forced_lod.get(npc_id, []):
 		out.append(str(reason))
-	if get_debt(npc_id) != 0 and not out.has(REASON_DEBT):
+	var npc: NPCRuntime = get_npc(npc_id)
+	if npc != null and _has_debt_with_player(npc) and not out.has(REASON_DEBT):
 		out.append(REASON_DEBT)
 	return out
 
@@ -853,23 +959,16 @@ func get_lod_update_interval(level: int) -> float:
 	return 0.0
 
 
-## Extra: reasigna los tres niveles. max_agents > 0 sustituye al presupuesto configurado.
+## Extra: reasigna los tres niveles. max_agents > 0 sustituye al presupuesto configurado. Quien
+## acaba en LOD 2 pierde la sala fijada por su nodo (ya no lo tiene, §20.1).
 func refresh_lod(max_agents: int = -1) -> void:
 	if not Database.is_loaded() or _order.is_empty():
 		return
 	var budget: int = max_agents if max_agents > 0 else get_max_agents()
-	var near: Dictionary = _near_rooms(_player_room)
 	var forced: Array[NPCRuntime] = []
 	var close: Array[NPCRuntime] = []
 	var same_floor: Array[NPCRuntime] = []
-	for npc: NPCRuntime in get_all_npcs():
-		npc.lod = NPCRuntime.LOD_STATISTICAL
-		if _is_forced(npc):
-			forced.append(npc)
-		elif _on_player_floor(npc) and near.has(_base_room(npc.current_room)):
-			close.append(npc)
-		elif _on_player_floor(npc):
-			same_floor.append(npc)
+	_fill_lod_pools(forced, close, same_floor)
 	close.sort_custom(_closer_first)
 	var full_cap: int = mini(Database.get_balance_int(B_LOD_MAX_FULL), budget)
 	var full_count: int = _assign_level(forced, NPCRuntime.LOD_FULL, forced.size())
@@ -880,6 +979,26 @@ func refresh_lod(max_agents: int = -1) -> void:
 	var medium_cap: int = mini(Database.get_balance_int(B_LOD_MAX_MEDIUM),
 			maxi(budget - full_count, 0))
 	_assign_level(medium_pool, NPCRuntime.LOD_MEDIUM, medium_cap)
+	for npc: NPCRuntime in get_all_npcs():
+		if npc.lod == NPCRuntime.LOD_STATISTICAL:
+			_world_located.erase(npc.id)
+
+
+## Reparte la plantilla en forzados, cercanos (sala del jugador y adyacentes) y misma planta; los
+## niveles fijados con set_lod() se aplican aquí y no entran en ningún grupo.
+func _fill_lod_pools(forced: Array[NPCRuntime], close: Array[NPCRuntime],
+		same_floor: Array[NPCRuntime]) -> void:
+	var near: Dictionary = _near_rooms(_player_room)
+	for npc: NPCRuntime in get_all_npcs():
+		npc.lod = NPCRuntime.LOD_STATISTICAL
+		if _is_forced(npc):
+			forced.append(npc)
+		elif _lod_pins.has(npc.id):
+			npc.lod = int(_lod_pins[npc.id])
+		elif _on_player_floor(npc) and near.has(_base_room(npc.current_room)):
+			close.append(npc)
+		elif _on_player_floor(npc):
+			same_floor.append(npc)
 
 
 func _assign_level(npcs: Array[NPCRuntime], level: int, limit: int) -> int:
@@ -898,7 +1017,14 @@ func _closer_first(a: NPCRuntime, b: NPCRuntime) -> bool:
 
 
 func _is_forced(npc: NPCRuntime) -> bool:
-	return _forced_lod.has(npc.id) or int(npc.ledger.get("debt", 0)) != 0
+	return _forced_lod.has(npc.id) or _has_debt_with_player(npc)
+
+
+## §20.2 «mantener deuda con el jugador»: registro (en cualquier sentido) o arista de deuda de
+## SocialGraph hacia el jugador.
+func _has_debt_with_player(npc: NPCRuntime) -> bool:
+	return int(npc.ledger.get("debt", 0)) != 0 \
+			or SocialGraph.is_denunciation_suppressed(npc.id, PLAYER_ID)
 
 
 func _on_player_floor(npc: NPCRuntime) -> bool:
@@ -1088,7 +1214,8 @@ func _candidates(npc: NPCRuntime, trigger: String) -> Array[String]:
 	return out
 
 
-## Certezas relevantes: la creencia disparadora más las demás del personaje sobre el jugador.
+## Certezas relevantes (§7.5): la creencia disparadora más las demás creencias NEGATIVAS del
+## personaje sobre el jugador (verle trabajar no acerca a nadie a denunciarle).
 func _belief_certainties(npc_id: String, extra: Dictionary) -> Array:
 	var out: Array = []
 	if extra.has("certainty"):
@@ -1096,7 +1223,7 @@ func _belief_certainties(npc_id: String, extra: Dictionary) -> Array:
 	var trigger_id: String = str(extra.get("belief_id", ""))
 	for belief: Belief in BeliefNet.get_beliefs_held_by(npc_id):
 		if belief.subject != PLAYER_ID or belief.id == trigger_id or belief.is_record \
-				or _is_ignored_fact(belief.fact):
+				or not _should_react_to(belief.fact):
 			continue
 		out.append(belief.certainty)
 	return out
@@ -1114,13 +1241,14 @@ func _report_cooldown_over(npc: NPCRuntime) -> bool:
 
 
 ## Extra: la deuda con el jugador suprime la denuncia (§7.7): registro propio o arista de deuda
-## de SocialGraph (si expone is_denunciation_suppressed).
+## de SocialGraph.
 func is_report_suppressed(npc_id: String) -> bool:
-	if get_debt(npc_id) > 0:
-		return true
-	if SocialGraph.has_method(SUPPRESSION_GETTER):
-		return bool(SocialGraph.call(SUPPRESSION_GETTER, npc_id, PLAYER_ID))
-	return false
+	return get_debt(npc_id) > 0 or SocialGraph.is_denunciation_suppressed(npc_id, PLAYER_ID)
+
+
+## Extra: última decisión de utilidad {action, trigger, day, minute}; {} si no ha decidido.
+func get_last_decision(npc_id: String) -> Dictionary:
+	return (_last_decision.get(npc_id, {}) as Dictionary).duplicate()
 
 
 ## Extra: rival del personaje (arista de rivalidad en SocialGraph, o el jugador si comparten
@@ -1145,10 +1273,12 @@ func _apply_decision(npc: NPCRuntime, decision: Dictionary, trigger: String,
 	if action.is_empty():
 		return
 	var summary: Dictionary = {"trigger": trigger, "score": float(decision.get("score", 0.0))}
-	for key: String in ["belief_id", "certainty", "location", "amount", "favour_type", "advisory"]:
+	for key: String in ["belief_id", "certainty", "location", "amount", "favour_type", "advisory",
+			"report_available"]:
 		if extra.has(key):
 			summary[key] = extra[key]
-	npc.state = str(ACTION_STATES.get(action, npc.state))
+	_last_decision[npc.id] = {"action": action, "trigger": trigger, "day": _current_day(),
+			"minute": _clock_minute()}
 	_apply_action_effects(npc, action, summary)
 	EventBus.npc_decided.emit(npc.id, action, summary)
 	if UtilityAI.REPORT_ACTIONS.has(action):
@@ -1177,9 +1307,11 @@ func _apply_action_effects(npc: NPCRuntime, action: String, summary: Dictionary)
 
 
 ## «Silencio con memoria» (§8.2, §12.2): quien calla ante lo que vio con claridad lo guarda.
+## Solo si callar fue una elección: con la denuncia retirada (deuda, ya denunció hoy) no.
 func _keep_silence_material(npc: NPCRuntime, summary: Dictionary) -> void:
 	var certainty: float = float(summary.get("certainty", 0.0))
-	if certainty < Database.get_balance_float(B_DIRECT_CERTAINTY):
+	if certainty < Database.get_balance_float(B_DIRECT_CERTAINTY) \
+			or not bool(summary.get("report_available", false)):
 		return
 	var belief: Belief = BeliefNet.get_belief(str(summary.get("belief_id", "")))
 	var fact: String = belief.fact if belief != null else ""
@@ -1196,17 +1328,23 @@ func _evidence_for(certainty: float) -> String:
 	return EVIDENCE_PARTIAL
 
 
-## npc_reported_player(npc, tipo de pieza, peso de evidencia, sala): Security usa el tipo como
-## pieza (investigations.json evidence_types) y el peso como su valor.
+## npc_reported_player(npc, tipo, peso, sala). A Seguridad, tipo = pieza (evidence_types de
+## investigations.json) con su peso. Al superior, testigo directo → canal "superior" (§12.2
+## company_man: BeliefNet suma +10 y anota el expediente; Security pondera el canal); parcial →
+## pieza parcial con peso × npc.factor_denuncia_superior. El peso emitido siempre es el de la
+## pieza (× factor si va al superior).
 func _report(npc: NPCRuntime, channel: String, certainty: float, location: String) -> void:
 	var evidence: String = _evidence_for(certainty)
 	var weight: float = Database.get_balance_float(
 			B_WEIGHT_DIRECT if evidence == EVIDENCE_DIRECT else B_WEIGHT_PARTIAL)
+	var report_type: String = evidence
 	if channel == CHANNEL_SUPERIOR:
 		weight *= Database.get_balance_float(B_SUPERIOR_FACTOR)
+		if evidence == EVIDENCE_DIRECT:
+			report_type = CHANNEL_SUPERIOR
 	_last_report[npc.id] = _current_day()
 	_emitting_report = true
-	EventBus.npc_reported_player.emit(npc.id, evidence, weight, location)
+	EventBus.npc_reported_player.emit(npc.id, report_type, weight, location)
 	_emitting_report = false
 
 
@@ -1241,10 +1379,19 @@ func _on_belief_created(belief_id: String, holder: String, subject: String,
 		return
 	var location: String = belief.location if belief != null and not belief.location.is_empty() \
 			else npc.current_room
-	var extra: Dictionary = {"belief_id": belief_id, "certainty": certainty, "location": location}
+	var extra: Dictionary = {"belief_id": belief_id, "certainty": certainty, "location": location,
+			"report_available": _can_report(npc)}
 	var decision: Dictionary = decide(holder, TRIGGER_BELIEF, extra)
 	_consume_debt_if_silenced(npc, extra)
 	_apply_decision(npc, decision, TRIGGER_BELIEF, extra)
+
+
+## Cualquier denuncia (CaughtHandler, Blackmail...) cuenta para el plazo entre denuncias; las
+## propias ya se anotaron en _report().
+func _on_npc_reported_player(npc_id: String, _report_type: String, _weight: float,
+		_location: String) -> void:
+	if not _emitting_report and _npcs.has(npc_id):
+		_last_report[npc_id] = _current_day()
 
 
 ## Si la deuda impidió una denuncia que el personaje habría hecho, la deuda se consume (§7.7:
@@ -1273,9 +1420,7 @@ func _on_bribe_offered(npc_id: String, amount: int, favour_type: String) -> void
 	var npc: NPCRuntime = get_npc(npc_id)
 	if npc == null or not _is_active(npc):
 		return
-	var fair: int = get_fair_bribe_price(npc_id, favour_type)
-	var ratio: float = minf(float(amount) / fair, OFFER_RATIO_CAP) / OFFER_RATIO_CAP \
-			if fair > 0 else 0.0
+	var ratio: float = Bribery.offer_ratio(amount, get_fair_bribe_price(npc_id, favour_type))
 	var extra: Dictionary = {UtilityAI.CTX_OFFER: ratio, "amount": amount,
 			"favour_type": favour_type, "advisory": true}
 	_apply_decision(npc, decide(npc_id, TRIGGER_BRIBE, extra), TRIGGER_BRIBE, extra)
@@ -1299,18 +1444,19 @@ func _on_bribe_result(npc_id: String, accepted: bool, outcome: String) -> void:
 				Database.get_balance_int(B_SEV_BRIBE_REFUSED))
 
 
+## Anota la vacante del jugador (favor a quien la ocupe) y quita la ocupación al saliente. Si
+## seguía en plantilla y la causa no es un traslado (ascenso, reasignación), deja la empresa
+## (jubilación, despido...): ver _end_employment. Una retirada previa (remove_npc) ya lo hizo.
 func _on_seat_vacated(occupation_id: String, previous_holder: String, cause: String) -> void:
-	var by_player: bool = PLAYER_CAUSED_VACANCIES.has(cause)
-	if by_player:
+	if is_player_cause(cause):
 		_player_vacancies[occupation_id] = cause
 	var npc: NPCRuntime = get_npc(previous_holder)
 	if npc == null:
 		return
 	if npc.occupation_id == occupation_id:
 		npc.occupation_id = ""
-	if by_player and _is_active(npc):
-		add_grievance(previous_holder, GRIEVANCE_SEAT_LOST, Database.get_balance_int(B_SEV_SEAT))
-		_shift_mood(npc, Database.get_balance_float(B_MOOD_SEAT_LOST))
+	if _is_active(npc) and not STAFF_MOVE_CAUSES.has(cause):
+		_end_employment(npc, cause)
 
 
 ## §6.3: favor a quien asciende por obra del jugador; agravio a quien pierde el ascenso cuando la
@@ -1386,6 +1532,7 @@ func _hire(npc_id: String, occupation_id: String) -> NPCRuntime:
 	_register(npc, generator.profiles.get(npc_id, {}))
 	var loc: Dictionary = _location_at(npc, _clock_minute(), true)
 	_place(npc, str(loc["room"]), str(loc["activity"]))
+	refresh_lod()
 	return npc
 
 
@@ -1414,21 +1561,21 @@ func _assign_occupation(npc: NPCRuntime, occupation_id: String) -> void:
 	_plans.erase(npc.id)
 
 
-## Veredicto "other_guilty" (§12.3 fase 5): el condenado es inocente por construcción; guarda un
-## agravio permanente, sus aliados se vuelven hostiles y queda expulsado.
+## Veredicto "other_guilty" (§12.3 fase 5). Security sabe si el condenado era inocente
+## (incriminado o incidente del jugador): entonces guarda un agravio permanente, sus aliados se
+## vuelven hostiles y la expulsión cuenta como obra del jugador. Si era culpable, se le condena
+## sin agravios y la vacante no se atribuye al jugador.
 func _on_investigation_resolved(case_id: String, verdict: String, culprit: String) -> void:
 	_release_case(case_id)
 	var npc: NPCRuntime = get_npc(culprit)
 	if verdict != VERDICT_OTHER_GUILTY or npc == null or not _is_active(npc):
 		return
-	add_grievance(culprit, GRIEVANCE_WRONGFUL_CONVICTION,
-			Database.get_balance_int(B_SEV_CONVICTION))
-	_shift_mood(npc, Database.get_balance_float(B_MOOD_CONVICTION))
-	for link: Dictionary in SocialGraph.get_links(culprit):
-		var ally: String = _link_target(link, culprit)
-		if ALLY_LINK_TYPES.has(_link_type(link)) and is_active(ally):
-			add_grievance(ally, GRIEVANCE_FRIEND_SUNK, Database.get_balance_int(B_SEV_FRIEND))
-	remove_npc(culprit, CAUSE_CONVICTED)
+	if not bool(Security.get_case_report(case_id).get(CASE_CULPRIT_INNOCENT, false)):
+		remove_npc(culprit, CAUSE_CONVICTED)
+		return
+	_grieve_removal(npc, CAUSE_EXPELLED, GRIEVANCE_WRONGFUL_CONVICTION, B_SEV_CONVICTION)
+	_take_off_staff(npc, CAUSE_EXPELLED)
+	EventBus.npc_removed.emit(culprit, CAUSE_EXPELLED)
 
 
 func _on_suspect_list_formed(case_id: String, suspects: Array) -> void:
@@ -1555,6 +1702,7 @@ func save_state() -> Dictionary:
 		"shortlists": _shortlists.duplicate(true),
 		"player_vacancies": _player_vacancies.duplicate(true),
 		"last_report": _last_report.duplicate(true), "player_room": _player_room,
+		"last_decision": _last_decision.duplicate(true), "lod_pins": _lod_pins.duplicate(),
 		"player_floor": _player_floor, "day": _day,
 		"rng_seed": str(_rng.seed), "rng_state": str(_rng.state),
 	}
@@ -1565,14 +1713,16 @@ func load_state(data: Dictionary) -> void:
 	for raw: Variant in data.get("npcs", []):
 		if raw is Dictionary:
 			var npc: NPCRuntime = NPCRuntime.from_dict(raw, SAVE_CONTEXT)
+			npc.blackmail_material = _restore_ints(npc.blackmail_material)
 			_register(npc, _typed_profile(data.get("profiles", {}).get(npc.id, {})))
 	_bodies = _typed_bodies(data.get("bodies", {}))
 	_forced_lod = (data.get("forced_lod", {}) as Dictionary).duplicate(true)
 	_shortlists = (data.get("shortlists", {}) as Dictionary).duplicate(true)
 	_player_vacancies = (data.get("player_vacancies", {}) as Dictionary).duplicate(true)
-	_last_report = {}
-	for npc_id: Variant in data.get("last_report", {}):
-		_last_report[str(npc_id)] = int(data["last_report"][npc_id])
+	_last_report = _int_map(data.get("last_report", {}))
+	_lod_pins = _int_map(data.get("lod_pins", {}))
+	var decisions: Variant = data.get("last_decision", {})
+	_last_decision = _restore_ints(decisions) if decisions is Dictionary else {}
 	_player_room = str(data.get("player_room", ""))
 	_player_floor = int(data.get("player_floor", 0))
 	_day = int(data.get("day", GameClock.get_day()))
@@ -1580,6 +1730,15 @@ func load_state(data: Dictionary) -> void:
 	_rng.state = str(data.get("rng_state", "0")).to_int()
 	if Database.is_loaded():
 		_setup_runtime(Database.get_raw("npcs_generation"), false)
+
+
+## {clave: número} de JSON → {String: int}.
+static func _int_map(raw: Variant) -> Dictionary:
+	var out: Dictionary = {}
+	if raw is Dictionary:
+		for key: Variant in raw:
+			out[str(key)] = int(raw[key])
+	return out
 
 
 ## JSON devuelve números como float: se restauran los enteros del perfil.
@@ -1596,7 +1755,8 @@ static func _typed_profile(raw: Variant) -> Dictionary:
 	return profile
 
 
-## Los datos de personaje solo usan enteros: un float entero leído de JSON vuelve a int.
+## Los datos de personaje (perfil, material de chantaje, decisiones) solo usan enteros: un float
+## entero leído de JSON vuelve a int.
 static func _restore_ints(value: Variant) -> Variant:
 	if value is float and is_finite(value) and value == floorf(value):
 		return int(value)
@@ -1701,14 +1861,10 @@ static func _ledger_has_entries(ledger: Dictionary) -> bool:
 			or not (ledger.get("favours", []) as Array).is_empty()
 
 
-## Solo los hechos negativos que no gestiona otro módulo disparan la evaluación (§7.5): verte
-## trabajar o ser competente no es motivo de denuncia.
+## Solo los hechos negativos que no gestiona otro módulo disparan la evaluación y suman en el
+## término de creencias (§7.5): verte trabajar o ser competente no es motivo de denuncia.
 func _should_react_to(fact: String) -> bool:
-	if _is_ignored_fact(fact):
-		return false
-	if BeliefNet.has_method(NEGATIVE_FACT_GETTER):
-		return bool(BeliefNet.call(NEGATIVE_FACT_GETTER, fact))
-	return true
+	return not _is_ignored_fact(fact) and BeliefNet.is_negative_fact(fact)
 
 
 static func _is_ignored_fact(fact: String) -> bool:
