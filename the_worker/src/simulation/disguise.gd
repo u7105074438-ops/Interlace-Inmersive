@@ -51,7 +51,7 @@ const BALACLAVA := "balaclava"
 const SUBJECT_UNIFORM_PREFIX := InvestigationEngine.SUBJECT_UNIFORM_PREFIX
 const PLAYER_SUBJECT := InvestigationEngine.SUBJECT_PLAYER
 const CRIME_THEFT := "theft_small"
-const PHASE_EVIDENCE := 2
+const PHASE_EVIDENCE_ID := "evidence_collection"
 const CROSS_CHECK_PATH := "evidence_collection.cross_check_uniforms_with_shift_roster"
 const HOURS_PER_DAY := 24
 const TRAIT_PERCEPTION := "perception"
@@ -167,7 +167,7 @@ static func resolve_footage_identity(footage: Dictionary, phase: int) -> Diction
 	var subject: String = str(footage.get("subject", ""))
 	var out: Dictionary = {"subject": subject, "certainty": Investigation.FULL_CERTAINTY,
 			"crossed": false}
-	if not subject.begins_with(SUBJECT_UNIFORM_PREFIX) or phase < PHASE_EVIDENCE:
+	if not subject.begins_with(SUBJECT_UNIFORM_PREFIX) or phase < evidence_phase():
 		return out
 	if not bool(InvestigationEngine.dig(Database.get_investigation_params(), CROSS_CHECK_PATH,
 			false)):
@@ -178,6 +178,13 @@ static func resolve_footage_identity(footage: Dictionary, phase: int) -> Diction
 			return {"subject": PLAYER_SUBJECT,
 					"certainty": Database.get_balance_float(B_CROSS_CERTAINTY), "crossed": true}
 	return out
+
+
+## Número de la fase de recogida de pruebas (investigations.json phases, id evidence_collection).
+static func evidence_phase() -> int:
+	var phase: Dictionary = InvestigationEngine.find_by_id(
+			Database.get_investigation_params().get("phases", []), PHASE_EVIDENCE_ID)
+	return int(phase.get("number", 0))
 
 
 ## Sujeto de la creencia de un avistamiento del jugador disfrazado (para Perception/BeliefNet).
