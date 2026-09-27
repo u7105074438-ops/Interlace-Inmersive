@@ -99,6 +99,9 @@ class StageCanvas extends Node2D:
 ## Bocadillo de diálogo: panel con texto y cola dibujada hacia el personaje.
 class Bubble extends PanelContainer:
 	const TAIL := 18.0
+	## Primer fotograma: el texto aún no tiene su ancho; se muestra en el siguiente (sin parpadeo).
+	const FIRST_FRAME := -1.0
+	var pending_hold: float = 0.0
 	var style_id: String = SceneStage.STYLE_SAY
 	var tail_x: float = 0.5
 	var fill: Color = SceneStage.C_PAPER
@@ -124,6 +127,8 @@ class Bubble extends PanelContainer:
 	func _ready() -> void:
 		var natural: float = SceneStage.text_width(_label.text, _label)
 		_label.custom_minimum_size.x = minf(max_width, natural + 2.0)
+		_label.size.x = _label.custom_minimum_size.x
+		modulate.a = 0.0
 
 	func get_text() -> String:
 		return _label.text
@@ -528,10 +533,10 @@ func say(actor_id: String, text: String, style: String = STYLE_SAY, seconds: flo
 	if text.is_empty() or not _actors.has(actor_id):
 		return
 	var bubble: Bubble = Bubble.new(text, style, 460.0 * ui_scale())
-	bubble.hold = reading_time(text) if seconds < 0.0 else seconds
+	bubble.pending_hold = reading_time(text) if seconds < 0.0 else seconds
+	bubble.hold = Bubble.FIRST_FRAME
 	_overlay.add_child(bubble)
 	_bubbles[actor_id] = bubble
-	_place_overlays()
 
 
 ## Segundos de lectura de un texto (balance escenas.bocadillo_*).
@@ -578,7 +583,7 @@ func clear_badges() -> void:
 func _expire_bubbles(delta: float) -> void:
 	for id: String in _bubbles.keys():
 		var bubble: Bubble = _bubbles[id]
-		if bubble.hold <= 0.0:
+		if bubble.hold <= 0.0 or bubble.hold == Bubble.FIRST_FRAME:
 			continue
 		bubble.hold -= delta
 		if bubble.hold <= 0.0:
@@ -602,6 +607,9 @@ func _place_overlays() -> void:
 		var y: float = maxf(head.y - bubble.size.y, margin)
 		bubble.position = Vector2(x, y)
 		bubble.tail_x = (head.x - x) / maxf(bubble.size.x, 1.0)
+		bubble.modulate.a = 1.0 if bubble.is_node_ready() and bubble.hold != Bubble.FIRST_FRAME else 0.0
+		if bubble.hold == Bubble.FIRST_FRAME:
+			bubble.hold = bubble.pending_hold
 		bubble.queue_redraw()
 
 
@@ -1225,9 +1233,9 @@ func _paint_steel_table(ci: CanvasItem) -> void:
 		ci.draw_circle(corner, 3.5, C_STEEL_DARK)
 	_paint_folder(ci, Rect2(t.position.x + 60, t.position.y + 18, 150, 74))
 	_paint_recorder(ci, Vector2(t.end.x - 110, t.position.y + 40))
-	_paint_nameplate(ci, Vector2(t.get_center().x + 120, t.end.y - 26))
+	_paint_nameplate(ci, Vector2(t.end.x - 90, t.end.y - 24))
 	if bool(_props.get("coffee", false)):
-		_paint_coffee(ci, Vector2(t.get_center().x - 110, t.end.y - 34))
+		_paint_coffee(ci, Vector2(t.get_center().x + 88, t.end.y - 40))
 	if bool(_props.get("paper", false)):
 		var paper: Rect2 = Rect2(t.get_center().x - 58, t.position.y + 46, 86, 60)
 		_outline_rect(ci, paper, C_PAPER, 2.0)
@@ -1253,7 +1261,7 @@ func _paint_recorder(ci: CanvasItem, c: Vector2) -> void:
 
 
 func _paint_nameplate(ci: CanvasItem, c: Vector2) -> void:
-	var plate: Rect2 = Rect2(c - Vector2(78, 14), Vector2(156, 28))
+	var plate: Rect2 = Rect2(c - Vector2(66, 14), Vector2(132, 28))
 	_outline_rect(ci, plate, band_color("accent"), 2.0)
 	_text(ci, str(_props.get("nameplate", "")), plate.position + Vector2(4, 20), plate.size.x - 8, 15,
 			band_color("shadow"), true)
@@ -1278,7 +1286,11 @@ func _paint_coffee(ci: CanvasItem, c: Vector2) -> void:
 func _paint_interrogation_front(ci: CanvasItem, view: Rect2) -> void:
 	var lamp: String = str(_props.get("lamp", LAMP_NEUTRAL))
 	var light: Color = _lamp_color(lamp)
-	var cone_a: float = 0.2 if lamp == LAMP_HARSH else 0.13
+	var cone_a: float = 0.13
+	if lamp == LAMP_HARSH:
+		cone_a = 0.2
+	elif lamp == LAMP_WARM:
+		cone_a = 0.22
 	var c: Vector2 = INTERROGATION_LAMP
 	ci.draw_polygon(PackedVector2Array([c + Vector2(-70, 40), c + Vector2(70, 40), Vector2(1330, 800),
 			Vector2(590, 800)]), PackedColorArray([Color(light, cone_a), Color(light, cone_a),
@@ -1317,7 +1329,7 @@ func _lamp_darkness(lamp: String) -> Color:
 	var shadow: Color = band_color("shadow")
 	match lamp:
 		LAMP_WARM:
-			return Color(shadow, 0.5)
+			return Color(shadow.lerp(band_color("furniture"), 0.25), 0.3)
 		LAMP_HARSH:
 			return Color(Color("#05070c"), 0.9)
 	return Color(shadow.darkened(0.3), 0.72)
