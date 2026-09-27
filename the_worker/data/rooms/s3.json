@@ -1,0 +1,215 @@
+{
+  "_version": 1,
+  "floor": -3,
+  "band": "the_guts",
+  "kit": "technical",
+  "_note": "Cells = metres. pos = top-left cell of the footprint; size = [w,h] footprint as placed (already rotated); rotation = facing, degrees clockwise, 0 = front faces +y (south). Furniture without size is 1x1 except cubicle (2x2). Doors are added by floor_layout.gd.",
+  "rooms": [
+    {
+      "id": "boiler_room",
+      "name_key": "ROOM_BOILER_ROOM",
+      "floor": -3,
+      "wing": null,
+      "clearance_required": 5,
+      "special_access": ["maintenance"],
+      "special_access_mode": "or",
+      "art_band": "the_guts",
+      "kit": "technical",
+      "ambient_sound": "machinery_hum",
+      "ambient_noise_level": 1.0,
+      "acoustic_mask": true,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [12, 10],
+      "furniture": [
+        {"type": "boiler", "pos": [0, 0], "rotation": 0, "size": [3, 3]},
+        {"type": "boiler", "pos": [9, 0], "rotation": 0, "size": [3, 3]},
+        {"type": "electrical_panel", "pos": [3, 0], "rotation": 0},
+        {"type": "electrical_panel", "pos": [8, 0], "rotation": 0},
+        {"type": "industrial_machine", "pos": [5, 4], "rotation": 0, "size": [2, 2]},
+        {"type": "crate", "pos": [2, 7], "rotation": 0},
+        {"type": "crate", "pos": [3, 7], "rotation": 0},
+        {"type": "crate", "pos": [9, 7], "rotation": 0}
+      ],
+      "hiding_spots": [
+        {"id": "hide_boiler_crates", "type": "crate", "pos": [3, 7], "capacity": 3, "can_hide_body": false},
+        {"id": "hide_boiler_vent", "type": "vent", "pos": [11, 6], "capacity": 2, "can_hide_body": false}
+      ],
+      "interactables": [
+        {"id": "boiler_vent", "type": "vent_hatch", "pos": [11, 6], "leads_to": ["vent_network", "electrical_room", "maintenance_store", "forgotten_corridor"]}
+      ],
+      "illegitimate_entries": ["vent"],
+      "connects_to": ["service_tunnel", "service_stairs"],
+      "occupants_by_band": {"arrival": 0, "work_morning": 0, "lunch": 0, "work_afternoon": 0, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_BOILER_ROOM_OPP",
+      "risk_key": "ROOM_BOILER_ROOM_RISK",
+      "blind_spot": true,
+      "is_hiding_place": false,
+      "search_priority": 1,
+      "max_stay_minutes": 20,
+      "sound_isolated": true
+    },
+    {
+      "id": "electrical_room",
+      "name_key": "ROOM_ELECTRICAL_ROOM",
+      "floor": -3,
+      "wing": null,
+      "clearance_required": 5,
+      "special_access": ["maintenance"],
+      "special_access_mode": "or",
+      "art_band": "the_guts",
+      "kit": "technical",
+      "ambient_sound": "machinery_hum",
+      "ambient_noise_level": 0.8,
+      "acoustic_mask": false,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [8, 8],
+      "furniture": [
+        {"type": "electrical_panel", "pos": [0, 0], "rotation": 0},
+        {"type": "electrical_panel", "pos": [1, 0], "rotation": 0},
+        {"type": "electrical_panel", "pos": [6, 0], "rotation": 0},
+        {"type": "electrical_panel", "pos": [7, 0], "rotation": 0},
+        {"type": "industrial_machine", "pos": [3, 3], "rotation": 0, "size": [2, 2]}
+      ],
+      "hiding_spots": [
+        {"id": "hide_electrical_vent", "type": "vent", "pos": [7, 5], "capacity": 2, "can_hide_body": false}
+      ],
+      "interactables": [
+        {"id": "floor_breakers", "type": "electrical_breaker", "pos": [0, 0], "controls": "per_floor", "disables": ["cameras", "card_readers", "lights"], "triggers_investigation": true},
+        {"id": "electrical_vent", "type": "vent_hatch", "pos": [7, 5], "leads_to": ["vent_network", "boiler_room", "maintenance_store", "forgotten_corridor"]}
+      ],
+      "illegitimate_entries": ["vent"],
+      "connects_to": ["service_stairs"],
+      "occupants_by_band": {"arrival": 0, "work_morning": 0, "lunch": 0, "work_afternoon": 0, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_ELECTRICAL_ROOM_OPP",
+      "risk_key": "ROOM_ELECTRICAL_ROOM_RISK",
+      "blind_spot": true,
+      "is_hiding_place": false,
+      "search_priority": 1
+    },
+    {
+      "id": "maintenance_store",
+      "name_key": "ROOM_MAINTENANCE_STORE",
+      "floor": -3,
+      "wing": null,
+      "clearance_required": 2,
+      "special_access": ["maintenance"],
+      "special_access_mode": "and",
+      "art_band": "the_guts",
+      "kit": "technical",
+      "ambient_sound": "machinery_hum",
+      "ambient_noise_level": 0.8,
+      "acoustic_mask": false,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [10, 8],
+      "furniture": [
+        {"type": "shelf_rack", "pos": [0, 0], "rotation": 0, "size": [3, 1]},
+        {"type": "shelf_rack", "pos": [7, 0], "rotation": 0, "size": [3, 1]},
+        {"type": "shelf_rack", "pos": [3, 3], "rotation": 0, "size": [4, 1]},
+        {"type": "lockers", "pos": [7, 5], "rotation": 0, "size": [2, 1]},
+        {"type": "crate", "pos": [1, 5], "rotation": 0},
+        {"type": "crate", "pos": [2, 5], "rotation": 0}
+      ],
+      "hiding_spots": [
+        {"id": "hide_maint_store_locker", "type": "locker", "pos": [8, 5], "capacity": 2, "can_hide_body": false}
+      ],
+      "interactables": [
+        {"id": "maintenance_uniform_locker", "type": "uniform_locker", "pos": [7, 5], "uniform": "maintenance", "owner": "npc_frank_rudd"},
+        {"id": "maintenance_tool_rack", "type": "tool_rack", "pos": [8, 0], "contains": ["lockpick", "crowbar", "bolt_cutter"]},
+        {"id": "maint_store_vent", "type": "vent_hatch", "pos": [0, 1], "leads_to": ["vent_network", "boiler_room", "electrical_room", "forgotten_corridor"]}
+      ],
+      "illegitimate_entries": ["vent"],
+      "connects_to": ["service_tunnel", "service_stairs"],
+      "occupants_by_band": {"arrival": 1, "work_morning": 1, "lunch": 0, "work_afternoon": 1, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_MAINTENANCE_STORE_OPP",
+      "risk_key": "ROOM_MAINTENANCE_STORE_RISK",
+      "blind_spot": true,
+      "is_hiding_place": false,
+      "search_priority": 1
+    },
+    {
+      "id": "service_tunnel",
+      "name_key": "ROOM_SERVICE_TUNNEL",
+      "floor": -3,
+      "wing": null,
+      "clearance_required": 5,
+      "special_access": ["maintenance"],
+      "special_access_mode": "or",
+      "art_band": "the_guts",
+      "kit": "technical",
+      "ambient_sound": "machinery_hum",
+      "ambient_noise_level": 0.8,
+      "acoustic_mask": false,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [30, 4],
+      "furniture": [
+        {"type": "electrical_panel", "pos": [4, 0], "rotation": 0},
+        {"type": "crate", "pos": [8, 0], "rotation": 0},
+        {"type": "crate", "pos": [9, 0], "rotation": 0},
+        {"type": "electrical_panel", "pos": [20, 0], "rotation": 0},
+        {"type": "crate", "pos": [25, 0], "rotation": 0},
+        {"type": "crate", "pos": [26, 0], "rotation": 0},
+        {"type": "trash_bin", "pos": [27, 0], "rotation": 0}
+      ],
+      "hiding_spots": [
+        {"id": "hide_tunnel_crates", "type": "crate", "pos": [25, 0], "capacity": 3, "can_hide_body": false}
+      ],
+      "interactables": [],
+      "illegitimate_entries": [],
+      "connects_to": ["boiler_room", "maintenance_store", "factory_dye_lab"],
+      "occupants_by_band": {"arrival": 0, "work_morning": 0, "lunch": 0, "work_afternoon": 0, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_SERVICE_TUNNEL_OPP",
+      "risk_key": "ROOM_SERVICE_TUNNEL_RISK",
+      "blind_spot": true,
+      "is_hiding_place": false,
+      "search_priority": 1,
+      "route_to_floor": 100
+    },
+    {
+      "id": "forgotten_corridor",
+      "name_key": "ROOM_FORGOTTEN_CORRIDOR",
+      "floor": -3,
+      "wing": null,
+      "clearance_required": 5,
+      "special_access": [],
+      "special_access_mode": "none",
+      "art_band": "the_guts",
+      "kit": "technical",
+      "ambient_sound": "machinery_hum",
+      "ambient_noise_level": 0.8,
+      "acoustic_mask": false,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [16, 3],
+      "furniture": [
+        {"type": "filing_cabinet", "pos": [2, 0], "rotation": 0},
+        {"type": "crate", "pos": [3, 0], "rotation": 0},
+        {"type": "crate", "pos": [4, 0], "rotation": 0},
+        {"type": "chair", "pos": [11, 0], "rotation": 90},
+        {"type": "crate", "pos": [13, 0], "rotation": 0},
+        {"type": "trash_bin", "pos": [14, 0], "rotation": 0}
+      ],
+      "hiding_spots": [
+        {"id": "hide_forgotten_crates", "type": "crate", "pos": [3, 0], "capacity": 12, "can_hide_body": true},
+        {"id": "hide_forgotten_alcove", "type": "supply_closet", "pos": [13, 0], "capacity": 8, "can_hide_body": true}
+      ],
+      "interactables": [
+        {"id": "forgotten_door_lock", "type": "lock_old", "pos": [7, 2], "target": "door", "keys_basic_opens": true},
+        {"id": "forgotten_vent", "type": "vent_hatch", "pos": [1, 1], "leads_to": ["vent_network", "boiler_room", "electrical_room", "maintenance_store"]}
+      ],
+      "illegitimate_entries": ["old_keys", "vent"],
+      "connects_to": ["service_stairs"],
+      "occupants_by_band": {"arrival": 0, "work_morning": 0, "lunch": 0, "work_afternoon": 0, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_FORGOTTEN_CORRIDOR_OPP",
+      "risk_key": "ROOM_FORGOTTEN_CORRIDOR_RISK",
+      "blind_spot": true,
+      "is_hiding_place": true,
+      "search_priority": 0,
+      "never_searched": true,
+      "hidden_location": true
+    }
+  ]
+}

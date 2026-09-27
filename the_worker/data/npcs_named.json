@@ -1,0 +1,1080 @@
+{
+  "_version": 1,
+  "_nota": [
+    "Los 23 personajes nominados (§24.2) con el esquema §29 más extensiones compatibles.",
+    "Rasgos: valores definitivos exactos de §24.2 (sin variación aleatoria).",
+    "archetype: Harlan Voss es único; se usa el arquetipo más próximo por rasgos ('climber') con unique_profile 'ceo'. Preston Vaile III: 'hardliner' con secondary_archetype 'climber'.",
+    "occupation: id de §23. Cadena vacía \"\" (equivale a null: NPCData.occupation es String tipado y el validador rechaza null) cuando el personaje no ocupa una de las 50 sillas jugables; entonces role/role_name_key/tier/clearance/daily_wage describen su puesto (Rose Miller: auditora bajo el Auditor Jefe; Pearl Osgood: secretaría del CEO, que en §24.2 figura con el id de sala 'ceo_secretariat').",
+    "seat_index: índice de silla cuando varios personajes comparten ocupación (la silla del jugador en email_worker_3b es aparte). shift: 'day'|'night' para vigilantes.",
+    "future_occupation: sucesor preferente — cuando esa silla queda libre, Company asciende a este personaje antes que aplicar §6.3. future_occupation_day (Rose, §7.13): jornada en que Company jubila al Auditor Jefe generado si la silla sigue ocupada y Rose sigue en plantilla.",
+    "department: id de departamento de npcs_generation.json (la población del departamento incluye a sus nominados).",
+    "routine_overrides: se superponen a la plantilla. time 'HH:MM'; si duration_minutes cruza franjas cubre todas ellas; si dos overrides se solapan manda el que empezó más tarde. Extras opcionales: condition, repeat_every_minutes + until (repetición), time_jitter_minutes (retraso aleatorio 0..n), target (id de personaje), zone_floors (limpieza), note (comentario de desarrollo, no se muestra). location 'assigned_zone' = zona de limpieza del personaje.",
+    "initial_links: cada vínculo se declara UNA vez, en el personaje origen. Los no dirigidos (department, friendship, couple, rivalry, nepotism) los refleja SocialGraph en ambos sentidos. Dirigidos: hierarchy va del subordinado al superior (la información asciende); debt va del deudor al acreedor (suprime la denuncia del deudor hacia el acreedor). nepotism lleva 'beneficiary' (acusarle se vuelve contra el acusador).",
+    "secrets: claves NPC_SECRET_* visibles en el expediente N6–N7 o por intrusión en RRHH. blackmail_secrets: subconjunto utilizable como material de chantaje.",
+    "home_address: tipo de vivienda exterior (npc_house_humble | npc_house_semi | npc_house_mansion) según escalón.",
+    "special: indicadores de mecánica propios del personaje (§8.3); los sistemas leen solo los que conocen."
+  ],
+  "npcs": [
+    {
+      "id": "npc_debbie_foyle",
+      "name": "Debbie Foyle",
+      "archetype": "gossip",
+      "traits": { "ambition": 42, "loyalty": 40, "greed": 48, "courage": 38, "perception": 72, "sociability": 96 },
+      "occupation": "order_filer",
+      "seat_index": 0,
+      "department": "base",
+      "home_room": "wing_3b",
+      "desk_position": [4, 2],
+      "routine_template": "tier_1_2",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "10:30",
+          "action": "coffee",
+          "location": "p3_pantry",
+          "duration_minutes": 15
+        },
+        {
+          "band": "lunch",
+          "time": "13:00",
+          "action": "gossip",
+          "location": "cafeteria",
+          "duration_minutes": 60,
+          "note": "Ocupa siempre la primera fila del comedor"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_george_penn", "type": "department", "strength": 0.4 },
+        { "to": "npc_sonia_vail", "type": "friendship", "strength": 0.7 },
+        { "to": "npc_claudia_reeves", "type": "rivalry", "strength": 0.5 },
+        { "to": "npc_nate_brackley", "type": "department", "strength": 0.3 },
+        { "to": "npc_ray_cudmore", "type": "department", "strength": 0.4 },
+        { "to": "npc_bernard_lasker", "type": "hierarchy", "strength": 0.7 }
+      ],
+      "gatherings": ["cafeteria_clan", "chat_3b"],
+      "weakness_key": "NPC_WEAK_FEED_GOSSIP",
+      "danger_key": "NPC_DANGER_SPREADS_YOURS",
+      "unique_accessory": "oversized_mug",
+      "portrait_seed": 10472,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_DEBBIE_NEWSLETTER"],
+      "blackmail_secrets": ["NPC_SECRET_DEBBIE_NEWSLETTER"],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false
+    },
+    {
+      "id": "npc_george_penn",
+      "name": "George Penn",
+      "archetype": "snitch",
+      "traits": { "ambition": 55, "loyalty": 88, "greed": 18, "courage": 48, "perception": 84, "sociability": 68 },
+      "occupation": "email_worker_3b",
+      "seat_index": 0,
+      "department": "base",
+      "home_room": "wing_3b",
+      "desk_position": [4, 8],
+      "routine_template": "tier_1_2",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "11:00",
+          "action": "report_to_superior",
+          "location": "wing_3b",
+          "duration_minutes": 10,
+          "target": "npc_bernard_lasker",
+          "note": "Informa a Bernard de las cifras del día… y de todo lo demás"
+        },
+        {
+          "band": "exit",
+          "time": "18:25",
+          "action": "stay_late_visible",
+          "location": "wing_3b",
+          "duration_minutes": 20,
+          "note": "Sale el último del ala para que Bernard lo vea"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_nate_brackley", "type": "department", "strength": 0.4 },
+        { "to": "npc_claudia_reeves", "type": "department", "strength": 0.35 },
+        { "to": "npc_bernard_lasker", "type": "hierarchy", "strength": 0.8 }
+      ],
+      "gatherings": ["cafeteria_clan", "chat_3b"],
+      "weakness_key": "NPC_WEAK_GIFT_MERIT",
+      "danger_key": "NPC_DANGER_REPORTS_ANOMALIES",
+      "unique_accessory": "employee_of_month_pin",
+      "portrait_seed": 23817,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_GEORGE_NOMINATIONS"],
+      "blackmail_secrets": ["NPC_SECRET_GEORGE_NOMINATIONS"],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false
+    },
+    {
+      "id": "npc_nate_brackley",
+      "name": "Nate Brackley",
+      "archetype": "oblivious",
+      "traits": { "ambition": 22, "loyalty": 48, "greed": 42, "courage": 28, "perception": 12, "sociability": 40 },
+      "occupation": "email_worker_3b",
+      "seat_index": 1,
+      "department": "base",
+      "home_room": "wing_3b",
+      "desk_position": [8, 2],
+      "routine_template": "tier_1_2",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "11:30",
+          "action": "slack_off",
+          "location": "foosball_room",
+          "duration_minutes": 40,
+          "note": "Futbolín en la planta 4"
+        },
+        {
+          "band": "work_afternoon",
+          "time": "15:30",
+          "action": "nap",
+          "location": "p3_toilets",
+          "duration_minutes": 25
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_claudia_reeves", "type": "department", "strength": 0.3 },
+        { "to": "npc_frank_rudd", "type": "friendship", "strength": 0.6 },
+        { "to": "npc_bernard_lasker", "type": "hierarchy", "strength": 0.6 }
+      ],
+      "gatherings": ["cafeteria_clan", "chat_3b", "foosball_circle"],
+      "weakness_key": "NPC_WEAK_NONE_NEEDED",
+      "danger_key": "NPC_DANGER_VIRTUALLY_NONE",
+      "unique_accessory": "noise_cancelling_headphones",
+      "portrait_seed": 31509,
+      "is_slacker": true,
+      "secrets": ["NPC_SECRET_NATE_GODSON"],
+      "blackmail_secrets": [],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false
+    },
+    {
+      "id": "npc_claudia_reeves",
+      "name": "Claudia Reeves",
+      "archetype": "climber",
+      "traits": { "ambition": 94, "loyalty": 28, "greed": 58, "courage": 62, "perception": 74, "sociability": 58 },
+      "occupation": "email_worker_3b",
+      "seat_index": 2,
+      "department": "base",
+      "home_room": "wing_3b",
+      "desk_position": [8, 5],
+      "routine_template": "tier_1_2",
+      "routine_overrides": [
+        {
+          "band": "arrival",
+          "time": "08:05",
+          "action": "arrive_early",
+          "location": "wing_3b",
+          "duration_minutes": 55,
+          "note": "Llega antes que nadie"
+        },
+        {
+          "band": "work_afternoon",
+          "time": "15:00",
+          "action": "present_idea",
+          "location": "aurora_room",
+          "duration_minutes": 90,
+          "condition": "presentation_day_and_has_idea",
+          "note": "Sala Aurora (P12) el día de presentaciones, si tiene una idea lista"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_bernard_lasker", "type": "hierarchy", "strength": 0.7 }
+      ],
+      "gatherings": ["cafeteria_clan", "chat_3b"],
+      "weakness_key": "NPC_WEAK_URGENT_AMBITION",
+      "danger_key": "NPC_DANGER_FIRST_COMPETITOR",
+      "unique_accessory": "colour_coded_planner",
+      "portrait_seed": 44126,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_CLAUDIA_MBA"],
+      "blackmail_secrets": ["NPC_SECRET_CLAUDIA_MBA"],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false,
+      "special": { "idea_quality_range": [60, 90] }
+    },
+    {
+      "id": "npc_ray_cudmore",
+      "name": "Old Ray Cudmore",
+      "archetype": "old_hand",
+      "traits": { "ambition": 12, "loyalty": 62, "greed": 28, "courage": 78, "perception": 92, "sociability": 48 },
+      "occupation": "order_filer",
+      "seat_index": 1,
+      "department": "base",
+      "home_room": "wing_3b",
+      "desk_position": [12, 2],
+      "routine_template": "tier_1_2",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "10:00",
+          "action": "smoke",
+          "location": "street",
+          "duration_minutes": 15,
+          "note": "En el corrillo de fumadores cuenta lo que sabe del edificio"
+        },
+        {
+          "band": "lunch",
+          "time": "13:00",
+          "action": "lunch",
+          "location": "cafeteria",
+          "duration_minutes": 60,
+          "note": "La misma mesa desde hace treinta y un años"
+        },
+        {
+          "band": "exit",
+          "time": "18:00",
+          "action": "leave_on_the_dot",
+          "location": "turnstiles",
+          "duration_minutes": 5,
+          "note": "Sale a las 18:00 en punto"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_connie_marks", "type": "friendship", "strength": 0.7 },
+        { "to": "npc_bernard_lasker", "type": "hierarchy", "strength": 0.6 }
+      ],
+      "gatherings": ["cafeteria_clan", "smokers_circle"],
+      "weakness_key": "NPC_WEAK_SUSTAINED_RESPECT",
+      "danger_key": "NPC_DANGER_SPOTS_ANOMALIES",
+      "unique_accessory": "thirty_year_pin",
+      "portrait_seed": 52903,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_RAY_COMET"],
+      "blackmail_secrets": [],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false,
+      "special": { "years_at_company": 31, "remembers_historic_designs": true }
+    },
+    {
+      "id": "npc_sonia_vail",
+      "name": "Sonia Vail",
+      "archetype": "rookie",
+      "traits": { "ambition": 58, "loyalty": 72, "greed": 32, "courage": 28, "perception": 32, "sociability": 30 },
+      "occupation": "email_worker_3b",
+      "seat_index": 3,
+      "department": "base",
+      "home_room": "wing_3b",
+      "desk_position": [8, 8],
+      "routine_template": "tier_1_2",
+      "routine_overrides": [
+        {
+          "band": "arrival",
+          "time": "08:10",
+          "action": "arrive_early",
+          "location": "wing_3b",
+          "duration_minutes": 50,
+          "note": "Llega pronto: aún quiere causar buena impresión"
+        },
+        {
+          "band": "lunch",
+          "time": "13:00",
+          "action": "eat_alone",
+          "location": "cafeteria",
+          "duration_minutes": 45,
+          "note": "Última mesa; se sienta con Debbie solo si ésta la llama"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_bernard_lasker", "type": "hierarchy", "strength": 0.6 }
+      ],
+      "gatherings": ["cafeteria_clan"],
+      "weakness_key": "NPC_WEAK_ISOLATION",
+      "danger_key": "NPC_DANGER_ALLY_OR_ACCUSER",
+      "unique_accessory": "visitor_lanyard",
+      "portrait_seed": 60218,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_SONIA_MOONLIGHT"],
+      "blackmail_secrets": ["NPC_SECRET_SONIA_MOONLIGHT"],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false,
+      "special": { "hired_same_day_as_player": true }
+    },
+    {
+      "id": "npc_bernard_lasker",
+      "name": "Bernard Lasker",
+      "archetype": "hardliner",
+      "traits": { "ambition": 52, "loyalty": 72, "greed": 22, "courage": 92, "perception": 58, "sociability": 38 },
+      "occupation": "wing_3b_chief",
+      "department": "base",
+      "home_room": "wing_3b",
+      "desk_position": [1, 10],
+      "routine_template": "tier_4",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "09:00",
+          "action": "patrol",
+          "location": "wing_3b",
+          "duration_minutes": 10,
+          "repeat_every_minutes": 45,
+          "until": "18:30",
+          "note": "Patrulla el ala 3B cada 45 minutos"
+        },
+        {
+          "band": "lunch",
+          "time": "13:00",
+          "action": "review_figures",
+          "location": "wing_3b",
+          "duration_minutes": 60,
+          "note": "Come en su mesa revisando las cifras del ala"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_amelia_cole", "type": "department", "strength": 0.3 }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_WING_FIGURES_ONLY",
+      "danger_key": "NPC_DANGER_FREQUENT_PATROLS",
+      "unique_accessory": "stopwatch",
+      "portrait_seed": 71844,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_BERNARD_ROUNDING"],
+      "blackmail_secrets": ["NPC_SECRET_BERNARD_ROUNDING"],
+      "home_address": "npc_house_semi",
+      "knows_safe_combination": false,
+      "special": { "judges_only_wing_figures": true }
+    },
+    {
+      "id": "npc_amelia_cole",
+      "name": "Amelia Cole",
+      "archetype": "incorruptible",
+      "traits": { "ambition": 32, "loyalty": 94, "greed": 8, "courage": 78, "perception": 76, "sociability": 42 },
+      "occupation": "hr_assistant",
+      "seat_index": 0,
+      "future_occupation": "hr_director",
+      "department": "base",
+      "home_room": "hr_office",
+      "desk_position": [2, 4],
+      "routine_template": "tier_1_2",
+      "routine_overrides": [
+        {
+          "band": "lunch",
+          "time": "13:00",
+          "action": "eat_at_desk",
+          "location": "hr_office",
+          "duration_minutes": 60,
+          "note": "No abandona los expedientes"
+        },
+        {
+          "band": "exit",
+          "time": "18:30",
+          "action": "lock_files",
+          "location": "hr_office",
+          "duration_minutes": 15
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_rose_miller", "type": "friendship", "strength": 0.6 }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_NONE_UNBRIBABLE",
+      "danger_key": "NPC_DANGER_GUARDS_FILES",
+      "unique_accessory": "glasses_chain",
+      "portrait_seed": 18359,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_AMELIA_SELF_REPORT"],
+      "blackmail_secrets": [],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false,
+      "special": { "guards_personnel_files": true }
+    },
+    {
+      "id": "npc_tom_iverson",
+      "name": "Tom Iverson",
+      "archetype": "bribable",
+      "traits": { "ambition": 50, "loyalty": 18, "greed": 92, "courage": 32, "perception": 48, "sociability": 52 },
+      "occupation": "security_guard",
+      "seat_index": 0,
+      "shift": "day",
+      "department": "base",
+      "home_room": "turnstiles",
+      "desk_position": [7, 2],
+      "routine_template": "guard_day",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "10:30",
+          "action": "smoke",
+          "location": "street",
+          "duration_minutes": 20,
+          "note": "Corrillo de fumadores de la puerta principal"
+        },
+        {
+          "band": "work_afternoon",
+          "time": "15:00",
+          "action": "read_paperback",
+          "location": "turnstiles",
+          "duration_minutes": 45,
+          "note": "El control de torniquetes queda sin mirar durante 45 minutos"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_ludmila_petrova", "type": "rivalry", "strength": 0.5 },
+        { "to": "npc_frank_rudd", "type": "friendship", "strength": 0.6 }
+      ],
+      "gatherings": ["smokers_circle"],
+      "weakness_key": "NPC_WEAK_SMALL_CASH",
+      "danger_key": "NPC_DANGER_NONE_WHILE_PAID",
+      "unique_accessory": "paperback_novel",
+      "portrait_seed": 27461,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_TOM_NOTEBOOK"],
+      "blackmail_secrets": ["NPC_SECRET_TOM_NOTEBOOK"],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false
+    },
+    {
+      "id": "npc_ludmila_petrova",
+      "name": "Ludmila Petrova",
+      "archetype": "hardliner",
+      "traits": { "ambition": 48, "loyalty": 74, "greed": 20, "courage": 94, "perception": 82, "sociability": 36 },
+      "occupation": "security_guard",
+      "seat_index": 1,
+      "shift": "night",
+      "department": "base",
+      "home_room": "monitor_room",
+      "desk_position": [6, 2],
+      "routine_template": "guard_night",
+      "routine_overrides": [
+        {
+          "band": "night",
+          "time": "19:00",
+          "action": "review_card_log",
+          "location": "monitor_room",
+          "duration_minutes": 20,
+          "note": "Revisa el registro de tarjetas del día antes de su primera ronda"
+        },
+        {
+          "band": "night",
+          "time": "03:00",
+          "action": "surprise_round",
+          "location": "service_stairs",
+          "duration_minutes": 20,
+          "time_jitter_minutes": 120,
+          "note": "Ronda extra a hora aleatoria: rompe el patrón de 90 minutos"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_connie_marks", "type": "department", "strength": 0.4 }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_NONE_AFFORDABLE",
+      "danger_key": "NPC_DANGER_NIGHT_OBSTACLE",
+      "unique_accessory": "heavy_flashlight",
+      "portrait_seed": 39072,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_LUDMILA_CHESS"],
+      "blackmail_secrets": [],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false
+    },
+    {
+      "id": "npc_connie_marks",
+      "name": "Connie Marks",
+      "archetype": "old_hand",
+      "traits": { "ambition": 14, "loyalty": 58, "greed": 34, "courage": 72, "perception": 90, "sociability": 54 },
+      "occupation": "cleaner",
+      "seat_index": 0,
+      "department": "base",
+      "home_room": "cleaning_locker_room",
+      "desk_position": [3, 5],
+      "routine_template": "cleaning",
+      "routine_overrides": [
+        {
+          "band": "work_afternoon",
+          "time": "17:05",
+          "action": "smoke",
+          "location": "street",
+          "duration_minutes": 10,
+          "note": "Coincide con Ray en el corrillo de fumadores"
+        },
+        {
+          "band": "exit",
+          "time": "18:00",
+          "action": "clean_zone",
+          "location": "assigned_zone",
+          "duration_minutes": 240,
+          "zone_floors": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "note": "Limpia su zona (plantas 1–12) de 18:00 a 22:00: presencia toda actividad fuera de horario"
+        },
+        {
+          "band": "night",
+          "time": "20:30",
+          "action": "tea_break",
+          "location": "p3_pantry",
+          "duration_minutes": 15,
+          "note": "Té en el office del 3B: ve todo lo que ha quedado sobre las mesas"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_frank_rudd", "type": "department", "strength": 0.4 }
+      ],
+      "gatherings": ["smokers_circle"],
+      "weakness_key": "NPC_WEAK_CONSIDERATE_TREATMENT",
+      "danger_key": "NPC_DANGER_WITNESSES_AFTER_HOURS",
+      "unique_accessory": "cleaning_cart",
+      "portrait_seed": 48530,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_CONNIE_KEYS"],
+      "blackmail_secrets": ["NPC_SECRET_CONNIE_KEYS"],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false,
+      "special": {
+        "socially_invisible": true,
+        "master_keys": true,
+        "cleaning_zone_floors": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      }
+    },
+    {
+      "id": "npc_frank_rudd",
+      "name": "Frank Rudd",
+      "archetype": "burnout",
+      "traits": { "ambition": 8, "loyalty": 14, "greed": 58, "courage": 22, "perception": 38, "sociability": 28 },
+      "occupation": "maintenance_aide",
+      "seat_index": 0,
+      "department": "base",
+      "home_room": "maintenance_workshop",
+      "desk_position": [4, 4],
+      "routine_template": "tier_1_2",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "11:00",
+          "action": "smoke",
+          "location": "street",
+          "duration_minutes": 25
+        },
+        {
+          "band": "work_afternoon",
+          "time": "15:00",
+          "action": "slack_off",
+          "location": "maintenance_store",
+          "duration_minutes": 45,
+          "note": "Siesta en el almacén de mantenimiento (S3)"
+        }
+      ],
+      "initial_links": [],
+      "gatherings": ["smokers_circle", "foosball_circle"],
+      "weakness_key": "NPC_WEAK_PETTY_SUM_UNIFORM",
+      "danger_key": "NPC_DANGER_NONE",
+      "unique_accessory": "tool_belt",
+      "portrait_seed": 57196,
+      "is_slacker": true,
+      "secrets": ["NPC_SECRET_FRANK_REPORTS"],
+      "blackmail_secrets": ["NPC_SECRET_FRANK_REPORTS"],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false,
+      "special": { "lends_item": "maintenance_uniform" }
+    },
+    {
+      "id": "npc_ernie_vaughn",
+      "name": "Ernie Vaughn",
+      "archetype": "climber",
+      "traits": { "ambition": 88, "loyalty": 32, "greed": 64, "courage": 58, "perception": 66, "sociability": 56 },
+      "occupation": "factory_foreman",
+      "department": "factory",
+      "home_room": "foreman_office",
+      "desk_position": [3, 3],
+      "routine_template": "tier_4",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "09:30",
+          "action": "patrol",
+          "location": "assembly_line",
+          "duration_minutes": 30
+        },
+        {
+          "band": "work_afternoon",
+          "time": "16:00",
+          "action": "visit_office",
+          "location": "foreman_office",
+          "duration_minutes": 20,
+          "time_jitter_minutes": 90,
+          "note": "Entra en su oficina con frecuencia irregular"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_iggy_robbins", "type": "debt", "strength": 0.7 },
+        { "to": "npc_bernard_lasker", "type": "rivalry", "strength": 0.5 }
+      ],
+      "gatherings": ["cafeteria_clan"],
+      "weakness_key": "NPC_WEAK_HIS_AMBITION",
+      "danger_key": "NPC_DANGER_R15_COMPETITOR",
+      "unique_accessory": "hard_hat",
+      "portrait_seed": 66027,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_ERNIE_PALLETS"],
+      "blackmail_secrets": ["NPC_SECRET_ERNIE_PALLETS"],
+      "home_address": "npc_house_semi",
+      "knows_safe_combination": false
+    },
+    {
+      "id": "npc_diana_sedgwick",
+      "name": "Diana Sedgwick",
+      "archetype": "climber",
+      "traits": { "ambition": 92, "loyalty": 26, "greed": 62, "courage": 56, "perception": 68, "sociability": 72 },
+      "occupation": "a10_marketing_director",
+      "department": "blocks",
+      "home_room": "a10_marketing_office",
+      "desk_position": [6, 5],
+      "routine_template": "tier_5_6",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "11:00",
+          "action": "inspect_campaign",
+          "location": "campaign_room",
+          "duration_minutes": 45,
+          "note": "Comprueba que su rostro aparece en la campaña"
+        },
+        {
+          "band": "work_afternoon",
+          "time": "15:00",
+          "action": "long_meeting",
+          "location": "meeting_12a",
+          "duration_minutes": 120,
+          "note": "Su despacho queda vacío"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_iggy_robbins", "type": "rivalry", "strength": 0.6 },
+        { "to": "npc_bree_nash", "type": "friendship", "strength": 0.6 }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_DIRECT_FLATTERY",
+      "danger_key": "NPC_DANGER_SELF_PRAISE",
+      "unique_accessory": "designer_sunglasses",
+      "portrait_seed": 74391,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_DIANA_FOCUS_GROUP"],
+      "blackmail_secrets": ["NPC_SECRET_DIANA_FOCUS_GROUP"],
+      "home_address": "npc_house_semi",
+      "knows_safe_combination": false
+    },
+    {
+      "id": "npc_iggy_robbins",
+      "name": "Iggy Robbins",
+      "archetype": "bribable",
+      "traits": { "ambition": 58, "loyalty": 24, "greed": 78, "courage": 40, "perception": 62, "sociability": 60 },
+      "occupation": "a10_coordination_director",
+      "department": "blocks",
+      "home_room": "a10_coordination_office",
+      "desk_position": [6, 5],
+      "routine_template": "tier_5_6",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "10:00",
+          "action": "collect_favours",
+          "location": "block_coordination_room",
+          "duration_minutes": 30,
+          "note": "Repasa su libreta de favores pendientes"
+        },
+        {
+          "band": "work_afternoon",
+          "time": "16:00",
+          "action": "smoke",
+          "location": "street",
+          "duration_minutes": 15
+        }
+      ],
+      "initial_links": [],
+      "gatherings": ["smokers_circle"],
+      "weakness_key": "NPC_WEAK_FAVOURS_NOT_CASH",
+      "danger_key": "NPC_DANGER_COLLECTS_AT_WORST_TIME",
+      "unique_accessory": "pocket_ledger",
+      "portrait_seed": 83615,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_IGGY_LEDGER"],
+      "blackmail_secrets": ["NPC_SECRET_IGGY_LEDGER"],
+      "home_address": "npc_house_semi",
+      "knows_safe_combination": false,
+      "special": { "accepts_cash_bribes": false, "keeps_favour_ledger": true }
+    },
+    {
+      "id": "npc_rose_miller",
+      "name": "Rose Miller",
+      "archetype": "incorruptible",
+      "traits": { "ambition": 34, "loyalty": 92, "greed": 4, "courage": 82, "perception": 84, "sociability": 44 },
+      "occupation": "",
+      "role": "auditor",
+      "role_name_key": "ROLE_AUDITOR",
+      "tier": 3,
+      "clearance": 3,
+      "daily_wage": 90,
+      "future_occupation": "chief_auditor",
+      "future_occupation_day": 31,
+      "department": "audit_legal",
+      "home_room": "internal_audit",
+      "desk_position": [10, 3],
+      "routine_template": "tier_3",
+      "routine_overrides": [
+        {
+          "band": "work_afternoon",
+          "time": "16:00",
+          "action": "review_archived_cases",
+          "location": "internal_audit",
+          "duration_minutes": 60,
+          "note": "Revisa expedientes archivados: los casos fríos pueden resucitar"
+        },
+        {
+          "band": "exit",
+          "time": "18:45",
+          "action": "stay_late",
+          "location": "internal_audit",
+          "duration_minutes": 45,
+          "note": "Sale la última de la planta 5"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_maurice_sandbell", "type": "rivalry", "strength": 0.6 }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_NONE",
+      "danger_key": "NPC_DANGER_STRUCTURAL_ANTAGONIST",
+      "unique_accessory": "red_pen",
+      "portrait_seed": 92748,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_ROSE_FOLDER"],
+      "blackmail_secrets": [],
+      "home_address": "npc_house_humble",
+      "knows_safe_combination": false,
+      "special": { "default_investigator": true, "reviews_archived_cases": true }
+    },
+    {
+      "id": "npc_alvin_pyne",
+      "name": "Alvin Pyne",
+      "archetype": "coward",
+      "traits": { "ambition": 44, "loyalty": 52, "greed": 62, "courage": 8, "perception": 64, "sociability": 48 },
+      "occupation": "it_director",
+      "department": "specialists",
+      "home_room": "systems_office",
+      "desk_position": [12, 10],
+      "routine_template": "tier_5_6",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "09:00",
+          "action": "review_logs",
+          "location": "systems_office",
+          "duration_minutes": 60,
+          "note": "Revisa los rastros digitales de la noche anterior"
+        },
+        {
+          "band": "lunch",
+          "time": "13:00",
+          "action": "eat_at_desk",
+          "location": "systems_office",
+          "duration_minutes": 40,
+          "note": "Come en su mesa, de espaldas a la pared"
+        },
+        {
+          "band": "work_afternoon",
+          "time": "16:00",
+          "action": "check_servers",
+          "location": "server_room",
+          "duration_minutes": 20,
+          "note": "Baja a la sala de servidores a comprobar que nadie ha borrado nada"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_preston_vaile", "type": "hierarchy", "strength": 0.6 },
+        { "to": "npc_iggy_robbins", "type": "debt", "strength": 0.6 }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_PROTECTION",
+      "danger_key": "NPC_DANGER_KEEPS_INFORMATION",
+      "unique_accessory": "clutched_laptop",
+      "portrait_seed": 15283,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_ALVIN_CEO_MAIL"],
+      "blackmail_secrets": ["NPC_SECRET_ALVIN_CEO_MAIL"],
+      "home_address": "npc_house_mansion",
+      "knows_safe_combination": false,
+      "special": { "monitors_gathering": "chat_3b", "ally_if_protected": true }
+    },
+    {
+      "id": "npc_bree_nash",
+      "name": "Bree Nash",
+      "archetype": "bribable",
+      "traits": { "ambition": 62, "loyalty": 34, "greed": 84, "courage": 44, "perception": 70, "sociability": 66 },
+      "occupation": "comms_director",
+      "department": "top",
+      "home_room": "comms_director_office",
+      "desk_position": [6, 5],
+      "routine_template": "tier_5_6",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "10:00",
+          "action": "press_briefing",
+          "location": "press_room",
+          "duration_minutes": 45
+        },
+        {
+          "band": "work_afternoon",
+          "time": "17:00",
+          "action": "smoke",
+          "location": "street",
+          "duration_minutes": 15,
+          "target": "npc_lorna_vickers",
+          "note": "Con Lorna: intercambio de rumores"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_preston_vaile", "type": "hierarchy", "strength": 0.6 },
+        { "to": "npc_lorna_vickers", "type": "friendship", "strength": 0.7 }
+      ],
+      "gatherings": ["smokers_circle"],
+      "weakness_key": "NPC_WEAK_LARGE_CASH",
+      "danger_key": "NPC_DANGER_KNOWS_BURIED",
+      "unique_accessory": "twin_phones",
+      "portrait_seed": 24906,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_BREE_ARCHIVE"],
+      "blackmail_secrets": ["NPC_SECRET_BREE_ARCHIVE"],
+      "home_address": "npc_house_mansion",
+      "knows_safe_combination": false,
+      "special": { "can_bury_news": true }
+    },
+    {
+      "id": "npc_maurice_sandbell",
+      "name": "Maurice Sandbell",
+      "archetype": "climber",
+      "traits": { "ambition": 90, "loyalty": 22, "greed": 76, "courage": 54, "perception": 72, "sociability": 50 },
+      "occupation": "cfo",
+      "department": "top",
+      "home_room": "cfo_office",
+      "desk_position": [7, 6],
+      "routine_template": "tier_7_8",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "09:45",
+          "action": "check_market",
+          "location": "market_data_room",
+          "duration_minutes": 30,
+          "note": "Consulta la cotización antes que nadie"
+        },
+        {
+          "band": "work_afternoon",
+          "time": "16:30",
+          "action": "private_call",
+          "location": "p13_toilets",
+          "duration_minutes": 10,
+          "note": "Llama a su cuñado desde el baño: sus órdenes de bolsa. Escucharlo es la pista"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_harlan_voss", "type": "hierarchy", "strength": 0.6 },
+        { "to": "npc_bree_nash", "type": "debt", "strength": 0.8 }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_OWN_INSIDER_TRADING",
+      "danger_key": "NPC_DANGER_TIER7_COMPETITOR",
+      "unique_accessory": "gold_watch",
+      "portrait_seed": 36718,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_MAURICE_INSIDER"],
+      "blackmail_secrets": ["NPC_SECRET_MAURICE_INSIDER"],
+      "home_address": "npc_house_mansion",
+      "knows_safe_combination": false,
+      "special": { "trades_on_insider_info": true }
+    },
+    {
+      "id": "npc_lorna_vickers",
+      "name": "Lorna Vickers",
+      "archetype": "gossip",
+      "traits": { "ambition": 56, "loyalty": 42, "greed": 58, "courage": 46, "perception": 68, "sociability": 94 },
+      "occupation": "investor_relations",
+      "department": "top",
+      "home_room": "investor_lounge",
+      "desk_position": [5, 5],
+      "routine_template": "tier_7_8",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "11:00",
+          "action": "host_investors",
+          "location": "investor_lounge",
+          "duration_minutes": 90
+        },
+        {
+          "band": "work_afternoon",
+          "time": "17:00",
+          "action": "smoke",
+          "location": "street",
+          "duration_minutes": 15,
+          "target": "npc_bree_nash"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_maurice_sandbell", "type": "hierarchy", "strength": 0.7 }
+      ],
+      "gatherings": ["smokers_circle"],
+      "weakness_key": "NPC_WEAK_INVESTOR_NETWORK",
+      "danger_key": "NPC_DANGER_INVESTOR_CIRCLE",
+      "unique_accessory": "statement_necklace",
+      "portrait_seed": 45062,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_LORNA_DINNERS"],
+      "blackmail_secrets": ["NPC_SECRET_LORNA_DINNERS"],
+      "home_address": "npc_house_mansion",
+      "knows_safe_combination": false,
+      "special": {
+        "investor_contacts": [
+          "inv_howard_grange", "inv_tania_brekke", "inv_victor_sallow", "inv_margaret_ash", "inv_neil_deming",
+          "inv_bobby_kerr"
+        ]
+      }
+    },
+    {
+      "id": "npc_preston_vaile",
+      "name": "Preston Vaile III",
+      "archetype": "hardliner",
+      "secondary_archetype": "climber",
+      "traits": { "ambition": 88, "loyalty": 42, "greed": 48, "courage": 88, "perception": 74, "sociability": 52 },
+      "occupation": "vice_ceo",
+      "department": "top",
+      "home_room": "vice_ceo_office",
+      "desk_position": [8, 7],
+      "routine_template": "tier_7_8",
+      "routine_overrides": [
+        {
+          "band": "arrival",
+          "time": "08:00",
+          "action": "arrive_before_ceo",
+          "location": "vice_ceo_office",
+          "duration_minutes": 60,
+          "note": "Llega antes que Voss para que el consejo lo vea"
+        },
+        {
+          "band": "work_afternoon",
+          "time": "14:30",
+          "action": "workout",
+          "location": "exec_gym",
+          "duration_minutes": 45,
+          "note": "Directivo desprevenido y sin vigilancia"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_harlan_voss", "type": "rivalry", "strength": 0.7 },
+        { "to": "npc_nate_brackley", "type": "nepotism", "strength": 0.85, "beneficiary": "npc_nate_brackley" }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_HOSTILITY_TO_VOSS",
+      "danger_key": "NPC_DANGER_SAME_FINAL_SEAT",
+      "unique_accessory": "signet_ring",
+      "portrait_seed": 58841,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_PRESTON_DOSSIER"],
+      "blackmail_secrets": ["NPC_SECRET_PRESTON_DOSSIER"],
+      "home_address": "npc_house_mansion",
+      "knows_safe_combination": false,
+      "special": { "tactical_ally_against": "npc_harlan_voss", "targets_occupation": "ceo" }
+    },
+    {
+      "id": "npc_harlan_voss",
+      "name": "Harlan Voss",
+      "archetype": "climber",
+      "unique_profile": "ceo",
+      "traits": { "ambition": 78, "loyalty": 0, "greed": 68, "courage": 82, "perception": 95, "sociability": 58 },
+      "occupation": "ceo",
+      "department": "top",
+      "home_room": "ceo_office",
+      "desk_position": [10, 8],
+      "routine_template": "tier_7_8",
+      "routine_overrides": [
+        {
+          "band": "work_morning",
+          "time": "10:00",
+          "action": "occupy_office",
+          "location": "ceo_office",
+          "duration_minutes": 420,
+          "note": "Ocupa el despacho de 10:00 a 17:00, interrumpido por reuniones (§11.8)"
+        },
+        {
+          "band": "lunch",
+          "time": "13:00",
+          "action": "private_lunch",
+          "location": "ceo_private_room",
+          "duration_minutes": 60
+        },
+        {
+          "band": "work_afternoon",
+          "time": "15:30",
+          "action": "meeting",
+          "location": "ceo_boardroom",
+          "duration_minutes": 45
+        }
+      ],
+      "initial_links": [],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_NO_TRUTH",
+      "danger_key": "NPC_DANGER_MAX_PERCEPTION",
+      "unique_accessory": "gold_lapel_pin",
+      "portrait_seed": 67290,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_VOSS_COMET", "NPC_SECRET_VOSS_SAFE_NOTE"],
+      "blackmail_secrets": ["NPC_SECRET_VOSS_COMET"],
+      "home_address": "npc_house_mansion",
+      "knows_safe_combination": true,
+      "special": { "years_in_role": 22, "receives_no_truthful_info": true, "office_hours": ["10:00", "17:00"] }
+    },
+    {
+      "id": "npc_pearl_osgood",
+      "name": "Pearl Osgood",
+      "archetype": "company_man",
+      "traits": { "ambition": 28, "loyalty": 96, "greed": 6, "courage": 74, "perception": 78, "sociability": 46 },
+      "occupation": "",
+      "role": "ceo_secretary",
+      "role_name_key": "ROLE_CEO_SECRETARY",
+      "tier": 5,
+      "clearance": 7,
+      "daily_wage": 260,
+      "department": "top",
+      "home_room": "ceo_secretariat",
+      "desk_position": [6, 5],
+      "routine_template": "tier_5_6",
+      "routine_overrides": [
+        {
+          "band": "arrival",
+          "time": "08:00",
+          "action": "guard_desk",
+          "location": "ceo_secretariat",
+          "duration_minutes": 660,
+          "note": "Siempre en su mesa de la planta 20"
+        },
+        {
+          "band": "exit",
+          "time": "18:30",
+          "action": "wait_for_ceo",
+          "location": "ceo_secretariat",
+          "duration_minutes": 60,
+          "note": "No se marcha hasta que Voss se ha ido"
+        }
+      ],
+      "initial_links": [
+        { "to": "npc_harlan_voss", "type": "hierarchy", "strength": 0.9 },
+        { "to": "npc_preston_vaile", "type": "rivalry", "strength": 0.5 }
+      ],
+      "gatherings": [],
+      "weakness_key": "NPC_WEAK_FILE_BLACKMAIL",
+      "danger_key": "NPC_DANGER_SAFE_AND_INFORMS",
+      "unique_accessory": "steno_pad",
+      "portrait_seed": 79134,
+      "is_slacker": false,
+      "secrets": ["NPC_SECRET_PEARL_SIGNATURE"],
+      "blackmail_secrets": ["NPC_SECRET_PEARL_SIGNATURE"],
+      "home_address": "npc_house_semi",
+      "knows_safe_combination": true,
+      "special": { "on_failed_approach": "inform_npc_harlan_voss" }
+    }
+  ]
+}

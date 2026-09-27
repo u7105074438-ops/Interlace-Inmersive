@@ -1,0 +1,68 @@
+{
+  "_version": 1,
+  "_nota": "§32.1 literal. Extensión: name_key en los canales para la interfaz del móvil.",
+  "favours": [
+    {
+      "id": "look_away_once",
+      "multiplier": 3,
+      "name_key": "BRIBE_LOOK_AWAY"
+    },
+    {
+      "id": "lend_access",
+      "multiplier": 8,
+      "name_key": "BRIBE_LEND_ACCESS"
+    },
+    {
+      "id": "praise_to_superior",
+      "multiplier": 15,
+      "name_key": "BRIBE_PRAISE"
+    },
+    {
+      "id": "silence_witnessed",
+      "multiplier": 20,
+      "name_key": "BRIBE_SILENCE"
+    },
+    {
+      "id": "lie_in_interrogation",
+      "multiplier": 40,
+      "name_key": "BRIBE_LIE"
+    },
+    {
+      "id": "bury_investigation",
+      "multiplier": 100,
+      "name_key": "BRIBE_BURY_CASE"
+    },
+    {
+      "id": "vote_in_board",
+      "multiplier": 250,
+      "name_key": "BRIBE_BOARD_VOTE"
+    }
+  ],
+  "channels": [
+    {
+      "id": "mobile_chat",
+      "leaves_digital_record": true,
+      "requires_privacy": false,
+      "name_key": "BRIBE_CHANNEL_MOBILE_CHAT"
+    },
+    {
+      "id": "phone_call",
+      "leaves_digital_record": false,
+      "requires_privacy": true,
+      "name_key": "BRIBE_CHANNEL_PHONE_CALL"
+    },
+    {
+      "id": "in_person",
+      "leaves_digital_record": false,
+      "requires_privacy": false,
+      "witness_risk": true,
+      "name_key": "BRIBE_CHANNEL_IN_PERSON"
+    },
+    {
+      "id": "immediate",
+      "leaves_digital_record": false,
+      "forced_favour": "silence_witnessed",
+      "name_key": "BRIBE_CHANNEL_IMMEDIATE"
+    }
+  ]
+}

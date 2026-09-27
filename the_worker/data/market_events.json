@@ -1,0 +1,106 @@
+{
+  "_version": 1,
+  "_nota": "§9.12 con el esquema de §32.6. Extensiones: headline_key (titular para NewsFeed), duration_days (si existe, sustituye a duration_quarters), until_resolved/trigger (la huelga no es aleatoria: la dispara descontento.umbral_huelga), ends_on, amplifiable_by.",
+  "events": [
+    {
+      "id": "footwear_trend_shift",
+      "name_key": "EVENT_TREND_SHIFT",
+      "probability_per_quarter": 0.25,
+      "duration_quarters": 2,
+      "effects": {
+        "revenue_multiplier": [
+          0.85,
+          1.15
+        ]
+      },
+      "sentiment_delta": 0.0,
+      "headline_key": "NEWS_EVENT_TREND_SHIFT"
+    },
+    {
+      "id": "leather_price_rise",
+      "name_key": "EVENT_LEATHER_RISE",
+      "probability_per_quarter": 0.2,
+      "duration_quarters": 1,
+      "effects": {
+        "costs_multiplier": 1.08
+      },
+      "sentiment_delta": -0.05,
+      "mitigable_by": "purchasing_chief",
+      "ends_on": "supplier_change",
+      "headline_key": "NEWS_EVENT_LEATHER_RISE"
+    },
+    {
+      "id": "competitor_launch",
+      "name_key": "EVENT_COMPETITOR_LAUNCH",
+      "probability_per_quarter": 0.2,
+      "duration_quarters": 2,
+      "effects": {
+        "growth_expectation_multiplier": 0.9
+      },
+      "sentiment_delta": -0.08,
+      "headline_key": "NEWS_EVENT_COMPETITOR_LAUNCH"
+    },
+    {
+      "id": "customer_lawsuit",
+      "name_key": "EVENT_LAWSUIT",
+      "probability_per_quarter": 0.15,
+      "duration_quarters": 2,
+      "effects": {
+        "legal_costs_per_day": 40000,
+        "risk_factor_add": 0.3
+      },
+      "sentiment_delta": -0.06,
+      "mitigable_by": "legal_director",
+      "headline_key": "NEWS_EVENT_LAWSUIT"
+    },
+    {
+      "id": "viral_moment",
+      "name_key": "EVENT_VIRAL",
+      "probability_per_quarter": 0.15,
+      "duration_quarters": 1,
+      "duration_days": 10,
+      "effects": {
+        "brand_strength_add": 0.03
+      },
+      "sentiment_delta": 0.15,
+      "amplifiable_by": "comms_director",
+      "headline_key": "NEWS_EVENT_VIRAL"
+    },
+    {
+      "id": "general_recession",
+      "name_key": "EVENT_RECESSION",
+      "probability_per_quarter": 0.08,
+      "duration_quarters": 3,
+      "effects": {
+        "multiple_multiplier": 0.8
+      },
+      "sentiment_delta": -0.1,
+      "headline_key": "NEWS_EVENT_RECESSION"
+    },
+    {
+      "id": "celebrity_wears_brand",
+      "name_key": "EVENT_CELEBRITY",
+      "probability_per_quarter": 0.12,
+      "duration_quarters": 2,
+      "effects": {
+        "brand_strength_add": 0.1
+      },
+      "sentiment_delta": 0.06,
+      "headline_key": "NEWS_EVENT_CELEBRITY"
+    },
+    {
+      "id": "strike",
+      "name_key": "EVENT_STRIKE",
+      "probability_per_quarter": 0.0,
+      "duration_quarters": 0,
+      "until_resolved": true,
+      "trigger": "discontent_threshold",
+      "effects": {
+        "production_multiplier": 0.0,
+        "risk_factor_add": 0.5
+      },
+      "sentiment_delta": -0.1,
+      "headline_key": "NEWS_EVENT_STRIKE"
+    }
+  ]
+}

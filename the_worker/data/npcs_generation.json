@@ -1,0 +1,884 @@
+{
+  "_version": 1,
+  "_nota": [
+    "Reglas de generación de la plantilla (§24.3) con el esquema §30.",
+    "Población objetivo 150 = 23 nominados + 127 generados. 'population' de cada departamento INCLUYE a sus nominados (named_npcs); el generador crea population − nominados = 'generated' personajes, uno por plaza de 'slots'.",
+    "Subconjuntos: 'Auditoría y Legal' (8) y 'Ventas y Marketing' (12) se extraen DENTRO de 'Especializadas 6–9' (30): specialists.own_population = 30 − 8 − 12 = 10 usan la bolsa de specialists; cada subconjunto usa su propia bolsa. Los departamentos de nivel superior (sin 'parent') suman 25+45+30+20+20+10 = 150.",
+    "slots: plazas concretas. occupation = id de §23 (una silla de Company por plaza; first_seat_index continúa la numeración de sillas cuando la ocupación ya la usan nominados); occupation \"\" (vacía, equivale a null; se evita null por el tipado de GDScript) + role = puesto no jugable descrito en 'roles'. Campos opcionales: routine_template (si no, tier_to_routine_template), shift, desk_positions, cleaning_zone_floors, archetype.",
+    "archetype en una plaza: arquetipo forzado (agentes de policía = hardliner, §24.3). Las plazas forzadas consumen la cuota de ese arquetipo; el resto del departamento sortea con la bolsa sin los arquetipos forzados, renormalizada, de modo que la distribución esperada se mantiene.",
+    "tier_range: escalones de los personajes GENERADOS del departamento (los nominados pueden salirse: Ernie Vaughn es escalón 4 en fábrica).",
+    "base cubre también sótanos y planta baja (seguridad, limpieza, mantenimiento, cocina, recepción). La cobertura de sillas garantiza que las 50 ocupaciones tienen titular al empezar (salvo la silla del jugador).",
+    "Ids de departamento: coinciden con occupations.json.department cuando existen (base, factory, specialists, audit_legal, sales_marketing, blocks, top). Los departamentos funcionales de occupations.json (hr, it, security, cleaning, maintenance) son áreas de trabajo, no bolsas de población: aquí sus puestos se reparten en base, specialists y top (p. ej. chief_auditor y legal_director cuentan en 'top' por escalón aunque trabajen en P5/P9).",
+    "Las ocupaciones de sala de §22 ('Ocupación' por franjas) son aforos de ambiente; 150 personajes no llenan esos aforos y no se pretende."
+  ],
+  "total_population_target": 150,
+  "named_count": 23,
+  "generated_count": 127,
+  "name_bank": {
+    "first_names": [
+      "Adam", "Brenda", "Carl", "Diane", "Edwin", "Fiona", "Gordon", "Helen", "Ian", "Judith", "Kevin",
+      "Laura", "Martin", "Nora", "Oliver", "Patricia", "Quentin", "Rachel", "Simon", "Tessa", "Alan",
+      "Beatrice", "Colin", "Doreen", "Eric", "Frances", "Graham", "Hazel", "Isaac", "Janet", "Keith", "Linda",
+      "Malcolm", "Nigel", "Olive", "Philip", "Rita", "Stuart", "Theresa", "Una", "Vincent", "Wendy", "Arthur",
+      "Barbara", "Clive", "Denise", "Gerald", "Harriet", "Irene", "Jeremy", "Karen", "Leonard", "Maureen",
+      "Norman", "Pamela", "Roger", "Sheila", "Trevor", "Valerie", "Walter"
+    ],
+    "last_names": [
+      "Ashby", "Bramwell", "Croft", "Dunmore", "Eastlake", "Fenwick", "Garrow", "Halloway", "Inchcape",
+      "Jardine", "Kettleby", "Lockridge", "Marbury", "Northcott", "Overton", "Prescott", "Quilter", "Rathbone",
+      "Stanhope", "Thackeray", "Abbott", "Blackwood", "Carrow", "Dalby", "Ellery", "Fairbrother", "Gilchrist",
+      "Hartley", "Ingram", "Jessop", "Kemble", "Langley", "Mallory", "Nettleton", "Oakes", "Pembridge",
+      "Radley", "Selwyn", "Tolland", "Underhill", "Varley", "Whitcombe", "Yardley", "Ainsworth", "Birtwistle",
+      "Cheadle", "Dempsey", "Elmsworth", "Foxley", "Greaves", "Hobbs", "Kilbride", "Latimer", "Moorcroft",
+      "Newbold", "Ormerod", "Pilkington", "Rowntree", "Sutcliffe", "Wetherby"
+    ]
+  },
+  "departments": [
+    {
+      "id": "factory",
+      "name_key": "DEPT_FACTORY",
+      "population": 25,
+      "named_npcs": ["npc_ernie_vaughn"],
+      "generated": 24,
+      "rooms": [
+        "assembly_line", "mold_room", "factory_dye_lab", "quality_control", "finished_goods",
+        "materials_store", "loading_dock"
+      ],
+      "archetype_bag": {
+        "burnout": 0.3,
+        "hardliner": 0.2,
+        "oblivious": 0.15,
+        "gossip": 0.1,
+        "climber": 0.1,
+        "coward": 0.1,
+        "old_hand": 0.05
+      },
+      "tier_range": [1, 3],
+      "occupations": ["line_operator", "quality_analyst"],
+      "roles": ["quality_inspector", "stock_keeper", "dock_worker"],
+      "slots": [
+        { "occupation": "line_operator", "count": 14, "room": "assembly_line" },
+        { "occupation": "line_operator", "count": 2, "room": "mold_room" },
+        { "occupation": "line_operator", "count": 1, "room": "factory_dye_lab" },
+        { "occupation": "quality_analyst", "count": 1, "room": "quality_control" },
+        { "occupation": "", "role": "quality_inspector", "count": 1, "room": "quality_control" },
+        { "occupation": "", "role": "stock_keeper", "count": 2, "room": "finished_goods" },
+        { "occupation": "", "role": "stock_keeper", "count": 1, "room": "materials_store" },
+        { "occupation": "", "role": "dock_worker", "count": 2, "room": "loading_dock" }
+      ]
+    },
+    {
+      "id": "base",
+      "name_key": "DEPT_BASE",
+      "population": 45,
+      "named_npcs": [
+        "npc_debbie_foyle", "npc_george_penn", "npc_nate_brackley", "npc_claudia_reeves", "npc_ray_cudmore",
+        "npc_sonia_vail", "npc_bernard_lasker", "npc_amelia_cole", "npc_tom_iverson", "npc_ludmila_petrova",
+        "npc_connie_marks", "npc_frank_rudd"
+      ],
+      "generated": 33,
+      "rooms": [
+        "wing_3b", "p3_pantry", "orders_archive", "wing_3a", "main_copyroom", "p3_copyroom", "call_center",
+        "mail_office", "wing_4b", "payroll_office", "office_supplies", "cleaning_locker_room", "accounting",
+        "maintenance_workshop", "hr_office", "monitor_room", "chief_accountant_office", "wing_4c",
+        "main_reception", "cafeteria_kitchen", "flagship_store"
+      ],
+      "archetype_bag": {
+        "oblivious": 0.2,
+        "gossip": 0.15,
+        "rookie": 0.15,
+        "snitch": 0.12,
+        "climber": 0.12,
+        "burnout": 0.1,
+        "coward": 0.1,
+        "company_man": 0.06
+      },
+      "tier_range": [1, 4],
+      "occupations": [
+        "email_worker_3b", "eternal_intern", "order_filer", "copy_operator", "call_operator", "mail_courier",
+        "billing_clerk", "payroll_clerk", "warehouse_assistant", "cleaner", "junior_accountant",
+        "maintenance_aide", "hr_assistant", "security_guard", "senior_accountant", "purchasing_chief",
+        "payroll_manager"
+      ],
+      "roles": ["receptionist", "cook", "store_clerk"],
+      "slots": [
+        {
+          "occupation": "email_worker_3b",
+          "count": 5,
+          "room": "wing_3b",
+          "first_seat_index": 4,
+          "desk_positions": [
+            [12, 5],
+            [12, 8],
+            [16, 2],
+            [16, 5],
+            [16, 8]
+          ]
+        },
+        { "occupation": "eternal_intern", "count": 1, "room": "p3_pantry" },
+        { "occupation": "order_filer", "count": 1, "room": "orders_archive", "first_seat_index": 2 },
+        { "occupation": "order_filer", "count": 1, "room": "wing_3a", "first_seat_index": 3 },
+        { "occupation": "copy_operator", "count": 1, "room": "main_copyroom" },
+        { "occupation": "copy_operator", "count": 1, "room": "p3_copyroom" },
+        { "occupation": "call_operator", "count": 3, "room": "call_center" },
+        { "occupation": "mail_courier", "count": 1, "room": "mail_office" },
+        { "occupation": "billing_clerk", "count": 2, "room": "wing_4b" },
+        { "occupation": "payroll_clerk", "count": 1, "room": "payroll_office" },
+        { "occupation": "warehouse_assistant", "count": 1, "room": "office_supplies" },
+        {
+          "occupation": "cleaner",
+          "count": 1,
+          "room": "cleaning_locker_room",
+          "routine_template": "cleaning",
+          "first_seat_index": 1,
+          "cleaning_zone_floors": [13, 14, 15, 16, 17, 18, 19, 20, 21]
+        },
+        {
+          "occupation": "cleaner",
+          "count": 1,
+          "room": "cleaning_locker_room",
+          "routine_template": "cleaning",
+          "first_seat_index": 2,
+          "cleaning_zone_floors": [-3, -2, -1, 0, 100]
+        },
+        { "occupation": "junior_accountant", "count": 3, "room": "accounting" },
+        { "occupation": "maintenance_aide", "count": 1, "room": "maintenance_workshop", "first_seat_index": 1 },
+        { "occupation": "hr_assistant", "count": 1, "room": "hr_office", "first_seat_index": 1 },
+        {
+          "occupation": "security_guard",
+          "count": 1,
+          "room": "monitor_room",
+          "shift": "day",
+          "routine_template": "guard_day",
+          "first_seat_index": 2
+        },
+        {
+          "occupation": "security_guard",
+          "count": 1,
+          "room": "monitor_room",
+          "shift": "night",
+          "routine_template": "guard_night",
+          "first_seat_index": 3
+        },
+        { "occupation": "senior_accountant", "count": 1, "room": "chief_accountant_office" },
+        { "occupation": "purchasing_chief", "count": 1, "room": "wing_4c" },
+        { "occupation": "payroll_manager", "count": 1, "room": "payroll_office" },
+        { "occupation": "", "role": "receptionist", "count": 1, "room": "main_reception" },
+        { "occupation": "", "role": "cook", "count": 1, "room": "cafeteria_kitchen" },
+        { "occupation": "", "role": "store_clerk", "count": 1, "room": "flagship_store" }
+      ]
+    },
+    {
+      "id": "specialists",
+      "name_key": "DEPT_SPECIALISTS",
+      "population": 30,
+      "subsets": ["audit_legal", "sales_marketing"],
+      "own_population": 10,
+      "named_npcs": ["npc_alvin_pyne"],
+      "generated": 9,
+      "rooms": [
+        "shoe_design_studio", "prototype_workshop", "exotic_materials", "systems_office", "repair_workshop",
+        "it_chief_office"
+      ],
+      "archetype_bag": {
+        "climber": 0.25,
+        "company_man": 0.15,
+        "gossip": 0.12,
+        "coward": 0.12,
+        "snitch": 0.1,
+        "old_hand": 0.1,
+        "bribable": 0.1,
+        "oblivious": 0.06
+      },
+      "tier_range": [2, 4],
+      "occupations": ["junior_shoe_designer", "it_technician", "it_team_lead"],
+      "roles": ["prototype_technician", "materials_keeper"],
+      "slots": [
+        { "occupation": "junior_shoe_designer", "count": 3, "room": "shoe_design_studio" },
+        { "occupation": "", "role": "prototype_technician", "count": 1, "room": "prototype_workshop" },
+        { "occupation": "", "role": "materials_keeper", "count": 1, "room": "exotic_materials" },
+        { "occupation": "it_technician", "count": 2, "room": "systems_office" },
+        { "occupation": "it_technician", "count": 1, "room": "repair_workshop" },
+        { "occupation": "it_team_lead", "count": 1, "room": "it_chief_office" }
+      ]
+    },
+    {
+      "id": "audit_legal",
+      "name_key": "DEPT_AUDIT_LEGAL",
+      "parent": "specialists",
+      "population": 8,
+      "named_npcs": ["npc_rose_miller"],
+      "generated": 7,
+      "rooms": ["internal_audit", "legal_firm", "legal_archive", "notary"],
+      "archetype_bag": { "incorruptible": 0.35, "company_man": 0.3, "snitch": 0.2, "hardliner": 0.15 },
+      "tier_range": [2, 3],
+      "occupations": ["paralegal"],
+      "roles": ["auditor", "lawyer", "legal_clerk", "notary"],
+      "slots": [
+        { "occupation": "", "role": "auditor", "count": 3, "room": "internal_audit" },
+        { "occupation": "paralegal", "count": 1, "room": "legal_firm" },
+        { "occupation": "", "role": "lawyer", "count": 1, "room": "legal_firm" },
+        { "occupation": "", "role": "legal_clerk", "count": 1, "room": "legal_archive" },
+        { "occupation": "", "role": "notary", "count": 1, "room": "notary" }
+      ]
+    },
+    {
+      "id": "sales_marketing",
+      "name_key": "DEPT_SALES_MARKETING",
+      "parent": "specialists",
+      "population": 12,
+      "named_npcs": [],
+      "generated": 12,
+      "rooms": [
+        "wing_4a", "senior_sales_offices", "campaign_room", "social_media_office", "graphic_design",
+        "product_photo_studio"
+      ],
+      "archetype_bag": { "climber": 0.4, "bribable": 0.2, "gossip": 0.2, "coward": 0.1, "burnout": 0.1 },
+      "tier_range": [2, 3],
+      "occupations": ["junior_sales", "senior_sales", "marketing_creative"],
+      "roles": ["community_manager", "graphic_designer", "photographer"],
+      "slots": [
+        { "occupation": "junior_sales", "count": 3, "room": "wing_4a" },
+        { "occupation": "senior_sales", "count": 2, "room": "senior_sales_offices" },
+        { "occupation": "marketing_creative", "count": 3, "room": "campaign_room" },
+        { "occupation": "", "role": "community_manager", "count": 1, "room": "social_media_office" },
+        { "occupation": "", "role": "graphic_designer", "count": 2, "room": "graphic_design" },
+        { "occupation": "", "role": "photographer", "count": 1, "room": "product_photo_studio" }
+      ]
+    },
+    {
+      "id": "blocks",
+      "name_key": "DEPT_BLOCKS",
+      "population": 20,
+      "named_npcs": ["npc_diana_sedgwick", "npc_iggy_robbins"],
+      "generated": 18,
+      "rooms": [
+        "a10_general_office", "senior_sales_offices", "block_coordination_room", "p10_secretariat",
+        "buyer_demo_room", "sales_contracts_room", "vip_client_archive"
+      ],
+      "archetype_bag": { "climber": 0.35, "hardliner": 0.2, "bribable": 0.2, "company_man": 0.15, "coward": 0.1 },
+      "tier_range": [3, 5],
+      "occupations": ["floor10_general_director", "b10_director", "c10_director", "meeting_coordinator"],
+      "roles": [
+        "floor_secretary", "executive_assistant", "account_manager", "sales_demonstrator", "contracts_officer",
+        "vip_archivist"
+      ],
+      "slots": [
+        { "occupation": "floor10_general_director", "count": 1, "room": "a10_general_office" },
+        { "occupation": "b10_director", "count": 1, "room": "senior_sales_offices" },
+        { "occupation": "c10_director", "count": 1, "room": "block_coordination_room" },
+        { "occupation": "meeting_coordinator", "count": 1, "room": "p10_secretariat" },
+        { "occupation": "", "role": "floor_secretary", "count": 2, "room": "p10_secretariat" },
+        { "occupation": "", "role": "executive_assistant", "count": 1, "room": "a10_general_office" },
+        { "occupation": "", "role": "account_manager", "count": 5, "room": "senior_sales_offices" },
+        { "occupation": "", "role": "sales_demonstrator", "count": 3, "room": "buyer_demo_room" },
+        { "occupation": "", "role": "contracts_officer", "count": 2, "room": "sales_contracts_room" },
+        { "occupation": "", "role": "vip_archivist", "count": 1, "room": "vip_client_archive" }
+      ]
+    },
+    {
+      "id": "top",
+      "name_key": "DEPT_TOP",
+      "population": 20,
+      "named_npcs": [
+        "npc_bree_nash", "npc_maurice_sandbell", "npc_lorna_vickers", "npc_preston_vaile", "npc_harlan_voss",
+        "npc_pearl_osgood"
+      ],
+      "generated": 14,
+      "rooms": [
+        "area_director_offices_a", "area_director_offices_b", "security_director_office",
+        "legal_director_office", "treasury", "area_director_offices_c", "internal_audit", "investor_offices",
+        "board_secretary_office", "guard_lockers", "press_room", "exec_secretariat"
+      ],
+      "archetype_bag": { "climber": 0.3, "hardliner": 0.25, "company_man": 0.2, "incorruptible": 0.15, "bribable": 0.1 },
+      "tier_range": [3, 7],
+      "occupations": [
+        "hr_director", "factory_director", "security_director", "legal_director", "deputy_cfo", "coo",
+        "chief_auditor", "board_investor", "board_secretary", "guard_chief"
+      ],
+      "roles": ["journalist", "exec_secretary"],
+      "slots": [
+        { "occupation": "hr_director", "count": 1, "room": "area_director_offices_a" },
+        { "occupation": "factory_director", "count": 1, "room": "area_director_offices_b" },
+        { "occupation": "security_director", "count": 1, "room": "security_director_office" },
+        { "occupation": "legal_director", "count": 1, "room": "legal_director_office" },
+        { "occupation": "deputy_cfo", "count": 1, "room": "treasury" },
+        { "occupation": "coo", "count": 1, "room": "area_director_offices_c" },
+        { "occupation": "chief_auditor", "count": 1, "room": "internal_audit" },
+        { "occupation": "board_investor", "count": 2, "room": "investor_offices" },
+        { "occupation": "board_secretary", "count": 1, "room": "board_secretary_office" },
+        { "occupation": "guard_chief", "count": 1, "room": "guard_lockers" },
+        { "occupation": "", "role": "journalist", "count": 2, "room": "press_room" },
+        { "occupation": "", "role": "exec_secretary", "count": 1, "room": "exec_secretariat" }
+      ]
+    },
+    {
+      "id": "exterior",
+      "name_key": "DEPT_EXTERIOR",
+      "population": 10,
+      "named_npcs": [],
+      "generated": 10,
+      "rooms": ["police_station", "supermarket", "clothes_shop", "street", "transport_stop", "npc_house_mansion"],
+      "archetype_bag": { "oblivious": 0.4, "gossip": 0.3, "hardliner": 0.2, "burnout": 0.1 },
+      "tier_range": [1, 3],
+      "occupations": [],
+      "roles": [
+        "police_officer", "supermarket_cashier", "shop_assistant", "street_vendor", "neighbour",
+        "ticket_inspector", "private_security"
+      ],
+      "slots": [
+        {
+          "occupation": "",
+          "role": "police_officer",
+          "count": 2,
+          "room": "police_station",
+          "archetype": "hardliner",
+          "routine_template": "exterior_police"
+        },
+        {
+          "occupation": "",
+          "role": "supermarket_cashier",
+          "count": 2,
+          "room": "supermarket",
+          "routine_template": "exterior_local"
+        },
+        {
+          "occupation": "",
+          "role": "shop_assistant",
+          "count": 1,
+          "room": "clothes_shop",
+          "routine_template": "exterior_local"
+        },
+        {
+          "occupation": "",
+          "role": "street_vendor",
+          "count": 1,
+          "room": "street",
+          "routine_template": "exterior_local"
+        },
+        {
+          "occupation": "",
+          "role": "neighbour",
+          "count": 2,
+          "room": "street",
+          "routine_template": "exterior_local"
+        },
+        {
+          "occupation": "",
+          "role": "ticket_inspector",
+          "count": 1,
+          "room": "transport_stop",
+          "routine_template": "exterior_local"
+        },
+        {
+          "occupation": "",
+          "role": "private_security",
+          "count": 1,
+          "room": "npc_house_mansion",
+          "routine_template": "exterior_local"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    { "id": "auditor", "name_key": "ROLE_AUDITOR", "tier": 3, "clearance": 3, "daily_wage": 90 },
+    { "id": "ceo_secretary", "name_key": "ROLE_CEO_SECRETARY", "tier": 5, "clearance": 7, "daily_wage": 260 },
+    { "id": "receptionist", "name_key": "ROLE_RECEPTIONIST", "tier": 1, "clearance": 1, "daily_wage": 32 },
+    { "id": "cook", "name_key": "ROLE_COOK", "tier": 1, "clearance": 1, "daily_wage": 34 },
+    { "id": "store_clerk", "name_key": "ROLE_STORE_CLERK", "tier": 1, "clearance": 1, "daily_wage": 33 },
+    {
+      "id": "quality_inspector",
+      "name_key": "ROLE_QUALITY_INSPECTOR",
+      "tier": 2,
+      "clearance": 1,
+      "daily_wage": 50,
+      "special_access": ["factory"]
+    },
+    {
+      "id": "stock_keeper",
+      "name_key": "ROLE_STOCK_KEEPER",
+      "tier": 1,
+      "clearance": 1,
+      "daily_wage": 36,
+      "special_access": ["factory"]
+    },
+    {
+      "id": "dock_worker",
+      "name_key": "ROLE_DOCK_WORKER",
+      "tier": 1,
+      "clearance": 1,
+      "daily_wage": 36,
+      "special_access": ["factory"]
+    },
+    {
+      "id": "prototype_technician",
+      "name_key": "ROLE_PROTOTYPE_TECHNICIAN",
+      "tier": 2,
+      "clearance": 3,
+      "daily_wage": 52
+    },
+    {
+      "id": "materials_keeper",
+      "name_key": "ROLE_MATERIALS_KEEPER",
+      "tier": 2,
+      "clearance": 3,
+      "daily_wage": 50
+    },
+    { "id": "lawyer", "name_key": "ROLE_LAWYER", "tier": 3, "clearance": 3, "daily_wage": 95 },
+    { "id": "legal_clerk", "name_key": "ROLE_LEGAL_CLERK", "tier": 2, "clearance": 3, "daily_wage": 50 },
+    { "id": "notary", "name_key": "ROLE_NOTARY", "tier": 3, "clearance": 3, "daily_wage": 100 },
+    {
+      "id": "community_manager",
+      "name_key": "ROLE_COMMUNITY_MANAGER",
+      "tier": 3,
+      "clearance": 3,
+      "daily_wage": 74
+    },
+    {
+      "id": "graphic_designer",
+      "name_key": "ROLE_GRAPHIC_DESIGNER",
+      "tier": 2,
+      "clearance": 3,
+      "daily_wage": 60
+    },
+    { "id": "photographer", "name_key": "ROLE_PHOTOGRAPHER", "tier": 2, "clearance": 3, "daily_wage": 58 },
+    { "id": "floor_secretary", "name_key": "ROLE_FLOOR_SECRETARY", "tier": 3, "clearance": 4, "daily_wage": 80 },
+    {
+      "id": "executive_assistant",
+      "name_key": "ROLE_EXECUTIVE_ASSISTANT",
+      "tier": 3,
+      "clearance": 4,
+      "daily_wage": 82
+    },
+    { "id": "account_manager", "name_key": "ROLE_ACCOUNT_MANAGER", "tier": 3, "clearance": 4, "daily_wage": 90 },
+    {
+      "id": "sales_demonstrator",
+      "name_key": "ROLE_SALES_DEMONSTRATOR",
+      "tier": 3,
+      "clearance": 4,
+      "daily_wage": 85
+    },
+    {
+      "id": "contracts_officer",
+      "name_key": "ROLE_CONTRACTS_OFFICER",
+      "tier": 3,
+      "clearance": 4,
+      "daily_wage": 88
+    },
+    { "id": "vip_archivist", "name_key": "ROLE_VIP_ARCHIVIST", "tier": 3, "clearance": 4, "daily_wage": 80 },
+    {
+      "id": "journalist",
+      "name_key": "ROLE_JOURNALIST",
+      "tier": 3,
+      "clearance": 5,
+      "daily_wage": 90,
+      "external": true
+    },
+    { "id": "exec_secretary", "name_key": "ROLE_EXEC_SECRETARY", "tier": 3, "clearance": 6, "daily_wage": 95 },
+    {
+      "id": "police_officer",
+      "name_key": "ROLE_POLICE_OFFICER",
+      "tier": 3,
+      "clearance": 0,
+      "daily_wage": 80,
+      "external": true
+    },
+    {
+      "id": "supermarket_cashier",
+      "name_key": "ROLE_SUPERMARKET_CASHIER",
+      "tier": 1,
+      "clearance": 0,
+      "daily_wage": 35,
+      "external": true
+    },
+    {
+      "id": "shop_assistant",
+      "name_key": "ROLE_SHOP_ASSISTANT",
+      "tier": 1,
+      "clearance": 0,
+      "daily_wage": 38,
+      "external": true
+    },
+    {
+      "id": "street_vendor",
+      "name_key": "ROLE_STREET_VENDOR",
+      "tier": 1,
+      "clearance": 0,
+      "daily_wage": 25,
+      "external": true
+    },
+    {
+      "id": "neighbour",
+      "name_key": "ROLE_NEIGHBOUR",
+      "tier": 1,
+      "clearance": 0,
+      "daily_wage": 30,
+      "external": true
+    },
+    {
+      "id": "ticket_inspector",
+      "name_key": "ROLE_TICKET_INSPECTOR",
+      "tier": 1,
+      "clearance": 0,
+      "daily_wage": 40,
+      "external": true
+    },
+    {
+      "id": "private_security",
+      "name_key": "ROLE_PRIVATE_SECURITY",
+      "tier": 2,
+      "clearance": 0,
+      "daily_wage": 60,
+      "external": true
+    }
+  ],
+  "tier_to_routine_template": {
+    "1": "tier_1_2",
+    "2": "tier_1_2",
+    "3": "tier_3",
+    "4": "tier_4",
+    "5": "tier_5_6",
+    "6": "tier_5_6",
+    "7": "tier_7_8",
+    "8": "tier_7_8"
+  },
+  "occupation_routine_template": {
+    "security_guard": { "day": "guard_day", "night": "guard_night" },
+    "cleaner": "cleaning"
+  },
+  "routine_templates": {
+    "_nota": [
+      "Tabla §24.5 como datos. segments: bloques horarios; el personaje está en 'location' desde 'start' (+ retraso aleatorio 0..jitter_minutes) hasta el inicio del siguiente segmento.",
+      "location: 'home_room' = sala de trabajo del personaje; 'absent' = fuera del edificio (en su vivienda); 'assigned_zone' = zona de limpieza; cualquier otro valor es un id de sala. 'via' = sala por la que pasa al llegar o salir (fichaje en torniquetes).",
+      "events: actividades insertadas dentro de la franja: count [min,max] repeticiones o every_minutes (periódicas) dentro de start_window; duration_minutes [min,max]; location o location_choices {sala: peso}. Una ventana cuyo final es anterior a su inicio cruza la medianoche.",
+      "'floor_meeting_room' = sala de reuniones de su planta si existe, si no su home_room. 'other_floor' = una sala de trabajo de otra planta de su departamento."
+    ],
+    "tier_1_2": {
+      "segments": [
+        { "start": "00:00", "location": "absent" },
+        {
+          "start": "08:15",
+          "jitter_minutes": 30,
+          "location": "home_room",
+          "via": "turnstiles",
+          "activity": "work"
+        },
+        { "start": "13:00", "location": "cafeteria", "activity": "lunch" },
+        { "start": "14:00", "location": "home_room", "activity": "work" },
+        { "start": "18:00", "jitter_minutes": 30, "location": "absent", "via": "turnstiles" }
+      ],
+      "events": []
+    },
+    "tier_3": {
+      "segments": [
+        { "start": "00:00", "location": "absent" },
+        {
+          "start": "08:30",
+          "jitter_minutes": 30,
+          "location": "home_room",
+          "via": "turnstiles",
+          "activity": "work"
+        },
+        { "start": "13:00", "location": "cafeteria", "activity": "lunch" },
+        { "start": "14:00", "location": "home_room", "activity": "work" },
+        { "start": "18:00", "jitter_minutes": 45, "location": "absent", "via": "turnstiles" }
+      ],
+      "events": [
+        {
+          "activity": "meeting",
+          "location": "floor_meeting_room",
+          "count": [1, 2],
+          "duration_minutes": [30, 60],
+          "start_window": ["09:00", "12:30"]
+        },
+        {
+          "activity": "visit_other_floor",
+          "location": "other_floor",
+          "count": [1, 2],
+          "duration_minutes": [15, 45],
+          "start_window": ["14:00", "17:30"]
+        }
+      ]
+    },
+    "tier_4": {
+      "segments": [
+        { "start": "00:00", "location": "absent" },
+        {
+          "start": "08:00",
+          "jitter_minutes": 30,
+          "location": "home_room",
+          "via": "turnstiles",
+          "activity": "work"
+        },
+        {
+          "start": "13:00",
+          "location_choices": { "cafeteria": 0.7, "exec_dining": 0.3 },
+          "activity": "lunch"
+        },
+        { "start": "14:00", "location": "home_room", "activity": "work" },
+        { "start": "18:30", "jitter_minutes": 30, "location": "absent", "via": "turnstiles" }
+      ],
+      "events": [
+        {
+          "activity": "patrol_zone",
+          "location": "home_room",
+          "every_minutes": 60,
+          "duration_minutes": [10, 15],
+          "start_window": ["09:00", "12:30"]
+        },
+        {
+          "activity": "assign_tasks",
+          "location": "home_room",
+          "count": [1, 1],
+          "duration_minutes": [15, 20],
+          "start_window": ["09:00", "09:30"]
+        },
+        {
+          "activity": "short_meeting",
+          "location": "floor_meeting_room",
+          "count": [1, 2],
+          "duration_minutes": [15, 30],
+          "start_window": ["14:00", "17:30"]
+        },
+        {
+          "activity": "attendance_check",
+          "location": "home_room",
+          "count": [1, 2],
+          "duration_minutes": [5, 10],
+          "start_window": ["14:00", "18:00"]
+        }
+      ]
+    },
+    "tier_5_6": {
+      "segments": [
+        { "start": "00:00", "location": "absent" },
+        {
+          "start": "08:30",
+          "jitter_minutes": 60,
+          "location": "home_room",
+          "via": "turnstiles",
+          "activity": "work"
+        },
+        { "start": "13:00", "location": "exec_dining", "activity": "lunch" },
+        { "start": "14:00", "location": "home_room", "activity": "work" },
+        { "start": "18:00", "jitter_minutes": 120, "location": "absent", "via": "turnstiles" }
+      ],
+      "events": [
+        {
+          "activity": "long_meeting",
+          "location_choices": { "aurora_room": 0.25, "meeting_12a": 0.3, "meeting_12b": 0.3, "video_conference": 0.15 },
+          "count": [1, 1],
+          "duration_minutes": [120, 210],
+          "start_window": ["14:00", "15:00"],
+          "leaves_office_empty": true
+        }
+      ]
+    },
+    "tier_7_8": {
+      "segments": [
+        { "start": "00:00", "location": "absent" },
+        {
+          "start": "07:30",
+          "jitter_minutes": 180,
+          "location": "home_room",
+          "via": "turnstiles",
+          "activity": "work"
+        },
+        { "start": "13:00", "location": "exec_dining", "activity": "lunch" },
+        { "start": "14:00", "location": "home_room", "activity": "work" },
+        { "start": "17:00", "jitter_minutes": 240, "location": "absent", "via": "turnstiles" }
+      ],
+      "events": [
+        {
+          "activity": "agenda",
+          "location_choices": { "boardroom": 0.25, "press_room": 0.2, "investor_lounge": 0.3, "ceo_boardroom": 0.25 },
+          "count": [2, 4],
+          "duration_minutes": [30, 90],
+          "start_window": ["09:00", "17:30"]
+        }
+      ],
+      "travel_day_probability": 0.1
+    },
+    "guard_day": {
+      "segments": [
+        { "start": "00:00", "location": "absent" },
+        { "start": "07:00", "location": "home_room", "via": "security_locker_room", "activity": "watch" },
+        { "start": "13:00", "location": "security_locker_room", "activity": "relief" },
+        { "start": "14:00", "location": "home_room", "activity": "watch" },
+        { "start": "19:00", "location": "absent", "via": "security_locker_room" }
+      ],
+      "events": [
+        {
+          "activity": "round",
+          "location": "assigned_round",
+          "every_minutes": 90,
+          "duration_minutes": [25, 35],
+          "start_window": ["07:30", "18:30"]
+        }
+      ]
+    },
+    "guard_night": {
+      "segments": [
+        { "start": "00:00", "location": "home_room", "activity": "watch" },
+        { "start": "07:00", "location": "absent", "via": "security_locker_room" },
+        { "start": "19:00", "location": "home_room", "via": "security_locker_room", "activity": "watch" }
+      ],
+      "events": [
+        {
+          "activity": "round",
+          "location": "assigned_round",
+          "every_minutes": 90,
+          "duration_minutes": [25, 35],
+          "start_window": ["19:30", "07:00"]
+        }
+      ]
+    },
+    "cleaning": {
+      "segments": [
+        { "start": "00:00", "location": "absent" },
+        { "start": "17:00", "location": "cleaning_locker_room", "activity": "preparation" },
+        { "start": "18:00", "location": "assigned_zone", "activity": "clean" },
+        { "start": "22:00", "location": "absent", "via": "cleaning_locker_room" }
+      ],
+      "events": []
+    },
+    "exterior_local": {
+      "segments": [
+        { "start": "00:00", "location": "absent" },
+        { "start": "08:00", "jitter_minutes": 60, "location": "home_room", "activity": "work" },
+        { "start": "13:00", "location": "street", "activity": "lunch" },
+        { "start": "14:00", "location": "home_room", "activity": "work" },
+        { "start": "20:00", "jitter_minutes": 60, "location": "absent" }
+      ],
+      "events": []
+    },
+    "exterior_police": {
+      "segments": [
+        { "start": "00:00", "location": "home_room", "activity": "on_duty" }
+      ],
+      "events": [
+        {
+          "activity": "patrol",
+          "location_choices": { "street": 0.6, "alleys": 0.2, "transport_stop": 0.2 },
+          "every_minutes": 120,
+          "duration_minutes": [20, 40],
+          "start_window": ["00:00", "23:59"]
+        }
+      ]
+    }
+  },
+  "routine_common_modifiers": {
+    "_nota": "Modificadores comunes de §24.5, aplicados a las plantillas tier_* (no a guard_*, cleaning ni exterior_*).",
+    "toilet": { "count": [1, 3], "duration_minutes": [5, 10], "location": "floor_toilets" },
+    "coffee_breaks": [
+      { "time": "10:30", "duration_minutes": 15, "location": "floor_pantry" },
+      { "time": "16:00", "duration_minutes": 15, "location": "floor_pantry" }
+    ],
+    "smokers_circle": {
+      "interval_hours": 2,
+      "first_time": "10:00",
+      "duration_minutes": 10,
+      "location": "street",
+      "smoker_probability": 0.25
+    },
+    "copier": { "count": [0, 2], "duration_minutes": [5, 10], "location": "floor_copyroom" },
+    "slacker": {
+      "absences_per_day": [1, 3],
+      "absence_minutes": [20, 60],
+      "hideouts": [
+        "foosball_room", "p3_toilets", "p3_pantry", "street", "maintenance_store", "ground_toilets",
+        "p1_toilets", "p2_toilets", "p4_toilets", "p5_toilets"
+      ]
+    },
+    "location_rules": {
+      "floor_toilets": "baños de la planta del personaje (pN_toilets / ground_toilets); si no existen, home_room",
+      "floor_pantry": "office de su planta (p3_pantry, p11_exec_pantry); si no existe, home_room",
+      "floor_copyroom": "fotocopiadora de su planta (p3_copyroom); si no existe, main_copyroom"
+    }
+  },
+  "tier_to_home_address": {
+    "1": "npc_house_humble",
+    "2": "npc_house_humble",
+    "3": "npc_house_humble",
+    "4": "npc_house_semi",
+    "5": "npc_house_semi",
+    "6": "npc_house_mansion",
+    "7": "npc_house_mansion",
+    "8": "npc_house_mansion"
+  },
+  "link_generation": {
+    "department_links_min": 2,
+    "department_links_max": 5,
+    "friendship_links_min": 0,
+    "friendship_links_max": 2,
+    "rivalry_links_min": 0,
+    "rivalry_links_max": 1,
+    "secret_couple_probability": 0.03,
+    "_nota": "Vínculos de departamento, amistad y rivalidad se sortean entre personajes del mismo 'department' (los nominados del departamento son destinos válidos). Fuerzas dentro de los intervalos de social_graph.json.",
+    "hierarchy": {
+      "_nota": "EXTENSIÓN: cada generado recibe un vínculo 'hierarchy' hacia el superior de su sala, si existe. Valor: id de personaje nominado, 'occ:<ocupación>' o 'role:<puesto>' (el titular generado).",
+      "strength": [0.6, 0.9],
+      "superior_by_room": {
+        "wing_3b": "npc_bernard_lasker",
+        "assembly_line": "npc_ernie_vaughn",
+        "mold_room": "npc_ernie_vaughn",
+        "factory_dye_lab": "npc_ernie_vaughn",
+        "materials_store": "npc_ernie_vaughn",
+        "finished_goods": "npc_ernie_vaughn",
+        "loading_dock": "npc_ernie_vaughn",
+        "quality_control": "occ:factory_director",
+        "hr_office": "occ:hr_director",
+        "accounting": "occ:senior_accountant",
+        "payroll_office": "occ:payroll_manager",
+        "monitor_room": "occ:guard_chief",
+        "internal_audit": "occ:chief_auditor",
+        "systems_office": "npc_alvin_pyne",
+        "repair_workshop": "npc_alvin_pyne",
+        "it_chief_office": "npc_alvin_pyne",
+        "campaign_room": "npc_diana_sedgwick",
+        "social_media_office": "npc_diana_sedgwick",
+        "graphic_design": "npc_diana_sedgwick",
+        "product_photo_studio": "npc_diana_sedgwick",
+        "wing_4a": "occ:b10_director",
+        "legal_firm": "occ:legal_director",
+        "legal_archive": "occ:legal_director",
+        "senior_sales_offices": "occ:b10_director",
+        "buyer_demo_room": "occ:b10_director",
+        "sales_contracts_room": "occ:b10_director",
+        "p10_secretariat": "occ:floor10_general_director",
+        "exec_secretariat": "npc_harlan_voss"
+      }
+    }
+  },
+  "fixed_generated_links": [
+    {
+      "id": "accounting_couple",
+      "type": "couple",
+      "department": "base",
+      "room": "accounting",
+      "count": 2,
+      "strength": 0.95,
+      "secret": true,
+      "gathering": "accounting_couple",
+      "_nota": "La pareja clandestina de contabilidad (§7.7): dos generados de 'accounting'. Material de chantaje."
+    }
+  ],
+  "gathering_membership": {
+    "_nota": "EXTENSIÓN: probabilidad de que un generado pertenezca a cada corrillo de social_graph.json. Los nominados declaran los suyos.",
+    "cafeteria_clan": {
+      "departments": ["base", "factory", "specialists", "audit_legal", "sales_marketing"],
+      "max_tier": 4,
+      "probability": 0.85
+    },
+    "foosball_circle": { "departments": ["base", "sales_marketing"], "max_tier": 3, "probability": 0.12 },
+    "smokers_circle": {
+      "departments": ["factory", "base", "specialists", "audit_legal", "sales_marketing", "blocks", "top"],
+      "probability": 0.2
+    },
+    "chat_3b": { "home_rooms": ["wing_3b"], "probability": 1.0 },
+    "accounting_couple": { "fixed_link": "accounting_couple" }
+  },
+  "slacker_probability_tier_1_3": 0.15,
+  "slacker_excludes_external": true,
+  "portrait_seed_range": [100000, 999999]
+}

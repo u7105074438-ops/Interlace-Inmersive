@@ -1,0 +1,64 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+;
+; THE WORKER — manual PASO 1 (§17.2) + BUILD_NOTES §0/§2/§8.
+
+config_version=5
+
+[application]
+
+config/name="The Worker"
+config/description="Reach the top of Stellar Sell without doing any honest work."
+run/main_scene="res://scenes/boot.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[autoload]
+
+; The 14 global systems, in lifecycle order (BUILD_NOTES §2).
+; Built in: EventBus PASO 2, Database PASO 4, GameClock PASO 5, PlayerState PASO 6,
+; BeliefNet PASO 13, NPCDirector PASO 9, SocialGraph PASO 15, Security PASO 27,
+; Company PASO 21, Market PASO 33, NewsFeed PASO 35, IdeaPool PASO 23,
+; Tracking PASO 31, SaveSystem PASO 31. Until then each file is a compiling stub.
+EventBus="*res://src/autoload/event_bus.gd"
+Database="*res://src/autoload/database.gd"
+GameClock="*res://src/autoload/game_clock.gd"
+PlayerState="*res://src/autoload/player_state.gd"
+BeliefNet="*res://src/autoload/belief_net.gd"
+NPCDirector="*res://src/autoload/npc_director.gd"
+SocialGraph="*res://src/autoload/social_graph.gd"
+Security="*res://src/autoload/security.gd"
+Company="*res://src/autoload/company.gd"
+Market="*res://src/autoload/market.gd"
+NewsFeed="*res://src/autoload/news_feed.gd"
+IdeaPool="*res://src/autoload/idea_pool.gd"
+Tracking="*res://src/autoload/tracking.gd"
+SaveSystem="*res://src/autoload/save_system.gd"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=6
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+pointing/emulate_mouse_from_touch=true
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://locale/strings.en.translation", "res://locale/strings.es.translation")
+locale/fallback="en"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

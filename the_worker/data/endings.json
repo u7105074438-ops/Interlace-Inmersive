@@ -1,0 +1,345 @@
+{
+  "_version": 1,
+  "_nota": "§32.8 / §12.9. Se evalúa en evaluation_order y gana el primer final cuyas condiciones se cumplen. Claves de condición: rank (exacto), rank_max, has_ownership_documents, notarised, dominant_axis, hybrid, cause (lista de ids de causes; [\"any\"] = cualquier causa).",
+  "axes": [
+    "blood",
+    "gold",
+    "silk",
+    "sweat"
+  ],
+  "axis_name_keys": {
+    "blood": "AXIS_BLOOD",
+    "gold": "AXIS_GOLD",
+    "silk": "AXIS_SILK",
+    "sweat": "AXIS_SWEAT",
+    "ruin": "AXIS_RUIN"
+  },
+  "hybrid_rule": {
+    "_nota": "Híbrido = ningún eje supera max_axis_share de la suma de los cuatro ejes (RUINA excluida). Con suma 0 no es híbrido y se aplica dominant_tie_break.",
+    "max_axis_share": 0.4
+  },
+  "dominant_tie_break": [
+    "sweat",
+    "silk",
+    "gold",
+    "blood"
+  ],
+  "ruin_modifier": {
+    "_nota": "RUINA >= husk_threshold → variante 'husk' (cascarón); si no, 'empire' (imperio). Duplicado de balance.seguimiento.umbral_ruina_cascaron.",
+    "axis": "ruin",
+    "husk_threshold": 150,
+    "tier_name_keys": {
+      "empire": "RUIN_TIER_EMPIRE",
+      "husk": "RUIN_TIER_HUSK"
+    }
+  },
+  "epilogue_composition": {
+    "_nota": "Texto mostrado = tr(epilogue_key) + párrafo nuevo + tr(epilogue_variants[tier]) si has_ruin_variants. Se rellena con String.format(dict) usando las claves de 'placeholders'.",
+    "separator": "paragraph"
+  },
+  "placeholder_catalogue": {
+    "name": "nombre del jugador",
+    "days": "jornadas trabajadas en la partida",
+    "victims": "nombres de los personajes eliminados, separados por comas",
+    "scapegoats": "nombres de quienes cargaron con culpas del jugador (incriminados, acusados, expulsados por sus actos)",
+    "bribes_total": "importe total pagado en sobornos, formateado con moneda",
+    "company_value": "capitalización final (precio × acciones), formateada con moneda",
+    "share_price": "cotización final, formateada con moneda",
+    "investigator": "nombre de quien cerró el caso",
+    "case_id": "identificador del caso concluyente",
+    "evidence_count": "número de piezas de evidencia del caso",
+    "successor": "nombre del recién titulado que ocupa la mesa (generado)"
+  },
+  "figurehead_term_quarters": 4,
+  "_nota_figurehead": "Extensión: tras figurehead_term_quarters trimestres completos en R33 sin documentos notariados, la partida termina con cause 'ceo_term_without_ownership'. En R33 la degradación por resultados emite 'board_removal'.",
+  "evaluation_order": [
+    "the_butcher",
+    "the_buyer",
+    "the_ghost",
+    "the_worker",
+    "the_full_suite",
+    "the_owner_in_exile",
+    "the_file",
+    "the_figurehead",
+    "the_gap"
+  ],
+  "fallback_ending": "the_gap",
+  "causes": [
+    {
+      "id": "ownership_notarised",
+      "name_key": "CAUSE_OWNERSHIP_NOTARISED"
+    },
+    {
+      "id": "starvation",
+      "name_key": "CAUSE_STARVATION"
+    },
+    {
+      "id": "failed_at_r0",
+      "name_key": "CAUSE_FAILED_AT_R0"
+    },
+    {
+      "id": "duty_failure_expulsion",
+      "name_key": "CAUSE_DUTY_FAILURE_EXPULSION"
+    },
+    {
+      "id": "results_failure_expulsion",
+      "name_key": "CAUSE_RESULTS_FAILURE_EXPULSION"
+    },
+    {
+      "id": "investigation_conclusive",
+      "name_key": "CAUSE_INVESTIGATION_CONCLUSIVE"
+    },
+    {
+      "id": "witnessed_elimination",
+      "name_key": "CAUSE_WITNESSED_ELIMINATION"
+    },
+    {
+      "id": "bribe_denounced",
+      "name_key": "CAUSE_BRIBE_DENOUNCED"
+    },
+    {
+      "id": "arrested_by_police",
+      "name_key": "CAUSE_ARRESTED_BY_POLICE"
+    },
+    {
+      "id": "board_removal",
+      "name_key": "CAUSE_BOARD_REMOVAL"
+    },
+    {
+      "id": "ceo_term_without_ownership",
+      "name_key": "CAUSE_CEO_TERM_WITHOUT_OWNERSHIP"
+    }
+  ],
+  "endings": [
+    {
+      "id": "the_butcher",
+      "name_key": "ENDING_THE_BUTCHER",
+      "description_key": "ENDING_THE_BUTCHER_DESC",
+      "category": "full_victory",
+      "conditions": {
+        "rank": 33,
+        "has_ownership_documents": true,
+        "notarised": true,
+        "hybrid": false,
+        "dominant_axis": "blood"
+      },
+      "epilogue_key": "EPILOGUE_THE_BUTCHER",
+      "has_ruin_variants": true,
+      "epilogue_variants": {
+        "empire": "EPILOGUE_THE_BUTCHER_EMPIRE",
+        "husk": "EPILOGUE_THE_BUTCHER_HUSK"
+      },
+      "placeholders": [
+        "company_value",
+        "days",
+        "name",
+        "share_price",
+        "victims"
+      ],
+      "music_theme": "epilogue_blood"
+    },
+    {
+      "id": "the_buyer",
+      "name_key": "ENDING_THE_BUYER",
+      "description_key": "ENDING_THE_BUYER_DESC",
+      "category": "full_victory",
+      "conditions": {
+        "rank": 33,
+        "has_ownership_documents": true,
+        "notarised": true,
+        "hybrid": false,
+        "dominant_axis": "gold"
+      },
+      "epilogue_key": "EPILOGUE_THE_BUYER",
+      "has_ruin_variants": true,
+      "epilogue_variants": {
+        "empire": "EPILOGUE_THE_BUYER_EMPIRE",
+        "husk": "EPILOGUE_THE_BUYER_HUSK"
+      },
+      "placeholders": [
+        "bribes_total",
+        "company_value",
+        "days",
+        "name",
+        "share_price"
+      ],
+      "music_theme": "epilogue_gold"
+    },
+    {
+      "id": "the_ghost",
+      "name_key": "ENDING_THE_GHOST",
+      "description_key": "ENDING_THE_GHOST_DESC",
+      "category": "full_victory",
+      "conditions": {
+        "rank": 33,
+        "has_ownership_documents": true,
+        "notarised": true,
+        "hybrid": false,
+        "dominant_axis": "silk"
+      },
+      "epilogue_key": "EPILOGUE_THE_GHOST",
+      "has_ruin_variants": true,
+      "epilogue_variants": {
+        "empire": "EPILOGUE_THE_GHOST_EMPIRE",
+        "husk": "EPILOGUE_THE_GHOST_HUSK"
+      },
+      "placeholders": [
+        "company_value",
+        "days",
+        "name",
+        "scapegoats",
+        "share_price"
+      ],
+      "music_theme": "epilogue_silk"
+    },
+    {
+      "id": "the_worker",
+      "name_key": "ENDING_THE_WORKER",
+      "description_key": "ENDING_THE_WORKER_DESC",
+      "category": "full_victory",
+      "conditions": {
+        "rank": 33,
+        "has_ownership_documents": true,
+        "notarised": true,
+        "hybrid": false,
+        "dominant_axis": "sweat"
+      },
+      "epilogue_key": "EPILOGUE_THE_WORKER",
+      "has_ruin_variants": true,
+      "epilogue_variants": {
+        "empire": "EPILOGUE_THE_WORKER_EMPIRE",
+        "husk": "EPILOGUE_THE_WORKER_HUSK"
+      },
+      "placeholders": [
+        "company_value",
+        "days",
+        "name",
+        "share_price"
+      ],
+      "music_theme": "epilogue_sweat"
+    },
+    {
+      "id": "the_full_suite",
+      "name_key": "ENDING_THE_FULL_SUITE",
+      "description_key": "ENDING_THE_FULL_SUITE_DESC",
+      "category": "full_victory",
+      "conditions": {
+        "rank": 33,
+        "has_ownership_documents": true,
+        "notarised": true,
+        "hybrid": true
+      },
+      "epilogue_key": "EPILOGUE_THE_FULL_SUITE",
+      "has_ruin_variants": true,
+      "epilogue_variants": {
+        "empire": "EPILOGUE_THE_FULL_SUITE_EMPIRE",
+        "husk": "EPILOGUE_THE_FULL_SUITE_HUSK"
+      },
+      "placeholders": [
+        "company_value",
+        "days",
+        "name",
+        "share_price"
+      ],
+      "music_theme": "epilogue_hybrid"
+    },
+    {
+      "id": "the_figurehead",
+      "name_key": "ENDING_THE_FIGUREHEAD",
+      "description_key": "ENDING_THE_FIGUREHEAD_DESC",
+      "category": "partial_victory",
+      "conditions": {
+        "rank": 33,
+        "has_ownership_documents": false,
+        "cause": [
+          "ceo_term_without_ownership",
+          "board_removal"
+        ]
+      },
+      "epilogue_key": "EPILOGUE_THE_FIGUREHEAD",
+      "has_ruin_variants": true,
+      "epilogue_variants": {
+        "empire": "EPILOGUE_THE_FIGUREHEAD_EMPIRE",
+        "husk": "EPILOGUE_THE_FIGUREHEAD_HUSK"
+      },
+      "placeholders": [
+        "company_value",
+        "days",
+        "name",
+        "share_price"
+      ],
+      "music_theme": "epilogue_partial"
+    },
+    {
+      "id": "the_owner_in_exile",
+      "name_key": "ENDING_THE_OWNER_IN_EXILE",
+      "description_key": "ENDING_THE_OWNER_IN_EXILE_DESC",
+      "category": "partial_victory",
+      "conditions": {
+        "has_ownership_documents": true,
+        "rank_max": 32,
+        "cause": [
+          "any"
+        ]
+      },
+      "epilogue_key": "EPILOGUE_THE_OWNER_IN_EXILE",
+      "has_ruin_variants": true,
+      "epilogue_variants": {
+        "empire": "EPILOGUE_THE_OWNER_IN_EXILE_EMPIRE",
+        "husk": "EPILOGUE_THE_OWNER_IN_EXILE_HUSK"
+      },
+      "placeholders": [
+        "company_value",
+        "days",
+        "name"
+      ],
+      "music_theme": "epilogue_partial"
+    },
+    {
+      "id": "the_file",
+      "name_key": "ENDING_THE_FILE",
+      "description_key": "ENDING_THE_FILE_DESC",
+      "category": "defeat",
+      "conditions": {
+        "cause": [
+          "investigation_conclusive",
+          "witnessed_elimination",
+          "bribe_denounced",
+          "arrested_by_police"
+        ]
+      },
+      "epilogue_key": "EPILOGUE_THE_FILE",
+      "has_ruin_variants": false,
+      "placeholders": [
+        "case_id",
+        "days",
+        "evidence_count",
+        "investigator",
+        "name"
+      ],
+      "music_theme": "epilogue_defeat"
+    },
+    {
+      "id": "the_gap",
+      "name_key": "ENDING_THE_GAP",
+      "description_key": "ENDING_THE_GAP_DESC",
+      "category": "defeat",
+      "conditions": {
+        "cause": [
+          "starvation",
+          "failed_at_r0",
+          "duty_failure_expulsion",
+          "results_failure_expulsion"
+        ]
+      },
+      "epilogue_key": "EPILOGUE_THE_GAP",
+      "has_ruin_variants": false,
+      "placeholders": [
+        "days",
+        "name",
+        "successor"
+      ],
+      "music_theme": "epilogue_defeat"
+    }
+  ]
+}

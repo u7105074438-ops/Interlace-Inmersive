@@ -1,0 +1,187 @@
+{
+  "_version": 1,
+  "floor": -2,
+  "band": "the_guts",
+  "kit": "archive",
+  "_note": "Cells = metres. pos = top-left cell of the footprint; size = [w,h] footprint as placed (already rotated); rotation = facing, degrees clockwise, 0 = front faces +y (south). Furniture without size is 1x1 except cubicle (2x2). Doors are added by floor_layout.gd.",
+  "rooms": [
+    {
+      "id": "dead_archive",
+      "name_key": "ROOM_DEAD_ARCHIVE",
+      "floor": -2,
+      "wing": null,
+      "clearance_required": 5,
+      "special_access": ["cleaning"],
+      "special_access_mode": "or",
+      "art_band": "the_guts",
+      "kit": "archive",
+      "ambient_sound": "ventilation_drone",
+      "ambient_noise_level": 0.3,
+      "acoustic_mask": false,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [24, 18],
+      "furniture": [
+        {"type": "shelf_rack", "pos": [2, 2], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [14, 2], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [2, 5], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [14, 5], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [2, 8], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [14, 8], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [2, 11], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [14, 11], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [2, 14], "rotation": 0, "size": [8, 1]},
+        {"type": "shelf_rack", "pos": [14, 14], "rotation": 0, "size": [8, 1]},
+        {"type": "filing_cabinet", "pos": [0, 0], "rotation": 0},
+        {"type": "filing_cabinet", "pos": [1, 0], "rotation": 0},
+        {"type": "filing_cabinet", "pos": [22, 0], "rotation": 0},
+        {"type": "filing_cabinet", "pos": [23, 0], "rotation": 0},
+        {"type": "crate", "pos": [0, 13], "rotation": 0},
+        {"type": "crate", "pos": [0, 14], "rotation": 0},
+        {"type": "crate", "pos": [1, 14], "rotation": 0},
+        {"type": "crate", "pos": [23, 13], "rotation": 0},
+        {"type": "crate", "pos": [23, 14], "rotation": 0}
+      ],
+      "hiding_spots": [
+        {"id": "hide_dead_archive_west", "type": "archive_shelves", "pos": [9, 8], "capacity": 20, "can_hide_body": true},
+        {"id": "hide_dead_archive_east", "type": "archive_shelves", "pos": [14, 11], "capacity": 20, "can_hide_body": true},
+        {"id": "hide_dead_archive_crates", "type": "crate", "pos": [0, 14], "capacity": 10, "can_hide_body": true}
+      ],
+      "interactables": [
+        {"id": "historic_files", "type": "archive_files", "pos": [2, 2], "documents": "historic_compromising"},
+        {"id": "dead_archive_vent", "type": "vent_hatch", "pos": [23, 1], "leads_to": ["vent_network", "server_room", "backup_room"]}
+      ],
+      "illegitimate_entries": ["vent"],
+      "connects_to": ["service_stairs", "freight_elevator"],
+      "occupants_by_band": {"arrival": 0, "work_morning": 0, "lunch": 0, "work_afternoon": 0, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_DEAD_ARCHIVE_OPP",
+      "risk_key": "ROOM_DEAD_ARCHIVE_RISK",
+      "blind_spot": true,
+      "is_hiding_place": true,
+      "search_priority": 1,
+      "searched_in_phase": 2
+    },
+    {
+      "id": "server_room",
+      "name_key": "ROOM_SERVER_ROOM",
+      "floor": -2,
+      "wing": null,
+      "clearance_required": 5,
+      "special_access": ["it"],
+      "special_access_mode": "or",
+      "art_band": "the_guts",
+      "kit": "archive",
+      "ambient_sound": "ventilation_drone",
+      "ambient_noise_level": 0.3,
+      "acoustic_mask": false,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [12, 12],
+      "furniture": [
+        {"type": "server_rack", "pos": [1, 2], "rotation": 0, "size": [3, 1]},
+        {"type": "server_rack", "pos": [8, 2], "rotation": 0, "size": [3, 1]},
+        {"type": "server_rack", "pos": [1, 5], "rotation": 0, "size": [3, 1]},
+        {"type": "server_rack", "pos": [8, 5], "rotation": 0, "size": [3, 1]},
+        {"type": "server_rack", "pos": [1, 8], "rotation": 0, "size": [3, 1]},
+        {"type": "server_rack", "pos": [8, 8], "rotation": 0, "size": [3, 1]},
+        {"type": "desk", "pos": [0, 0], "rotation": 0, "size": [2, 1]},
+        {"type": "chair", "pos": [2, 0], "rotation": 90},
+        {"type": "electrical_panel", "pos": [11, 0], "rotation": 0}
+      ],
+      "hiding_spots": [
+        {"id": "hide_server_vent", "type": "vent", "pos": [11, 1], "capacity": 2, "can_hide_body": false}
+      ],
+      "interactables": [
+        {"id": "server_terminal_main", "type": "server_terminal", "pos": [0, 0], "deletes": "digital_records", "logs_access": true},
+        {"id": "server_vent", "type": "vent_hatch", "pos": [11, 1], "leads_to": ["vent_network", "dead_archive", "backup_room"]}
+      ],
+      "illegitimate_entries": ["vent"],
+      "connects_to": ["service_stairs"],
+      "occupants_by_band": {"arrival": 0, "work_morning": 0, "lunch": 0, "work_afternoon": 0, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_SERVER_ROOM_OPP",
+      "risk_key": "ROOM_SERVER_ROOM_RISK",
+      "blind_spot": true,
+      "is_hiding_place": false,
+      "search_priority": 1,
+      "temperature": "cold"
+    },
+    {
+      "id": "backup_room",
+      "name_key": "ROOM_BACKUP_ROOM",
+      "floor": -2,
+      "wing": null,
+      "clearance_required": 5,
+      "special_access": ["it"],
+      "special_access_mode": "or",
+      "art_band": "the_guts",
+      "kit": "archive",
+      "ambient_sound": "ventilation_drone",
+      "ambient_noise_level": 0.3,
+      "acoustic_mask": false,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [8, 8],
+      "furniture": [
+        {"type": "server_rack", "pos": [0, 0], "rotation": 0, "size": [2, 1]},
+        {"type": "server_rack", "pos": [6, 0], "rotation": 0, "size": [2, 1]},
+        {"type": "shelf_rack", "pos": [2, 3], "rotation": 0, "size": [4, 1]},
+        {"type": "crate", "pos": [1, 5], "rotation": 0}
+      ],
+      "hiding_spots": [
+        {"id": "hide_backup_vent", "type": "vent", "pos": [6, 5], "capacity": 2, "can_hide_body": false}
+      ],
+      "interactables": [
+        {"id": "backup_tapes", "type": "backup_unit", "pos": [3, 3], "restores": "digital_records", "detectable_in": "systems_audit"},
+        {"id": "backup_vent", "type": "vent_hatch", "pos": [6, 5], "leads_to": ["vent_network", "dead_archive", "server_room"]}
+      ],
+      "illegitimate_entries": ["vent"],
+      "connects_to": ["server_room"],
+      "occupants_by_band": {"arrival": 0, "work_morning": 0, "lunch": 0, "work_afternoon": 0, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_BACKUP_ROOM_OPP",
+      "risk_key": "ROOM_BACKUP_ROOM_RISK",
+      "blind_spot": true,
+      "is_hiding_place": false,
+      "search_priority": 1
+    },
+    {
+      "id": "old_confidential_cage",
+      "name_key": "ROOM_OLD_CONFIDENTIAL_CAGE",
+      "floor": -2,
+      "wing": null,
+      "clearance_required": 6,
+      "special_access": [],
+      "special_access_mode": "none",
+      "art_band": "the_guts",
+      "kit": "archive",
+      "ambient_sound": "ventilation_drone",
+      "ambient_noise_level": 0.3,
+      "acoustic_mask": false,
+      "has_cameras": false,
+      "camera_positions": [],
+      "size": [10, 6],
+      "furniture": [
+        {"type": "filing_cabinet", "pos": [1, 0], "rotation": 0},
+        {"type": "filing_cabinet", "pos": [2, 0], "rotation": 0},
+        {"type": "filing_cabinet", "pos": [7, 0], "rotation": 0},
+        {"type": "filing_cabinet", "pos": [8, 0], "rotation": 0},
+        {"type": "shelf_rack", "pos": [3, 2], "rotation": 0, "size": [4, 1]},
+        {"type": "filing_cabinet", "pos": [8, 2], "rotation": 0}
+      ],
+      "hiding_spots": [
+        {"id": "hide_cage_shelves", "type": "archive_shelves", "pos": [3, 2], "capacity": 6, "can_hide_body": false}
+      ],
+      "interactables": [
+        {"id": "cage_padlock", "type": "lock_old", "pos": [5, 4], "target": "door", "keys_basic_opens": false, "forcible": true, "force_noise_radius": 6},
+        {"id": "old_secrets", "type": "archive_files", "pos": [1, 0], "documents": "old_corporate_secrets"}
+      ],
+      "illegitimate_entries": ["forced_lock"],
+      "connects_to": ["dead_archive"],
+      "occupants_by_band": {"arrival": 0, "work_morning": 0, "lunch": 0, "work_afternoon": 0, "exit": 0, "night": 0},
+      "opportunity_key": "ROOM_OLD_CONFIDENTIAL_CAGE_OPP",
+      "risk_key": "ROOM_OLD_CONFIDENTIAL_CAGE_RISK",
+      "blind_spot": true,
+      "is_hiding_place": false,
+      "search_priority": 1
+    }
+  ]
+}

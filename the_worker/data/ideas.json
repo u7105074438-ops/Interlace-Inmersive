@@ -1,0 +1,169 @@
+{
+  "_version": 1,
+  "_nota": "§32.3. Rangos de calidad dentro de balance.ideas.calidad_min/max. 'general' es la plantilla por defecto para departamentos sin plantilla propia. Extensión: name_key en acquisition_methods.",
+  "templates": [
+    {
+      "department": "design",
+      "quality_min": 50,
+      "quality_max": 100,
+      "text_keys": [
+        "IDEA_DESIGN_1",
+        "IDEA_DESIGN_2",
+        "IDEA_DESIGN_3",
+        "IDEA_DESIGN_4",
+        "IDEA_DESIGN_5",
+        "IDEA_DESIGN_6",
+        "IDEA_DESIGN_7"
+      ]
+    },
+    {
+      "department": "marketing",
+      "quality_min": 35,
+      "quality_max": 90,
+      "text_keys": [
+        "IDEA_MKT_1",
+        "IDEA_MKT_2",
+        "IDEA_MKT_3",
+        "IDEA_MKT_4",
+        "IDEA_MKT_5",
+        "IDEA_MKT_6"
+      ]
+    },
+    {
+      "department": "sales",
+      "quality_min": 30,
+      "quality_max": 80,
+      "text_keys": [
+        "IDEA_SALES_1",
+        "IDEA_SALES_2",
+        "IDEA_SALES_3",
+        "IDEA_SALES_4",
+        "IDEA_SALES_5",
+        "IDEA_SALES_6"
+      ]
+    },
+    {
+      "department": "operations",
+      "quality_min": 25,
+      "quality_max": 75,
+      "text_keys": [
+        "IDEA_OPS_1",
+        "IDEA_OPS_2",
+        "IDEA_OPS_3",
+        "IDEA_OPS_4",
+        "IDEA_OPS_5",
+        "IDEA_OPS_6"
+      ]
+    },
+    {
+      "department": "finance",
+      "quality_min": 30,
+      "quality_max": 80,
+      "text_keys": [
+        "IDEA_FIN_1",
+        "IDEA_FIN_2",
+        "IDEA_FIN_3",
+        "IDEA_FIN_4",
+        "IDEA_FIN_5",
+        "IDEA_FIN_6"
+      ]
+    },
+    {
+      "department": "hr",
+      "quality_min": 20,
+      "quality_max": 65,
+      "text_keys": [
+        "IDEA_HR_1",
+        "IDEA_HR_2",
+        "IDEA_HR_3",
+        "IDEA_HR_4",
+        "IDEA_HR_5",
+        "IDEA_HR_6"
+      ]
+    },
+    {
+      "department": "it",
+      "quality_min": 30,
+      "quality_max": 85,
+      "text_keys": [
+        "IDEA_IT_1",
+        "IDEA_IT_2",
+        "IDEA_IT_3",
+        "IDEA_IT_4",
+        "IDEA_IT_5",
+        "IDEA_IT_6"
+      ]
+    },
+    {
+      "department": "legal",
+      "quality_min": 25,
+      "quality_max": 70,
+      "text_keys": [
+        "IDEA_LEGAL_1",
+        "IDEA_LEGAL_2",
+        "IDEA_LEGAL_3",
+        "IDEA_LEGAL_4",
+        "IDEA_LEGAL_5",
+        "IDEA_LEGAL_6"
+      ]
+    },
+    {
+      "department": "factory",
+      "quality_min": 20,
+      "quality_max": 70,
+      "text_keys": [
+        "IDEA_FACTORY_1",
+        "IDEA_FACTORY_2",
+        "IDEA_FACTORY_3",
+        "IDEA_FACTORY_4",
+        "IDEA_FACTORY_5",
+        "IDEA_FACTORY_6"
+      ]
+    },
+    {
+      "department": "general",
+      "quality_min": 20,
+      "quality_max": 60,
+      "text_keys": [
+        "IDEA_GEN_1",
+        "IDEA_GEN_2",
+        "IDEA_GEN_3",
+        "IDEA_GEN_4",
+        "IDEA_GEN_5",
+        "IDEA_GEN_6"
+      ]
+    }
+  ],
+  "acquisition_methods": [
+    {
+      "id": "overhear",
+      "risk": "low",
+      "leaves_trace": "owner_knows_presence",
+      "name_key": "IDEA_METHOD_OVERHEAR"
+    },
+    {
+      "id": "steal_file",
+      "risk": "medium",
+      "leaves_trace": "digital_record",
+      "name_key": "IDEA_METHOD_STEAL_FILE"
+    },
+    {
+      "id": "inherit",
+      "risk": "maximum",
+      "leaves_trace": "none_for_idea",
+      "name_key": "IDEA_METHOD_INHERIT"
+    },
+    {
+      "id": "purchase",
+      "risk": "low",
+      "leaves_trace": "owner_knows_all",
+      "name_key": "IDEA_METHOD_PURCHASE"
+    },
+    {
+      "id": "gifted",
+      "risk": "none",
+      "leaves_trace": "none",
+      "name_key": "IDEA_METHOD_GIFTED"
+    }
+  ]
+}

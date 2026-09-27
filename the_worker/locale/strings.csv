@@ -1,0 +1,991 @@
+keys,en,es
+UI_TITLE,THE WORKER,THE WORKER
+UI_TAGLINE,Work hard. Or don't.,Trabaja duro. O no.
+OCC_ETERNAL_INTERN,Eternal Intern,Becario eterno
+OCC_ETERNAL_INTERN_OPP,Social invisibility: no one registers your presence.,Invisibilidad social: ningún personaje registra su presencia.
+OCC_ETERNAL_INTERN_RISK,Failing means permanent dismissal.,Fracasar supone expulsión definitiva.
+DUTY_ERRANDS_R0,Run unspecified errands,Hacer recados sin especificar
+OCC_EMAIL_WORKER,"Email Worker, Wing 3B",Trabajador de emails del 3B
+OCC_EMAIL_WORKER_3B_OPP,Close watch over eleven colleagues; learn everyone's routines while nobody expects anything of you.,Vigilancia próxima de once compañeros; aprendizaje de rutinas sin expectativas sobre él.
+OCC_EMAIL_WORKER_3B_RISK,Eleven permanent observers within three metres.,Once observadores permanentes a tres metros.
+DUTY_EMAILS_R1,Answer emails,Responder correos
+OCC_ORDER_FILER,Order Filer,Archivador de pedidos
+OCC_ORDER_FILER_OPP,Deliberately misplace rivals' orders; learn how paperwork flows through the company.,Extravío deliberado de pedidos de rivales; conocimiento del flujo documental.
+OCC_ORDER_FILER_RISK,Lost orders are audited every month.,El extravío se audita mensualmente.
+DUTY_ORDERS_R2,File orders,Archivar pedidos
+OCC_COPY_OPERATOR,Photocopy Operator,Operario de fotocopias
+OCC_COPY_OPERATOR_OPP,You see every document that gets copied: early information at zero cost.,Visibilidad de todo documento reproducido: información temprana de coste nulo.
+OCC_COPY_OPERATOR_RISK,Nothing significant.,Ninguno significativo.
+DUTY_COPIES_R2,Make photocopies,Sacar fotocopias
+OCC_CALL_OPERATOR,Customer Service Call Operator,Teleoperador de atención al cliente
+OCC_CALL_OPERATOR_OPP,Permanent acoustic mask; customer complaints you can use against other departments.,Máscara acústica permanente; quejas utilizables contra departamentos.
+OCC_CALL_OPERATOR_RISK,A very long daily duty.,Deber de duración elevada.
+DUTY_CALLS_R3,Handle customer calls,Atender llamadas
+OCC_LINE_OPERATOR,Factory Line Operator,Operario de línea de fábrica
+OCC_LINE_OPERATOR_OPP,Access to the factory floor before N3 clearance; your first product theft.,Acceso a la nave fabril antes de la acreditación N3; primer robo de producto.
+OCC_LINE_OPERATOR_RISK,The longest duty of the tier.,Deber de máxima duración del escalón.
+DUTY_LINE_UNITS_R3,Meet the line quota,Cumplir la cuota de línea
+OCC_MAIL_COURIER,Internal Mail Courier,Repartidor de correo interno
+OCC_MAIL_COURIER_OPP,A reason to walk floors 1 to 9 without raising suspicion. Intercept internal mail.,Justificación para transitar las plantas 1 a 9 sin generar sospecha. Interceptación de correspondencia.
+OCC_MAIL_COURIER_RISK,"If an envelope comes up short, you were the one who delivered it.","Si falta contenido de un sobre, el reparto lo hizo él."
+DUTY_MAIL_ROUND_R4,Deliver the internal mail,Repartir el correo interno
+OCC_BILLING_CLERK,Billing Clerk,Auxiliar administrativo de facturación
+OCC_BILLING_CLERK_OPP,Inflate invoices by €2–3 at a time; it adds up.,"Inflación de facturas en cuantías de 2 a 3 €, acumulativas."
+OCC_BILLING_CLERK_RISK,Accounting reviews invoices every month.,Contabilidad revisa mensualmente.
+DUTY_INVOICES_R5,Record invoices,Registrar facturas
+OCC_PAYROLL_CLERK,Payroll Clerk,Administrativo de nóminas
+OCC_PAYROLL_CLERK_OPP,Raise your own salary by €40–60 a month without immediate detection.,Incremento del salario propio en 40–60 € mensuales sin detección inmediata.
+OCC_PAYROLL_CLERK_RISK,The accumulated difference shows up in an audit.,La acumulación se detecta en auditoría.
+DUTY_PAYSLIPS_R6,Process payslips,Procesar nóminas
+OCC_WAREHOUSE_ASSISTANT,Office Stockroom Assistant,Ayudante de almacén de oficina
+OCC_WAREHOUSE_ASSISTANT_OPP,Pilfer and resell supplies: about €35 a day.,Sustracción y reventa de material: ~35 € diarios.
+OCC_WAREHOUSE_ASSISTANT_RISK,Monthly stocktake.,Inventario mensual.
+DUTY_STOCK_COUNT_R6,Meet the stock-count quota,Cumplir la cuota de inventario
+OCC_JUNIOR_SALES,Junior Internal Sales Rep,Junior de ventas internas
+OCC_JUNIOR_SALES_OPP,Your first gullible buyers: overcharge them and pocket the margin.,Primeros compradores engañables: sobreprecio con apropiación del margen.
+OCC_JUNIOR_SALES_RISK,Complaints arrive weeks later.,Reclamaciones con retardo de semanas.
+DUTY_SALES_R7,Close internal sales,Cerrar ventas internas
+OCC_CLEANER,Cleaning Assistant,Auxiliar de limpieza
+OCC_CLEANER_OPP,After-hours access to every room in your zone with master keys. Cleaning staff are socially invisible.,Acceso a la totalidad de su zona fuera de horario con llaves maestras. Invisibilidad social del personal de limpieza.
+OCC_CLEANER_RISK,"If anything goes missing in your zone, the list of suspects has two names.","Si falta algo en su zona, la lista de sospechosos es de dos nombres."
+OCC_JUNIOR_ACCOUNTANT,Junior Accountant,Junior de contabilidad
+OCC_JUNIOR_ACCOUNTANT_OPP,Know exactly where the company's money sits; a legitimate reason to be on floor 5.,Localización exacta del capital de la compañía; acceso justificado a la planta 5.
+OCC_JUNIOR_ACCOUNTANT_RISK,Sharp-eyed accountants in the room.,Contables perspicaces en la sala.
+DUTY_PETTY_CASH_R8,Reconcile petty cash,Cuadrar las cajas menores
+OCC_MAINTENANCE_AIDE,Maintenance Assistant,Auxiliar de mantenimiento
+OCC_MAINTENANCE_AIDE_OPP,Legitimate access to basements and vents. The uniform doubles as a disguise. Break a camera or lock on purpose and get called in to fix it.,Acceso legítimo a sótanos y conductos. Uniforme como disfraz. Capacidad de averiar deliberadamente una cámara o cerradura y ser convocado a repararla.
+OCC_MAINTENANCE_AIDE_RISK,Fake work orders get audited.,Los partes falsos se auditan.
+OCC_HR_ASSISTANT,HR Assistant,Asistente de RRHH
+OCC_HR_ASSISTANT_OPP,"Permanent access to personnel files: early blackmail, plus the routines and home addresses of the entire staff.","Acceso permanente a expedientes: chantajes tempranos, rutinas y domicilios de toda la plantilla."
+OCC_HR_ASSISTANT_RISK,Amelia Cole is watching.,Amelia Cole supervisa.
+DUTY_PERSONNEL_FILES_R9,Update personnel files,Actualizar expedientes
+OCC_SENIOR_SALES,Senior Sales Rep,Senior de ventas
+OCC_SENIOR_SALES_OPP,Sizeable legitimate commissions; con mid-volume buyers.,Comisiones legítimas apreciables; engaño a compradores de volumen medio.
+OCC_SENIOR_SALES_RISK,Demanding sales targets.,Objetivos de venta exigentes.
+DUTY_SALES_R10,Hit the sales target,Cumplir el objetivo de ventas
+OCC_SECURITY_GUARD,Security Guard,Vigilante de seguridad
+OCC_SECURITY_GUARD_OPP,Loot the entire building at night. Keys to almost everything. You know every camera and blind spot by heart.,Saqueo nocturno de la totalidad del edificio. Llaves de casi todo. Conocimiento memorizado de cámaras y puntos ciegos.
+OCC_SECURITY_GUARD_RISK,Forgetting any closing task means dismissal. Automatic maximum suspicion if anything disappears.,Olvidar cualquier tarea de cierre supone expulsión. Sospecha máxima automática si desaparece algo.
+OCC_MARKETING_CREATIVE,Marketing Creative,Creativo de marketing
+OCC_MARKETING_CREATIVE_OPP,Self-promotion: put your own name and face in campaigns. Passive reputation.,Autoelogio: inserción del nombre y rostro propios en campañas. Reputación pasiva.
+OCC_MARKETING_CREATIVE_RISK,"When your own campaign flops, everyone knows.",El fracaso de una campaña propia es público.
+DUTY_CAMPAIGN_PIECES_R11,Deliver campaign pieces,Entregar piezas de campaña
+OCC_JUNIOR_SHOE_DESIGNER,Junior Shoe Designer,Diseñador junior de zapatos
+OCC_JUNIOR_SHOE_DESIGNER_OPP,Pass off thirty-year-old designs from the historic archive as your own.,Apropiación de diseños del archivo histórico de treinta años atrás.
+OCC_JUNIOR_SHOE_DESIGNER_RISK,Old Ray Cudmore remembers those designs.,Old Ray Cudmore recuerda esos diseños.
+DUTY_WEEKLY_SKETCHES_R11,Deliver the weekly sketches,Entregar los bocetos semanales
+OCC_IT_TECHNICIAN,IT Technician,Técnico de IT
+OCC_IT_TECHNICIAN_OPP,"Legitimately handle other people's computers: access, copies, sabotage without breaking in.","Manipulación legítima de ordenadores ajenos: accesos, copias, sabotaje sin intrusión."
+OCC_IT_TECHNICIAN_RISK,Every access is logged.,Todo acceso queda registrado.
+DUTY_IT_TICKETS_R12,Resolve IT tickets,Resolver tickets
+OCC_PARALEGAL,In-house Paralegal,Paralegal del bufete interno
+OCC_PARALEGAL_OPP,Learn to forge documents that look valid; access to compromising lawsuits.,Aprendizaje de falsificación documental con validez aparente; acceso a demandas comprometedoras.
+OCC_PARALEGAL_RISK,The firm double-checks everything.,El bufete revisa por duplicado.
+DUTY_CONTRACTS_R12,Draft contracts,Redactar contratos
+OCC_SENIOR_ACCOUNTANT,Senior Accountant,Contable senior
+OCC_SENIOR_ACCOUNTANT_OPP,Falsify ledger entries. Spot other people's fraud and use it to blackmail your superiors.,Falsificación de asientos. Detección de fraudes ajenos utilizables como chantaje sobre superiores.
+OCC_SENIOR_ACCOUNTANT_RISK,The monthly close is audited.,El cierre mensual es auditado.
+DUTY_MONTHLY_CLOSE_R13,Monthly accounting close,Cierre contable mensual
+OCC_QUALITY_ANALYST,Claims & Quality Analyst,Analista de reclamaciones y calidad
+OCC_QUALITY_ANALYST_OPP,Issue defect reports that get the Foreman or the Factory Director fired.,Emisión de informes de defecto que provocan la expulsión del capataz o del Director de Fábrica.
+OCC_QUALITY_ANALYST_RISK,Reports are signed; a verified false report is evidence.,Los informes llevan firma; un informe falso verificado es evidencia.
+DUTY_QUALITY_REPORTS_R14,Deliver quality reports,Entregar informes de calidad
+OCC_WING_3B_CHIEF,Wing 3B Chief,Jefe del ala 3B
+OCC_WING_3B_CHIEF_OPP,Assign tasks and desks: decide who is where and when. Move witnesses away and isolate targets.,Asignación de tareas y puestos: determina quién está dónde y cuándo. Permite desplazar testigos y aislar objetivos.
+OCC_WING_3B_CHIEF_RISK,The wing's performance is reviewed monthly.,El rendimiento del ala se evalúa mensualmente.
+DUTY_WING_PERFORMANCE_R15,Keep the wing's output up,Mantener el rendimiento del ala
+OCC_FACTORY_FOREMAN,Factory Foreman,Capataz de fábrica
+OCC_FACTORY_FOREMAN_OPP,Steal product by the pallet. Forgeable delivery notes. Frame the Factory Director.,Robo de producto a escala de palé. Albaranes falsificables. Incriminación del Director de Fábrica.
+OCC_FACTORY_FOREMAN_RISK,Inventory shortfalls point at the foreman first.,El descuadre de inventario apunta primero al capataz.
+DUTY_PRODUCTION_INVENTORY_R15,Meet the production and inventory quota,Cumplir la cuota de producción e inventario
+OCC_PURCHASING_CHIEF,Head of Purchasing,Jefe de compras
+OCC_PURCHASING_CHIEF_OPP,Take kickbacks from suppliers: your first passive income. Pick a bad supplier on purpose as sabotage.,Recepción de sobornos de proveedores: primera fuente de ingreso pasivo. Selección deliberada de proveedor deficiente como sabotaje.
+OCC_PURCHASING_CHIEF_RISK,Contracts can be audited.,Los contratos son auditables.
+DUTY_SUPPLIER_CONTRACTS_R16,Deliver supplier contracts,Entregar contratos de proveedores
+OCC_IT_TEAM_LEAD,IT Team Lead,Jefe de equipo de IT
+OCC_IT_TEAM_LEAD_OPP,"Partial admin credentials: read other people's mail, delete minor logs.","Credenciales de administrador parciales: lectura de correo ajeno, borrado de registros menores."
+OCC_IT_TEAM_LEAD_RISK,Deletions leave a meta-log.,Los borrados dejan metarregistro.
+DUTY_SYSTEMS_UPTIME_R16,Keep systems available (%),Mantener la disponibilidad de sistemas (%)
+OCC_PAYROLL_MANAGER,Payroll Manager,Responsable de nóminas
+OCC_PAYROLL_MANAGER_OPP,Create ghost employees paid into your own account.,Creación de empleados ficticios con abono a cuenta propia.
+OCC_PAYROLL_MANAGER_RISK,Internal Audit catches it if it drags on for months.,Auditoría interna lo detecta si se prolonga meses.
+DUTY_FULL_PAYROLL_R17,Deliver the full payroll,Entregar la nómina completa
+OCC_GUARD_CHIEF,Chief of Guards,Jefe de vigilantes
+OCC_GUARD_CHIEF_OPP,Decide which zones go unguarded each night. Rotating access to the monitor room.,Determinación de qué zonas quedan sin vigilancia cada noche. Acceso rotatorio a la sala de monitores.
+OCC_GUARD_CHIEF_RISK,"If something happens in an unguarded zone, the roster bears your signature.","Si ocurre un incidente en la zona desatendida, el cuadrante lleva su firma."
+DUTY_SHIFT_ROSTER_R17,Deliver the shift roster,Entregar el cuadrante de turnos
+OCC_MEETING_COORDINATOR,Meetings & Agendas Coordinator,Coordinador de reuniones y agendas
+OCC_MEETING_COORDINATOR_OPP,Know where every executive is in every time slot. Call long meetings to empty an office.,Conocimiento de la ubicación de cada directivo en cada franja. Capacidad de provocar reuniones prolongadas para desalojar un despacho.
+OCC_MEETING_COORDINATOR_RISK,No specific risk.,Sin riesgo exclusivo.
+DUTY_AGENDAS_R18,Manage executive agendas,Gestionar agendas
+OCC_A10_MARKETING_DIRECTOR,"Marketing Director, Block A10",Director de Marketing del bloque A10
+OCC_A10_MARKETING_DIRECTOR_OPP,Self-promotion on an industrial scale: whole campaigns built around your face. Daily passive reputation. A budget you can partly divert.,Autoelogio a escala industrial: campañas completas con imagen propia. Reputación pasiva diaria. Presupuesto parcialmente desviable.
+OCC_A10_MARKETING_DIRECTOR_RISK,The floor 14 journalists start following you. Two bad months mean demotion to R15–R16.,Los periodistas de la planta 14 inician seguimiento. Dos meses deficientes suponen descenso a R15–R16.
+DUTY_MONTHLY_METRICS_R19,Deliver the monthly metrics,Entregar las métricas mensuales
+OCC_A10_COORDINATION_DIRECTOR,"Coordination Director, Block A10",Director de Coordinación del bloque A10
+OCC_A10_COORDINATION_DIRECTOR_OPP,"Control the block's workflow: create bottlenecks for rivals, trade measurable favours, reassign teams.","Control del flujo del bloque: generación de cuellos de botella para rivales, favores cuantificables, reasignación de equipos."
+OCC_A10_COORDINATION_DIRECTOR_RISK,A poor workflow is blamed directly on you.,El flujo deficiente se atribuye directamente.
+DUTY_OPERATIONAL_FLOW_R19,Deliver the block's operational flow,Entregar el flujo operativo del bloque
+OCC_B10_DIRECTOR,"Director of Block B10, Internal Sales","Director del bloque B10, ventas internas"
+OCC_B10_DIRECTOR_OPP,Inflate the figures for instant reputation.,Inflación de cifras con reputación inmediata.
+OCC_B10_DIRECTOR_RISK,The discrepancy surfaces in about two weeks.,La discrepancia aflora en aproximadamente dos semanas.
+DUTY_BLOCK_SALES_R20,Hit the block's sales figures,Cumplir las cifras del bloque
+OCC_C10_DIRECTOR,"Director of Block C10, Administration","Director del bloque C10, administración"
+OCC_C10_DIRECTOR_OPP,A signature and stamp with administrative weight: fake authorisations that look legitimate.,Firma y estampa con validez administrativa: autorizaciones falsas con apariencia legítima.
+OCC_C10_DIRECTOR_RISK,A document verified as false is weight-5 evidence.,Un documento verificado y falso es evidencia de peso 5.
+DUTY_BLOCK_PAPERWORK_R21,Clear the block's paperwork,Despachar el papeleo del bloque
+OCC_FLOOR10_GENERAL_DIRECTOR,"General Director, Floor 10",Director General de la planta 10
+OCC_FLOOR10_GENERAL_DIRECTOR_OPP,Your first post with a secretary of your own. A rehearsal of executive powers.,Primer cargo con secretaría propia. Ensayo de las competencias de dirección.
+OCC_FLOOR10_GENERAL_DIRECTOR_RISK,The first duty that cannot be met honestly: it requires stolen ideas or artificial assistance.,El primer deber estructuralmente incumplible: exige robo de ideas o asistencia artificial.
+DUTY_MONTHLY_AREA_REPORT_R22,Monthly area report,Informe mensual de área
+OCC_HR_DIRECTOR,HR Director,Director de RRHH
+OCC_HR_DIRECTOR_OPP,Formally dismiss anyone at tier 4 or below. Widespread fear.,Expulsión administrativa de cualquier personaje de escalón 4 o inferior mediante procedimiento formal. Temor generalizado.
+OCC_HR_DIRECTOR_RISK,Every unfair dismissal creates an outside enemy who may go to the press.,Cada despido injusto genera un enemigo externo susceptible de acudir a la prensa.
+DUTY_TURNOVER_HIRING_R23,Deliver turnover and hiring,Entregar rotación y contratación
+OCC_FACTORY_DIRECTOR,Factory Director,Director de Fábrica
+OCC_FACTORY_DIRECTOR_OPP,Divert entire pallets. Hire accomplice hauliers.,Desvío de palés completos. Contratación de transportistas cómplices.
+OCC_FACTORY_DIRECTOR_RISK,Strikes are aimed at this post.,Las huelgas se dirigen contra este cargo.
+DUTY_TOTAL_PRODUCTION_R23,Meet the total production quota,Cumplir la cuota de producción total
+OCC_SECURITY_DIRECTOR,Security Director,Director de Seguridad
+OCC_SECURITY_DIRECTOR_OPP,"All footage goes through you: erase your own trail, investigate others selectively.","La totalidad de las grabaciones pasa por este cargo: borrado del rastro propio, investigación selectiva de terceros."
+OCC_SECURITY_DIRECTOR_RISK,"Forgetting the closing routine means dismissal. If anything disappears, you were the last one there.","Olvidar el cierre supone expulsión. Si desaparece algo, fue el último presente."
+OCC_IT_DIRECTOR,IT Director,Director de IT
+OCC_IT_DIRECTOR_OPP,Read all internal communications. Fabricate digital evidence indistinguishable from the real thing.,Lectura de toda comunicación interna. Fabricación de evidencia digital indistinguible de la auténtica.
+OCC_IT_DIRECTOR_RISK,An honest subordinate may notice how the credentials are being used.,Un subordinado honesto puede detectar el uso de credenciales.
+DUTY_GLOBAL_UPTIME_R24,Keep global systems available (%),Mantener la disponibilidad global (%)
+OCC_COMMS_DIRECTOR,Communications & Press Director,Director de Comunicación y Prensa
+OCC_COMMS_DIRECTOR_OPP,Bury your own news and manufacture other people's scandals. The lever that moves both brains.,Supresión de noticias propias y fabricación de escándalos ajenos. La palanca que opera sobre ambos cerebros.
+OCC_COMMS_DIRECTOR_RISK,Suppressed stories can resurface through outside channels.,La prensa suprimida puede reaparecer por vía externa.
+DUTY_PUBLIC_IMAGE_R25,Deliver the public image,Entregar la imagen pública
+OCC_LEGAL_DIRECTOR,Legal Director,Director Legal
+OCC_LEGAL_DIRECTOR_OPP,Learn which documents transfer ownership of the company and which procedure validates them.,Revelación de qué documentos transfieren la propiedad de la compañía y qué procedimiento los valida.
+OCC_LEGAL_DIRECTOR_RISK,The firm logs every query.,El bufete registra las consultas.
+DUTY_LEGAL_SHIELD_R26,Deliver legal shielding,Entregar el blindaje jurídico
+OCC_DEPUTY_CFO,Deputy CFO,Director Financiero adjunto
+OCC_DEPUTY_CFO_OPP,Move large sums of capital. A hands-on introduction to the market.,Movimiento de capital de gran cuantía. Introducción práctica al mercado.
+OCC_DEPUTY_CFO_RISK,Treasury is reconciled weekly.,Tesorería se concilia semanalmente.
+DUTY_TREASURY_R27,Deliver the treasury report,Entregar tesorería
+OCC_CFO,Chief Financial Officer,Director Financiero
+OCC_CFO_OPP,Insider information: the most lucrative lever in the game. Dress up the reported accounts.,Información privilegiada: el rendimiento económico más elevado del juego. Maquillaje de las cuentas reportadas.
+OCC_CFO_RISK,Two bad quarters mean demotion. An accounting scandal doesn't get you demoted: it gets you a terminal investigation.,Dos trimestres deficientes suponen degradación. Un escándalo contable no produce descenso sino investigación terminal.
+DUTY_QUARTERLY_RESULTS_R28,Quarterly results and share-price target,Resultados trimestrales y objetivo bursátil
+OCC_COO,Chief Operating Officer,Director de Operaciones
+OCC_COO_OPP,Idea theft on an industrial scale: the whole building sends you reports you can sign as your own.,Robo de ideas a escala industrial: el edificio completo remite informes susceptibles de firma propia.
+OCC_COO_RISK,"Responsible for factory, logistics and sales all at once.","Responsabilidad sobre fábrica, logística y ventas simultáneamente."
+DUTY_FULL_OPERATION_R28,Deliver the complete operation,Entregar la operación completa
+OCC_INVESTOR_RELATIONS,Investor Relations Director,Director de Relación con Inversores
+OCC_INVESTOR_RELATIONS_OPP,"From this post, investors decide promotions: bribe them, blackmail them or deliver returns.","Los inversores determinan las promociones desde este cargo: soborno, chantaje o generación de rendimiento."
+OCC_INVESTOR_RELATIONS_RISK,"Confidence is measurable, and its fall is public.",La confianza es medible y su caída es pública.
+DUTY_INVESTOR_CONFIDENCE_R29,Deliver investor confidence,Entregar confianza inversora
+OCC_CHIEF_AUDITOR,Chief Auditor,Auditor Jefe
+OCC_CHIEF_AUDITOR_OPP,"Permanently close investigations into you, historic cold cases included. Open investigations against rivals.","Cierre definitivo de las investigaciones propias, incluidos los casos fríos históricos. Apertura de investigaciones contra rivales."
+OCC_CHIEF_AUDITOR_RISK,"If an honest subordinate finds something, the scandal doubles for the cover-up.","Si un subordinado honesto localiza algo, el escándalo es doble por encubrimiento."
+DUTY_FRAUD_CASE_CLOSURE_R29,Close fraud case files,Cerrar expedientes de fraude
+OCC_BOARD_INVESTOR,Investor & Board Member,Inversionista y miembro del consejo
+OCC_BOARD_INVESTOR_OPP,"Change sides: buy a shareholding with all your accumulated capital, voting rights included.",Cambio de condición: adquisición de paquete accionarial con la totalidad del capital acumulado y derecho de voto.
+OCC_BOARD_INVESTOR_RISK,Your own fortune is exposed to the company's decline.,El patrimonio propio queda expuesto al deterioro de la compañía.
+DUTY_BOARD_VOTE_R30,Cast your board vote,Emitir el voto en consejo
+OCC_BOARD_SECRETARY,Board Secretary,Secretario del consejo
+OCC_BOARD_SECRETARY_OPP,Know every decision in advance. Forge the minutes: the most far-reaching instrument in the game.,Conocimiento anticipado de toda decisión. Falsificación de acta: el instrumento de mayor alcance del juego.
+OCC_BOARD_SECRETARY_RISK,Forged minutes verified before a notary are terminal evidence.,Un acta falsificada verificada ante notaría es evidencia terminal.
+DUTY_BOARD_MINUTES_R31,Deliver the board minutes,Entregar las actas del consejo
+OCC_VICE_CEO,Vice-CEO,Vice-CEO
+OCC_VICE_CEO_OPP,Access to floors 19 and 20. Prepare Voss's fall by any available means.,Acceso a las plantas 19 y 20. Preparación de la caída de Voss por cualquiera de las vías disponibles.
+OCC_VICE_CEO_RISK,"A duty that cannot be fulfilled. For the first time, someone watches you personally and deliberately.",Deber estructuralmente incumplible. Por primera vez un personaje vigila al jugador de forma personal y deliberada.
+DUTY_ZERO_FAILURES_R32,No failures anywhere in the company,Ausencia de fallos en la compañía completa
+OCC_CEO,Chief Executive Officer,Consejero delegado
+OCC_CEO_OPP,Access to the safe holding the ownership documents: the final objective.,Acceso a la caja fuerte con los documentos de propiedad: el objetivo final.
+OCC_CEO_RISK,The Vice-CEO wants your chair. The board can remove you. And no one ever tells you the truth.,El vice-CEO aspira al cargo. El consejo puede destituir. Y nadie comunica información veraz al ocupante.
+DUTY_QUARTERLY_BOARD_R33,Quarterly board meeting,Consejo trimestral
+DUTY_SHARE_PRICE_TARGET_R33,Share-price target,Objetivo bursátil
+DUTY_CRISIS_MANAGEMENT_R33,Crisis management,Gestión de crisis
+DUTY_CLEANING_ZONE_R7,Clean the whole zone before 21:00,Limpiar la zona completa antes de las 21:00
+DUTY_MAINTENANCE_ROUND_R8,Attend repair work orders,Atender partes de avería
+DUTY_GUARD_ROUND_MORNING_R10,Morning security round,Ronda de mañana
+DUTY_GUARD_ROUND_AFTERNOON_R10,Afternoon security round,Ronda de tarde
+DUTY_CLOSING_ROUND_R10,"Closing: leave last, lock up and shut down the machinery","Cierre: salir el último, cerrar y apagar la maquinaria"
+DUTY_CLOSING_ROUND_R24,"Security closing: leave last, lock up, shut down machinery","Cierre de seguridad: último en salir, cerrar y apagar la maquinaria"
+ARCH_CLIMBER,The Climber,El trepa
+ARCH_CLIMBER_DESC,"Walks briskly towards any office bigger than their own. Has three ideas a week, and one of them is usually yours. Competes for every vacancy, including the ones that do not exist yet.","Camina a paso ligero hacia cualquier despacho más grande que el suyo. Tiene tres ideas a la semana y una suele ser tuya. Compite por cada vacante, incluidas las que todavía no existen."
+ARCH_SNITCH,The Snitch,El chivato
+ARCH_SNITCH_DESC,"Believes the employee handbook is a love letter. Glances down both ends of the corridor before saying good morning. Reports quickly, thoroughly and in triplicate. Almost impossible to buy.","Cree que el manual del empleado es una carta de amor. Mira a ambos extremos del pasillo antes de dar los buenos días. Denuncia rápido, a fondo y por triplicado. Prácticamente imposible de comprar."
+ARCH_BRIBABLE,The Bribable,El sobornable
+ARCH_BRIBABLE_DESC,"Principles fully negotiable, receipts optional. Rubs thumb against fingers while thinking, which is often. A loyal ally for exactly as long as the payments clear.","Principios totalmente negociables, factura opcional. Se frota los dedos mientras piensa, que es a menudo. Un aliado leal exactamente mientras los pagos lleguen a tiempo."
+ARCH_COMPANY_MAN,The Company Man,El hombre de la casa
+ARCH_COMPANY_MAN_DESC,"Has the logo tattooed somewhere tasteful. Straightens their tie whenever the company is mentioned. Cannot be bought, because the company already owns them outright.","Lleva el logotipo tatuado en algún lugar discreto. Se ajusta la corbata cada vez que alguien menciona la empresa. No se puede comprar, porque la empresa ya es su dueña."
+ARCH_OBLIVIOUS,The Oblivious,El despistado
+ARCH_OBLIVIOUS_DESC,"Headphones on since the last reorganisation. Never turns their head. Would not notice a fire unless it replied to all. You can do almost anything in front of them, and they will ask you about the weekend.",Lleva los auriculares puestos desde la última reorganización. Nunca gira la cabeza. No notaría un incendio salvo que respondiera a todos. Puedes hacer casi cualquier cosa delante y te preguntará por el fin de semana.
+ARCH_GOSSIP,The Gossip,La cotilla
+ARCH_GOSSIP_DESC,"Talks to everyone. Remembers everything. Leans in close, because the good stuff is always whispered. Feed them a rumour and the whole building will know it by dessert, including the part about you.","Habla con todos. Lo recuerda todo. Se inclina hacia ti, porque lo bueno siempre se susurra. Suminístrale un rumor y el edificio entero lo sabrá antes del postre, incluida la parte que habla de ti."
+ARCH_BURNOUT,The Burnout,El quemado
+ARCH_BURNOUT_DESC,"Leans on walls to save energy for leaning on other walls. Will not report you, because reporting is work. The cheapest bribe in the building, and frankly the most relaxed.","Se apoya en las paredes para ahorrar energía para apoyarse en otras paredes. No te denunciará, porque denunciar es trabajar. El soborno más barato del edificio y, francamente, el más relajado."
+ARCH_OLD_HAND,The Old Hand,El veterano
+ARCH_OLD_HAND_DESC,"Thirty years in the building, zero promotions, perfect memory. Walks slowly and looks straight at whatever is wrong in the room, then decides whether it is worth the paperwork. Earn their respect and they will show you the doors nobody uses.","Treinta años en el edificio, cero ascensos, memoria perfecta. Camina despacio y mira directamente a lo que no encaja en la sala; después decide si merece el papeleo. Gánate su respeto y te enseñará las puertas que nadie usa."
+ARCH_ROOKIE,The Rookie,El novato
+ARCH_ROOKIE_DESC,"Started the same week as you and still thinks the posters are sincere. Keeps looking around for the meeting room. Knows nobody, so nobody listens to them: an honest ally or a perfect scapegoat, depending on your week.","Empezó la misma semana que tú y todavía cree que los carteles son sinceros. No deja de buscar la sala de reuniones con la mirada. No conoce a nadie, así que nadie le escucha: un aliado sincero o un chivo expiatorio perfecto, según cómo te vaya la semana."
+ARCH_HARDLINER,The Hardliner,El inflexible
+ARCH_HARDLINER_DESC,"Sweeps the room slowly with a gaze wider than regulations allow, like a lighthouse with a grudge. Reports first and asks questions at the disciplinary hearing.","Barre la sala despacio con una mirada más amplia de lo que permite el reglamento, como un faro con rencor. Primero denuncia y después pregunta, en la vista disciplinaria."
+ARCH_COWARD,The Coward,El cobarde
+ARCH_COWARD_DESC,"Sees everything, says nothing, writes it all down. Takes half a step back whenever approached. Too frightened to report you today, and brave enough to invoice you for the silence later.","Lo ve todo, no dice nada y lo apunta todo. Retrocede medio paso cada vez que alguien se le acerca. Demasiado asustado para denunciarte hoy, y lo bastante valiente para pasarte la factura de su silencio más adelante."
+ARCH_INCORRUPTIBLE,The Incorruptible,El incorruptible
+ARCH_INCORRUPTIBLE_DESC,"Stands square, looks you in the eye and has never accepted a free pen. Money does not work. Flattery does not work. Nothing works. Plan accordingly.","Se planta de frente, te mira a los ojos y jamás ha aceptado un bolígrafo gratis. El dinero no funciona. La adulación no funciona. Nada funciona. Planifica en consecuencia."
+BRIBE_LOOK_AWAY,"Look the other way, once","Mirar hacia otro lado, una vez"
+BRIBE_LEND_ACCESS,"Lend an access card, uniform or key","Prestar una tarjeta, un uniforme o una llave"
+BRIBE_PRAISE,Praise you to a superior,Elogiarte ante un superior
+BRIBE_SILENCE,Keep quiet about what they just saw,Callar lo que acaba de presenciar
+BRIBE_LIE,Lie for you in an interrogation,Mentir por ti en un interrogatorio
+BRIBE_BURY_CASE,Bury or close an investigation,Enterrar o cerrar una investigación
+BRIBE_BOARD_VOTE,Vote your way in the board,Votar a tu favor en el consejo
+BRIBE_CHANNEL_MOBILE_CHAT,Mobile chat,Chat del móvil
+BRIBE_CHANNEL_PHONE_CALL,Phone call,Llamada telefónica
+BRIBE_CHANNEL_IN_PERSON,In person,En persona
+BRIBE_CHANNEL_IMMEDIATE,On the spot,En el acto
+LINK_DEPARTMENT,Same department,Mismo departamento
+LINK_FRIENDSHIP,Friends,Amistad
+LINK_COUPLE,Couple,Pareja
+LINK_RIVALRY,Rivals,Rivalidad
+LINK_DEBT,Owes a debt,Deuda
+LINK_HIERARCHY,Reports to,Jerarquía
+LINK_NEPOTISM,Family connection,Enchufe familiar
+GATHERING_CAFETERIA_CLAN,The cafeteria clan,El clan de la cafetería
+GATHERING_FOOSBALL_CIRCLE,The foosball circle,El corrillo del futbolín
+GATHERING_SMOKERS_CIRCLE,The smokers' circle,El corrillo de fumadores
+GATHERING_CHAT_3B,Wing 3B group chat,Grupo de chat del 3B
+GATHERING_ACCOUNTING_COUPLE,The accounting couple,La pareja de contabilidad
+BAND_THE_GUTS,The Guts,Las tripas
+BAND_THE_PIT,The Pit,La fosa
+BAND_THE_SPECIALISTS,The Specialists,Los especialistas
+BAND_THE_POWER,The Power,El poder
+BAND_THE_THRONE,The Throne,El trono
+BAND_FACTORY,The Factory Floor,La nave fabril
+BAND_EXTERIOR,The City,La ciudad
+DUTY_TYPE_VOLUME,Volume,Volumen
+DUTY_TYPE_VOLUME_DESC,"Repetitive work: answer, copy, file, repeat. Takes time in proportion to the pile.","Trabajo repetitivo: responder, copiar, archivar, repetir. Consume tiempo en proporción al montón."
+DUTY_TYPE_QUOTA,Quota,Cuota
+DUTY_TYPE_QUOTA_DESC,Produce or sell a number of units. Whatever you steal comes out of your own count.,Producir o vender un número de unidades. Lo que robes sale de tu propia cuenta.
+DUTY_TYPE_DELIVERY,Delivery,Entrega
+DUTY_TYPE_DELIVERY_DESC,"Produce a document. Requires source material, preferably someone else's.","Producir un documento. Requiere material de origen, preferiblemente ajeno."
+DUTY_TYPE_ROUND,Round,Ronda
+DUTY_TYPE_ROUND_DESC,Walk a set route through the building. A perfect excuse to be where you should not be.,Recorrer una ruta fija por el edificio. La excusa perfecta para estar donde no debes.
+DUTY_TYPE_PRESENTATION,Presentation,Presentación
+DUTY_TYPE_PRESENTATION_DESC,Speak in front of an audience. Your reputation is on stage with you.,Hablar ante un público. Tu reputación sube al escenario contigo.
+MAIL_SENDER_HR,Human Resources,Recursos Humanos
+MAIL_SENDER_IT,IT Support,Soporte de IT
+MAIL_SENDER_FACILITIES,Facilities Management,Servicios Generales
+MAIL_SENDER_MARKETING,Marketing & Brand Soul,Marketing y Alma de Marca
+MAIL_SENDER_CEO_OFFICE,Office of the CEO,Oficina del Consejero Delegado
+MAIL_SENDER_WELLNESS,Wellness Taskforce,Comité de Bienestar
+MAIL_SENDER_ACCOUNTING,Accounting,Contabilidad
+MAIL_SENDER_WING_CHIEF,Wing 3B Management,Jefatura del Ala 3B
+MAIL_SENDER_LEGAL,Legal Department,Asesoría Jurídica
+MAIL_SENDER_CAFETERIA,Cafeteria Services,Servicio de Cafetería
+MAIL_SENDER_SECURITY,Corporate Security,Seguridad Corporativa
+MAIL_SENDER_ASSIST,A.S.S.I.S.T. (automated),A.S.S.I.S.T. (automático)
+MAIL_01_SUBJECT,Mandatory Fun: attendance optional (mandatory),Diversión obligatoria: asistencia opcional (obligatoria)
+MAIL_01_BODY,"This Friday's team-building will take place from 18:30 to 21:00, outside working hours, as a gift to you. Please confirm your spontaneous enthusiasm by replying to this email.","La actividad de team-building de este viernes será de 18:30 a 21:00, fuera del horario laboral, como regalo para ti. Confirma tu entusiasmo espontáneo respondiendo a este correo."
+MAIL_01_REPLY_A,Confirmed. My enthusiasm is spontaneous and fully documented.,Confirmado. Mi entusiasmo es espontáneo y está debidamente documentado.
+MAIL_01_REPLY_B,Is it paid?,¿Se paga?
+MAIL_01_REPLY_C,I have a prior commitment to being asleep.,Tengo un compromiso previo con estar dormido.
+MAIL_02_SUBJECT,Your password has expired (again),Tu contraseña ha caducado (otra vez)
+MAIL_02_BODY,"For your security, your new password must contain 14 characters, a hieroglyph and the name of your first pet, and must not resemble any password ever used by a human being.","Por tu seguridad, la nueva contraseña debe tener 14 caracteres, un jeroglífico y el nombre de tu primera mascota, y no puede parecerse a ninguna contraseña usada jamás por un ser humano."
+MAIL_02_REPLY_A,I never had a pet.,Nunca he tenido mascota.
+MAIL_02_REPLY_B,Can I write it on a sticky note?,¿Puedo apuntarla en un pósit?
+MAIL_02_REPLY_C,Acknowledged. I have chosen a new hieroglyph.,Recibido. He elegido un jeroglífico nuevo.
+MAIL_03_SUBJECT,Microwave etiquette incident no. 47,Incidente de etiqueta en el microondas n.º 47
+MAIL_03_BODY,"Someone has reheated fish in the Floor 3 pantry microwave. The smell has been escalated to Legal. Please state, in writing, that it was not you.",Alguien ha recalentado pescado en el microondas del office de la planta 3. El olor se ha elevado a Asesoría Jurídica. Declara por escrito que no fuiste tú.
+MAIL_03_REPLY_A,It was me. I regret nothing.,Fui yo. No me arrepiento de nada.
+MAIL_03_REPLY_B,It was not me. I only eat corporate air.,No fui yo. Solo me alimento de aire corporativo.
+MAIL_03_REPLY_C,Fish is a valid lifestyle.,El pescado es un estilo de vida válido.
+MAIL_04_SUBJECT,Brand voice update,Actualización de la voz de marca
+MAIL_04_BODY,"From Monday our brand voice will be bold yet humble, disruptive yet familiar, premium yet affordable. Please use it in all internal emails, including your reply to this one.","Desde el lunes nuestra voz de marca será audaz pero humilde, disruptiva pero cercana, premium pero asequible. Úsala en todos los correos internos, incluida tu respuesta a este."
+MAIL_04_REPLY_A,ok,vale
+MAIL_04_REPLY_B,"Boldly and humbly acknowledged, my familiar disruptors!","¡Recibido con audacia y humildad, mis cercanos disruptores!"
+MAIL_04_REPLY_C,Which voice do I use to complain?,¿Qué voz uso para quejarme?
+MAIL_05_SUBJECT,A personal message from the CEO (automated),Un mensaje personal del consejero delegado (automático)
+MAIL_05_BODY,"Dear [FIRST_NAME], your contribution matters deeply to me, personally. This message has been sent to 1,400 employees at once. Please do not reply.","Querido/a [NOMBRE]: tu contribución me importa profundamente, a mí, personalmente. Este mensaje se ha enviado a 1.400 empleados a la vez. Por favor, no respondas."
+MAIL_05_REPLY_A,Thank you! I feel personally seen.,¡Gracias! Me siento visto personalmente.
+MAIL_05_REPLY_B,Who is this?,¿Quién es usted?
+MAIL_05_REPLY_C,[Archive respectfully without replying],[Archivar respetuosamente sin responder]
+MAIL_06_SUBJECT,Your wellbeing score has dropped,Tu índice de bienestar ha descendido
+MAIL_06_BODY,"Our software detected that you blinked less than usual this week. To improve your wellbeing, complete the 45-question Wellbeing Survey before the end of the day, or your wellbeing will be escalated.","Nuestro software ha detectado que esta semana has parpadeado menos de lo habitual. Para mejorar tu bienestar, completa hoy la Encuesta de Bienestar de 45 preguntas o tu bienestar será elevado a instancias superiores."
+MAIL_06_REPLY_A,The survey is the reason I am unwell.,La encuesta es la razón de que esté mal.
+MAIL_06_REPLY_B,Please stop measuring my eyes.,"Por favor, dejad de medirme los ojos."
+MAIL_06_REPLY_C,Survey completed. I am well. I am being.,Encuesta completada. Estoy bien. Estoy siendo.
+MAIL_07_SUBJECT,Expense claim rejected: one pen,Gasto rechazado: un bolígrafo
+MAIL_07_BODY,Your claim for one (1) ballpoint pen has been rejected because the receipt was filled in with blue ink instead of black. Please resubmit it using the pen you are claiming.,Tu solicitud de reembolso de un (1) bolígrafo ha sido rechazada porque el justificante se rellenó con tinta azul en lugar de negra. Vuelve a presentarlo usando el bolígrafo que reclamas.
+MAIL_07_REPLY_A,I will buy a black pen and claim that one too.,Compraré un bolígrafo negro y también lo reclamaré.
+MAIL_07_REPLY_B,"Resubmitting in the correct ink, as per policy.","Lo vuelvo a presentar con la tinta correcta, según la normativa."
+MAIL_07_REPLY_C,I forgive the company the forty cents.,Perdono a la empresa los cuarenta céntimos.
+MAIL_08_SUBJECT,RE: RE: RE: FW: RE: Quick question,RE: RE: RE: RV: RE: Pregunta rápida
+MAIL_08_BODY,See below. Thoughts? (Below is 112 replies deep and nobody remembers the original question.),Ver abajo. ¿Opiniones? (Abajo hay 112 respuestas encadenadas y nadie recuerda la pregunta original.)
+MAIL_08_REPLY_A,+1,+1
+MAIL_08_REPLY_B,What was the question?,¿Cuál era la pregunta?
+MAIL_08_REPLY_C,Agreed. Let's take this offline and circle back.,De acuerdo. Lo hablamos fuera de línea y lo retomamos.
+MAIL_09_SUBJECT,Updated email disclaimer,Nueva cláusula de exención en los correos
+MAIL_09_BODY,"Effective immediately, every email must end with the new 900-word legal disclaimer, including emails that only say thanks. Omitting it will be treated as a disclaimer of the disclaimer.","Con efecto inmediato, todo correo debe terminar con la nueva cláusula legal de 900 palabras, incluidos los que solo dicen gracias. Omitirla se considerará una exención de la exención."
+MAIL_09_REPLY_A,Thanks. [900-word disclaimer attached],Gracias. [Se adjunta cláusula de 900 palabras]
+MAIL_09_REPLY_B,Thanks.,Gracias.
+MAIL_09_REPLY_C,Does this reply need a disclaimer?,¿Esta respuesta necesita cláusula?
+MAIL_10_SUBJECT,Quick survey: Tuesday's soup,Encuesta rápida: la sopa del martes
+MAIL_10_BODY,Sixty-two respondents have rated Tuesday's soup as soup. We would like to know whether you would also describe it as soup.,Sesenta y dos encuestados han calificado la sopa del martes como sopa. Nos gustaría saber si tú también la describirías como sopa.
+MAIL_10_REPLY_A,It was a crime against spoons.,Fue un crimen contra las cucharas.
+MAIL_10_REPLY_B,"It was, broadly speaking, soup.","Era, en términos generales, sopa."
+MAIL_10_REPLY_C,I have never been to the cafeteria.,Nunca he ido a la cafetería.
+MAIL_11_SUBJECT,Tailgating awareness week,Semana de concienciación sobre el acceso encadenado
+MAIL_11_BODY,Holding the door for a colleague is a security breach. Not holding the door is a breach of the Kindness Charter. Please choose which policy you will violate and inform Security.,Sujetar la puerta a un compañero es una brecha de seguridad. No sujetarla es una violación de la Carta de Amabilidad. Elige qué normativa vas a incumplir e informa a Seguridad.
+MAIL_11_REPLY_A,"I will pass through the turnstile alone, but kindly.","Cruzaré el torniquete solo, pero con amabilidad."
+MAIL_11_REPLY_B,I'll just use the service stairs.,Usaré las escaleras de servicio y ya está.
+MAIL_11_REPLY_C,I choose chaos.,Elijo el caos.
+MAIL_12_SUBJECT,A.S.S.I.S.T. has written your reply for you,A.S.S.I.S.T. ha redactado tu respuesta
+MAIL_12_BODY,Great news! A.S.S.I.S.T. has pre-written your reply to this email. Please review it before A.S.S.I.S.T. replies to itself on your behalf.,¡Buenas noticias! A.S.S.I.S.T. ha redactado de antemano tu respuesta a este correo. Revísala antes de que A.S.S.I.S.T. se responda a sí mismo en tu nombre.
+MAIL_12_REPLY_A,Approve.,Aprobar.
+MAIL_12_REPLY_B,"Approve, and let it approve future approvals.","Aprobar, y que apruebe las futuras aprobaciones."
+MAIL_12_REPLY_C,"Reject and write it myself, by hand, like an animal.","Rechazar y escribirla yo, a mano, como un animal."
+MAIL_13_SUBJECT,Casual Friday clarification,Aclaración sobre el viernes informal
+MAIL_13_BODY,"Casual Friday is suspended until further notice because last Friday was too casual. Formal Friday is also suspended. Please dress neutrally, like a Wednesday.","El viernes informal queda suspendido hasta nuevo aviso porque el último fue demasiado informal. El viernes formal también queda suspendido. Vístete de forma neutra, como un miércoles."
+MAIL_13_REPLY_A,Understood. I will dress like a Wednesday.,Entendido. Vendré vestido de miércoles.
+MAIL_13_REPLY_B,What if I dress like a Thursday?,¿Y si vengo vestido de jueves?
+MAIL_13_REPLY_C,Are pyjamas neutral?,¿El pijama es neutro?
+MAIL_14_SUBJECT,Name our new slipper!,¡Pon nombre a nuestra nueva zapatilla de estar por casa!
+MAIL_14_BODY,"We are crowdsourcing the name of our premium slipper. Shortlist: Sole Purpose, Heel Yeah and The Stellar Shuffle. Votes for any other name will be forwarded to HR.","Buscamos entre todos el nombre de nuestra zapatilla premium. Finalistas: Suela Razón, Talón Arriba y El Arrastre Estelar. Los votos a cualquier otro nombre se remitirán a RRHH."
+MAIL_14_REPLY_A,"Sole Purpose, obviously.","Suela Razón, evidentemente."
+MAIL_14_REPLY_B,Heel Yeah.,Talón Arriba.
+MAIL_14_REPLY_C,The Stellar Shuffle. It has the brand in it.,El Arrastre Estelar. Lleva la marca dentro.
+MAIL_15_SUBJECT,Fire drill postponed due to fire,Simulacro de incendio aplazado por incendio
+MAIL_15_BODY,"Today's fire drill has been postponed because of a small real fire on Floor 4. Please do not use the real fire as a practice opportunity. The drill will take place next week, fire permitting.","El simulacro de hoy se aplaza por un pequeño incendio real en la planta 4. No aproveches el incendio real para practicar. El simulacro se celebrará la semana que viene, si el fuego lo permite."
+MAIL_15_REPLY_A,Is the fire still there?,¿Sigue ahí el fuego?
+MAIL_15_REPLY_B,Noted. I will not practise on the real fire.,Anotado. No practicaré con el incendio real.
+MAIL_15_REPLY_C,"Can I go home early, then?","Entonces, ¿puedo irme antes a casa?"
+MAIL_16_SUBJECT,Scheduled downtime tonight,Parada programada esta noche
+MAIL_16_BODY,"All systems will be unavailable tonight from 02:00 to 04:00. To prevent data loss, please save your work at 01:59 and stay awake to confirm that it saved.","Todos los sistemas estarán fuera de servicio esta noche de 02:00 a 04:00. Para evitar pérdidas de datos, guarda tu trabajo a las 01:59 y permanece despierto para confirmar que se guardó."
+MAIL_16_REPLY_A,Which systems?,¿Qué sistemas?
+MAIL_16_REPLY_B,Confirmed. I will be awake and saving.,Confirmado. Estaré despierto y guardando.
+MAIL_16_REPLY_C,I'll save it now and hope.,Lo guardo ahora y que sea lo que Dios quiera.
+MAIL_17_SUBJECT,Budget freeze celebration,Celebración de la congelación presupuestaria
+MAIL_17_BODY,To celebrate the budget freeze there will be cake. The cake has been cancelled because of the budget freeze. Please attend anyway.,Para celebrar la congelación presupuestaria habrá tarta. La tarta se ha cancelado por la congelación presupuestaria. Asiste de todos modos.
+MAIL_17_REPLY_A,I will attend and imagine the cake.,Asistiré e imaginaré la tarta.
+MAIL_17_REPLY_B,Can I bring my own cake?,¿Puedo traer mi propia tarta?
+MAIL_17_REPLY_C,Has the freeze been cancelled too?,¿También se ha cancelado la congelación?
+MAIL_18_SUBJECT,Productivity tip of the week,Consejo de productividad de la semana
+MAIL_18_BODY,"Try the new Deep Focus method: silence notifications, close your email, and reply to this email within five minutes to confirm that you are focusing.","Prueba el nuevo método Concentración Profunda: silencia las notificaciones, cierra el correo y responde a este mensaje en menos de cinco minutos para confirmar que te estás concentrando."
+MAIL_18_REPLY_A,I was focusing until this email arrived.,Estaba concentrado hasta que llegó este correo.
+MAIL_18_REPLY_B,Focusing! (Replied in four minutes.),¡Concentrado! (Respondido en cuatro minutos.)
+MAIL_18_REPLY_C,I'll read this later.,Lo leo luego.
+MAIL_19_SUBJECT,Please stop using the word guarantee,Dejad de usar la palabra garantía
+MAIL_19_BODY,Legal reminds all staff that our shoes are not guaranteed to be shoes. Please describe them as foot-adjacent products in all external communication.,Asesoría Jurídica recuerda a la plantilla que no se garantiza que nuestros zapatos sean zapatos. Descríbelos como productos de proximidad podal en toda comunicación externa.
+MAIL_19_REPLY_A,"What are they, if not shoes?","¿Y qué son, si no son zapatos?"
+MAIL_19_REPLY_B,Understood: foot-adjacent products.,Entendido: productos de proximidad podal.
+MAIL_19_REPLY_C,Our shoes are guaranteed to be... likely.,Nuestros zapatos están garantizados como... probables.
+MAIL_20_SUBJECT,Happy work anniversary!,¡Feliz aniversario laboral!
+MAIL_20_BODY,Congratulations on your first-day anniversary! You have now been with Stellar Sell for one day. Your commemorative pin will arrive in six to eight business years.,¡Enhorabuena por tu aniversario de un día! Ya llevas un día en Stellar Sell. Tu insignia conmemorativa llegará en un plazo de seis a ocho años laborables.
+MAIL_20_REPLY_A,It has been one day.,Ha pasado un día.
+MAIL_20_REPLY_B,Can I have the pin sooner?,¿Puedo recibir la insignia antes?
+MAIL_20_REPLY_C,What an honour. I will frame this email.,Qué honor. Enmarcaré este correo.
+MAIL_21_SUBJECT,Standing desk waiting list,Lista de espera de mesas elevables
+MAIL_21_BODY,"You are number 3,412 on the standing desk waiting list. To keep your place, please stand up every time you read this email.","Eres el número 3.412 en la lista de espera de mesas elevables. Para conservar tu puesto, ponte de pie cada vez que leas este correo."
+MAIL_21_REPLY_A,"Standing now. Am I still number 3,412?",Ya estoy de pie. ¿Sigo siendo el 3.412?
+MAIL_21_REPLY_B,"Sitting, defiantly.","Sentado, desafiante."
+MAIL_21_REPLY_C,I am standing. Please confirm my standing.,"Estoy de pie. Confirmad mi posición, por favor."
+MAIL_22_SUBJECT,Synergy Town Hall: your questions answered,Asamblea de Sinergia: respondemos a tus preguntas
+MAIL_22_BODY,Please submit your questions for the Synergy Town Hall. Pre-approved questions include: How can I help? How can I help more? Is there anything else I can help with?,Envía tus preguntas para la Asamblea de Sinergia. Preguntas preaprobadas: ¿Cómo puedo ayudar? ¿Cómo puedo ayudar más? ¿Hay algo más en lo que pueda ayudar?
+MAIL_22_REPLY_A,How can I help more?,¿Cómo puedo ayudar más?
+MAIL_22_REPLY_B,Why are the questions pre-approved?,¿Por qué están preaprobadas las preguntas?
+MAIL_22_REPLY_C,Will there be snacks?,¿Habrá algo de picar?
+MAIL_23_SUBJECT,Printer 3B is out of toner (emotionally),La impresora del 3B se ha quedado sin tóner (emocionalmente)
+MAIL_23_BODY,"The Floor 3 printer is out of toner and will not be refilled until next quarter. In the meantime, please print lightly.","La impresora de la planta 3 no tiene tóner y no se repondrá hasta el próximo trimestre. Mientras tanto, imprime con suavidad."
+MAIL_23_REPLY_A,How does one print lightly?,¿Cómo se imprime con suavidad?
+MAIL_23_REPLY_B,I'll use the copier on Floor 1.,Usaré la fotocopiadora de la planta 1.
+MAIL_23_REPLY_C,Understood. I will print in a gentler font.,Entendido. Imprimiré con una tipografía más delicada.
+MAIL_24_SUBJECT,Reminder: we are a family,Recordatorio: somos una familia
+MAIL_24_BODY,"At Stellar Sell we are a family. As in any family, some members will be let go at the end of the quarter. Please keep smiling in the meantime.","En Stellar Sell somos una familia. Como en toda familia, algunos miembros serán despedidos al final del trimestre. Mientras tanto, sigue sonriendo."
+MAIL_24_REPLY_A,"Smiling, as family does.","Sonriendo, como hace la familia."
+MAIL_24_REPLY_B,Which members?,¿Qué miembros?
+MAIL_24_REPLY_C,Can I be adopted by another department?,¿Me puede adoptar otro departamento?
+MAIL_25_SUBJECT,Lost property: one shoe,Objetos perdidos: un zapato
+MAIL_25_BODY,"A single left shoe has been found in lift 2. If it belongs to you, please describe the right one.","Se ha encontrado un zapato izquierdo en el ascensor 2. Si es tuyo, describe el derecho."
+MAIL_25_REPLY_A,It's not mine. I'm wearing both of mine.,No es mío. Llevo puestos los dos míos.
+MAIL_25_REPLY_B,"It's mine. The right one is identical, but more right.","Es mío. El derecho es idéntico, pero más derecho."
+MAIL_25_REPLY_C,Is there a reward?,¿Hay recompensa?
+MAIL_26_SUBJECT,Please update your emergency contact,Actualiza tu contacto de emergencia
+MAIL_26_BODY,"Your current emergency contact is listed as the company. The company would prefer not to be contacted in emergencies. Please nominate someone who cares, or at least answers.","Tu contacto de emergencia actual figura como la empresa. La empresa preferiría no ser contactada en emergencias. Designa a alguien a quien le importes o, al menos, que conteste."
+MAIL_26_REPLY_A,The company is all I have.,La empresa es todo lo que tengo.
+MAIL_26_REPLY_B,Can I put HR?,¿Puedo poner a RRHH?
+MAIL_26_REPLY_C,Updated. I have nominated my landlord.,Actualizado. He designado a mi casero.
+CALL_01_LINE,My new shoes squeak on every single step. I work in a library.,Mis zapatos nuevos chirrían a cada paso. Trabajo en una biblioteca.
+CALL_01_ANSWER_A,That squeak is our signature Stellar Sound. You are welcome.,Ese chirrido es nuestro Sonido Estelar característico. No hay de qué.
+CALL_01_ANSWER_B,Have you tried walking less?,¿Ha probado a caminar menos?
+CALL_01_ANSWER_C,I'll send you a free replacement pair right away.,Le envío ahora mismo un par nuevo gratis.
+CALL_02_LINE,The left shoe is two sizes bigger than the right one.,El zapato izquierdo es dos tallas más grande que el derecho.
+CALL_02_ANSWER_A,Can I put you on hold for the rest of the quarter?,¿Puedo dejarle en espera el resto del trimestre?
+CALL_02_ANSWER_B,Just buy two pairs and mix them.,Compre dos pares y combínelos.
+CALL_02_ANSWER_C,Most feet are slightly different sizes. Ours simply commit to it.,La mayoría de los pies son de tallas ligeramente distintas. Los nuestros simplemente se comprometen con ello.
+CALL_03_LINE,I ordered black shoes and received a single brown sock.,Pedí unos zapatos negros y he recibido un único calcetín marrón.
+CALL_03_ANSWER_A,Our records show that you received an item. Is there anything else I can help with?,Nuestros registros indican que ha recibido un artículo. ¿Puedo ayudarle en algo más?
+CALL_03_ANSWER_B,"That sock is a limited edition, actually.","Ese calcetín es edición limitada, en realidad."
+CALL_03_ANSWER_C,I'll escalate this to a real human being.,Lo elevaré a un ser humano de verdad.
+CALL_04_LINE,Your website says waterproof. I have been standing in a puddle for an hour.,Su web dice impermeable. Llevo una hora de pie en un charco.
+CALL_04_ANSWER_A,Please step out of the puddle.,"Por favor, salga del charco."
+CALL_04_ANSWER_B,The shoe is waterproof. Your foot is not covered by the warranty.,El zapato es impermeable. Su pie no está cubierto por la garantía.
+CALL_04_ANSWER_C,"How is the puddle, otherwise?","¿Y qué tal el charco, por lo demás?"
+CALL_05_LINE,I want to speak to your manager.,Quiero hablar con su superior.
+CALL_05_ANSWER_A,Certainly. Transferring you to our Manager Experience queue. Current wait: nine days.,Por supuesto. Le paso con nuestra cola de Experiencia de Superior. Espera actual: nueve días.
+CALL_05_ANSWER_B,"I am my own manager, emotionally.","Emocionalmente, soy mi propio superior."
+CALL_05_ANSWER_C,No.,No.
+CALL_06_LINE,Are your shoes made by happy workers?,¿Sus zapatos los fabrican trabajadores felices?
+CALL_06_ANSWER_A,Please hold while I ask them.,"No cuelgue, que les pregunto."
+CALL_06_ANSWER_B,Our shoes are made with passion and a production quota.,Nuestros zapatos se fabrican con pasión y con una cuota de producción.
+CALL_06_ANSWER_C,Define happy.,Defina feliz.
+CALL_07_LINE,The laces keep untying themselves.,Los cordones se desatan solos.
+CALL_07_ANSWER_A,Try a double knot.,Pruebe con un doble nudo.
+CALL_07_ANSWER_B,Have you considered slip-ons?,¿Ha considerado los mocasines?
+CALL_07_ANSWER_C,That is our FreedomLace technology working as intended.,Es nuestra tecnología FreedomLace funcionando como está previsto.
+CALL_08_LINE,I would like a refund.,Quiero que me devuelvan el dinero.
+CALL_08_ANSWER_A,"Refunds are issued as store credit, which is issued as vouchers, which expire today.","Los reembolsos se abonan en saldo de tienda, que se abona en vales, que caducan hoy."
+CALL_08_ANSWER_B,Sure. What's your bank account?,Claro. ¿Cuál es su número de cuenta?
+CALL_08_ANSWER_C,Why?,¿Por qué?
+CALL_09_LINE,Your shoe gave me a blister shaped exactly like your logo.,Su zapato me ha hecho una ampolla con la forma exacta de su logotipo.
+CALL_09_ANSWER_A,"Congratulations, you are now a brand ambassador.","Enhorabuena, ya es embajador de la marca."
+CALL_09_ANSWER_B,I'll forward that to Legal for a quote.,Lo remito a Asesoría Jurídica para que le den presupuesto.
+CALL_09_ANSWER_C,We are sorry to hear that. Here is a five percent voucher for your next pair.,Lamentamos oírlo. Aquí tiene un vale del cinco por ciento para su próximo par.
+CALL_10_LINE,Hello? Is this a real person?,¿Hola? ¿Es usted una persona de verdad?
+CALL_10_ANSWER_A,Yes.,Sí.
+CALL_10_ANSWER_B,I am a real person reading a script.,Soy una persona real leyendo un guion.
+CALL_10_ANSWER_C,Please hold for a real person.,"No cuelgue, le paso con una persona real."
+REPORT_FRAG_01,Leveraging cross-functional synergies to unlock footwear-centric value.,Apalancando sinergias transversales para desbloquear valor centrado en el calzado.
+REPORT_FRAG_02,"A holistic, customer-obsessed approach to heel-to-toe alignment.",Un enfoque holístico y obsesionado con el cliente para la alineación del talón a la puntera.
+REPORT_FRAG_03,"Year on year, the metrics are trending in a direction.","Interanualmente, las métricas muestran una tendencia hacia alguna dirección."
+REPORT_FRAG_04,We have identified several low-hanging fruits and at least one medium-hanging vegetable.,Hemos identificado varias frutas maduras al alcance de la mano y al menos una hortaliza a media altura.
+REPORT_FRAG_05,"Going forward, we will move the needle on key sole performance indicators.","De cara al futuro, moveremos la aguja en los indicadores clave de rendimiento de la suela."
+REPORT_FRAG_06,"Stakeholders have been aligned, realigned and, where necessary, informed.","Las partes interesadas han sido alineadas, realineadas y, cuando ha sido necesario, informadas."
+REPORT_FRAG_07,"This initiative is fully scalable, both upwards and, if required, sideways.","Esta iniciativa es plenamente escalable, hacia arriba y, si fuera necesario, hacia los lados."
+REPORT_FRAG_08,A paradigm shift in how we think about thinking about shoes.,Un cambio de paradigma en cómo pensamos sobre pensar en zapatos.
+REPORT_FRAG_09,"Key learnings have been captured in a deck, which has in turn been captured in a folder.","Los aprendizajes clave se han recogido en una presentación, que a su vez se ha recogido en una carpeta."
+REPORT_FRAG_10,"We remain cautiously optimistic, optimistically cautious, and on track.","Seguimos siendo cautamente optimistas, optimistamente cautos, y según lo previsto."
+REPORT_FRAG_11,Customer journeys have been mapped from first glance to final blister.,Se han cartografiado los recorridos del cliente desde la primera mirada hasta la última ampolla.
+REPORT_FRAG_12,"Our omnichannel presence is present on every channel, omnipresently.","Nuestra presencia omnicanal está presente en todos los canales, de forma omnipresente."
+REPORT_FRAG_13,The data suggests what we already decided.,Los datos sugieren lo que ya habíamos decidido.
+REPORT_FRAG_14,"We will double down on our core competencies, which remain confidential.","Redoblaremos la apuesta por nuestras competencias clave, que siguen siendo confidenciales."
+REPORT_FRAG_15,Headcount efficiencies have been achieved through natural attrition and unnatural attrition.,Se han logrado eficiencias de plantilla mediante bajas naturales y bajas no tan naturales.
+REPORT_FRAG_16,An agile roadmap with deliverables that will be delivered when deliverable.,Una hoja de ruta ágil con entregables que se entregarán cuando sean entregables.
+REPORT_FRAG_17,Brand sentiment remains positive among respondents who responded positively.,El sentimiento de marca sigue siendo positivo entre los encuestados que respondieron positivamente.
+REPORT_FRAG_18,"Next steps: circle back, touch base, and take it offline.","Próximos pasos: retomarlo, ponernos en contacto y hablarlo fuera de línea."
+REPORT_FRAG_19,We are empowering the shoe to own its own journey.,Estamos empoderando al zapato para que se apropie de su propio recorrido.
+REPORT_FRAG_20,"In summary, the summary is attached.","En resumen, se adjunta el resumen."
+ROUND_MAIL,Internal mail round,Reparto de correo interno
+ROUND_CLEANING,Cleaning zone,Zona de limpieza
+ROUND_GUARD,Security round,Ronda de vigilancia
+ROUND_MAINTENANCE,Maintenance round,Ronda de mantenimiento
+ROUND_CLOSING,Closing duties,Tareas de cierre
+IDEA_DESIGN_1,A sole that adapts to the wearer's gait,Una suela que se adapta a la pisada
+IDEA_DESIGN_2,A trainer with a hidden pocket for the phone you are not supposed to check,Una zapatilla con un bolsillo oculto para el móvil que no deberías mirar
+IDEA_DESIGN_3,Office shoes that look formal from above and are slippers from below,Zapatos de oficina que parecen formales desde arriba y son zapatillas de estar por casa desde abajo
+IDEA_DESIGN_4,A heel that clicks confidently even when you are not,Un tacón que suena seguro de sí mismo aunque tú no lo estés
+IDEA_DESIGN_5,A silent-sole loafer for walking past your boss's office,Un mocasín de suela silenciosa para pasar por delante del despacho del jefe
+IDEA_DESIGN_6,"Modular laces: change the colour, keep the knot","Cordones modulares: cambia el color, conserva el nudo"
+IDEA_DESIGN_7,"A boot that is also, somehow, a sandal","Una bota que también es, de algún modo, una sandalia"
+IDEA_MKT_1,Rebrand the squeak as the sound of success,Rebautizar el chirrido como el sonido del éxito
+IDEA_MKT_2,A campaign in which the shoes are the CEO,Una campaña en la que los zapatos son el consejero delegado
+IDEA_MKT_3,"A limited edition: exactly the same shoe, in a black box","Una edición limitada: exactamente el mismo zapato, en caja negra"
+IDEA_MKT_4,Pay influencers to walk slightly faster than everyone else,Pagar a influencers para que caminen un poco más rápido que los demás
+IDEA_MKT_5,New tagline: Stellar Sell. You have already paid for them.,Nuevo eslogan: Stellar Sell. Ya los has pagado.
+IDEA_MKT_6,"Print motivational quotes on the insole, where only your feet can read them","Imprimir frases motivacionales en la plantilla, donde solo las lean tus pies"
+IDEA_SALES_1,"Sell the left and right shoe separately, as a bundle","Vender el zapato izquierdo y el derecho por separado, como pack"
+IDEA_SALES_2,"A subscription: a new, identical pair every month",Una suscripción: un par nuevo e idéntico cada mes
+IDEA_SALES_3,A discount for customers who promise never to return anything,Un descuento para los clientes que prometan no devolver nunca nada
+IDEA_SALES_4,Sell the laces separately as a premium tying experience,Vender los cordones aparte como experiencia premium de atado
+IDEA_SALES_5,"Offer every customer the next size up, just in case they grow","Ofrecer a cada cliente una talla más, por si crece"
+IDEA_SALES_6,An extended warranty for the shoebox,Una garantía extendida para la caja de los zapatos
+IDEA_OPS_1,"Move the warehouse closer to the loading dock, or the other way round","Acercar el almacén al muelle de carga, o al revés"
+IDEA_OPS_2,Ship both shoes in the same box to halve the number of boxes,Enviar los dos zapatos en la misma caja para reducir las cajas a la mitad
+IDEA_OPS_3,Replace the weekly inventory with a weekly estimate of how we feel about inventory,Sustituir el inventario semanal por una estimación semanal de cómo nos sentimos respecto al inventario
+IDEA_OPS_4,A daily meeting to reduce the number of meetings,Una reunión diaria para reducir el número de reuniones
+IDEA_OPS_5,Colour-code the pallets by how likely they are to go missing,Codificar los palés por colores según su probabilidad de desaparecer
+IDEA_OPS_6,Run the freight elevator on a timetable instead of on shouting,Que el montacargas funcione con horario y no a gritos
+IDEA_FIN_1,Reclassify shoelaces as long-term infrastructure,Reclasificar los cordones como infraestructura a largo plazo
+IDEA_FIN_2,Present the quarterly results in a font that makes losses look smaller,Presentar los resultados trimestrales con una tipografía que empequeñezca las pérdidas
+IDEA_FIN_3,Pay suppliers in store vouchers,Pagar a los proveedores con vales de la tienda
+IDEA_FIN_4,Rename costs as investments in the present,Renombrar los costes como inversiones en el presente
+IDEA_FIN_5,Round every figure up to the nearest optimistic number,Redondear cada cifra al número optimista más cercano
+IDEA_FIN_6,Move the fiscal year so that it ends just before the bad month,Mover el ejercicio fiscal para que termine justo antes del mes malo
+IDEA_HR_1,Replace the pay rise with a laminated certificate of appreciation,Sustituir la subida salarial por un certificado de agradecimiento plastificado
+IDEA_HR_2,An Employee of the Month award for every month an employee does not resign,Un premio al Empleado del Mes por cada mes que el empleado no dimita
+IDEA_HR_3,Mandatory optional yoga at 07:30,Yoga opcional obligatorio a las 07:30
+IDEA_HR_4,Measure morale with a single question: Are you happy (yes)?,Medir la moral con una única pregunta: ¿Eres feliz (sí)?
+IDEA_HR_5,Turn the exit interview into a re-entry interview,Convertir la entrevista de salida en una entrevista de reingreso
+IDEA_HR_6,Replace the break room with a resilience room that has no chairs,Sustituir la sala de descanso por una sala de resiliencia sin sillas
+IDEA_IT_1,Make passwords expire every time they are typed correctly,Que las contraseñas caduquen cada vez que se escriben bien
+IDEA_IT_2,Install A.S.S.I.S.T. on the coffee machine,Instalar A.S.S.I.S.T. en la máquina de café
+IDEA_IT_3,Replace the helpdesk with a page that asks: have you tried restarting?,Sustituir el soporte técnico por una página que pregunte: ¿has probado a reiniciar?
+IDEA_IT_4,"Measure productivity in keystrokes, including a held-down space bar","Medir la productividad en pulsaciones, incluida la barra espaciadora mantenida"
+IDEA_IT_5,A cloud for our cloud,Una nube para nuestra nube
+IDEA_IT_6,An app that tells employees which app to use,Una aplicación que indique a los empleados qué aplicación usar
+IDEA_LEGAL_1,Add results may vary to the shoe size,Añadir los resultados pueden variar a la talla del zapato
+IDEA_LEGAL_2,Trademark the sound of walking,Registrar como marca el sonido de caminar
+IDEA_LEGAL_3,A contract clause in which customers declare that they have feet,Una cláusula en la que el cliente declara tener pies
+IDEA_LEGAL_4,"Sue competitors pre-emptively, in case they have a good idea","Demandar a la competencia de forma preventiva, por si tienen una buena idea"
+IDEA_LEGAL_5,Rewrite the terms and conditions as one sentence too long for anyone to finish,Reescribir los términos y condiciones como una sola frase demasiado larga para terminarla
+IDEA_LEGAL_6,Register the break room as a separate company so it is not liable for the coffee,Constituir la sala de descanso como sociedad aparte para no responder del café
+IDEA_FACTORY_1,Speed up the line by three percent and call it wellness cardio,Acelerar la línea un tres por ciento y llamarlo cardio saludable
+IDEA_FACTORY_2,Turn leather offcuts into the company's smallest shoe,Convertir los retales de cuero en el zapato más pequeño de la compañía
+IDEA_FACTORY_3,Move quality control to the start of the line and reject defects in advance,Poner el control de calidad al principio de la línea y rechazar los defectos por adelantado
+IDEA_FACTORY_4,A second shift that only makes left shoes,Un segundo turno que solo fabrique zapatos izquierdos
+IDEA_FACTORY_5,Name the machines so that workers can apologise to them personally,Poner nombre a las máquinas para que los operarios puedan disculparse con ellas personalmente
+IDEA_FACTORY_6,Pay overtime in shoes,Pagar las horas extra en zapatos
+IDEA_GEN_1,A suggestion box for suggestions about the suggestion box,Un buzón de sugerencias para sugerencias sobre el buzón de sugerencias
+IDEA_GEN_2,"Turn off the muzak for five minutes a day, as a reward","Apagar el hilo musical cinco minutos al día, como recompensa"
+IDEA_GEN_3,A shared calendar showing when the shared calendar was last updated,Un calendario compartido que indique cuándo se actualizó por última vez el calendario compartido
+IDEA_GEN_4,Replace all the motivational posters with one poster that says enough,Sustituir todos los carteles motivacionales por uno solo que diga ya basta
+IDEA_GEN_5,"Slower lift music, so that people take the stairs","Música más lenta en los ascensores, para que la gente use las escaleras"
+IDEA_GEN_6,"A free coffee day, on a date to be announced, never","Un día de café gratis, en fecha por anunciar, nunca"
+IDEA_METHOD_OVERHEAR,Overheard,Escuchada a escondidas
+IDEA_METHOD_STEAL_FILE,Copied from their files,Copiada de sus archivos
+IDEA_METHOD_INHERIT,Inherited,Heredada
+IDEA_METHOD_PURCHASE,Bought,Comprada
+IDEA_METHOD_GIFTED,Given freely,Cedida voluntariamente
+INV_PHASE_INCIDENT,Incident,Incidente
+INV_PHASE_EVIDENCE_COLLECTION,Evidence collection,Recogida de evidencia
+INV_PHASE_SHORTLIST,Shortlist,Lista corta
+INV_PHASE_INTERROGATION,Interrogation,Interrogatorio
+INV_PHASE_VERDICT,Verdict,Veredicto
+INV_SEVERITY_1,Minor,Leve
+INV_SEVERITY_2,Moderate,Moderada
+INV_SEVERITY_3,Serious,Grave
+INV_SEVERITY_4,High,Alta
+INV_SEVERITY_5,Maximum,Máxima
+EVIDENCE_DIRECT_WITNESS,Direct witness,Testigo directo
+EVIDENCE_PARTIAL_WITNESS,Partial witness,Testigo parcial
+EVIDENCE_CAMERA_FOOTAGE,Camera footage,Grabación de cámara
+EVIDENCE_CARD_LOG,Access card log,Registro de tarjeta
+EVIDENCE_COMPROMISING_ITEM,Compromising item in possession,Objeto comprometedor en posesión
+EVIDENCE_ACCOUNTING_TRAIL,Accounting trail,Rastro contable
+EVIDENCE_UNSOURCED_RUMOUR,Unsourced rumour,Rumor sin fuente
+EVIDENCE_BODY_FOUND,Body found,Cuerpo hallado
+EVIDENCE_FORGED_DOCUMENT,Verified forged document,Documento falsificado verificado
+INCIDENT_OBJECT_MISSING,Valuable object missing,Desaparición de objeto de valor
+INCIDENT_INVENTORY_MISMATCH,Inventory mismatch,Descuadre de inventario
+INCIDENT_BODY_FOUND,Body found,Cuerpo hallado
+INCIDENT_FRAUD_AT_MONTH_CLOSE,Fraud surfaced at month close,Fraude aflorado en el cierre mensual
+INCIDENT_DIRECT_WITNESS_REPORT,Report from a direct witness,Denuncia de un testigo directo
+INCIDENT_INSIDER_PATTERN,Insider trading pattern,Patrón de información privilegiada
+INCIDENT_POWER_CUT,Power cut,Corte de energía
+INTERROGATION_INTRO_APOLOGY,"So sorry to bother you. This is purely routine, I'm sure it's nothing. Would you like a coffee?","Siento muchísimo molestarle. Es pura rutina, seguro que no es nada. ¿Le apetece un café?"
+INTERROGATION_INTRO_DOOR_SLAM,The door slams shut behind you. Sit down.,La puerta se cierra de golpe a tu espalda. Siéntate.
+INTERROGATION_INTRO_NEUTRAL,Take a seat. We have a few questions about some recent irregularities.,Tome asiento. Tenemos algunas preguntas sobre ciertas irregularidades recientes.
+INTERROGATION_ANSWER_DENY,Deny it,Negarlo
+INTERROGATION_ANSWER_EXPLAIN,Explain (alibi),Explicarlo (coartada)
+INTERROGATION_ANSWER_ACCUSE,Blame someone else,Acusar a otro
+INTERROGATION_ANSWER_SILENCE,Say nothing,Guardar silencio
+INTERROGATION_ANSWER_LAWYER,Ask for legal counsel,Solicitar asistencia legal
+VERDICT_COLD,Filed without a culprit (cold case),Archivado sin culpable (caso frío)
+VERDICT_OTHER_GUILTY,Another employee found responsible,Otro empleado declarado responsable
+VERDICT_PLAYER_MINOR,Found responsible: minor,Declarado responsable: grado leve
+VERDICT_PLAYER_MAJOR,Found responsible: serious,Declarado responsable: grado grave
+COLD_TRIGGER_NEW_PIECE,New evidence has surfaced,Ha aparecido una prueba nueva
+COLD_TRIGGER_SILENT_WITNESS,A silent witness has decided to talk,Un testigo silencioso ha decidido hablar
+COLD_TRIGGER_AUDITOR_CHANGE,The new Chief Auditor is reviewing old files,El nuevo Auditor Jefe está revisando expedientes archivados
+CAL_DAILY_TRADING,The share trades,La acción cotiza
+CAL_WEEKLY_REPORTS,"Internal sales, production and incident reports","Informes internos de ventas, producción e incidencias"
+CAL_MONTHLY_CLOSE,Monthly accounting close,Cierre contable mensual
+CAL_QUARTERLY_RESULTS,Quarterly results presentation (Floor 16),Presentación trimestral de resultados (planta 16)
+CAL_ANNUAL_BOARD,"Annual board meeting, dividends and senior role review","Junta anual del consejo, dividendos y revisión de cargos altos"
+NEWS_INSIDER_SCANDAL,Regulators probe suspicious trading in Stellar Sell shares,Los reguladores investigan operaciones sospechosas con acciones de Stellar Sell
+EVENT_TREND_SHIFT,Footwear trend shift,Cambio de tendencia en calzado
+NEWS_EVENT_TREND_SHIFT,Fashion changes its mind about shoes again; analysts unsure whether this is good,La moda vuelve a cambiar de opinión sobre los zapatos; los analistas no saben si es buena noticia
+EVENT_LEATHER_RISE,Leather price rise,Encarecimiento del cuero
+NEWS_EVENT_LEATHER_RISE,Leather prices soar; cows reportedly unavailable for comment,Se dispara el precio del cuero; las vacas no han querido hacer declaraciones
+EVENT_COMPETITOR_LAUNCH,Competitor launch,Lanzamiento de un competidor
+NEWS_EVENT_COMPETITOR_LAUNCH,"Rival brand unveils a shoe that is, worryingly, better","Una marca rival presenta un zapato que es, preocupantemente, mejor"
+EVENT_LAWSUIT,Customer lawsuit,Demanda judicial de un cliente
+NEWS_EVENT_LAWSUIT,Customer sues Stellar Sell over shoes that were legally foot-adjacent,"Un cliente demanda a Stellar Sell por unos zapatos que eran, legalmente, de proximidad podal"
+EVENT_VIRAL,Goes viral on social media,Viralización en redes
+NEWS_EVENT_VIRAL,Video of a squeaking Stellar Sell shoe becomes the internet's favourite song,El vídeo de un zapato de Stellar Sell que chirría se convierte en la canción favorita de internet
+EVENT_RECESSION,General recession,Recesión general
+NEWS_EVENT_RECESSION,Recession hits retail; economists recommend walking barefoot to save money,La recesión golpea al comercio; los economistas recomiendan ir descalzo para ahorrar
+EVENT_CELEBRITY,Celebrity seen wearing the brand,Personaje público calzando la marca
+NEWS_EVENT_CELEBRITY,"Famous person photographed wearing Stellar Sell shoes, apparently on purpose","Fotografían a una persona famosa con zapatos de Stellar Sell, al parecer a propósito"
+EVENT_STRIKE,Strike,Huelga
+NEWS_EVENT_STRIKE,Stellar Sell workers down tools; the assembly line falls silent for the first time in decades,La plantilla de Stellar Sell se declara en huelga; la línea de montaje calla por primera vez en décadas
+ENDING_THE_BUTCHER,The Butcher,El Carnicero
+ENDING_THE_BUTCHER_DESC,Owned the company. Blood was the currency.,La compañía es tuya. La sangre fue la moneda.
+EPILOGUE_THE_BUTCHER,"{name} owns Stellar Sell. It took {days} working days, one set of keys, one rubber stamp and a number of colleagues who, according to Human Resources, “moved on to other opportunities”. Their names were read out at the first board meeting of the new era, during a minute of silence that everyone agreed was very efficient: {victims}. The press covered each departure separately, with sad photographs and hopeful quotes. Nobody connected the dots, perhaps because the dots kept disappearing. On the twentieth floor, the new owner keeps the door open and the staff keep their eyes down. Productivity is up. Sick days are down. Nobody has asked for a pay rise since, and nobody ever will. The internal newsletter describes the atmosphere as “focused”. The cleaning staff describe it as “please do not ask”.","{name} posee Stellar Sell. Hicieron falta {days} jornadas laborables, un juego de llaves, una estampa de goma y cierto número de compañeros que, según Recursos Humanos, «se marcharon en busca de nuevas oportunidades». Sus nombres se leyeron en la primera reunión del consejo de la nueva era, durante un minuto de silencio que todos coincidieron en calificar de muy eficiente: {victims}. La prensa cubrió cada marcha por separado, con fotografías tristes y declaraciones esperanzadas. Nadie unió los puntos, quizá porque los puntos no dejaban de desaparecer. En la planta veinte, la nueva propiedad deja la puerta abierta y la plantilla mantiene la mirada baja. La productividad sube. Las bajas por enfermedad bajan. Nadie ha pedido un aumento desde entonces, y nadie lo pedirá jamás. El boletín interno describe el ambiente como «concentrado». El personal de limpieza lo describe como «mejor no preguntes»."
+EPILOGUE_THE_BUTCHER_EMPIRE,"The company is worth {company_value}. Investors call it disciplined; analysts call it lean. At {share_price} a share it has never looked healthier, which is more than can be said for the org chart. Somewhere in the dead archive, a filing cabinet hums with things that will never be filed. {name} sleeps soundly. The building does not.","La compañía vale {company_value}. Los inversores la llaman disciplinada; los analistas, esbelta. A {share_price} por acción nunca ha tenido mejor aspecto, cosa que no puede decirse del organigrama. En algún rincón del archivo muerto, un archivador zumba con cosas que nunca se archivarán. {name} duerme a pierna suelta. El edificio, no."
+EPILOGUE_THE_BUTCHER_HUSK,"The company is worth {company_value}, a figure the finance director now reads aloud with the lights off. Talent left, or was removed, and took the good ideas with it. The factory runs at half speed and double fear. {name} rules a tower of empty chairs, each one a story nobody dares to tell. The throne is secure. There is simply less and less underneath it.","La compañía vale {company_value}, una cifra que el director financiero lee ahora en voz alta con la luz apagada. El talento se fue, o lo quitaron de en medio, y se llevó consigo las buenas ideas. La fábrica funciona a media velocidad y con el doble de miedo. {name} gobierna una torre de sillas vacías, cada una con una historia que nadie se atreve a contar. El trono está a salvo. Simplemente, cada vez hay menos debajo."
+ENDING_THE_BUYER,The Buyer,El Comprador
+ENDING_THE_BUYER_DESC,"Owned the company. Everyone was paid, and everyone remembers.","La compañía es tuya. Todos cobraron, y todos lo recuerdan."
+EPILOGUE_THE_BUYER,"{name} owns Stellar Sell and, in a sense, so does everybody else. Over {days} days, {bribes_total} changed hands: in lifts, in toilets, in envelopes marked “birthday collection”. The guard who looked the other way, the auditor who looked twice and then not at all, the board member who voted with a new watch on his wrist: they are all still here, all still smiling, and every one of them remembers the exact amount. The first memo from the top floor announces an open-door policy. The queue outside the door is made of invoices. So who runs the company now? The owner signs the documents. The documents are read, checked and approved by people the owner has paid. The payroll, official and unofficial, is the largest in the industry. Power, it turns out, is a subscription, and it renews itself every month.","{name} posee Stellar Sell y, en cierto sentido, también la posee todo el mundo. A lo largo de {days} jornadas cambiaron de manos {bribes_total}: en ascensores, en baños, en sobres con la etiqueta «colecta de cumpleaños». El vigilante que miró hacia otro lado, la auditora que miró dos veces y luego ninguna, el consejero que votó con un reloj nuevo en la muñeca: todos siguen aquí, todos siguen sonriendo y cada uno recuerda la cantidad exacta. El primer memorándum de la última planta anuncia una política de puertas abiertas. La cola que espera ante esa puerta está hecha de facturas. ¿Quién dirige ahora la compañía? La propiedad firma los documentos. Los documentos los leen, revisan y aprueban personas a las que la propiedad ha pagado. La nómina, oficial y extraoficial, es la mayor del sector. El poder, resulta, es una suscripción, y se renueva sola cada mes."
+EPILOGUE_THE_BUYER_EMPIRE,"Still, the numbers hold. The company is worth {company_value} and the share price sits at {share_price}, propped up by people with every reason to keep it standing. Corruption, properly budgeted, looks a great deal like loyalty. The auditors, all of them on retainer, call it “a robust culture of alignment”.","Aun así, las cifras aguantan. La compañía vale {company_value} y la acción cotiza a {share_price}, apuntalada por personas con todos los motivos del mundo para mantenerla en pie. La corrupción, bien presupuestada, se parece muchísimo a la lealtad. Los auditores, todos a sueldo, lo llaman «una sólida cultura de alineamiento»."
+EPILOGUE_THE_BUYER_HUSK,"The company is worth {company_value}. The bribes now cost more than the business earns, and everyone on the list knows exactly whom to call when the money stops. {name} owns a building full of creditors in good suits. The next quarterly results will be very interesting, for a very short time.","La compañía vale {company_value}. Los sobornos cuestan ya más de lo que gana el negocio, y todos los de la lista saben exactamente a quién llamar cuando deje de llegar el dinero. {name} posee un edificio lleno de acreedores con buenos trajes. Los próximos resultados trimestrales serán muy interesantes, durante muy poco tiempo."
+ENDING_THE_GHOST,The Ghost,El Fantasma
+ENDING_THE_GHOST_DESC,Owned the company. Nobody knows how.,La compañía es tuya. Nadie sabe cómo.
+EPILOGUE_THE_GHOST,"Nobody knows how {name} reached the top. Not the board, not the press, and certainly not the people who took the blame along the way: {scapegoats}. Each of them remembers a bad week, a strange rumour, a signature they do not recall making, an idea that turned out to belong to someone else. Each of them believes it was bad luck. None of them has ever suspected the quiet colleague who always offered to help. In {days} days, {name} never raised their voice, never left a fingerprint and never once presented an idea that was entirely their own. The official biography, written by Communications, describes “a natural rise”. The official photograph is slightly out of focus. At the notary on the ninth floor, the stamp came down on the ownership papers without a single question, because nobody had ever thought to ask one.","Nadie sabe cómo llegó {name} a lo más alto. Ni el consejo, ni la prensa, y desde luego no quienes cargaron con las culpas por el camino: {scapegoats}. Cada uno recuerda una mala semana, un rumor extraño, una firma que no recuerda haber estampado, una idea que resultó ser de otra persona. Cada uno cree que fue mala suerte. Nadie ha sospechado jamás de aquel colega discreto que siempre se ofrecía a ayudar. En {days} jornadas, {name} nunca levantó la voz, nunca dejó una huella y nunca presentó una idea que fuera del todo suya. La biografía oficial, redactada por Comunicación, habla de «un ascenso natural». La fotografía oficial está ligeramente desenfocada. En la notaría de la planta nueve, el sello cayó sobre los documentos de propiedad sin una sola pregunta, porque a nadie se le había ocurrido nunca hacer ninguna."
+EPILOGUE_THE_GHOST_EMPIRE,"The company is worth {company_value} and runs beautifully, powered by the stolen ideas of people who still work there and still applaud at presentations. The share price, {share_price}, rises with every rumour {name} does not start. Nobody knows who is steering. The ship sails on regardless.","La compañía vale {company_value} y funciona de maravilla, impulsada por las ideas robadas de personas que siguen trabajando en ella y siguen aplaudiendo en las presentaciones. La acción, a {share_price}, sube con cada rumor que {name} no empieza. Nadie sabe quién lleva el timón. El barco navega igualmente."
+EPILOGUE_THE_GHOST_HUSK,"The company is worth {company_value}. Rumours are cheap to plant and expensive to harvest: the best people left, suspicious of one another and never of {name}. The corridors are full of whispering and empty of work. The ghost owns the house. The house is haunted, mostly by its own debts.","La compañía vale {company_value}. Los rumores son baratos de plantar y caros de cosechar: los mejores se marcharon, recelando unos de otros y nunca de {name}. Los pasillos están llenos de susurros y vacíos de trabajo. El fantasma es dueño de la casa. La casa está encantada, sobre todo por sus propias deudas."
+ENDING_THE_WORKER,The Worker,El Trabajador
+ENDING_THE_WORKER_DESC,"Owned the company, and accidentally became good at the job.","La compañía es tuya, y sin querer aprendiste a hacer el trabajo."
+EPILOGUE_THE_WORKER,"{name} set out to reach the top without working. It did not go to plan. Somewhere between the eight emails of that first morning and the quarterly results of the last, something went terribly wrong: {name} learned how the company actually works. The copies got made. The invoices balanced. The reports were real, which caused a brief panic in Finance. There were shortcuts, of course, a few favours and one or two things that will never appear in any minutes, but mostly there was work: done badly, then less badly, then well. After {days} days, the most accomplished cheat in Stellar Sell has turned out to be its most productive employee. The board calls it a turnaround. Human Resources calls it a cultural fit. {name} calls it a misunderstanding, from the corner office on the twentieth floor, answering emails at 23:40.","{name} se propuso llegar arriba sin trabajar. No salió como estaba previsto. En algún punto entre los ocho correos de aquella primera mañana y los resultados trimestrales de la última, algo se torció sin remedio: {name} aprendió cómo funciona de verdad la compañía. Las fotocopias se hicieron. Las facturas cuadraron. Los informes eran reales, lo que provocó un breve pánico en Finanzas. Hubo atajos, por supuesto, algunos favores y un par de cosas que nunca figurarán en ningún acta, pero sobre todo hubo trabajo: mal hecho, después menos mal hecho, después bien hecho. Tras {days} jornadas, la persona más tramposa de Stellar Sell ha resultado ser la más productiva de toda la plantilla. El consejo lo llama «un giro estratégico». Recursos Humanos lo llama «encaje cultural». {name} lo llama un malentendido, desde el despacho de la planta veinte, respondiendo correos a las 23:40."
+EPILOGUE_THE_WORKER_EMPIRE,"The company is worth {company_value}. The share price, {share_price}, reflects something nobody in the building has seen for decades: a business that makes shoes people actually want. For the first time, the motivational posters are technically accurate. {name} has not taken a day off in weeks. The trap closed perfectly.","La compañía vale {company_value}. La acción, a {share_price}, refleja algo que nadie en el edificio veía desde hacía décadas: un negocio que fabrica zapatos que la gente quiere de verdad. Por primera vez, los carteles motivacionales son técnicamente exactos. {name} no se ha tomado un día libre en semanas. La trampa se cerró a la perfección."
+EPILOGUE_THE_WORKER_HUSK,"Unfortunately, the hard work arrived late. The company is worth {company_value}, hollowed out long before its new owner learned where the stapler lives. {name} now works fourteen hours a day to keep a ruin standing. It is the most honest job in the building, and the worst paid per hour.","Por desgracia, el trabajo duro llegó tarde. La compañía vale {company_value}, vaciada mucho antes de que su nueva propiedad aprendiera dónde se guarda la grapadora. {name} trabaja ahora catorce horas al día para mantener en pie una ruina. Es el trabajo más honrado del edificio, y el peor pagado por hora."
+ENDING_THE_FULL_SUITE,The Full Suite,La Suite Completa
+ENDING_THE_FULL_SUITE_DESC,Owned the company using every tool in the handbook.,"La compañía es tuya, usando todas las herramientas del manual."
+EPILOGUE_THE_FULL_SUITE,"{name} used everything. A little blood when it was efficient, a little gold when it was quicker, a rumour here, a forged stamp there and, when absolutely unavoidable, some actual work. After {days} days the result is a textbook executive: flexible, results-oriented, comfortable with ambiguity and with other people's signatures. Chapter one of the corporate handbook describes the ideal leader as “someone who leverages every available resource to deliver value”. That is exactly what happened. Nobody can say what {name} stands for, which the board considers the single most important qualification for the job. Business schools will write case studies about it. The case studies will leave out the interesting parts. {name} has finally read the handbook from cover to cover and discovered, to general surprise, that it was never satire. That is the whole joke.","{name} lo usó todo. Un poco de sangre cuando resultaba eficiente, un poco de oro cuando era más rápido, un rumor aquí, una estampa falsificada allá y, cuando no quedaba más remedio, algo de trabajo de verdad. Tras {days} jornadas, el resultado es una dirección de manual: flexible, orientada a resultados, cómoda con la ambigüedad y con las firmas ajenas. El primer capítulo del manual corporativo describe al líder ideal como «quien apalanca todos los recursos disponibles para generar valor». Eso es exactamente lo que ocurrió. Nadie sabe decir qué defiende {name}, lo que el consejo considera el requisito más importante del puesto. Las escuelas de negocio escribirán casos de estudio al respecto. Los casos de estudio omitirán las partes interesantes. {name} ha leído por fin el manual de principio a fin y ha descubierto, para sorpresa general, que nunca fue una sátira. Ese es todo el chiste."
+EPILOGUE_THE_FULL_SUITE_EMPIRE,"The company is worth {company_value}, the share price stands at {share_price}, and the annual report uses the word “balanced” fourteen times. Every lever was pulled a little and none of them all the way. By every metric the company owns, it is a triumph of management.","La compañía vale {company_value}, la acción cotiza a {share_price} y el informe anual utiliza la palabra «equilibrado» catorce veces. Se tiró un poco de cada palanca y de ninguna hasta el fondo. Según todas las métricas que posee la compañía, es un triunfo de la gestión."
+EPILOGUE_THE_FULL_SUITE_HUSK,"The company is worth {company_value}. Every lever was pulled, and several came off in {name}'s hand. The handbook has no chapter on what happens next. The consultants have been called in. They are also, it turns out, on the payroll.",La compañía vale {company_value}. Se tiró de todas las palancas y varias se quedaron en la mano de {name}. El manual no tiene ningún capítulo sobre lo que viene ahora. Se ha llamado a los consultores. Resulta que también están en nómina.
+ENDING_THE_FIGUREHEAD,The Figurehead,El Mascarón de Proa
+ENDING_THE_FIGUREHEAD_DESC,Reached the top floor without the ownership papers.,Llegaste a la última planta sin los documentos de propiedad.
+EPILOGUE_THE_FIGUREHEAD,"{name} made it to the top floor. The office is enormous, the chair is Italian and, on clear days, the view reaches the sea. {name} is the Chief Executive Officer of Stellar Sell and owns absolutely none of it. The ownership papers stayed in the safe, twenty metres from the desk, behind a combination somebody else remembers. So the company belongs to the board, to the funds, to people {name} has never met who send polite emails about targets. The salary is extraordinary. The duties never end. Every morning a car arrives at 07:15, and every night it leaves long after the cleaners. After {days} days of lying, stealing and scheming to avoid having a job, {name} has the most demanding job in the building, with a better office. Nobody tells the truth up here. {name} is learning to live with it.","{name} llegó a la última planta. El despacho es enorme, la silla es italiana y, los días claros, la vista alcanza el mar. {name} ocupa el cargo de consejero delegado de Stellar Sell y no posee absolutamente nada. Los documentos de propiedad se quedaron en la caja fuerte, a veinte metros del escritorio, tras una combinación que recuerda otra persona. Así que la compañía pertenece al consejo, a los fondos, a gente que {name} no ha visto nunca y que envía correos educados sobre objetivos. El sueldo es extraordinario. Las obligaciones no terminan nunca. Cada mañana llega un coche a las 07:15 y cada noche se marcha mucho después que el personal de limpieza. Tras {days} jornadas mintiendo, robando y conspirando para no tener que trabajar, {name} tiene el trabajo más exigente del edificio, con un despacho mejor. Aquí arriba nadie dice la verdad. {name} está aprendiendo a vivir con ello."
+EPILOGUE_THE_FIGUREHEAD_EMPIRE,"The company is worth {company_value}, every cent of it someone else's. At {share_price} a share the bonus is generous; it is taxed, invested and managed by people who report to the real owners. It is a very comfortable cage. It even has a helipad.","La compañía vale {company_value}, hasta el último céntimo de otros. A {share_price} por acción, el bonus es generoso; lo gravan, lo invierten y lo gestionan personas que rinden cuentas a los verdaderos dueños. Es una jaula muy cómoda. Hasta tiene helipuerto."
+EPILOGUE_THE_FIGUREHEAD_HUSK,"The company is worth {company_value}, and the owners have noticed. The board has started scheduling meetings without {name}. The chair is still Italian. It is simply beginning to feel temporary.","La compañía vale {company_value}, y los dueños se han dado cuenta. El consejo ha empezado a convocar reuniones sin {name}. La silla sigue siendo italiana. Simplemente, empieza a parecer provisional."
+ENDING_THE_OWNER_IN_EXILE,The Owner in Exile,La Propiedad en el Exilio
+ENDING_THE_OWNER_IN_EXILE_DESC,Got the papers. Lost the building.,Conseguiste los papeles. Perdiste el edificio.
+EPILOGUE_THE_OWNER_IN_EXILE,"{name} owns Stellar Sell. It says so on the papers. Unfortunately, {name} is no longer allowed inside the building. Somewhere between obtaining the documents and taking the top floor, everything came apart, and Security now keeps a photograph of {name} taped beside the turnstiles with the word NO written across it in marker. Legally, every chair, every pallet and every motivational poster belongs to {name}. In practice, the board has lawyers, the lawyers have lawyers, and the case will take years. {name} spent {days} days avoiding honest work and must now spend the next decade litigating, which is, if you think about it, the most honest work there is. The papers hang, framed, above a rented desk in a rented room. It is not the view that was promised.","{name} posee Stellar Sell. Lo dicen los papeles. Por desgracia, a {name} ya no le dejan entrar en el edificio. En algún punto entre conseguir los documentos y ocupar la última planta, todo se vino abajo, y Seguridad guarda ahora una fotografía de {name} pegada junto a los torniquetes con la palabra NO escrita encima con rotulador. Legalmente, cada silla, cada palé y cada cartel motivacional pertenecen a {name}. En la práctica, el consejo tiene abogados, los abogados tienen abogados y el pleito durará años. {name} pasó {days} jornadas evitando el trabajo honrado y ahora deberá pasar la próxima década litigando, que es, si se piensa bien, el trabajo más honrado que existe. Los papeles cuelgan, enmarcados, sobre un escritorio alquilado en una habitación alquilada. No es la vista que le prometieron."
+EPILOGUE_THE_OWNER_IN_EXILE_EMPIRE,"Meanwhile the company, worth {company_value}, keeps running without its owner, and runs rather well. Every quarter a court freezes the dividends, and every quarter {name} reads the results in the newspaper, like everybody else.","Mientras tanto, la compañía, que vale {company_value}, sigue funcionando sin quien la posee, y funciona bastante bien. Cada trimestre un juzgado congela los dividendos, y cada trimestre {name} lee los resultados en el periódico, como todo el mundo."
+EPILOGUE_THE_OWNER_IN_EXILE_HUSK,"The company is worth {company_value}, and falling. By the time the courts decide who owns it, there may be nothing left to own except the papers themselves, which are, at least, beautifully stamped.","La compañía vale {company_value}, y bajando. Cuando los tribunales decidan a quién pertenece, puede que no quede nada que poseer salvo los propios papeles, que están, al menos, primorosamente sellados."
+ENDING_THE_FILE,The File,El Expediente
+ENDING_THE_FILE_DESC,The investigation closed. So did your career.,"La investigación se cerró. Tu carrera, también."
+EPILOGUE_THE_FILE,"INTERNAL INVESTIGATION REPORT. Case {case_id}. Prepared by {investigator}. Subject: {name}, employed for {days} working days. Summary of findings: the subject was not, as initially assumed, merely lazy. The subject was busy. {evidence_count} items of evidence were gathered and are attached in chronological order, from the first missing stapler to the last unexplained absence. Witness statements agree on the essentials: the subject was always nearby, always helpful and always somewhere they should not have been. Camera footage, access card logs and the Accounts department completed the picture. The subject's explanations were noted with interest. Several were creative. None were true. Conclusion: dismissal effective immediately; access card deactivated; personal effects to be collected by Security and inventoried twice. Recommendation: review hiring procedures for graduates who smile at the turnstiles. Personal remark: it was, professionally speaking, a pleasure. This case is not cold. It is closed. Signed, {investigator}.","INFORME DE INVESTIGACIÓN INTERNA. Caso {case_id}. Redactado por {investigator}. Sujeto: {name}, en plantilla durante {days} jornadas laborables. Resumen de conclusiones: el sujeto no era, como se supuso al principio, simplemente vago. El sujeto estaba ocupado. Se reunieron {evidence_count} pruebas, que se adjuntan en orden cronológico, desde la primera grapadora desaparecida hasta la última ausencia sin explicar. Las declaraciones de los testigos coinciden en lo esencial: el sujeto estaba siempre cerca, siempre dispuesto a ayudar y siempre en algún lugar donde no debía estar. Las grabaciones de las cámaras, los registros de tarjeta y el departamento de Contabilidad completaron el cuadro. Las explicaciones del sujeto se anotaron con interés. Varias eran creativas. Ninguna era cierta. Conclusión: despido con efecto inmediato; tarjeta de acceso desactivada; efectos personales a recoger por Seguridad e inventariar dos veces. Recomendación: revisar los procesos de selección de titulados que sonríen en los torniquetes. Observación personal: ha sido, profesionalmente hablando, un placer. Este caso no está frío. Está cerrado. Firmado: {investigator}."
+ENDING_THE_GAP,The Gap,El Hueco
+ENDING_THE_GAP_DESC,Not caught. Just gone. Replaced by Friday.,No te descubrieron. Simplemente desapareciste. Te sustituyeron el viernes.
+EPILOGUE_THE_GAP,"On Monday morning, the desk in Wing 3B was empty. By Wednesday, someone had borrowed the chair. By Friday, a new graduate called {successor} had been given the computer, the keys and the rubber stamp, and was learning to answer eight emails before lunch. The org chart was updated that afternoon; it took the HR system eleven seconds. Nobody opened an investigation, because there was nothing to investigate. {name} was not caught. {name} simply did not make it: {days} days of cheap breakfasts, missed deadlines and plans that were always one week away from working. The farewell card went round the wing and came back with two signatures and a coffee ring. The company did not register the absence. The quarterly results did not mention it. The poster above the desk still says “Every Contribution Counts”, which remains, technically, a matter of opinion.","El lunes por la mañana, la mesa del ala 3B estaba vacía. El miércoles, alguien se había llevado la silla. El viernes, alguien recién salido de la universidad, {successor}, había recibido el ordenador, las llaves y la estampa, y estaba aprendiendo a responder ocho correos antes de comer. El organigrama se actualizó esa misma tarde; al sistema de RRHH le llevó once segundos. Nadie abrió una investigación, porque no había nada que investigar. A {name} no le descubrieron. {name} simplemente no llegó: {days} jornadas de desayunos baratos, plazos incumplidos y planes que siempre estaban a una semana de funcionar. La tarjeta de despedida dio la vuelta al ala y volvió con dos firmas y un cerco de café. La compañía no registró la ausencia. Los resultados trimestrales no la mencionaron. El cartel que cuelga sobre la mesa sigue diciendo «Cada contribución cuenta», lo cual sigue siendo, técnicamente, una cuestión de opinión."
+CAUSE_OWNERSHIP_NOTARISED,Ownership notarised,Propiedad formalizada ante notario
+CAUSE_STARVATION,Starvation,Inanición
+CAUSE_FAILED_AT_R0,Failed as the eternal intern,Fracaso como becario eterno
+CAUSE_DUTY_FAILURE_EXPULSION,Dismissed for repeatedly failing duties,Despido por incumplir reiteradamente los deberes
+CAUSE_RESULTS_FAILURE_EXPULSION,Dismissed after consecutive bad quarters,Despido tras trimestres deficientes consecutivos
+CAUSE_INVESTIGATION_CONCLUSIVE,Conclusive investigation,Investigación concluyente
+CAUSE_WITNESSED_ELIMINATION,Seen eliminating a colleague,Visto eliminando a un compañero
+CAUSE_BRIBE_DENOUNCED,Bribe refused and reported,Soborno rechazado y denunciado
+CAUSE_ARRESTED_BY_POLICE,Arrested by the police,Detención policial
+CAUSE_BOARD_REMOVAL,Removed by the board,Destitución por el consejo
+CAUSE_CEO_TERM_WITHOUT_OWNERSHIP,A full term as CEO without owning anything,Un mandato completo en la cúspide sin poseer nada
+AXIS_BLOOD,Blood,Sangre
+AXIS_GOLD,Gold,Oro
+AXIS_SILK,Silk,Seda
+AXIS_SWEAT,Sweat,Sudor
+AXIS_RUIN,Ruin,Ruina
+RUIN_TIER_EMPIRE,Empire,Imperio
+RUIN_TIER_HUSK,Husk,Cascarón
+NPC_WEAK_FEED_GOSSIP,Feed her information: she spreads whatever she is given.,Suministrarle información: distribuye lo que se le proporcione.
+NPC_DANGER_SPREADS_YOURS,She also spreads whatever she sees you do.,Distribuye también lo que observe de ti.
+NPC_SECRET_DEBBIE_NEWSLETTER,"Debbie is the anonymous author of 'The Pantry Post', the gossip sheet that turns up in every printer tray. Management has been hunting its author for four years.","Debbie es la autora anónima de «El Boletín del Office», la hoja de cotilleos que aparece en todas las bandejas de impresora. La dirección lleva cuatro años buscando a su autor."
+NPC_WEAK_GIFT_MERIT,Letting him take credit for something earns you favour in his ledger.,Concederle un mérito genera favor en su registro.
+NPC_DANGER_REPORTS_ANOMALIES,Goes to Security over any anomaly.,Acude a Seguridad ante cualquier anomalía.
+NPC_SECRET_GEORGE_NOMINATIONS,"George has nominated himself for Employee of the Month sixty-one times, signing the forms with his colleagues' names.","George se ha nominado a sí mismo como Empleado del Mes sesenta y una veces, firmando los formularios con los nombres de sus compañeros."
+NPC_WEAK_NONE_NEEDED,Unnecessary: he notices nothing.,Innecesaria: no percibe nada.
+NPC_DANGER_VIRTUALLY_NONE,Practically none.,Prácticamente ninguno.
+NPC_SECRET_NATE_GODSON,"Nate is Preston Vaile III's godson. His job interview lasted four minutes, three of them about sandwiches.","Nate es el ahijado de Preston Vaile III. Su entrevista de trabajo duró cuatro minutos, tres de ellos sobre bocadillos."
+NPC_WEAK_URGENT_AMBITION,Her ambition: she rushes to present her ideas.,Su ambición: presenta ideas con urgencia.
+NPC_DANGER_FIRST_COMPETITOR,Your first competitor. Produces ideas of quality 60–90.,Primer competidor. Genera ideas de calidad 60–90.
+NPC_SECRET_CLAUDIA_MBA,Claudia's MBA comes from a university that exists only as a website she built herself.,El MBA de Claudia procede de una universidad que solo existe como una página web que ella misma diseñó.
+NPC_WEAK_SUSTAINED_RESPECT,Sustained respect: he reveals the building's accesses and routines.,El respeto sostenido: revela accesos y rutinas del edificio.
+NPC_DANGER_SPOTS_ANOMALIES,Spots any anomaly instantly.,Detecta cualquier anomalía de inmediato.
+NPC_SECRET_RAY_COMET,"Thirty years ago, in his first year at Stellar, Ray sketched the Stellar Comet, the sneaker that made the company. Someone else presented it. Ray kept the original drawings.","Hace treinta años, en su primer año en Stellar, Ray dibujó la Stellar Comet, la zapatilla que hizo grande a la compañía. Otro la presentó. Ray conservó los bocetos originales."
+NPC_WEAK_ISOLATION,Her social isolation: what she says does not spread.,Su aislamiento social: sus afirmaciones no propagan.
+NPC_DANGER_ALLY_OR_ACCUSER,She may become an ally — or an accuser.,Puede convertirse en aliada o en acusadora.
+NPC_SECRET_SONIA_MOONLIGHT,"Sonia moonlights as an evening delivery rider, in breach of the exclusivity clause she signed without reading.","Sonia trabaja por las noches como repartidora, incumpliendo la cláusula de exclusividad que firmó sin leer."
+NPC_WEAK_WING_FIGURES_ONLY,"He only judges the wing's figures: if the wing performs, he ignores everything else.","Solo evalúa las cifras del ala: si el ala rinde, ignora el resto."
+NPC_DANGER_FREQUENT_PATROLS,Patrols the wing very frequently.,Patrulla el ala con frecuencia alta.
+NPC_SECRET_BERNARD_ROUNDING,Bernard rounds the wing's monthly figures up. Always up. The difference has earned him three bonuses.,Bernard redondea al alza las cifras mensuales del ala. Siempre al alza. La diferencia le ha valido tres primas.
+NPC_WEAK_NONE_UNBRIBABLE,None. Bribe probability: zero.,Ninguna. Probabilidad de soborno nula.
+NPC_DANGER_GUARDS_FILES,Keeps the complete personnel files.,Custodia los expedientes completos.
+NPC_SECRET_AMELIA_SELF_REPORT,"Amelia's own file contains a disciplinary note she wrote about herself for arriving four minutes late. She appealed it, and lost.","El propio expediente de Amelia contiene una amonestación que ella misma se impuso por llegar cuatro minutos tarde. La recurrió, y perdió."
+NPC_WEAK_SMALL_CASH,"Cash, in small amounts.","Capital, en cuantías reducidas."
+NPC_DANGER_NONE_WHILE_PAID,"None, as long as he is paid.",Ninguno mientras se le pague.
+NPC_SECRET_TOM_NOTEBOOK,"Tom keeps a notebook of every envelope he has ever accepted — dates, amounts, names — 'for tax purposes'.","Tom guarda una libreta con cada sobre que ha aceptado —fechas, cuantías, nombres— «por temas fiscales»."
+NPC_WEAK_NONE_AFFORDABLE,None you can afford.,Ninguna asequible.
+NPC_DANGER_NIGHT_OBSTACLE,The main obstacle to looting the building at night.,Obstáculo principal del saqueo nocturno.
+NPC_SECRET_LUDMILA_CHESS,"Ludmila plays correspondence chess with a grandmaster during her rounds. She has not lost a game in six years, nor missed a round.","Ludmila juega al ajedrez por correspondencia con un gran maestro durante sus rondas. No ha perdido una partida en seis años, ni se ha saltado una ronda."
+NPC_WEAK_CONSIDERATE_TREATMENT,Sustained considerate treatment.,Trato considerado sostenido.
+NPC_DANGER_WITNESSES_AFTER_HOURS,Witnesses all after-hours activity without anyone noticing her.,Presencia toda actividad fuera de horario sin ser observada.
+NPC_SECRET_CONNIE_KEYS,"Years ago Connie had copies made of every master key in the building, 'in case the originals got lost'. They never did.","Hace años, Connie encargó copias de todas las llaves maestras del edificio «por si se perdían las originales». Nunca se perdieron."
+NPC_WEAK_PETTY_SUM_UNIFORM,A laughable sum: he hands over his uniform.,Cantidad irrisoria: cede el uniforme.
+NPC_DANGER_NONE,None.,Ninguno.
+NPC_SECRET_FRANK_REPORTS,Half of Frank's breakdown reports describe repairs he never made. The other half describe breakdowns that never happened.,"La mitad de los partes de avería de Frank describen reparaciones que nunca hizo. La otra mitad, averías que nunca ocurrieron."
+NPC_WEAK_HIS_AMBITION,His ambition.,Su ambición.
+NPC_DANGER_R15_COMPETITOR,Competes with you for R15 — and is the ideal person to frame.,Competidor por R15; candidato a incriminación.
+NPC_SECRET_ERNIE_PALLETS,Two pallets of finished goods have already 'gone missing' on Ernie's watch. The delivery notes carry his signature.,Ya han «desaparecido» dos palés de producto terminado bajo la supervisión de Ernie. Los albaranes llevan su firma.
+NPC_WEAK_DIRECT_FLATTERY,Direct flattery.,El halago directo.
+NPC_DANGER_SELF_PRAISE,Turns self-promotion against you.,Aplica el autoelogio contra ti.
+NPC_SECRET_DIANA_FOCUS_GROUP,"Diana's famous focus group is her mother, her two sisters and a golden retriever.","El célebre grupo de enfoque de Diana son su madre, sus dos hermanas y un golden retriever."
+NPC_WEAK_FAVOURS_NOT_CASH,"Favours, not cash. He keeps accounts of every debt.","Favores, no capital. Mantiene contabilidad de la deuda."
+NPC_DANGER_COLLECTS_AT_WORST_TIME,Calls in the debt at the worst possible moment.,Reclama el cobro en el momento más inoportuno.
+NPC_SECRET_IGGY_LEDGER,Iggy keeps his favour ledger in a notebook in his desk drawer. It records who owes what to whom — including three board members.,"Iggy guarda su contabilidad de favores en una libreta, en el cajón de su mesa. Anota quién debe qué a quién, incluidos tres consejeros."
+NPC_WEAK_NONE,None.,Ninguna.
+NPC_DANGER_STRUCTURAL_ANTAGONIST,"Your structural antagonist, from the first day to the last.",Antagonista estructural de la partida completa.
+NPC_SECRET_ROSE_FOLDER,Rose keeps a private folder of the cases management ordered her to close. She never closed them. She is simply waiting.,Rose guarda una carpeta privada con los casos que la dirección le ordenó cerrar. Nunca los cerró. Simplemente espera.
+NPC_WEAK_PROTECTION,Protection: shield him and he becomes a permanent ally.,Protección: se convierte en aliado permanente.
+NPC_DANGER_KEEPS_INFORMATION,Stays silent out of fear — but keeps the information.,"Silencia por temor, pero conserva la información."
+NPC_SECRET_ALVIN_CEO_MAIL,"Alvin reads the CEO's email every morning — not out of ambition, but out of fear of being caught off guard.","Alvin lee el correo del consejero delegado cada mañana, no por ambición, sino por miedo a que le pillen desprevenido."
+NPC_WEAK_LARGE_CASH,"Cash, in large amounts.","Capital, en cuantía elevada."
+NPC_DANGER_KNOWS_BURIED,Knows everything she has ever buried.,Conoce todo lo que ha enterrado.
+NPC_SECRET_BREE_ARCHIVE,"Bree keeps a copy of every story she has buried, filed by the price she was paid.","Bree conserva una copia de cada noticia que ha enterrado, archivada según el precio que cobró."
+NPC_WEAK_OWN_INSIDER_TRADING,Trades on insider information for his own account: uncovering it puts him in your hands.,Opera con información privilegiada por cuenta propia: descubrirlo lo somete.
+NPC_DANGER_TIER7_COMPETITOR,Your direct competitor at tier 7.,Competidor directo en el escalón 7.
+NPC_SECRET_MAURICE_INSIDER,"Maurice trades Stellar shares through his brother-in-law's account, days before every results announcement.","Maurice opera con acciones de Stellar a través de la cuenta de su cuñado, días antes de cada anuncio de resultados."
+NPC_WEAK_INVESTOR_NETWORK,Her network of contacts among the investors.,Su red de contactos entre inversores.
+NPC_DANGER_INVESTOR_CIRCLE,Spreads information through the investor circle.,Distribuye información en el círculo de inversores.
+NPC_SECRET_LORNA_DINNERS,"Lorna has been previewing the quarterly guidance to Victor Sallow over dinner, in exchange for restaurant recommendations.","Lorna adelanta las previsiones trimestrales a Victor Sallow durante cenas, a cambio de recomendaciones de restaurantes."
+NPC_WEAK_HOSTILITY_TO_VOSS,His hostility towards Voss: a tactical ally.,Su hostilidad hacia Voss: aliado táctico.
+NPC_DANGER_SAME_FINAL_SEAT,He wants the same final chair you do.,Aspira a la misma silla final.
+NPC_SECRET_PRESTON_DOSSIER,"Preston keeps a four-hundred-page dossier of Harlan Voss's mistakes, alphabetised and ready for the board.","Preston guarda un dossier de cuatrocientas páginas con los errores de Harlan Voss, ordenado alfabéticamente y listo para el consejo."
+NPC_WEAK_NO_TRUTH,Nobody tells him the truth: he can be manipulated through intermediaries.,Nadie le comunica información veraz: es manipulable mediante intermediarios.
+NPC_DANGER_MAX_PERCEPTION,The sharpest perception in the building.,Perspicacia máxima del juego.
+NPC_SECRET_VOSS_COMET,The design that launched Harlan Voss's career was not his. The original sketches still exist somewhere in the building.,El diseño que lanzó la carrera de Harlan Voss no era suyo. Los bocetos originales siguen en algún lugar del edificio.
+NPC_SECRET_VOSS_SAFE_NOTE,"Voss cannot remember the safe combination. It is written down somewhere in his office, or on his private computer.",Voss no recuerda la combinación de la caja fuerte. La tiene anotada en algún lugar de su despacho o en su ordenador privado.
+NPC_WEAK_FILE_BLACKMAIL,"Blackmail drawn from her personnel file, or a favour of extraordinary size.","Chantaje derivado de su expediente, o favor de magnitud extraordinaria."
+NPC_DANGER_SAFE_AND_INFORMS,"Knows the safe combination. If your attempt fails, she tells Voss.","Conoce la combinación de la caja fuerte. Si el intento fracasa, informa a Voss."
+NPC_SECRET_PEARL_SIGNATURE,Sealed annex to her HR file: for eleven years Pearl has signed Harlan Voss's name on documents he never read. Voss does not know. The board would call it forgery.,Anexo sellado de su expediente en RRHH: durante once años Pearl ha firmado con el nombre de Harlan Voss documentos que él nunca leyó. Voss no lo sabe. El consejo lo llamaría falsificación.
+ROLE_AUDITOR,Internal Auditor,Auditor interno
+ROLE_CEO_SECRETARY,Secretary to the CEO,Secretaría del consejero delegado
+ROLE_CHIEF_ACCOUNTANT,Chief Accountant,Jefe de contabilidad
+ROLE_RECEPTIONIST,Receptionist,Recepcionista
+ROLE_COOK,Cafeteria Cook,Cocinero de cafetería
+ROLE_STORE_CLERK,Flagship Store Clerk,Dependiente de la tienda insignia
+ROLE_QUALITY_INSPECTOR,Quality Inspector,Inspector de calidad
+ROLE_STOCK_KEEPER,Stock Keeper,Mozo de almacén
+ROLE_DOCK_WORKER,Dock Worker,Operario de muelle
+ROLE_PROTOTYPE_TECHNICIAN,Prototype Technician,Técnico de prototipos
+ROLE_MATERIALS_KEEPER,Exotic Materials Keeper,Custodio de materiales exóticos
+ROLE_LAWYER,In-house Lawyer,Abogado del bufete interno
+ROLE_LEGAL_CLERK,Legal Archive Clerk,Auxiliar del archivo legal
+ROLE_NOTARY,In-house Notary,Notario interno
+ROLE_COMMUNITY_MANAGER,Social Media Manager,Responsable de redes sociales
+ROLE_GRAPHIC_DESIGNER,Graphic Designer,Diseñador gráfico
+ROLE_PHOTOGRAPHER,Product Photographer,Fotógrafo de producto
+ROLE_FLOOR_SECRETARY,Floor Secretary,Secretario de planta
+ROLE_EXECUTIVE_ASSISTANT,Executive Assistant,Asistente de dirección
+ROLE_ACCOUNT_MANAGER,Key Account Manager,Gestor de grandes cuentas
+ROLE_SALES_DEMONSTRATOR,Buyer Demonstrator,Demostrador para compradores
+ROLE_CONTRACTS_OFFICER,Sales Contracts Officer,Técnico de contratos de venta
+ROLE_VIP_ARCHIVIST,VIP Client Archivist,Archivero de clientes VIP
+ROLE_JOURNALIST,Journalist,Periodista
+ROLE_EXEC_SECRETARY,Executive Secretary,Secretario ejecutivo
+ROLE_POLICE_OFFICER,Police Officer,Agente de policía
+ROLE_SUPERMARKET_CASHIER,Supermarket Cashier,Cajero de supermercado
+ROLE_SHOP_ASSISTANT,Clothes Shop Assistant,Dependiente de tienda de ropa
+ROLE_STREET_VENDOR,Newspaper Vendor,Vendedor de prensa
+ROLE_NEIGHBOUR,Neighbour,Vecino
+ROLE_TICKET_INSPECTOR,Ticket Inspector,Revisor de transporte
+ROLE_PRIVATE_SECURITY,Private Security Guard,Vigilante de seguridad privada
+DEPT_FACTORY,Factory,Fábrica
+DEPT_BASE_FLOORS,Base Floors (PB–5),Plantas base (PB–5)
+DEPT_SPECIALISTS,Specialists (6–9),Especializadas (6–9)
+DEPT_AUDIT_LEGAL,Audit & Legal,Auditoría y Legal
+DEPT_SALES_MARKETING,Sales & Marketing,Ventas y Marketing
+DEPT_BLOCKS,Block Management (10–12),Dirección de bloques (10–12)
+DEPT_TOP,Upper Floors (13–20),Plantas altas (13–20)
+DEPT_EXTERIOR,Outside,Exterior
+INV_STRATEGY_VALUE,Value,Valor
+INV_STRATEGY_VALUE_DESC,"Judges fundamentals only and ignores sentiment. Immune to marketing: only falsified accounts fool it, and only until the audit.","Evalúa exclusivamente fundamentales e ignora el sentimiento. Inmune al marketing: solo la contabilidad falsificada lo engaña, y únicamente hasta la auditoría."
+INV_STRATEGY_MOMENTUM,Momentum,Momentum
+INV_STRATEGY_MOMENTUM_DESC,Follows and amplifies the recent trend. A well-placed headline moves it within hours.,Sigue y amplifica la tendencia reciente. Un titular bien colocado lo desplaza en horas.
+INV_STRATEGY_INFO_HUNTER,Information Hunter,Cazador de información
+INV_STRATEGY_INFO_HUNTER_DESC,Values being early over being right. Can be bought with tips — and every tip is evidence.,"Prioriza la anticipación sobre el análisis. Se compra con soplos, y cada soplo constituye una prueba."
+INV_STRATEGY_ACTIVIST,Activist,Activista
+INV_STRATEGY_ACTIVIST_DESC,Pushes for changes in management. Can be steered against a rival — or turn against you.,Persigue cambios en la dirección. Se le puede dirigir contra un rival; también puede dirigirse contra ti.
+INV_STRATEGY_PASSIVE,Passive Institutional,Pasivo institucional
+INV_STRATEGY_PASSIVE_DESC,"Buys steadily and barely reacts. Responds only to disasters: when it sells, the company is collapsing.","Compra sostenida, reacción mínima. Solo responde a desastres: su venta señala colapso."
+INV_HOWARD_GRANGE_DESC,"Value investor. Reads the footnotes of every report, twice. Money cannot buy him and marketing cannot move him.",Inversor de valor. Lee dos veces las notas al pie de cada informe. El dinero no lo compra y el marketing no lo mueve.
+INV_TANIA_BREKKE_DESC,"Momentum trader who reacts to headlines within hours. She can be bought, but she does not come cheap.","Operadora de momentum que reacciona a los titulares en cuestión de horas. Se puede comprar, pero no sale barata."
+INV_VICTOR_SALLOW_DESC,Information hunter. Pays for tips and accepts cheap bribes. Every tip you sell him is a piece of evidence with your name on it.,Cazador de información. Paga por los soplos y acepta sobornos económicos. Cada soplo que le vendes es una prueba con tu nombre.
+INV_MARGARET_ASH_DESC,"Activist shareholder hungry for changes at the top. She cannot be bribed, but she can be blackmailed — and aimed at a rival, or at you.","Accionista activista con hambre de cambios en la cúpula. Insobornable, pero chantajeable, y se la puede dirigir contra un rival… o contra ti."
+INV_NEIL_DEMING_DESC,"Passive institutional fund. Buys steadily and reacts only to disasters. If he sells, everyone knows the ship is sinking.","Fondo institucional pasivo. Compra de forma sostenida y solo reacciona ante desastres. Si vende, todos saben que el barco se hunde."
+INV_BOBBY_KERR_DESC,Retail momentum investor with a tiny stake and an enormous online following. Very cheap to bribe; impossible to control.,Inversor minorista de momentum con una participación mínima y una audiencia enorme en redes. Muy barato de sobornar; imposible de controlar.
+ROOM_BOILER_ROOM,Boiler Room,Cuarto de calderas
+ROOM_BOILER_ROOM_OPP,Total acoustic mask. No noise can be heard from outside.,Máscara acústica total. Ningún ruido es audible desde fuera.
+ROOM_BOILER_ROOM_RISK,Heat: stays are limited to 20 minutes.,Temperatura: permanencia limitada a 20 min.
+ROOM_ELECTRICAL_ROOM,Electrical Room,Sala eléctrica
+ROOM_ELECTRICAL_ROOM_OPP,Floor-by-floor power cut: disables the cameras for 5 minutes.,Corte de energía por plantas: desactiva cámaras 5 min.
+ROOM_ELECTRICAL_ROOM_RISK,Every blackout triggers an automatic investigation.,Todo apagón genera investigación automática.
+ROOM_MAINTENANCE_STORE,Maintenance Store,Almacén de mantenimiento
+ROOM_MAINTENANCE_STORE_OPP,Maintenance uniform and lock-forcing tools.,"Uniforme de mantenimiento, herramientas de forzado."
+ROOM_MAINTENANCE_STORE_RISK,Frank Rudd passes through often.,Frank Rudd transita con frecuencia.
+ROOM_SERVICE_TUNNEL,Service Tunnel,Túnel de servicio
+ROOM_SERVICE_TUNNEL_OPP,Reach the factory without crossing the ground floor.,Acceso a la nave fabril sin cruzar planta baja.
+ROOM_SERVICE_TUNNEL_RISK,Long route: prolonged exposure time.,Recorrido largo: exposición temporal prolongada.
+ROOM_FORGOTTEN_CORRIDOR,The Corridor Nobody Cleans,El pasillo que nadie limpia
+ROOM_FORGOTTEN_CORRIDOR_OPP,The most reliable hiding place. No investigation ever searches it.,Escondite de fiabilidad máxima. Ninguna investigación lo registra.
+ROOM_FORGOTTEN_CORRIDOR_RISK,Hard to find on a first playthrough.,Localización no evidente en la primera partida.
+ROOM_DEAD_ARCHIVE,Dead Archive,Archivo muerto
+ROOM_DEAD_ARCHIVE_OPP,Hide objects and bodies: the largest hiding place in the game. Compromising historical documents.,Ocultación de objetos y cuerpos. El escondite de mayor capacidad. Documentos históricos comprometedores.
+ROOM_DEAD_ARCHIVE_RISK,A high-severity investigation searches the basements in phase 2.,Una investigación de gravedad alta registra sótanos en fase 2.
+ROOM_SERVER_ROOM,Server Room,Sala de servidores
+ROOM_SERVER_ROOM_OPP,Delete digital records.,Borrado de registros digitales.
+ROOM_SERVER_ROOM_RISK,Cold; access is logged on the server itself.,Frío; el acceso queda registrado en el propio servidor.
+ROOM_BACKUP_ROOM,Backup Room,Cuarto de copias de seguridad
+ROOM_BACKUP_ROOM_OPP,Backups restore what was deleted: they must be destroyed too.,Las copias restauran lo borrado: destruirlas también es necesario.
+ROOM_BACKUP_ROOM_RISK,Missing backups are detected in a systems audit.,La ausencia de copias se detecta en auditoría de sistemas.
+ROOM_OLD_CONFIDENTIAL_CAGE,Old Confidential Records Cage,Jaula de archivo confidencial antiguo
+ROOM_OLD_CONFIDENTIAL_CAGE_OPP,Corporate secrets from decades past.,Secretos corporativos de décadas anteriores.
+ROOM_OLD_CONFIDENTIAL_CAGE_RISK,Old padlock: forcing it makes noise with radius 6.,Candado antiguo: forzarlo emite ruido de radio 6.
+ROOM_GARAGE,Garage and Car Park,Garaje y aparcamiento
+ROOM_GARAGE_OPP,Sabotage executives' cars; hide things; overhear private conversations.,Sabotaje de vehículos de directivos; ocultación; escucha de conversaciones privadas.
+ROOM_GARAGE_RISK,Camera on the entrance ramp.,Cámara en la rampa de entrada.
+ROOM_MAINTENANCE_WORKSHOP,Maintenance Workshop,Taller de mantenimiento
+ROOM_MAINTENANCE_WORKSHOP_OPP,Forcing and cutting tools.,Herramientas de forzado y corte.
+ROOM_SECURITY_LOCKER_ROOM,Security Locker Room,Vestuario de seguridad
+ROOM_SECURITY_LOCKER_ROOM_OPP,Security guard uniform.,Uniforme de vigilante.
+ROOM_SECURITY_LOCKER_ROOM_RISK,Being seen taking it is definitive evidence.,Ser visto sustrayéndolo constituye evidencia definitiva.
+ROOM_CLEANING_LOCKER_ROOM,Cleaning Locker Room,Vestuario de limpieza
+ROOM_CLEANING_LOCKER_ROOM_OPP,Cleaning uniform and the cart with master keys.,Uniforme de limpieza y carrito con llaves maestras.
+ROOM_CLEANING_LOCKER_ROOM_RISK,Connie Marks comes in several times a day.,Connie Marks accede varias veces al día.
+ROOM_GENERAL_WAREHOUSE,General Warehouse,Almacén general
+ROOM_GENERAL_WAREHOUSE_OPP,Resellable valuable materials.,Material de valor revendible.
+ROOM_GENERAL_WAREHOUSE_RISK,Monthly inventory.,Inventario mensual.
+ROOM_TRASH_DOCK,Trash Dock,Muelle de basuras
+ROOM_TRASH_DOCK_OPP,Permanently removes objects from the game.,Extracción definitiva de objetos del juego.
+ROOM_TRASH_DOCK_RISK,Irreversible: whatever is dumped cannot be recovered.,Irreversible: lo depositado no se recupera.
+ROOM_FREIGHT_ELEVATOR_ROOM,Freight Elevator Room,Cuarto del montacargas
+ROOM_FREIGHT_ELEVATOR_ROOM_OPP,Moves large boxes and bodies.,Transporte de cajas grandes y cuerpos.
+ROOM_FREIGHT_ELEVATOR_ROOM_RISK,"Slow, and makes noise with radius 8.",Lento y con emisión de ruido de radio 8.
+ROOM_MAIN_RECEPTION,Main Reception,Recepción principal
+ROOM_MAIN_RECEPTION_OPP,Watch arrivals and visitors.,Observación de llegadas y visitas.
+ROOM_MAIN_RECEPTION_RISK,Receptionist with Perception 70.,Recepcionista con Perspicacia 70.
+ROOM_TURNSTILES,Turnstile Control,Control de torniquetes
+ROOM_TURNSTILES_OPP,Slip in behind another employee during the arrival rush.,Acceso tras otro empleado en franja de llegada.
+ROOM_TURNSTILES_RISK,Permanent clock-in record.,Registro de fichaje permanente.
+ROOM_MONITOR_ROOM,Security Monitor Room,Sala de monitores de seguridad
+ROOM_MONITOR_ROOM_OPP,Delete recordings. View the whole building.,Borrado de grabaciones. Visión de todo el edificio.
+ROOM_MONITOR_ROOM_RISK,Permanently staffed by two guards.,Ocupación permanente por dos vigilantes.
+ROOM_CAFETERIA,Cafeteria,Cafetería
+ROOM_CAFETERIA_OPP,The game's farthest-reaching rumor amplifier.,El amplificador de rumores de mayor alcance del juego.
+ROOM_CAFETERIA_RISK,Maximum density of observers at lunchtime.,Máxima densidad de observadores en franja de comida.
+ROOM_CAFETERIA_KITCHEN,Cafeteria Kitchen,Cocina de la cafetería
+ROOM_CAFETERIA_KITCHEN_OPP,Steal food: removes your food expenses.,Sustracción de alimentos: elimina el gasto de manutención.
+ROOM_CAFETERIA_KITCHEN_RISK,Kitchen staff present.,Personal de cocina presente.
+ROOM_FLAGSHIP_STORE,Flagship Store,Tienda insignia
+ROOM_FLAGSHIP_STORE_OPP,Place stolen product; check real prices.,Colocación de producto sustraído; consulta de precios reales.
+ROOM_FLAGSHIP_STORE_RISK,Camera and shop assistants.,Cámara y dependientes.
+ROOM_VISITOR_LOUNGE,Visitor Lounge,Sala de espera de visitas
+ROOM_VISITOR_LOUNGE_OPP,Overhear buyers before their meeting.,Escucha de compradores antes de su reunión.
+ROOM_MAIL_OFFICE,Mail and Parcel Office,Oficina de paquetería y correo
+ROOM_MAIL_OFFICE_OPP,Intercept internal mail.,Interceptación de correspondencia interna.
+ROOM_MAIL_OFFICE_RISK,The courier notices missing items.,El repartidor detecta ausencias.
+ROOM_INFIRMARY,Infirmary,Enfermería
+ROOM_INFIRMARY_OPP,Recover without leaving a record; medical supplies.,Recuperación sin dejar registro; suministros médicos.
+ROOM_GROUND_TOILETS,Ground Floor Toilets,Baños de planta baja
+ROOM_GROUND_TOILETS_OPP,Blind spot. A safe place for phone calls.,Punto ciego. Espacio seguro para llamadas.
+ROOM_ASSEMBLY_LINE,Assembly Line,Línea de ensamblaje
+ROOM_ASSEMBLY_LINE_OPP,Acoustic mask. Machinery to be shut down at closing.,Máscara acústica. Maquinaria que apagar en el cierre.
+ROOM_ASSEMBLY_LINE_RISK,High density of workers.,Densidad alta de operarios.
+ROOM_MOLD_ROOM,Mold and Last Room,Sala de moldes y hormas
+ROOM_MOLD_ROOM_OPP,Sabotage the molds: degrades product quality.,Sabotaje de moldes: degrada la calidad del producto.
+ROOM_MOLD_ROOM_RISK,Detectable in quality control.,Detectable en control de calidad.
+ROOM_MATERIALS_STORE,Materials Store,Almacén de materiales
+ROOM_MATERIALS_STORE_OPP,Resellable leather and soles.,Cuero y suelas revendibles.
+ROOM_MATERIALS_STORE_RISK,Weekly inventory.,Inventario semanal.
+ROOM_QUALITY_CONTROL,Quality Control,Control de calidad
+ROOM_QUALITY_CONTROL_OPP,File defect reports that sink the foreman.,Emisión de informes de defecto que hunden al capataz.
+ROOM_QUALITY_CONTROL_RISK,Reports carry the issuer's signature.,Los informes llevan la firma del emisor.
+ROOM_FINISHED_GOODS,Finished Goods Warehouse,Almacén de producto terminado
+ROOM_FINISHED_GOODS_OPP,"Theft at three scales: pocket, box and pallet.","Robo en tres escalas: bolsillo, caja y palé."
+ROOM_FINISHED_GOODS_RISK,Weekly inventory: thefts surface with a delay.,Inventario semanal: los robos afloran con retardo.
+ROOM_LOADING_DOCK,Loading Dock,Muelle de carga
+ROOM_LOADING_DOCK_OPP,Move pallets out with an accomplice carrier.,Extracción de palés con transportista cómplice.
+ROOM_LOADING_DOCK_RISK,Traceable delivery notes.,Albaranes rastreables.
+ROOM_FOREMAN_OFFICE,Foreman's Office,Oficina del capataz
+ROOM_FOREMAN_OFFICE_OPP,Forgeable delivery notes; Ernie Vaughn's computer.,Albaranes falsificables; ordenador de Ernie Vaughn.
+ROOM_FOREMAN_OFFICE_RISK,Ernie drops in at irregular intervals.,Ernie entra con frecuencia irregular.
+ROOM_FACTORY_BREAK_ROOM,Factory Break Room,Sala de descanso de fábrica
+ROOM_FACTORY_BREAK_ROOM_OPP,Workers' huddle: information and a read on discontent.,Corrillo de operarios: información y medición del descontento.
+ROOM_FACTORY_DYE_LAB,Dye and Glue Lab,Laboratorio de tintes y pegamentos
+ROOM_FACTORY_DYE_LAB_OPP,Chemicals; sabotage that looks like an accident.,Químicos; sabotajes con apariencia de accidente.
+ROOM_FACTORY_DYE_LAB_RISK,Mishandling leaves physical evidence.,Manipulación errónea genera evidencia física.
+ROOM_HR_OFFICE,Human Resources,Recursos Humanos
+ROOM_HR_OFFICE_OPP,"Complete files on the whole staff: routines, secrets, home addresses. Blank dismissal forms.","Expedientes completos de toda la plantilla: rutinas, secretos, domicilios. Formularios de expulsión en blanco."
+ROOM_HR_OFFICE_RISK,Amelia Cole stays in the room almost all day.,Amelia Cole permanece en la sala casi todo el horario.
+ROOM_TRAINING_ROOM,Training Room,Sala de formación
+ROOM_TRAINING_ROOM_OPP,Tutorial location.,Ubicación del tutorial.
+ROOM_PAYROLL_OFFICE,Payroll Office,Administración de nóminas
+ROOM_PAYROLL_OFFICE_OPP,Salary manipulation; creating ghost employees.,Manipulación salarial; creación de empleados fantasma.
+ROOM_PAYROLL_OFFICE_RISK,Audits detect accumulation.,Auditoría detecta acumulación.
+ROOM_MAIN_COPYROOM,Central Copy Room,Fotocopiadora central
+ROOM_MAIN_COPYROOM_OPP,See every document that gets copied. Mild acoustic mask.,Visibilidad de todo documento copiado. Máscara acústica leve.
+ROOM_P1_TOILETS,Floor 1 Toilets,Baños planta 1
+ROOM_P1_TOILETS_OPP,Blind spot with a duct leading to HR.,Punto ciego con acceso a conducto hacia RRHH.
+ROOM_CALL_CENTER,Call Center,Call center
+ROOM_CALL_CENTER_OPP,The strongest permanent acoustic mask in the building. Complaints usable against departments.,Máscara acústica permanente de mayor intensidad del edificio. Quejas utilizables contra departamentos.
+ROOM_CALL_CENTER_RISK,Thirty-eight potential observers.,Treinta y ocho observadores potenciales.
+ROOM_COMPLAINTS_OFFICE,Complaints Office,Oficina de reclamaciones
+ROOM_COMPLAINTS_OFFICE_OPP,Complaints that discredit other departments.,Reclamaciones que desacreditan a otros departamentos.
+ROOM_ORDERS_ARCHIVE,Active Orders Archive,Archivo activo de pedidos
+ROOM_ORDERS_ARCHIVE_OPP,Deliberately lose rivals' orders.,Extravío deliberado de pedidos de rivales.
+ROOM_ORDERS_ARCHIVE_RISK,Lost orders are audited monthly.,Los pedidos perdidos se auditan mensualmente.
+ROOM_P2_TOILETS,Floor 2 Toilets,Baños planta 2
+ROOM_P2_TOILETS_OPP,Blind spot.,Punto ciego.
+ROOM_WING_3A,Wing 3A,Ala 3A
+ROOM_WING_3A_OPP,Second group of observable characters.,Segundo grupo de personajes observables.
+ROOM_WING_3B,Wing 3B,Ala 3B
+ROOM_WING_3B_OPP,"Your own desk: keys, stamp, computer. Close watch over eleven colleagues.","Escritorio propio: llaves, estampa, ordenador. Vigilancia próxima de once compañeros."
+ROOM_WING_3B_RISK,Eleven permanent observers less than three meters away.,Once observadores permanentes a menos de tres metros.
+ROOM_WING_3C,Wing 3C,Ala 3C
+ROOM_WING_3C_OPP,Third group of characters.,Tercer grupo de personajes.
+ROOM_P3_MEETING_SMALL,Small Meeting Room,Sala de reuniones pequeña
+ROOM_P3_MEETING_SMALL_OPP,Empty most of the working day.,Desocupada la mayor parte del horario.
+ROOM_P3_PANTRY,Floor Pantry,Office de planta
+ROOM_P3_PANTRY_OPP,Communal fridge: steal food. Blind spot.,Nevera comunal: sustracción de alimentos. Punto ciego.
+ROOM_P3_PANTRY_RISK,Frequent coffee traffic.,Tránsito frecuente para café.
+ROOM_P3_COPYROOM,Floor 3 Copy Room,Fotocopiadora planta 3
+ROOM_P3_COPYROOM_OPP,Surplus copies.,Copias excedentes.
+ROOM_P3_TOILETS,Floor 3 Toilets,Baños planta 3
+ROOM_P3_TOILETS_OPP,Blind spot.,Punto ciego.
+ROOM_WING_4A,"Wing 4A, Internal Sales","Ala 4A, ventas internas"
+ROOM_WING_4A_OPP,Characters with sales-branch ideas.,Personajes con ideas de rama comercial.
+ROOM_WING_4B,"Wing 4B, Billing","Ala 4B, facturación"
+ROOM_WING_4B_OPP,Invoices that can be inflated by small amounts.,Facturas inflables en pequeñas cuantías.
+ROOM_WING_4B_RISK,Accounting reviews them monthly.,Contabilidad revisa mensualmente.
+ROOM_WING_4C,"Wing 4C, Admin Support","Ala 4C, soporte administrativo"
+ROOM_FOOSBALL_ROOM,Foosball Break Room,Sala de descanso con futbolín
+ROOM_FOOSBALL_ROOM_OPP,Permanent huddle: cheap information.,Corrillo permanente: información de coste reducido.
+ROOM_OFFICE_SUPPLIES,Office Supplies Store,Almacén de material de oficina
+ROOM_OFFICE_SUPPLIES_OPP,Steal and resell: about €35 a day.,Sustracción y reventa: ~35 € diarios.
+ROOM_OFFICE_SUPPLIES_RISK,Monthly inventory.,Inventario mensual.
+ROOM_P4_TOILETS,Floor 4 Toilets,Baños planta 4
+ROOM_P4_TOILETS_OPP,Blind spot.,Punto ciego.
+ROOM_ACCOUNTING,General Accounting,Contabilidad general
+ROOM_ACCOUNTING_OPP,Falsify ledger entries; uncover other people's fraud to use as blackmail.,Falsificación de asientos; detección de fraudes ajenos utilizables como chantaje.
+ROOM_ACCOUNTING_RISK,Accountants with medium-high Perception.,Contables con Perspicacia media-alta.
+ROOM_INTERNAL_AUDIT,Internal Audit,Auditoría interna
+ROOM_INTERNAL_AUDIT_OPP,See ongoing investigations before you are notified.,Visibilidad de las investigaciones en curso antes de recibir notificación.
+ROOM_INTERNAL_AUDIT_RISK,Rose Miller's territory.,Territorio de Rose Miller.
+ROOM_FLOOR_SAFE,Floor Safe,Caja de planta
+ROOM_FLOOR_SAFE_OPP,Cash on hand.,Efectivo disponible.
+ROOM_FLOOR_SAFE_RISK,Camera and an opening log.,Cámara y registro de apertura.
+ROOM_CHIEF_ACCOUNTANT_OFFICE,Chief Accountant's Office,Despacho del jefe de contabilidad
+ROOM_CHIEF_ACCOUNTANT_OFFICE_OPP,Computer with access to the books.,Ordenador con acceso a los libros.
+ROOM_P5_TOILETS,Floor 5 Toilets,Baños planta 5
+ROOM_P5_TOILETS_OPP,Blind spot.,Punto ciego.
+ROOM_MAIN_ELEVATOR_1,Main Elevator 1,Ascensor principal 1
+ROOM_MAIN_ELEVATOR_1_OPP,Fast travel through the whole tower; also reaches the garage (S1).,Desplazamiento rápido por toda la torre; también llega al garaje (S1).
+ROOM_MAIN_ELEVATOR_1_RISK,Card reader on every floor: permanent record. Camera in the cabin.,Lector de tarjeta por planta: registro permanente. Cámara en cabina.
+ROOM_MAIN_ELEVATOR_2,Main Elevator 2,Ascensor principal 2
+ROOM_MAIN_ELEVATOR_2_OPP,Fast travel through the whole tower.,Desplazamiento rápido por toda la torre.
+ROOM_MAIN_ELEVATOR_2_RISK,"Identical: card reader on every floor, permanent record. Camera in the cabin.","Idéntico: lector de tarjeta por planta, registro permanente. Cámara en cabina."
+ROOM_MAIN_STAIRS,Main Stairs,Escaleras principales
+ROOM_MAIN_STAIRS_OPP,Medium-speed route between floors with no card reader.,Ruta de velocidad media entre plantas sin lector de tarjeta.
+ROOM_MAIN_STAIRS_RISK,Camera; very busy during arrival and exit.,Con cámara; muy transitadas en franjas de entrada y salida.
+ROOM_SERVICE_STAIRS,Service Stairs,Escaleras de servicio
+ROOM_SERVICE_STAIRS_OPP,"The whole tower, from S3 up to the roof, with no cameras and little surveillance.","Toda la torre, de S3 a la azotea, sin cámaras y poco vigiladas."
+ROOM_SERVICE_STAIRS_RISK,Meeting anyone here raises suspicion.,Coincidir con otro personaje genera sospecha.
+ROOM_VENT_NETWORK,Ventilation Network,Red de conductos
+ROOM_VENT_NETWORK_OPP,"Runs through toilets, archives, technical rooms and some offices; no cameras or card readers.","Recorre baños, archivos, salas técnicas y algunos despachos; sin cámaras ni lectores."
+ROOM_VENT_NETWORK_RISK,Very slow; noisy when moving fast.,Desplazamiento lento; ruidoso a velocidad alta.
+ROOM_FREIGHT_ELEVATOR,Freight Elevator,Montacargas
+ROOM_FREIGHT_ELEVATOR_OPP,The only way to move large boxes and bodies.,Único medio para cajas grandes y cuerpos.
+ROOM_FREIGHT_ELEVATOR_RISK,Slow; makes noise with radius 8.,Lento; emite ruido de radio 8.
+ROOM_CLEANING_CLOSET_LOW,"Cleaning Closet, Floors 1–5","Cuarto de limpieza, plantas 1–5"
+ROOM_CLEANING_CLOSET_LOW_OPP,Hiding place.,Escondite.
+ROOM_CLEANING_CLOSET_LOW_RISK,Connie Marks goes in every day.,Connie Marks accede a ellos diariamente.
+ROOM_CLEANING_CLOSET_MID,"Cleaning Closet, Floors 6–12","Cuarto de limpieza, plantas 6–12"
+ROOM_CLEANING_CLOSET_MID_OPP,Hiding place.,Escondite.
+ROOM_CLEANING_CLOSET_MID_RISK,Connie Marks goes in every day.,Connie Marks accede a ellos diariamente.
+ROOM_CLEANING_CLOSET_HIGH,"Cleaning Closet, Floors 13–17","Cuarto de limpieza, plantas 13–17"
+ROOM_CLEANING_CLOSET_HIGH_OPP,Hiding place.,Escondite.
+ROOM_CLEANING_CLOSET_HIGH_RISK,Connie Marks goes in every day.,Connie Marks accede a ellos diariamente.
+ROOM_CLEANING_CLOSET_TOP,"Cleaning Closet, Floors 18–20","Cuarto de limpieza, plantas 18–20"
+ROOM_CLEANING_CLOSET_TOP_OPP,Hiding place.,Escondite.
+ROOM_CLEANING_CLOSET_TOP_RISK,Connie Marks goes in every day.,Connie Marks accede a ellos diariamente.
+ROOM_CORRIDORS_LOW,"Corridors, Floors 1–12","Pasillos, plantas 1–12"
+ROOM_CORRIDORS_LOW_RISK,Patrolled by guards; cameras.,Patrullados por vigilantes; con cámaras.
+ROOM_CORRIDORS_HIGH,"Corridors, Floors 13–20","Pasillos, plantas 13–20"
+ROOM_CORRIDORS_HIGH_RISK,Intensified patrols; cameras.,Patrullaje intensificado; con cámaras.
+DEPT_BASE,Base Floors,Plantas base

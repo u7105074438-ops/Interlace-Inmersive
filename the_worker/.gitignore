@@ -1,0 +1,4 @@
+# Godot generated caches
+.godot/
+/android/
+*.tmp
