@@ -1,0 +1,223 @@
+{
+  "_version": 1,
+  "_nota": "Todos los parámetros ajustables. Los presets de dificultad multiplican sobre estos valores base.",
+  "economia": {
+    "_nota": "Tesis del diseño: el salario honesto nunca financia el ascenso.",
+    "desayuno_min": 4,
+    "desayuno_max": 6,
+    "cena_min": 8,
+    "cena_max": 12,
+    "alquiler_diario": 7,
+    "dinero_inicial": 120,
+    "estatus_por_escalon": {
+      "5": 40,
+      "6": 60,
+      "7": 90,
+      "8": 120
+    },
+    "penalizacion_reputacion_sin_traje": 2.0,
+    "precio_traje_ejecutivo": 1800,
+    "precio_pasamontanas": 45,
+    "precio_paquete_accionarial": 250000
+  },
+  "tiempo": {
+    "minutos_reales_por_jornada": 11.0,
+    "hora_inicio_jornada": 8,
+    "hora_fin_jornada": 19,
+    "velocidad_en_ordenador": 0.4,
+    "jornadas_por_semana": 5,
+    "jornadas_por_mes": 20,
+    "jornadas_por_trimestre": 25,
+    "aviso_deber_pendiente_horas_antes": 1
+  },
+  "percepcion": {
+    "cono_angulo_base": 75.0,
+    "cono_distancia_base": 8.0,
+    "cono_angulo_hardliner": 100.0,
+    "velocidad_llenado_base": 1.0,
+    "velocidad_vaciado_base": 0.4,
+    "mod_agachado": 0.5,
+    "mod_inmovil": 0.7,
+    "mod_esprint": 1.8,
+    "mod_obstruccion_parcial": 0.4,
+    "mod_perspicacia_por_punto": 0.01,
+    "mod_sospecha_por_punto": 0.005,
+    "umbral_parcial": 0.45,
+    "umbral_flagrancia": 1.0,
+    "umbral_perdida_contacto": 0.1,
+    "distancia_reconocimiento_disfraz": 3.0,
+    "distancia_clasificacion_uniforme": 6.0
+  },
+  "ruido": {
+    "radio_sigiloso": 1.0,
+    "radio_normal": 3.5,
+    "radio_esprint": 9.0,
+    "radio_cajon": 4.0,
+    "radio_forzar_cerradura": 6.0,
+    "radio_romper_objeto": 12.0,
+    "radio_lector_tarjeta": 2.0,
+    "radio_montacargas": 8.0,
+    "reduccion_por_mascara": 0.15
+  },
+  "creencias": {
+    "certeza_directa_completa": 0.9,
+    "certeza_parcial": 0.35,
+    "descuento_por_transmision": 0.75,
+    "amplificacion_rumor_max": 1.15,
+    "decaimiento_diario": 0.08,
+    "umbral_olvido": 0.1,
+    "mod_credibilidad_por_reputacion": 0.003,
+    "mod_certeza_inicial_por_reputacion_jugador": -0.002
+  },
+  "sobornos": {
+    "base": 0.1,
+    "peso_codicia": 0.4,
+    "peso_ratio_oferta": 0.2,
+    "peso_afecto_deuda": 0.1,
+    "peso_reputacion": 0.1,
+    "peso_sospecha": -0.3,
+    "peso_valentia": -0.15,
+    "peso_lealtad": -0.2,
+    "mod_rango_superior": 0.1,
+    "mod_rango_inferior": -0.1,
+    "probabilidad_maxima": 0.95,
+    "insobornable_codicia_max": 20,
+    "insobornable_lealtad_min": 80,
+    "umbral_oferta_insultante": 0.5,
+    "penalizacion_oferta_insultante": 0.33,
+    "umbral_denuncia_valentia": 60,
+    "umbral_denuncia_lealtad": 70,
+    "umbral_silencio_valentia": 30,
+    "umbral_contraoferta_codicia": 70,
+    "factor_contraoferta_min": 1.3,
+    "factor_contraoferta_max": 1.8
+  },
+  "investigaciones": {
+    "umbral_apertura": 3.0,
+    "umbral_lista_corta": 5.0,
+    "umbral_condena_leve": 7.0,
+    "umbral_condena_grave": 10.0,
+    "dias_recogida_min": 2,
+    "dias_recogida_max": 10,
+    "mod_umbral_por_sospecha": -0.03,
+    "jornadas_respiro_minimo": 3,
+    "prob_revision_al_cambiar_auditor": 0.4,
+    "dias_congelacion_por_abogado": 3,
+    "pesos_evidencia": {
+      "testigo_directo": 4.0,
+      "testigo_parcial": 0.8,
+      "grabacion_camara": 4.5,
+      "registro_tarjeta": 2.5,
+      "objeto_comprometedor": 10.0,
+      "rastro_contable": 3.0,
+      "rumor_sin_fuente": 0.3,
+      "cuerpo_hallado": 12.0,
+      "documento_falsificado": 5.0,
+      "bonus_oportunidad": 2.0,
+      "bonus_movil": 1.5,
+      "bonus_ultimo_en_salir": 3.5
+    }
+  },
+  "mercado": {
+    "alpha_gravedad": 0.05,
+    "beta_sentimiento": 0.3,
+    "gamma_momentum": 0.15,
+    "ruido_diario_max": 0.03,
+    "precio_inicial": 42.5,
+    "multiplo_base": 14.0,
+    "mod_multiplo_crecimiento": 0.8,
+    "mod_multiplo_riesgo": -1.2,
+    "dias_momentum": 5,
+    "mecha_auditoria_min_semanas": 2,
+    "mecha_auditoria_max_semanas": 8,
+    "trimestres_malos_para_degradar": 2,
+    "umbral_patron_insider": 2.0,
+    "peso_presentacion_calidad": 0.6,
+    "peso_presentacion_cifras": 0.4
+  },
+  "ideas": {
+    "prob_generacion_diaria_base": 0.12,
+    "mod_prob_por_ambicion": 0.004,
+    "frescura_min_jornadas": 3,
+    "frescura_max_jornadas": 10,
+    "calidad_min": 20,
+    "calidad_max": 100,
+    "factor_presentacion_sin_preparar": 0.6,
+    "factor_presentacion_assist": 0.8,
+    "factor_presentacion_real": 1.0,
+    "umbral_diferencia_choque": 20,
+    "penalizacion_reputacion_derrota_choque": -20,
+    "penalizacion_reputacion_acusador_fallido": -15,
+    "certeza_creencia_roba_ideas": 0.85
+  },
+  "deberes": {
+    "assist_prob_aceptable": 0.6,
+    "assist_prob_excelente": 0.25,
+    "assist_prob_desastre": 0.15,
+    "assist_umbral_deteccion_perspicacia": 60,
+    "fallos_para_aviso": 1,
+    "fallos_para_descenso": 3,
+    "fallos_para_expulsion": 5,
+    "penalizacion_reputacion_fallo": -8
+  },
+  "descontento": {
+    "inicial": 20,
+    "por_despido_injusto": 5,
+    "por_cuota_excesiva_diaria": 2,
+    "por_manipulacion_nominas": 10,
+    "por_condiciones_fabrica": 3,
+    "reduccion_por_concesion": -15,
+    "reduccion_por_despedir_causante": -10,
+    "umbral_huelga": 70
+  },
+  "seguimiento": {
+    "sangre_por_eliminacion": 10,
+    "sangre_por_cuerpo_ocultado": 5,
+    "oro_por_mil_en_sobornos": 1,
+    "oro_por_dos_mil_robados": 1,
+    "oro_por_fraude": 5,
+    "seda_por_idea_robada": 8,
+    "seda_por_incriminacion": 5,
+    "seda_por_rumor_plantado": 3,
+    "seda_por_falsificacion": 5,
+    "sudor_por_deber_honesto": 2,
+    "sudor_por_informe_real": 10,
+    "ruina_por_punto_perdidas": 1,
+    "ruina_por_talento_expulsado": 5,
+    "ruina_por_escandalo": 10,
+    "umbral_ruina_cascaron": 150
+  },
+  "lod": {
+    "radio_salas_completo": 1,
+    "intervalo_medio_segundos": 0.5,
+    "intervalo_estadistico_segundos": 5.0,
+    "max_agentes_completo": 20,
+    "max_agentes_medio": 40,
+    "max_agentes_total": 150
+  },
+  "dificultad": {
+    "interno": {
+      "decaimiento_sospecha": 1.4,
+      "precio_soborno": 0.75,
+      "margen_deberes": 1.5
+    },
+    "estandar": {
+      "decaimiento_sospecha": 1.0,
+      "precio_soborno": 1.0,
+      "margen_deberes": 1.0
+    },
+    "auditoria": {
+      "decaimiento_sospecha": 0.6,
+      "precio_soborno": 1.25,
+      "margen_deberes": 0.7
+    }
+  },
+  "presets_por_defecto": "estandar",
+  "mundo": {
+    "px_por_unidad": 48,
+    "planta_fabrica": 100,
+    "planta_exterior": 200,
+    "planta_azotea": 21,
+    "planta_transversal": -99
+  }
+}
