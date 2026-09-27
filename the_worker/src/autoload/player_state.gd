@@ -87,6 +87,12 @@ extends Node
 ##    LOD 0 forzado ("marked_target") con get_marked_targets(). Expedientes anticipados
 ##    (grant_full_file/has_full_file) y estudios (record_study/get_studies) de PERSONNEL.
 ##  · BANDERAS (get_flag/set_flag): estado genérico de misiones y del final, guardado.
+##  · DISFRAZ (§11.4, §4.3): set_disguise() no comprueba nada (Disguise.wear sí). Si el objeto
+##    puesto deja de tenerse (has_item falso: vendido, escondido, desechado, requisado o puesto
+##    perdido al cambiar de ocupación), el disfraz se quita solo (disguise_changed("")).
+##  · EXPEDIENTE COMPLETO (§13.4, regla única para PERSONNEL y NightOps):
+##    get_full_file_access_reason(id) = "hr_post" (puesto con special_access personnel_files_full)
+##    | motivo concedido (grant_full_file) | "blackmail" (agravio "blackmailed" en su registro).
 
 const AXES: Array[String] = ["blood", "gold", "silk", "sweat", "ruin"]
 const TRACKING_SOURCE := "player_state"
@@ -134,6 +140,11 @@ const NOTE_CATEGORY_CONTACTS := "contacts"
 const NOTE_CONTACT_ADDED := "NOTE_CONTACT_ADDED"
 const CONTACT_SOURCE_KEY_FORMAT := "CONTACT_SOURCE_%s"
 const REASON_HR_INTRUSION := "hr_intrusion"
+const REASON_HR_POST := "hr_post"
+const REASON_BLACKMAIL := "blackmail"
+const ACCESS_FULL_FILES := "personnel_files_full"
+const LEDGER_GRIEVANCES := "grievances"
+const GRIEVANCE_TYPE := "type"
 const DEPARTMENT_KEY := "department"
 
 # Campos de cada deber de la jornada (además de los de occupations.json).
@@ -449,6 +460,7 @@ func remove_item(item_id: String) -> bool:
 		return false
 	_take_unit(index)
 	EventBus.inventory_changed.emit(item_id, false)
+	_drop_unheld_disguise()
 	return true
 
 
@@ -499,6 +511,7 @@ func dispose_item(item_id: String, method: String) -> bool:
 	_take_unit(index)
 	EventBus.inventory_changed.emit(item_id, false)
 	EventBus.item_disposed.emit(item_id, method)
+	_drop_unheld_disguise()
 	return true
 
 
@@ -515,6 +528,7 @@ func confiscate_hot_items() -> Array[String]:
 			EventBus.inventory_changed.emit(item.id, false)
 			EventBus.item_disposed.emit(item.id, METHOD_CONFISCATED)
 		_slots.remove_at(index)
+	_drop_unheld_disguise()
 	return taken
 
 
@@ -541,6 +555,7 @@ func stash_item(item_id: String, spot_id: String, room_id: String) -> bool:
 	_add_to_stash(spot_id, room_id, location, unit)
 	EventBus.inventory_changed.emit(item_id, false)
 	EventBus.item_hidden.emit(item_id, spot_id)
+	_drop_unheld_disguise()
 	return true
 
 
@@ -701,6 +716,12 @@ func set_disguise(uniform_id: String) -> void:
 	EventBus.disguise_changed.emit(uniform_id)
 
 
+## El disfraz puesto ya no se tiene (ni encima ni entregado por el puesto): se quita.
+func _drop_unheld_disguise() -> void:
+	if not _disguise.is_empty() and not has_item(_disguise):
+		set_disguise("")
+
+
 ## Sustituye a get_name() de BUILD_NOTES §13 (Node.get_name() no se puede redefinir).
 func get_player_name() -> String:
 	return _player_name if not _player_name.is_empty() else tr(DEFAULT_NAME_KEY)
@@ -850,6 +871,22 @@ func has_full_file(npc_id: String) -> bool:
 ## EXTRA: motivo del expediente concedido ("" si no hay).
 func get_full_file_reason(npc_id: String) -> String:
 	return str(_records.full_files.get(npc_id, ""))
+
+
+## EXTRA (§13.4, §23 hr_assistant): motivo del acceso completo al expediente de ese personaje por
+## cualquier vía: REASON_HR_POST (puesto con special_access personnel_files_full), el concedido
+## (grant_full_file) o REASON_BLACKMAIL (agravio "blackmailed" en su registro); "" si no hay.
+func get_full_file_access_reason(npc_id: String) -> String:
+	if _occupation != null and _occupation.special_access.has(ACCESS_FULL_FILES):
+		return REASON_HR_POST
+	var granted: String = get_full_file_reason(npc_id)
+	if not granted.is_empty():
+		return granted
+	for grievance: Variant in NPCDirector.get_ledger(npc_id).get(LEDGER_GRIEVANCES, []):
+		if grievance is Dictionary and str(grievance.get(GRIEVANCE_TYPE, "")) \
+				== NPCDirectorSystem.GRIEVANCE_BLACKMAILED:
+			return REASON_BLACKMAIL
+	return ""
 
 
 ## EXTRA: guarda el resultado de un estudio (§13.4) de `action` sobre el personaje.
@@ -1065,6 +1102,7 @@ func _adopt_occupation(id: String, reason: String, announce: bool) -> bool:
 		EventBus.occupation_changed.emit(old_id, id, reason)
 	if occupation.clearance != old_clearance:
 		EventBus.clearance_changed.emit(old_clearance, occupation.clearance)
+	_drop_unheld_disguise()
 	return true
 
 

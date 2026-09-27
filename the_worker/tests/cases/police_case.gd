@@ -1,5 +1,5 @@
-# police_case.gd — Cuerpo de test_police: testigos con y sin pasamontañas (creencia con identidad y registro en el edificio / sin sujeto), aviso consolidado y despacho, tiempo de respuesta, llegada con el jugador en la escena, evasión por callejones, cerco por quedarse o por agotar tramos, refugio y persistencia.
-# PROPIETARIO DE: nada (el nodo Police que crea vive solo durante el caso).
+# police_case.gd — Cuerpo de test_police: testigos con y sin pasamontañas (creencia con identidad y registro en el edificio / sin sujeto), aviso consolidado y despacho desde la comisaría, tiempo de respuesta, llegada con el jugador en la escena, evasión por callejones, tramos que no se gastan antes de la llegada, cerco por quedarse o por agotar tramos, refugio, denuncias del mundo y persistencia (save_state en plena búsqueda y a través de SaveSystem).
+# PROPIETARIO DE: nada (el nodo Police que crea vive solo durante el caso; su carpeta de guardado se borra al final).
 # ESCUCHA: police_dispatched, police_arrived, police_evaded, game_over, subtitle_posted (registro durante el caso).
 extends TestCase
 
@@ -11,6 +11,7 @@ const STREET := "street"
 const ALLEYS := "alleys"
 const FLAT := "player_flat"
 const DAY := 2
+const STORAGE_FORMAT := "user://test_police_%d"
 const NIGHT_HOUR := 22
 const WATCHED: Array[String] = ["police_dispatched", "police_arrived", "police_evaded", "game_over",
 		"subtitle_posted"]
@@ -29,12 +30,15 @@ func run_case() -> void:
 	_test_response_times()
 	_test_arrest_on_scene()
 	_test_alley_evasion()
+	_test_alleys_not_spent_before_arrival()
 	_test_cordon_staying()
 	_test_cordon_out_of_alleys()
 	_test_exposed_cordon()
 	_test_refuge_rules()
 	_test_world_reports_and_alarm()
 	_test_alert_expires_and_save()
+	_test_pursuit_save_load()
+	_test_save_system_round_trip()
 	_log.stop()
 	_police.queue_free()
 	await get_tree().process_frame
@@ -128,6 +132,8 @@ func _test_response_times() -> void:
 	_police.dispatch(MANSION)
 	var args: Array = _log.last("police_dispatched")
 	check(args.size() == 2 and str(args[0]) == MANSION, "police_dispatched(target)")
+	check_eq(_police.get_origin(), Database.get_balance("policia.sala_comisaria"),
+			"the unit leaves from the police station")
 	check_near(float(args[1]), base * 0.6, EPS, "police_dispatched carries the response time (minutes)")
 	_advance(base * 0.6 - 1.0)
 	check_eq(_police.get_state(), Police.STATE_DISPATCHED, "still on the way one minute before")
@@ -236,6 +242,16 @@ func _test_world_reports_and_alarm() -> void:
 	check_eq(_police.get_state(), Police.STATE_IDLE, "a report inside the building is Security's")
 	EventBus.npc_reported_player.emit(_role_npc("neighbour"), "direct_witness", 4.0, STREET)
 	check_eq(_police.get_state(), Police.STATE_DISPATCHED, "a witness who decides to report outside calls the police")
+	check(_police.is_identified(), "an unmasked player is recognised by the world witness")
+	check_eq(_records_at(STREET), 1, "the identified world report reaches the building as a record")
+	EventBus.npc_reported_player.emit(_role_npc("neighbour"), "partial_witness", 0.8, STREET)
+	check_eq(_records_at(STREET), 1, "still one record per alert")
+	_fresh(STREET)
+	PlayerState.add_item("balaclava")
+	Disguise.wear("balaclava")
+	EventBus.npc_reported_player.emit(_role_npc("neighbour"), "direct_witness", 4.0, STREET)
+	check(not _police.is_identified() and _records_at(STREET) == 0,
+			"a masked player leaves no record from a world report")
 	_fresh(MANSION)
 	check(_police.report_alarm(MANSION), "an alarm dispatches at once")
 	check_near(_police.get_eta(), Police.response_time_for(MANSION), EPS, "alarm response time")
@@ -257,3 +273,75 @@ func _test_alert_expires_and_save() -> void:
 	copy.free()
 	GameClock.advance_to_next_day()
 	check_eq(_police.get_state(), Police.STATE_IDLE, "an unconsolidated alert expires overnight")
+
+
+## PASO 39 / §22.16: los tramos de callejón se cuentan en la persecución, no mientras la unidad
+## está en camino (pasearse por los callejones antes de la llegada no los gasta).
+func _test_alleys_not_spent_before_arrival() -> void:
+	_fresh(HUMBLE)
+	_police.dispatch(HUMBLE)
+	for i: int in 3:
+		_move(STREET)
+		_advance(1.0)
+		_move(ALLEYS)
+		_police.enter_hiding("alley_dumpster_west")
+		_advance(1.0)
+	check_eq(_police.get_state(), Police.STATE_DISPATCHED, "the unit is still on its way")
+	check_eq(_police.get_alleys_left(), Database.get_balance_int("policia.callejones"),
+			"walking the alleys before arrival spends no stretch")
+	_advance(Police.response_time_for(HUMBLE))
+	check_eq(_police.get_state(), Police.STATE_SEARCHING, "arrival: the search starts")
+	_advance(0.5)
+	check_eq(_police.get_state(), Police.STATE_SEARCHING,
+			"hiding in the alley right after arrival is no cordon")
+	check_eq(_police.get_alleys_left(), Database.get_balance_int("policia.callejones") - 1,
+			"the alley the player is in becomes the first stretch")
+
+
+## save_state/load_state en plena búsqueda (tramos, cerco, ocultación, comisaría).
+func _test_pursuit_save_load() -> void:
+	_fresh(HUMBLE)
+	_police.dispatch(HUMBLE)
+	_move(STREET)
+	_advance(Police.response_time_for(HUMBLE))
+	_advance(3.0)
+	_move(ALLEYS)
+	_advance(4.0)
+	_police.enter_hiding("alley_dumpster_west")
+	_advance(2.0)
+	var saved: Dictionary = _police.save_state()
+	var copy: Police = Police.new()
+	copy.load_state(JSON.parse_string(JSON.stringify(saved)))
+	check_eq(copy.get_state(), Police.STATE_SEARCHING, "mid-pursuit state survives")
+	check_eq(copy.get_origin(), _police.get_origin(), "origin survives")
+	check_near(copy.get_search_minutes_left(), _police.get_search_minutes_left(), EPS, "search left")
+	check_near(copy.get_cordon_minutes_left(), _police.get_cordon_minutes_left(), EPS, "cordon left")
+	check_near(copy.get_hidden_minutes(), _police.get_hidden_minutes(), EPS, "hidden minutes")
+	check_eq(copy.get_alleys_left(), _police.get_alleys_left(), "stretches used")
+	check_near(copy.get_alley_minutes_left(), _police.get_alley_minutes_left(), EPS, "stretch minutes")
+	check_eq(copy.save_state(), saved, "identical after a JSON round trip")
+	copy.free()
+
+
+## La persecución viaja en run.json como "scene:Police" (SaveSystem).
+func _test_save_system_round_trip() -> void:
+	var dir: String = STORAGE_FORMAT % OS.get_process_id()
+	SaveSystem.set_storage_dir(dir)
+	_fresh(HUMBLE)
+	_police.dispatch(HUMBLE)
+	_move(STREET)
+	_advance(Police.response_time_for(HUMBLE) + 2.0)
+	var before: Dictionary = _police.save_state()
+	check(SaveSystem.save_run(), "run saved during the search")
+	_police.reset_for_new_run()
+	check_eq(_police.get_state(), Police.STATE_IDLE, "reset clears the pursuit")
+	check(SaveSystem.load_run(), "run loaded")
+	GameClock.pause()
+	check_eq(_police.get_state(), Police.STATE_SEARCHING, "SaveSystem hands the pursuit back")
+	check_near(_police.get_cordon_minutes_left(), float(before["cordon_left"]), EPS,
+			"with its cordon clock")
+	SaveSystem.delete_run()
+	DirAccess.remove_absolute(dir)
+	SaveSystem.set_storage_dir("")
+	SaveSystem.reset_for_new_run()
+	check(not DirAccess.dir_exists_absolute(dir), "the case leaves no files behind")

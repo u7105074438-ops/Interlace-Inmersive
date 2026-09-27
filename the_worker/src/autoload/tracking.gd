@@ -42,8 +42,10 @@ extends Node
 ##  · Finales: endings.json evaluation_order; gana el primero cuyas condiciones se cumplen (rank
 ##    exacto, rank_max, has_ownership_documents, notarised, hybrid, dominant_axis, cause). Ninguno →
 ##    fallback_ending. Documentos = el jugador lleva o tiene escondido "ownership_documents"
-##    (PlayerState) o ya los ha notariado. `cause: ["any"]` = cualquier causa terminal (no vale
-##    "sin causa": mientras la partida sigue no hay final parcial). `has_ownership_documents: false`
+##    (PlayerState), los tiene depositados en la notaría durante la comprobación (bandera de
+##    PlayerState DOCS_LODGED_FLAG, la pone Endgame) o ya los ha notariado. `cause: ["any"]` =
+##    cualquier causa terminal (no vale "sin causa": mientras la partida sigue no hay final
+##    parcial). `has_ownership_documents: false`
 ##    (THE FIGUREHEAD) se lee como "sin documentos NOTARIADOS" (endings.json _nota_figurehead): un
 ##    R33 con papeles sin notariar cesado por el consejo o al agotar su mandato es THE FIGUREHEAD.
 ##  · Causa: evaluate_ending() usa la causa terminal ya registrada (game_over), si no
@@ -66,6 +68,8 @@ const TIER_HUSK := "husk"
 const RUIN_TIERS: Array[String] = [TIER_EMPIRE, TIER_HUSK]
 const PLAYER_ID := "player"
 const OWNERSHIP_ITEM := "ownership_documents"
+## Bandera de PlayerState (la escribe Endgame): documentos en custodia del notario (§11.8 fase 5).
+const DOCS_LODGED_FLAG := "endgame.documents_lodged"
 const CAUSE_NOTARISED := "ownership_notarised"
 const CAUSE_ANY := "any"
 const VERDICT_OTHER := "other_guilty"
@@ -401,9 +405,11 @@ func get_terminal_cause() -> String:
 	return CAUSE_NOTARISED if _notarised else ""
 
 
-## Documentos de propiedad: en el inventario, en un escondite del jugador o ya notariados.
+## Documentos de propiedad: en el inventario, en un escondite del jugador, en custodia del
+## notario mientras los comprueba o ya notariados.
 func has_ownership_documents() -> bool:
-	if _notarised or PlayerState.has_item(OWNERSHIP_ITEM):
+	if _notarised or PlayerState.has_item(OWNERSHIP_ITEM) \
+			or bool(PlayerState.get_flag(DOCS_LODGED_FLAG, false)):
 		return true
 	for record: Variant in PlayerState.get_stashes().values():
 		for item: Variant in _dict(record).get(STASH_ITEMS, []):

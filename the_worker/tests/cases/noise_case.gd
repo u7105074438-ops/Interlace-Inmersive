@@ -1,4 +1,4 @@
-# noise_case.gd — Cuerpo de test_noise: radio efectivo con máscara acústica, giro hacia un esprint cercano (no en el call center), pasos normales ignorados, investigación por perspicacia, reparto por NPCLayer.
+# noise_case.gd — Cuerpo de test_noise: radio efectivo con máscara acústica, giro hacia un esprint cercano (no en el call center), pasos normales ignorados, muros que atenúan, investigación solo si el ruido lo merece, reparto por NPCLayer.
 # PROPIETARIO DE: nada.
 # ESCUCHA: nada.
 extends TestCase
@@ -31,6 +31,7 @@ func run_case() -> void:
 	_check_turns_to_sprint()
 	_check_normal_steps()
 	_check_investigation()
+	await _check_walls()
 	await _check_layer_call_center()
 
 
@@ -100,25 +101,60 @@ func _check_normal_steps() -> void:
 	node.free()
 
 
-## Investiga (camina al origen) si su perspicacia supera el umbral y no ve el origen.
+## Investiga (camina al origen) si su perspicacia supera el umbral, no ve el origen y el ruido lo
+## merece: del jugador digno de atención o ajeno y fuerte. Un esprint legal solo gira cabezas.
 func _check_investigation() -> void:
 	var sprint: float = Database.get_balance_float("ruido.radio_esprint")
 	var threshold: float = Database.get_balance_float("percepcion.umbral_investigar_ruido")
 	var sharp: NPCNode = _node(LISTENER, Vector2.ZERO, Vector2.DOWN)
 	check(sharp.perception.get_perception_value() >= threshold, "the snitch's perception is above the threshold")
-	var behind: Dictionary = sharp.perception.hear(Vector2(0.0, -4.0 * _cell), sprint, "player", WING, false)
-	check(bool(behind.get("investigate", false)), "a perceptive NPC investigates a noise it cannot see")
+	var legit: Dictionary = sharp.perception.hear(Vector2(0.0, -4.0 * _cell), sprint, "player", WING, false)
+	check(not legit.is_empty() and not bool(legit.get("investigate", true)),
+			"a legitimate sprint behind a perceptive NPC: it turns its head but stays at its desk")
+	var behind: Dictionary = sharp.perception.hear(Vector2(0.0, -4.0 * _cell), sprint, "player", WING, true)
+	check(bool(behind.get("investigate", false)), "a perceptive NPC investigates a noteworthy player's noise it cannot see")
+	var crash: float = Database.get_balance_float("ruido.radio_romper_objeto")
+	var broken: Dictionary = sharp.perception.hear(Vector2(0.0, -5.0 * _cell), crash, "object", WING, false)
+	check(bool(broken.get("investigate", false)), "…and something breaking nearby (%.0f m noise)" % crash)
 	sharp.perception.set_view(Vector2.RIGHT, true)
-	var seen: Dictionary = sharp.perception.hear(Vector2(3.0 * _cell, 0.0), sprint, "player", WING, false)
+	var seen: Dictionary = sharp.perception.hear(Vector2(3.0 * _cell, 0.0), sprint, "player", WING, true)
 	check(not seen.is_empty() and not bool(seen.get("investigate", true)), "…but only looks if it can see the origin")
 	sharp.free()
 	var dull: NPCNode = _node(DULL_LISTENER, Vector2.ZERO, Vector2.DOWN)
-	var close: Dictionary = dull.perception.hear(Vector2(0.0, -2.0 * _cell), sprint, "player", WING, false)
+	var close: Dictionary = dull.perception.hear(Vector2(0.0, -2.0 * _cell), sprint, "player", WING, true)
 	check(not close.is_empty() and not bool(close.get("investigate", true)),
-			"the oblivious one hears a sprint right next to them but does not investigate")
-	check(dull.perception.hear(Vector2(0.0, -4.0 * _cell), sprint, "player", WING, false).is_empty(),
+			"the oblivious one hears a noteworthy sprint right next to them but does not investigate")
+	check(dull.perception.hear(Vector2(0.0, -4.0 * _cell), sprint, "player", WING, true).is_empty(),
 			"headphones: a sprint 4 m away goes unnoticed (radius × oido_oblivious)")
 	dull.free()
+
+
+## Un muro (capa 1) entre el ruido y quien escucha reduce el radio a × factor_oido_muro.
+func _check_walls() -> void:
+	var sprint: float = Database.get_balance_float("ruido.radio_esprint")
+	var factor: float = Database.get_balance_float("percepcion.factor_oido_muro")
+	var node: NPCNode = _node(TURNER, Vector2.ZERO, Vector2.DOWN)
+	var wall: StaticBody2D = StaticBody2D.new()
+	wall.collision_layer = 1
+	var shape: CollisionShape2D = CollisionShape2D.new()
+	var box: RectangleShape2D = RectangleShape2D.new()
+	box.size = Vector2(0.3 * _cell, 20.0 * _cell)
+	shape.shape = box
+	shape.position = Vector2(1.5 * _cell, 0.0)
+	wall.add_child(shape)
+	add_child(wall)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var far: Vector2 = Vector2((sprint * factor + 1.0) * _cell, 0.0)
+	var near: Vector2 = Vector2((sprint * factor - 1.0) * _cell, 0.0)
+	check(node.perception.hear(far, sprint, "player", WING, false).is_empty(),
+			"a sprint %.1f m away behind a wall is not heard (radius × %.1f)" % [far.x / _cell, factor])
+	check(not node.perception.hear(near, sprint, "player", WING, false).is_empty(),
+			"…the same sprint %.1f m away through the wall is heard" % [near.x / _cell])
+	check(not node.perception.hear(Vector2(-(sprint - 1.0) * _cell, 0.0), sprint, "player", WING, false).is_empty(),
+			"without a wall in between, the full radius applies")
+	wall.free()
+	node.free()
 
 
 ## Integración: NPCLayer reparte noise_emitted; en el call center nadie reacciona a un esprint.

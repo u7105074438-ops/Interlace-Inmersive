@@ -1,5 +1,5 @@
 # police.gd — Respuesta policial en el exterior (§4.3, §22.16, PASO 39): testigos y creencias fuera del edificio, aviso consolidado, unidad despachada desde la comisaría, llegada, persecución por callejones y cerco.
-# PROPIETARIO DE: el aviso en curso (certeza acumulada, sala, identidad conocida, registro enviado al edificio), la unidad despachada (minutos hasta la llegada), la persecución (búsqueda, cerco, tramos de callejón, ocultación) y la marca de fin de partida enviada.
+# PROPIETARIO DE: el aviso en curso (certeza acumulada, sala, identidad conocida, registro enviado al edificio), la unidad despachada (comisaría de origen, minutos hasta la llegada), la persecución (búsqueda, cerco, tramos de callejón, ocultación) y la marca de fin de partida enviada.
 # ESCUCHA: npc_reported_player, room_entered, day_advanced, game_over, run_started.
 class_name Police
 extends Node
@@ -22,17 +22,21 @@ extends Node
 ##    la creencia no tiene sujeto determinado (BeliefNet.UNKNOWN_SUBJECT) y no hay registro.
 ##    Los testigos que ve el mundo (Perception) siguen el flujo normal (flagrancia §12.2, utilidad):
 ##    si deciden denunciar (npc_reported_player) en una sala exterior, eso es la llamada a la
-##    policía (certeza plena si es testigo directo o canal, parcial si partial_witness).
+##    policía (certeza plena si es testigo directo o canal, parcial si partial_witness); sin
+##    pasamontañas deja el mismo registro único en el edificio que witness_crime.
 ##  · AVISO CONSOLIDADO: suma de certezas >= policia.umbral_aviso_consolidado (un testigo directo o
-##    varios parciales) o report_alarm() (alarma de una mansión) → dispatch: unidad desde
-##    policia.sala_comisaria, llegada = minutos_respuesta_base × factor_respuesta_por_sala[sala]
-##    (police_dispatched + subtítulo de sirenas). Un aviso sin consolidar caduca al cambiar de jornada.
+##    varios parciales) o report_alarm() (alarma de una mansión) → dispatch: la unidad sale de
+##    policia.sala_comisaria (get_origin(): el mundo la hace aparecer allí y la lleva a
+##    get_target() en get_eta() minutos), llegada = minutos_respuesta_base ×
+##    factor_respuesta_por_sala[sala] (police_dispatched + subtítulo de sirenas). Un aviso sin consolidar caduca al cambiar de jornada.
 ##  · LLEGADA (police_arrived(sala del aviso)): jugador aún en esa sala → arresto. Si no, búsqueda
 ##    de minutos_busqueda. Expuesto (calle, tiendas, viviendas...) consume minutos_cerco: a cero,
 ##    el cerco se cierra (police_arrived(sala del jugador) + arresto). En callejones (sala con
 ##    evasion_zone) cada TRAMO (entrar en la zona o esconderse en un escondite distinto con
 ##    enter_hiding) da minutos_por_callejon, con policia.callejones tramos por persecución: agotar
-##    el tramo actual o entrar sin tramos libres cierra el cerco. salas_refugio (casa) y el interior
+##    el tramo actual o entrar sin tramos libres cierra el cerco. Los tramos solo cuentan durante
+##    la búsqueda: moverse mientras la unidad viene no gasta ninguno (a la llegada, el callejón
+##    donde esté el jugador es el primer tramo). salas_refugio (casa) y el interior
 ##    del edificio ocultan sin límite de tramos SOLO si la identidad no se conoce (con la identidad
 ##    conocida la policía sabe dónde vives). minutos_evasion ocultos, o el fin de la búsqueda sin
 ##    ser visto, = evasión (police_evaded). Arresto = game_over("arrested_by_police") con
@@ -78,6 +82,7 @@ const B_PARTIAL := "creencias.certeza_parcial"
 const B_EXTERIOR_FLOOR := "mundo.planta_exterior"
 
 var _state: String = STATE_IDLE
+var _origin: String = ""
 var _target: String = ""
 var _certainty: float = 0.0
 var _identified: bool = false
@@ -174,12 +179,18 @@ func dispatch(location: String) -> void:
 		return
 	_reset_pursuit()
 	_state = STATE_DISPATCHED
+	_origin = station()
 	_target = location
 	_eta = response_time_for(location)
 	_last_minutes = GameClock.get_total_minutes()
 	EventBus.police_dispatched.emit(location, _eta)
 	EventBus.subtitle_posted.emit(SUB_SIREN, Vector2.INF, SUBTITLE_IMPORTANCE)
 	EventBus.notebook_entry_added.emit(NOTE_CATEGORY, NOTE_DISPATCHED, [])
+
+
+## Sala de la comisaría de la que sale cada unidad (policia.sala_comisaria).
+static func station() -> String:
+	return str(Database.get_balance(B_STATION))
 
 
 ## Minutos de juego desde la comisaría hasta `location` (base × factor de la sala).
@@ -210,8 +221,10 @@ func update() -> void:
 ## El jugador se esconde en `spot_id` (contenedor del callejón...): tramo nuevo si es una zona de
 ## evasión y un escondite distinto del actual.
 func enter_hiding(spot_id: String) -> void:
-	if is_active() and _is_evasion_zone(PlayerState.get_room()):
-		update()
+	if not is_active() or not _is_evasion_zone(PlayerState.get_room()):
+		return
+	update()
+	if _state == STATE_SEARCHING:
 		_claim_segment(spot_id)
 
 
@@ -225,6 +238,11 @@ func get_state() -> String:
 
 func get_target() -> String:
 	return _target
+
+
+## Comisaría de la que salió la unidad en curso ("" sin unidad).
+func get_origin() -> String:
+	return _origin
 
 
 func get_eta() -> float:
@@ -273,15 +291,17 @@ func get_cover() -> String:
 
 func save_state() -> Dictionary:
 	return {
-		"state": _state, "target": _target, "certainty": _certainty, "identified": _identified,
-		"record_id": _record_id, "eta": _eta, "search_left": _search_left,
-		"cordon_left": _cordon_left, "hidden": _hidden, "alleys_used": _alleys_used,
-		"alley_left": _alley_left, "segment": _segment, "game_over_sent": _game_over_sent,
+		"state": _state, "origin": _origin, "target": _target, "certainty": _certainty,
+		"identified": _identified, "record_id": _record_id, "eta": _eta,
+		"search_left": _search_left, "cordon_left": _cordon_left, "hidden": _hidden,
+		"alleys_used": _alleys_used, "alley_left": _alley_left, "segment": _segment,
+		"game_over_sent": _game_over_sent,
 	}
 
 
 func load_state(data: Dictionary) -> void:
 	_state = str(data.get("state", STATE_IDLE))
+	_origin = str(data.get("origin", ""))
 	_target = str(data.get("target", ""))
 	_certainty = float(data.get("certainty", 0.0))
 	_identified = bool(data.get("identified", false))
@@ -328,6 +348,9 @@ func _arrive() -> void:
 	_search_left = Database.get_balance_float(B_SEARCH)
 	_cordon_left = Database.get_balance_float(B_CORDON)
 	_hidden = 0.0
+	_alleys_used = 0
+	_alley_left = 0.0
+	_segment = ""
 
 
 ## Un tramo de búsqueda con la cobertura actual hasta el siguiente hito (cerco, fin de tramo,
@@ -401,6 +424,7 @@ func _evade() -> void:
 
 func _clear_alert() -> void:
 	_state = STATE_IDLE
+	_origin = ""
 	_target = ""
 	_certainty = 0.0
 	_identified = false
@@ -460,20 +484,31 @@ static func _npc_name(npc_id: String) -> String:
 
 ## Un testigo del mundo decidió denunciar (§12.2 inacción, utilidad) estando el jugador fuera:
 ## eso es la llamada a la policía.
-func _on_npc_reported_player(_npc_id: String, report_type: String, _weight: float,
+func _on_npc_reported_player(npc_id: String, report_type: String, _weight: float,
 		location: String) -> void:
-	if not _is_exterior(location):
+	if not _is_exterior(location) or _state == STATE_ARRESTED or _game_over_sent:
 		return
 	var partial: bool = PARTIAL_REPORT_TYPES.has(report_type)
 	if not Disguise.is_masked():
-		_identified = true
+		_note_identified(npc_id, location)
 	_add_report(location, Database.get_balance_float(B_PARTIAL if partial else B_DIRECT))
+
+
+## Un testigo del mundo reconoció al jugador: UN registro (denuncia policial) por aviso.
+func _note_identified(witness_id: String, location: String) -> void:
+	_identified = true
+	if _record_id.is_empty():
+		_record_id = BeliefNet.create_record(BeliefNetSystem.RECORD_STAMPED_DOCUMENT, PLAYER_ID,
+				Database.get_balance_float(B_RECORD_WEIGHT), location)
+	EventBus.notebook_entry_added.emit(NOTE_CATEGORY, NOTE_IDENTIFIED, [_npc_name(witness_id)])
 
 
 func _on_room_entered(room_id: String, by_player: bool) -> void:
 	if not by_player or not is_active():
 		return
 	update()
+	if _state != STATE_SEARCHING:
+		return
 	if _is_evasion_zone(room_id):
 		_claim_segment(room_id)
 	else:

@@ -6,8 +6,11 @@ extends Node2D
 
 ## Tipos: exclaim (!), question (?), talk (…), idea (bombilla que late), money (moneda),
 ## report (escudo: va a Seguridad), sleep (dos «Z» trazadas), phone (móvil), eye (vigila). Uno temporal
-## (show_emote) tapa al persistente (set_persistent) mientras dura. Se dibuja a la derecha de la
-## cabeza para no tapar el indicador de detección. Colores: paleta de la interfaz (alto contraste).
+## (show_emote) tapa al persistente (set_persistent) mientras dura. Los bocadillos van a la derecha
+## de la cabeza (cola hacia ella) para no tapar el indicador de detección; mientras el indicador
+## está a la vista (set_indicator_shown) no se muestran «?» ni «!» (el indicador ya los dice). La
+## bombilla de idea va centrada SOBRE la cabeza de su dueño con un rabillo que la señala; si el
+## indicador está a la vista, se apila encima de él. Colores: paleta de la interfaz (alto contraste).
 
 const Z_BUBBLE := RenderingServer.CANVAS_ITEM_Z_MAX - 4
 const KIND_EXCLAIM := "exclaim"
@@ -33,12 +36,21 @@ const OFFSET_Y := 0.55
 const GLYPH_SCALE := 1.2
 const DOT_RADIUS := 0.11
 const RAY_COUNT := 5
+## Bombilla (en radios del indicador): punta del rabillo sobre la coronilla (o sobre el borde
+## superior del indicador si está a la vista) y largo del rabillo.
+const IDEA_TIP := 0.2
+const IDEA_STACK_TIP := 1.12
+const IDEA_STEM := 0.6
+const MARK_KINDS: Array[String] = [KIND_EXCLAIM, KIND_QUESTION]
 
 var _kind: String = ""
 var _left: float = 0.0
 var _persistent: String = ""
 var _age: float = 0.0
 var _time: float = 0.0
+var _indicator_shown: bool = false
+var _drawn_kind: String = ""
+var _contrast: bool = false
 
 
 func _ready() -> void:
@@ -67,8 +79,17 @@ func set_persistent(kind: String) -> void:
 	queue_redraw()
 
 
+## El indicador de detección de su personaje está a la vista (oculta «?» y «!», apila la bombilla).
+func set_indicator_shown(shown: bool) -> void:
+	if shown != _indicator_shown:
+		_indicator_shown = shown
+		queue_redraw()
+
+
 func current_kind() -> String:
-	return _kind if _left > 0.0 else _persistent
+	if _left > 0.0 and not (_indicator_shown and MARK_KINDS.has(_kind)):
+		return _kind
+	return _persistent
 
 
 func clear() -> void:
@@ -90,17 +111,49 @@ func _process(delta: float) -> void:
 	var zoom: float = get_viewport().get_canvas_transform().get_scale().x if get_viewport() != null else 1.0
 	var pop: float = lerpf(POP_FROM, 1.0, clampf(_age / POP_SECONDS, 0.0, 1.0))
 	var s: float = pop / maxf(zoom, 0.01)
-	scale = Vector2(s, s)
-	queue_redraw()
+	if not is_equal_approx(scale.x, s):
+		scale = Vector2(s, s)
+	var kind: String = current_kind()
+	if kind == KIND_IDEA or kind != _drawn_kind or _contrast != UITheme.current_high_contrast:
+		queue_redraw()
+
+
+## Bocadillo actual en pantalla (lo que el último _draw dibujó; "" si nada). Tests / QA.
+func shown_kind() -> String:
+	return _drawn_kind if visible else ""
 
 
 func _draw() -> void:
 	var kind: String = current_kind()
+	_drawn_kind = kind
+	_contrast = UITheme.current_high_contrast
 	if kind.is_empty():
 		return
-	var r: float = DetectionIndicator.base_radius() * SIZE_FACTOR * (IDEA_SCALE if kind == KIND_IDEA else 1.0)
-	var bob: float = sin(_time * TAU * BOB_HZ) * BOB_PX if kind == KIND_IDEA else 0.0
-	draw_emote(self, Vector2(r * OFFSET_X, -r * OFFSET_Y + bob), r, kind, UITheme.current_high_contrast)
+	var ind_r: float = DetectionIndicator.base_radius()
+	var ind_y: float = -ind_r * DetectionIndicator.ANCHOR_LIFT
+	var r: float = ind_r * SIZE_FACTOR
+	if kind == KIND_IDEA:
+		var bulb_r: float = r * IDEA_SCALE
+		var tip_y: float = ind_y - ind_r * IDEA_STACK_TIP if _indicator_shown else -ind_r * IDEA_TIP
+		var bob: float = sin(_time * TAU * BOB_HZ) * BOB_PX
+		var center: Vector2 = Vector2(0.0, tip_y - ind_r * IDEA_STEM - bulb_r * 0.95 + bob)
+		draw_idea(self, center, bulb_r, tip_y - center.y, UITheme.current_high_contrast)
+		return
+	draw_emote(self, Vector2(r * OFFSET_X, ind_y - r * OFFSET_Y), r, kind, UITheme.current_high_contrast)
+
+
+## Bombilla centrada en `center` con un rabillo de `stem` px hacia la cabeza (el origen).
+static func draw_idea(c: CanvasItem, center: Vector2, r: float, stem: float, high_contrast: bool) -> void:
+	var pal: Dictionary = UITheme.palette(high_contrast)
+	var ink: Color = Color.BLACK if high_contrast else CharacterStyle.OUTLINE
+	var w: float = UITheme.tune("interfaz.indicador_deteccion_contorno") * (1.6 if high_contrast else 1.0)
+	var tip: Vector2 = center + Vector2(0.0, stem)
+	var base_y: float = center.y + r * 0.95
+	if tip.y > base_y + w:
+		var tail: PackedVector2Array = [Vector2(-r * TAIL_W, base_y), Vector2(r * TAIL_W, base_y), tip]
+		c.draw_colored_polygon(_grow_tail(tail, w), ink)
+		c.draw_colored_polygon(tail, Color(pal["hazard"]))
+	_draw_bulb(c, center, r, pal, ink, w)
 
 
 ## Dibuja el bocadillo de `kind` centrado en `center` (cola hacia abajo a la izquierda).

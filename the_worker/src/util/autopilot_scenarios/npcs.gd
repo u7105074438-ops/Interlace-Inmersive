@@ -5,10 +5,13 @@ extends Node
 
 ## tools/screenshot.sh /tmp/shots_npcs npcs
 ## Partida nueva (semilla fija), reloj parado y fijado a mano; la capa corre libre (free_running).
-## Capturas: npcs_wing_3b (10:20, sentados, conos, un indicador en progreso), npcs_flagrant,
-## npcs_corridor_lunch (13:00, camino del ascensor), npcs_cafeteria (13:30, llena), npcs_idea
-## (bombilla), npcs_indicator_states (cuatro estados normal + alto contraste), npcs_card (ficha),
-## npcs_cones_debug (F1), npcs_phone (pantalla de móvil con indicador y ficha). Imprime "[perf]".
+## Capturas: npcs_wing_3b_calm (10:20, sentados, conos en reposo), npcs_wing_3b (forzando el cajón
+## del jefe: indicador en progreso), npcs_flagrant (la misma escena sin trucos: quien decide
+## denunciar se queda mirando hasta la flagrancia), npcs_corridor_lunch (13:00, colas hacia el
+## ascensor), npcs_cafeteria (13:30, llena, sentados A la mesa), npcs_idea (bombilla sobre su
+## dueña), npcs_indicator_states (cuatro estados normal + alto contraste), npcs_card (ficha),
+## npcs_cones_debug (F1), npcs_pantry_chat (corrillos), npcs_phone (pantalla de móvil con
+## indicador y ficha). Imprime "[perf]" (llamadas de dibujo totales y las de los personajes).
 
 const SEED := 12345
 const WING := "wing_3b"
@@ -122,9 +125,16 @@ func _perf(pilot: Autopilot, label: String) -> void:
 		await pilot.frames(1)
 		layer_usec += _layer.last_advance_usec
 	var ms: float = float(Time.get_ticks_usec() - start) / 1000.0 / PERF_FRAMES
-	print("[perf] %s nodes=%d draws=%d frame_ms=%.1f layer_cpu_ms=%.2f poses=%d" % [label,
-			_layer.get_nodes().size(), int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
-			ms, float(layer_usec) / 1000.0 / PERF_FRAMES, CharacterPainter.cached_pose_count()])
+	var draws: int = int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	for node: NPCNode in _layer.get_nodes():
+		node.visible = false
+	await pilot.frames(2)
+	var without: int = int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	for node: NPCNode in _layer.get_nodes():
+		node.visible = true
+	print("[perf] %s nodes=%d draws=%d (characters %d) frame_ms=%.1f layer_cpu_ms=%.2f poses=%d" % [label,
+			_layer.get_nodes().size(), draws, draws - without, ms, float(layer_usec) / 1000.0 / PERF_FRAMES,
+			CharacterPainter.cached_pose_count()])
 
 
 ## Espera a que algún observador tenga el contador en [lo, hi] con estado `state` (o agota el plazo).
@@ -163,15 +173,10 @@ func _stand_at_drawer() -> void:
 			_player.set_facing(Vector2.LEFT)
 
 
-## Sigue el acto hasta la flagrancia: estrella roja con «!», el testigo señala. Solo para esta
-## captura, la capa no traslada al mundo la reacción a la creencia parcial (el jefe se iría a
-## denunciar antes de verlo del todo).
+## Sigue el acto hasta la flagrancia: círculo rojo con «!» y rayos de alarma, el testigo señala.
+## Quien decide denunciar al verle de reojo no se va mientras le vigila (NPCNode aplaza el recado).
 func _flagrant_shot(pilot: Autopilot) -> void:
-	EventBus.npc_decided.disconnect(_layer._on_npc_decided)
-	EventBus.npc_reported_player.disconnect(_layer._on_npc_reported)
 	var catcher: NPCNode = await _wait_for_state(pilot, Perception.STATE_FLAGRANT, 0.0, 1.0)
-	EventBus.npc_decided.connect(_layer._on_npc_decided)
-	EventBus.npc_reported_player.connect(_layer._on_npc_reported)
 	print("[npcs] flagrant by: %s" % (catcher.npc_id if catcher != null else "none"))
 	await pilot.frames(SETTLE_FRAMES)
 	await pilot.shot("npcs_flagrant")
@@ -306,6 +311,7 @@ class IndicatorLegend extends Control:
 	const FIGURE_SCALE := 2.2
 	const ROW_LABEL_X := 40.0
 	const FIRST_COLUMN := 300.0
+	const LEGEND_RADIUS := 30.0
 
 	func _ready() -> void:
 		set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -331,8 +337,8 @@ class IndicatorLegend extends Control:
 		var pose: Dictionary = CharacterPainter.make_pose("idle" if i < 2 else ("suspicion" if i == 2 else "point"), 0,
 				Vector2(-1, 1).normalized(), {"origin": feet, "scale": FIGURE_SCALE})
 		CharacterPainter.draw(self, app, 1, pose)
-		var head: Vector2 = feet + Vector2(0.0, -150.0)
+		var head: Vector2 = feet + Vector2(0.0, -130.0 - LEGEND_RADIUS * DetectionIndicator.ANCHOR_LIFT)
 		if STATES[i] == Perception.STATE_NONE:
-			draw_arc(head, 18.0, 0.0, TAU, 32, Color(0.1, 0.1, 0.1, 0.35), 2.0, true)
-		DetectionIndicator.draw_state(self, head, 22.0, STATES[i], COUNTERS[i], contrast, 0.25)
+			draw_arc(head, LEGEND_RADIUS * 0.8, 0.0, TAU, 32, Color(0.1, 0.1, 0.1, 0.35), 2.0, true)
+		DetectionIndicator.draw_state(self, head, LEGEND_RADIUS, STATES[i], COUNTERS[i], contrast, 0.25)
 		draw_string(font, Vector2(x - 40.0, ROW_Y[row] + 10.0), tr(LABELS[i]), HORIZONTAL_ALIGNMENT_CENTER, 200.0, 20, Color("#12151a"))

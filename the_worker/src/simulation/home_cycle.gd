@@ -17,7 +17,9 @@ extends Node
 ##    hogar.sala_domicilio; objetos de hogar.comidas.<comida> en ese orden, sin coste al comerlos:
 ##    comprados antes o ROBADOS, §22.4/§22.8 «elimina el gasto de manutención») o, si no hay, la
 ##    compra a su precio (PlayerState.get_daily_expense_breakdown: el punto medio de economia.*,
-##    motivos "breakfast"/"dinner"). Sin comida ni dinero, la comida se pierde.
+##    motivos "breakfast"/"dinner"). Sin comida ni dinero, la comida se pierde. Comer (eat) avanza
+##    el reloj hogar.minutos_comida.<comida> tras anotarla; la liquidación sin dormir y la cena
+##    de sleep() no (el salto a la mañana ya la absorbe).
 ##  · GASTOS DIARIOS (PlayerState.get_daily_expenses, §15.4) = comidas + alquiler + estatus. Se
 ##    liquidan al cerrar la jornada (sleep() o day_advanced, lo primero; idempotente): salario si
 ##    faltaba → comidas no hechas (despensa → compra → perdida) → alquiler ("rent") y estatus
@@ -32,7 +34,8 @@ extends Node
 ##    expenses, income_lines, expense_lines, money, reputation(_delta), suspicion(_delta),
 ##    completed_duties, missed_duties, meals, hungry_days}) ANTES de GameClock.advance_to_next_day()
 ##    → SaveSystem.save_run() (único guardado, §12.7) → desayuno de la jornada nueva. Al cargar una
-##    partida (run_loaded) se repite el desayuno si no consta (el guardado es previo a él).
+##    partida se repite el desayuno si no consta (el guardado es previo a él): al oír run_loaded
+##    o, si el nodo se crea después de load_run(), al reclamar su estado en _ready.
 ##  · COMPRAS: buy(objeto, tienda) solo lo que vende el mostrador de la sala (sells); precio de
 ##    price_keys (balance economia.*: pasamontañas 45, traje 1800) o el valor del objeto. Motivo
 ##    "food" (comida) o "purchase". steal_food(sala) coge hogar.objeto_comida_robada de una fuente
@@ -73,6 +76,7 @@ const K_PRICE_KEYS := "price_keys"
 const K_CONTAINS := "contains"
 const K_OWNER := "owner"
 const OWNER_PLAYER := "player"
+const R_ALREADY := "already"
 
 const B_HOME := "hogar.sala_domicilio"
 const B_SLEEP_HOUR := "hogar.hora_minima_dormir"
@@ -116,6 +120,7 @@ func _ready() -> void:
 	var saved: Dictionary = SaveSystem.claim_scene_state(SAVE_KEY)
 	if not saved.is_empty():
 		load_state(saved)
+		_repeat_breakfast()
 
 
 func get_save_key() -> String:
@@ -136,10 +141,21 @@ static func reason_key(code: String) -> String:
 
 # ─── Comidas ──────────────────────────────────────────────────
 
-## Come `meal` (breakfast | dinner): despensa → compra → nada. {eaten, source, cost}.
+## Come `meal` (breakfast | dinner): despensa → compra → nada. {eaten, source, cost}. Comer
+## lleva hogar.minutos_comida.<comida> de juego.
 func eat(meal: String) -> Dictionary:
+	var result: Dictionary = _eat(meal)
+	if bool(result["eaten"]) and not bool(result.get(R_ALREADY, false)):
+		GameClock.advance_minutes(Database.get_balance_float(B_MEAL_MINUTES + "." + meal))
+	result.erase(R_ALREADY)
+	return result
+
+
+## Como eat() sin tiempo (liquidación y cena al acostarse). R_ALREADY si ya estaba hecha.
+func _eat(meal: String) -> Dictionary:
 	if not MEALS.has(meal) or has_eaten(meal):
-		return {"eaten": has_eaten(meal), "source": str(_meals.get(meal, "")), "cost": 0}
+		return {"eaten": has_eaten(meal), "source": str(_meals.get(meal, "")), "cost": 0,
+				R_ALREADY: true}
 	var source: String = ""
 	var cost: int = 0
 	if _consume_stock(meal):
@@ -249,7 +265,7 @@ func sleep() -> Dictionary:
 	var reason: String = can_sleep()
 	if reason != OK:
 		return {"ok": false, "reason": reason}
-	eat(MEAL_DINNER)
+	_eat(MEAL_DINNER)
 	settle_day()
 	if _game_over_sent:
 		return {"ok": false, "reason": ERR_GAME_OVER}
@@ -268,7 +284,7 @@ func settle_day() -> void:
 	_settled_day = _day
 	_pay_wage()
 	for meal: String in MEALS:
-		eat(meal)
+		_eat(meal)
 	var breakdown: Dictionary = PlayerState.get_daily_expense_breakdown()
 	var unpaid: int = _charge(int(breakdown.get(REASON_RENT, 0)), REASON_RENT)
 	unpaid += _charge(int(breakdown.get(REASON_STATUS, 0)), REASON_STATUS)
@@ -517,6 +533,11 @@ func _on_money_changed(old_value: int, new_value: int, reason: String) -> void:
 
 ## El guardado es previo al desayuno (sleep): al cargar, si no consta, se desayuna.
 func _on_run_loaded(_day_number: int) -> void:
+	_repeat_breakfast()
+
+
+## Desayuno tras cargar (idempotente: solo por la mañana y si no consta).
+func _repeat_breakfast() -> void:
 	var morning: bool = GameClock.get_hour() < Database.get_balance_int(B_DAY_END)
 	if morning and not has_eaten(MEAL_BREAKFAST):
 		eat(MEAL_BREAKFAST)

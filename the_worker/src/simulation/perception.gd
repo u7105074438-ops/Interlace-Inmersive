@@ -1,4 +1,4 @@
-# perception.gd — Percepción de un personaje (§7.3, PASO 10-11): cono de visión progresivo con línea de visión real, oído con máscaras acústicas y dibujo del cono.
+# perception.gd — Percepción de un personaje (§7.3, PASO 10-11): cono de visión progresivo con línea de visión real, oído con máscaras acústicas y muros, y dibujo del cono.
 # PROPIETARIO DE: el contador de detección de su personaje, su contacto con el jugador (umbrales ya emitidos), su foco de atención auditiva y el contorno de su cono.
 # ESCUCHA: nada (su NPCNode le entrega cada fotograma con tick(); NPCLayer le reparte EventBus.noise_emitted con hear()).
 class_name Perception
@@ -9,21 +9,31 @@ extends Node2D
 ##   tick(delta, player, exposure) cada fotograma en LOD 0 (en LOD 1: tick(delta, null, {}) → se vacía)
 ##   hear(origin, radius_m, source, room_id, noteworthy) -> {} | {origin, investigate, distance}
 ##   sees_point(pos) (alcance + ángulo + línea de visión) · has_line_of_sight(pos)
-##   get_counter() · get_state() (STATE_*) · get_attention_point() · get_anomaly_point()
+##   can_notice(pos) (alcance + línea de visión, sin ángulo: observadores de GameClock)
+##   get_counter() · get_state() (STATE_*) · is_watching() · get_attention_point() · get_anomaly_point()
 ##   set_debug_cones(on) (panel F1) · static cone_mode (0 ocultos, 1 automático, 2 todos)
+##   señal witnessed(crime, identified): alcanzó la identificación completa durante un delito.
 ## DECISIONES:
-##  · «Verte trabajar es normal» (§7.3): el contador SOLO se llena si el jugador es digno de
-##    atención (assess_exposure): acto en curso (Player.current_act), arrastrar un cuerpo, una sala
-##    que su acreditación no cubre (misma regla que el halo del HUD) o, de noche, una sala con
-##    acreditación sin ocupación nocturna que no es su puesto; o un disfraz incoherente
-##    (Disguise). Si no, no hay nada que detectar: el contador se vacía y no se emite nada.
+##  · El contador SIEMPRE se llena dentro del cono (§7.3, PASO 10/12: «aproximarse a un personaje:
+##    el indicador progresa»), pero si el jugador no es digno de atención para ESTE observador se
+##    queda en percepcion.tope_contador_presencia (< umbral_parcial): el indicador en progreso
+##    enseña a leer los conos sin crear creencias («verte trabajar es normal»). Digno de atención
+##    (assess_exposure + disfraz del observador): acto en curso (Player.current_act), arrastrar un
+##    cuerpo, una sala que su acreditación no cubre (regla del halo del HUD) o, de noche, una sala
+##    acreditada sin ocupación nocturna que no es su puesto; o un uniforme incoherente.
+##  · Disfraz (Disguise.evaluate, por observador): el factor multiplica el llenado. Una intrusión
+##    en una sala que el uniforme coherente cubre (Disguise.grants_access) no cuenta salvo que ESTE
+##    observador reconozca al jugador. Con la identidad oculta, la creencia parcial y la flagrancia
+##    van contra el uniforme (Disguise.sighting_subject → BeliefNet.create_belief), no contra el
+##    jugador: sin player_seen_partially ni player_caught_redhanded (el indicador se queda en parcial).
 ##  · Llenado/s = (velocidad_llenado_base + perspicacia_efectiva × mod_perspicacia_por_punto)
 ##    × min(distancia_referencia / d, factor_distancia_max) × agachado × inmóvil × esprint
 ##    × obstrucción parcial (capa 3) × disfraz. La perspicacia efectiva es la de NPCDirector
 ##    (ya incluye la sospecha, +0,005/punto, y el plus de alerta de los vigilantes).
+##  · Vaciado «a menor velocidad» (§7.3): factor_vaciado_relativo × el último llenado, acotado a
+##    [velocidad_vaciado_minima, velocidad_vaciado_base]: siempre más lento que como se llenó.
 ##  · Más allá de distancia_identificacion (× factor de alcance) el contador no supera
-##    tope_contador_lejano (< 1): desde lejos solo hay percepción parcial (creencia de certeza
-##    baja); la identificación completa exige acercarse.
+##    tope_contador_lejano (< 1): desde lejos solo hay percepción parcial.
 ##  · Umbrales: ≥ umbral_parcial → player_seen_partially(npc, creencias.certeza_parcial, sala del
 ##    jugador) una vez por contacto; ≥ umbral_flagrancia con delito → player_caught_redhanded(npc,
 ##    delito, testigos) una vez; testigos = OTROS Perception del árbol que ven al jugador en ese
@@ -32,13 +42,21 @@ extends Node2D
 ##  · Cono: cono_angulo_base (hardliner: cono_angulo_hardliner) y cono_distancia_base, × (1 +
 ##    (perspicacia − perspicacia_neutra) × mod_*_por_punto) acotado. Muros y puertas (capa 1) y
 ##    muebles altos (capa 2) cortan la vista y el dibujo; muebles bajos (capa 3) = ×0,4.
-##  · Oído: radio × ruido.reduccion_por_mascara si la sala del ruido tiene acoustic_mask;
-##    oblivious × oido_oblivious. Los pasos normales de un jugador que no llama la atención no
-##    giran cabezas; un ruido ≥ radio_ruido_anomalo, o cualquier ruido suyo si es digno de
-##    atención, sí. Investiga (camina al origen) si la perspicacia efectiva ≥
-##    umbral_investigar_ruido y no ve el origen.
+##  · Oído: radio × ruido.reduccion_por_mascara si la sala del ruido es máscara acústica; oblivious
+##    × oido_oblivious; tras un muro (capa 1) × factor_oido_muro. Los pasos normales de un jugador
+##    que no llama la atención no giran cabezas; un ruido ≥ radio_ruido_anomalo sí (gira la
+##    cabeza). Solo INVESTIGA (camina al origen) si su perspicacia efectiva ≥
+##    umbral_investigar_ruido, no ve el origen y el ruido lo merece: del jugador digno de atención,
+##    o ajeno ≥ radio_ruido_investigar (un esprint legal gira cabezas, no levanta a nadie).
+##  · Dibujo: colores de la banda (art_bands) y del estado. En reposo, relleno palette.light con
+##    borde palette.shadow (sobre suelos claros de la banda, relleno y borde palette.shadow): se lee
+##    sobre moqueta oscura y sobre baldosa clara (las salas tienen su propio material de suelo). En
+##    progreso/parcial/flagrancia, color del estado con borde oscurecido. Se reconstruye al
+##    girar/moverse (como mucho cada intervalo_cono) o cada intervalo_cono_reposo, y solo se
+##    redibuja si cambia algo.
 
 signal state_changed(state: int)
+signal witnessed(crime: String, identified: bool)
 
 const GROUP := "perception"
 const PLAYER_ID := "player"
@@ -51,6 +69,7 @@ const CONE_OFF := 0
 const CONE_AUTO := 1
 const CONE_ALL := 2
 const LOS_MASK := 0b011
+const WALL_MASK := 0b001
 const LOW_MASK := 0b100
 const Z_CONE := -20
 const CRIME_TRESPASS := "trespass"
@@ -64,20 +83,29 @@ const MODE_SPRINT := "sprint"
 const MODE_SNEAK := "sneak"
 const MASK_KEY := "acoustic_mask"
 const WITNESS_METHOD := "set_witness_ids"
-const DISGUISE_SCRIPT := "res://src/simulation/disguise.gd"
-const DISGUISE_DIRECT := "detection_factor"
-const DISGUISE_METHOD := "evaluate"
-const DISGUISE_FACTOR_KEYS: Array[String] = [
-	"detection_factor", "detection_multiplier", "multiplier", "factor", "perception_factor",
-]
-const DISGUISE_SUSPICIOUS_KEYS: Array[String] = ["suspicious", "incoherent", "out_of_context"]
 const RIM_WIDTH := 1.5
+const RIM_WIDTH_CALM := 1.0
+## Oscurecido del borde de un cono de estado (amarillo/naranja/rojo) respecto a su relleno.
+const STATE_RIM_DARKEN := 0.35
+## Giro mínimo (coseno) o desplazamiento (px²) que obliga a reconstruir el cono.
+const REBUILD_COS := 0.9994
+const REBUILD_MOVE_SQ := 4.0
+const FILL_KEYS: Array[String] = ["velocidad_llenado_base", "mod_perspicacia_por_punto", "distancia_minima",
+	"distancia_referencia", "factor_distancia_max", "mod_agachado", "mod_inmovil", "mod_esprint",
+	"mod_obstruccion_parcial"]
+const TICK_KEYS: Array[String] = ["umbral_parcial", "umbral_flagrancia", "umbral_perdida_contacto",
+	"velocidad_vaciado_base", "velocidad_vaciado_minima", "factor_vaciado_relativo", "segundos_atencion",
+	"tope_contador_lejano", "tope_contador_presencia", "intervalo_cono", "intervalo_cono_reposo",
+	"radio_conos_visibles", "alfa_cono", "alfa_cono_sigilo", "alfa_cono_alerta", "alfa_cono_depuracion",
+	"factor_borde_cono", "velocidad_giro_cono", "umbral_investigar_ruido", "radio_ruido_anomalo",
+	"radio_ruido_investigar", "oido_oblivious", "factor_oido_muro", "desvanecido_borde_cono",
+	"velocidad_fundido_cono", "salto_refinado_cono", "tolerancia_cache_disfraz"]
+const NO_DISGUISE: Dictionary = {"factor": 1.0, "suspicious": false, "hidden": false, "recognised": false}
+const EMPTY_SAMPLE: Dictionary = {"rate": 0.0, "cap": 0.0, "crime": "", "noteworthy": false, "hidden": false,
+	"distance": 0.0}
 
 ## Modo de conos compartido (ajuste "vision_cones", lo fija NPCLayer).
 static var cone_mode: int = CONE_AUTO
-static var _disguise_checked: bool = false
-static var _disguise: Object = null
-static var _disguise_info: Dictionary = {}
 
 var npc_id: String = ""
 var archetype: String = ""
@@ -89,27 +117,40 @@ var _half_angle: float = 0.6
 var _range_px: float = 384.0
 var _ident_px: float = 240.0
 var _counter: float = 0.0
+var _last_fill: float = 0.0
 var _state: int = STATE_NONE
 var _contact: bool = false
+var _noteworthy_contact: bool = false
 var _partial_sent: bool = false
 var _flagrant_sent: bool = false
+var _flagrant_hidden: bool = false
 var _attention: Vector2 = Vector2.INF
 var _attention_left: float = 0.0
 var _anomaly: Vector2 = Vector2.INF
 var _active: bool = true
 var _debug_cones: bool = false
 var _cone: PackedVector2Array = []
-var _cone_timer: float = 0.0
+var _cone_dir: Vector2 = Vector2.ZERO
+var _cone_pos: Vector2 = Vector2.INF
+var _since_build: float = 0.0
 var _cone_alpha: float = 0.0
+var _drawn_alpha: float = -1.0
 var _cone_color: Color = Color.WHITE
+var _rim_color: Color = Color.BLACK
 var _base_color: Color = Color.WHITE
+var _base_rim: Color = Color.BLACK
+var _contrast: bool = false
 var _tun: Dictionary = {}
+var _dz: Dictionary = {}
+var _dz_distance: float = -1.0
+var _dz_uniform: String = ""
 
 
 func _ready() -> void:
 	add_to_group(GROUP)
 	z_as_relative = false
 	z_index = Z_CONE
+	visible = false
 
 
 ## Identidad del observador; lee sus parámetros de cono (perspicacia efectiva de NPCDirector).
@@ -124,17 +165,19 @@ func setup(p_npc_id: String, p_archetype: String) -> void:
 
 func _load_tunables() -> void:
 	_cell = Database.get_balance_float("mundo.px_por_unidad")
-	for key: String in ["umbral_parcial", "umbral_flagrancia", "umbral_perdida_contacto",
-			"velocidad_vaciado_base", "segundos_atencion", "tope_contador_lejano", "intervalo_cono",
-			"radio_conos_visibles", "alfa_cono", "alfa_cono_sigilo", "alfa_cono_alerta",
-			"alfa_cono_depuracion", "factor_borde_cono", "velocidad_giro_cono", "umbral_investigar_ruido",
-			"radio_ruido_anomalo", "oido_oblivious", "desvanecido_borde_cono", "velocidad_fundido_cono"]:
+	for key: String in TICK_KEYS:
 		_tun[key] = Database.get_balance_float("percepcion." + key)
+	_tun.merge(load_fill_tunables(), true)
 	_tun["certeza_parcial"] = Database.get_balance_float("creencias.certeza_parcial")
+	_tun["certeza_completa"] = Database.get_balance_float("creencias.certeza_directa_completa")
+	_tun["rayos_cono"] = maxi(2, Database.get_balance_int("percepcion.rayos_cono"))
+	_tun["refinado_cono"] = Database.get_balance_int("percepcion.refinado_cono")
 
 
-## Recalcula ángulo y alcance del cono con la perspicacia efectiva actual (sospecha incluida).
+## Recalcula ángulo y alcance del cono con la perspicacia efectiva actual (sospecha incluida) y
+## olvida la evaluación del disfraz (NPCNode.think la llama cada lod.intervalo_medio_segundos).
 func refresh_traits() -> void:
+	_dz_distance = -1.0
 	_perception_eff = NPCDirector.get_effective_perception(npc_id) if not npc_id.is_empty() else 0
 	var neutral: float = Database.get_balance_float("percepcion.perspicacia_neutra")
 	var f_min: float = Database.get_balance_float("percepcion.factor_cono_min")
@@ -149,15 +192,22 @@ func refresh_traits() -> void:
 	_ident_px = Database.get_balance_float("percepcion.distancia_identificacion") * fr * _cell
 
 
-## Color de reposo del cono: luz cálida (percepcion.color_cono) o, sobre suelos claros de la
-## banda, un tono oscuro (percepcion.color_cono_suelo_claro) para que se lea.
+## Colores de reposo del cono (art_bands): relleno con la luz de la banda y borde con su sombra;
+## sobre suelos claros (luminancia ≥ percepcion.luminancia_suelo_clara), ambos con la sombra.
 func set_band_colors(band: Dictionary) -> void:
 	var palette: Dictionary = band.get("palette", {})
 	var floor_c: Color = Color(str(palette.get("floor", "#808080")))
 	var light: bool = floor_c.get_luminance() >= Database.get_balance_float("percepcion.luminancia_suelo_clara")
-	var rgb: Array = Database.get_balance("percepcion.color_cono_suelo_claro" if light else "percepcion.color_cono")
-	_base_color = Color(float(rgb[0]), float(rgb[1]), float(rgb[2]))
-	_cone_color = _base_color
+	_base_rim = Color(str(palette.get("shadow", "#000000")))
+	_base_color = _base_rim if light else Color(str(palette.get("light", "#ffffff")))
+	_refresh_colors()
+
+
+func _refresh_colors() -> void:
+	_contrast = UITheme.current_high_contrast
+	_cone_color = _state_color()
+	_rim_color = _base_rim if _state == STATE_NONE else _cone_color.darkened(STATE_RIM_DARKEN)
+	_drawn_alpha = -1.0
 
 
 # ─── Consultas ────────────────────────────────────────────────
@@ -190,6 +240,17 @@ func get_identification_range_px() -> float:
 	return _ident_px
 
 
+## Velocidad de vaciado actual (1/s): más lenta que el último llenado (§7.3).
+func get_drain_rate() -> float:
+	return drain_rate_for(_last_fill, _tun)
+
+
+## Vigila al jugador: contacto vivo con algo digno de atención (en progreso o parcial). Mientras
+## dura, su personaje aplaza los recados de denuncia/confrontación (NPCNode).
+func is_watching() -> bool:
+	return _contact and _noteworthy_contact and (_state == STATE_PROGRESS or _state == STATE_PARTIAL)
+
+
 ## Origen del último ruido atendido (Vector2.INF si ya no le presta atención).
 func get_attention_point() -> Vector2:
 	return _attention if _attention_left > 0.0 else Vector2.INF
@@ -211,7 +272,7 @@ func set_active(active: bool) -> void:
 
 func set_debug_cones(on: bool) -> void:
 	_debug_cones = on
-	queue_redraw()
+	_drawn_alpha = -1.0
 
 
 ## Rumbo de la cabeza (el cono gira hacia él a percepcion.velocidad_giro_cono rad/s).
@@ -223,18 +284,25 @@ func set_view(dir: Vector2, snap: bool = false) -> void:
 		_dir = _target_dir
 
 
-## Alcance + ángulo + línea de visión (muros, puertas y muebles altos).
+## Alcance + ángulo + línea de visión (muros, puertas y muebles altos). Lo barato primero.
 func sees_point(pos: Vector2) -> bool:
 	var to: Vector2 = pos - global_position
-	if to.length() > _range_px:
+	var d2: float = to.length_squared()
+	if d2 > _range_px * _range_px:
 		return false
-	if to.length() > 1.0 and absf(_dir.angle_to(to)) > _half_angle:
+	if d2 > 1.0 and absf(_dir.angle_to(to)) > _half_angle:
 		return false
 	return has_line_of_sight(pos)
 
 
 func has_line_of_sight(pos: Vector2) -> bool:
 	return not _ray_blocked(global_position, pos, LOS_MASK)
+
+
+## Podría verle con solo girarse: dentro del alcance del cono y con línea de visión (sin ángulo).
+## Es el «hay observadores» de GameClock.advance_to_band (NPCLayer.observers_present).
+func can_notice(pos: Vector2) -> bool:
+	return global_position.distance_squared_to(pos) <= _range_px * _range_px and has_line_of_sight(pos)
 
 
 func _ray_blocked(from: Vector2, to: Vector2, mask: int) -> bool:
@@ -251,23 +319,16 @@ func _ray_blocked(from: Vector2, to: Vector2, mask: int) -> bool:
 # ─── Detección progresiva ─────────────────────────────────────
 
 ## Un fotograma: rumbo del cono, contador, umbrales y alfa del dibujo. `exposure` es el de
-## assess_exposure() (+ "room": sala del jugador); sin jugador o sin exposición, se vacía.
+## assess_exposure() (+ "room": sala del jugador); sin jugador (LOD 1) o escondido, se vacía.
 func tick(delta: float, player: Node2D, exposure: Dictionary) -> void:
 	_attention_left = maxf(0.0, _attention_left - delta)
 	_turn_view(delta)
 	_anomaly = Vector2.INF
-	var rate: float = 0.0
-	var cap: float = float(_tun["umbral_flagrancia"])
-	if _active and player != null and bool(exposure.get("noteworthy", false)):
-		var sample: Dictionary = _sample(player, str(exposure.get("room", "")))
-		rate = float(sample["rate"])
-		cap = float(sample["cap"])
-	if rate > 0.0:
-		if _counter < cap:
-			_counter = minf(_counter + rate * delta, cap)
-	else:
-		_counter = maxf(_counter - float(_tun["velocidad_vaciado_base"]) * delta, 0.0)
-	_check_thresholds(player, exposure)
+	var sample: Dictionary = EMPTY_SAMPLE
+	if _active and player != null and not exposure.is_empty() and not bool(exposure.get("hidden", false)):
+		sample = _sample(player, exposure)
+	_advance_counter(delta, float(sample["rate"]), float(sample["cap"]))
+	_check_thresholds(player, exposure, sample)
 	_update_cone(delta, player, exposure)
 
 
@@ -277,55 +338,88 @@ func _turn_view(delta: float) -> void:
 	_dir = _target_dir if absf(angle) <= step else _dir.rotated(signf(angle) * step)
 
 
-## {rate, cap}: velocidad de llenado si el jugador está en el cono con línea de visión.
-func _sample(player: Node2D, room_id: String) -> Dictionary:
-	var out: Dictionary = {"rate": 0.0, "cap": float(_tun["umbral_flagrancia"])}
+## {rate, cap, crime, noteworthy, hidden, distance} de este observador si el jugador está en su
+## cono con línea de visión (si no, EMPTY_SAMPLE).
+func _sample(player: Node2D, exposure: Dictionary) -> Dictionary:
 	var pos: Vector2 = player.global_position
 	var dist: float = global_position.distance_to(pos)
-	if archetype == ARCH_OLD_HAND and dist <= _range_px and has_line_of_sight(pos):
+	if archetype == ARCH_OLD_HAND and bool(exposure.get("noteworthy", false)) and dist <= _range_px \
+			and has_line_of_sight(pos):
 		_anomaly = pos
 	if not sees_point(pos):
-		return out
+		return EMPTY_SAMPLE
 	var d_m: float = dist / _cell
+	var room: String = str(exposure.get("room", ""))
+	var view: Dictionary = _disguise_view(d_m, room)
+	var crime: String = str(exposure.get("crime", ""))
+	if crime == CRIME_TRESPASS and bool(exposure.get("uniform_access", false)) and not bool(view["recognised"]):
+		crime = ""
+	var noteworthy: bool = not crime.is_empty() or bool(view["suspicious"])
 	var obstructed: bool = _ray_blocked(global_position, pos, LOW_MASK)
 	var rate: float = fill_rate(d_m, _perception_eff, _str_call(player, "movement_mode"),
-			_bool_call(player, "is_crouching"), obstructed)
-	out["rate"] = rate * float(disguise_effect(npc_id, d_m, room_id)["factor"])
+			_bool_call(player, "is_crouching"), obstructed, _tun) * float(view["factor"])
+	var cap: float = float(_tun["umbral_flagrancia"])
 	if dist > _ident_px:
-		out["cap"] = float(_tun["tope_contador_lejano"])
-	return out
+		cap = float(_tun["tope_contador_lejano"])
+	if not noteworthy:
+		cap = minf(cap, float(_tun["tope_contador_presencia"]))
+	return {"rate": rate, "cap": cap, "crime": crime, "noteworthy": noteworthy,
+			"hidden": bool(view["hidden"]), "distance": d_m}
 
 
-func _check_thresholds(player: Node2D, exposure: Dictionary) -> void:
+## Llena hacia `cap` a `rate`; por encima del tope (dejó de ser digno de atención, se alejó) o
+## fuera del cono, se vacía a get_drain_rate().
+func _advance_counter(delta: float, rate: float, cap: float) -> void:
+	if rate > 0.0:
+		_last_fill = rate
+		if _counter < cap:
+			_counter = minf(_counter + rate * delta, cap)
+		elif _counter > cap:
+			_counter = maxf(_counter - get_drain_rate() * delta, cap)
+	else:
+		_counter = maxf(_counter - get_drain_rate() * delta, 0.0)
+
+
+func _check_thresholds(player: Node2D, exposure: Dictionary, sample: Dictionary) -> void:
 	if _counter >= float(_tun["umbral_perdida_contacto"]):
 		_contact = true
 	elif _contact:
 		reset_contact()
 		EventBus.player_lost_from_sight.emit(npc_id)
+	if bool(sample["noteworthy"]) and float(sample["rate"]) > 0.0:
+		_noteworthy_contact = true
 	if _counter >= float(_tun["umbral_parcial"]) and not _partial_sent:
 		_partial_sent = true
-		EventBus.player_seen_partially.emit(npc_id, float(_tun["certeza_parcial"]),
-				str(exposure.get("room", PlayerState.get_room())))
-	var crime: String = str(exposure.get("crime", ""))
+		_emit_partial(sample, str(exposure.get("room", PlayerState.get_room())))
+	var crime: String = str(sample["crime"])
 	if _counter >= float(_tun["umbral_flagrancia"]) and not _flagrant_sent and not crime.is_empty():
 		_flagrant_sent = true
-		_emit_caught(crime, player)
+		_flagrant_hidden = bool(sample["hidden"])
+		if _flagrant_hidden:
+			_believe_uniform(BeliefNetSystem.make_fact(BeliefNetSystem.FACT_CAUGHT_REDHANDED, crime),
+					float(_tun["certeza_completa"]), sample, str(exposure.get("room", "")))
+		else:
+			_emit_caught(crime, player)
+		witnessed.emit(crime, not _flagrant_hidden)
 	_set_state(_compute_state())
 
 
 ## Contador a cero y umbrales rearmados (contacto perdido, cambio de planta).
 func reset_contact() -> void:
 	_counter = 0.0
+	_last_fill = 0.0
 	_contact = false
+	_noteworthy_contact = false
 	_partial_sent = false
 	_flagrant_sent = false
+	_flagrant_hidden = false
 	_set_state(STATE_NONE)
 
 
 func _compute_state() -> int:
-	if _flagrant_sent:
+	if _flagrant_sent and not _flagrant_hidden:
 		return STATE_FLAGRANT
-	if _counter >= float(_tun["umbral_parcial"]):
+	if _counter >= float(_tun["umbral_parcial"]) or _flagrant_sent:
 		return STATE_PARTIAL
 	return STATE_PROGRESS if _counter > 0.0 else STATE_NONE
 
@@ -334,7 +428,23 @@ func _set_state(state: int) -> void:
 	if state == _state:
 		return
 	_state = state
+	_refresh_colors()
 	state_changed.emit(state)
+
+
+## Percepción parcial: creencia de certeza baja sobre el jugador (o sobre el uniforme si su
+## identidad le queda oculta a este observador).
+func _emit_partial(sample: Dictionary, room: String) -> void:
+	var certainty: float = float(_tun["certeza_parcial"])
+	if bool(sample["hidden"]):
+		_believe_uniform(BeliefNetSystem.FACT_SEEN_PARTIALLY, certainty, sample, room)
+	else:
+		EventBus.player_seen_partially.emit(npc_id, certainty, room)
+
+
+func _believe_uniform(fact: String, certainty: float, sample: Dictionary, room: String) -> void:
+	var subject: String = Disguise.sighting_subject(npc_id, float(sample["distance"]), room)
+	BeliefNet.create_belief(npc_id, subject, fact, certainty, Belief.SOURCE_DIRECT, room)
 
 
 ## Flagrancia con los testigos del instante (otros observadores que ven al jugador).
@@ -352,30 +462,49 @@ func _emit_caught(crime: String, player: Node2D) -> void:
 
 # ─── Funciones puras ──────────────────────────────────────────
 
-## Velocidad de llenado (1/s) de §7.3 a `distance_m` metros.
+## Tunables de fill_rate() (percepcion.*), para cachearlos.
+static func load_fill_tunables() -> Dictionary:
+	var out: Dictionary = {}
+	for key: String in FILL_KEYS:
+		out[key] = Database.get_balance_float("percepcion." + key)
+	return out
+
+
+## Velocidad de llenado (1/s) de §7.3 a `distance_m` metros (`tun`: load_fill_tunables()).
 static func fill_rate(distance_m: float, perception: int, mode: String, crouching: bool,
-		obstructed: bool) -> float:
-	var base: float = Database.get_balance_float("percepcion.velocidad_llenado_base") \
-			+ float(perception) * Database.get_balance_float("percepcion.mod_perspicacia_por_punto")
-	var d: float = maxf(distance_m, Database.get_balance_float("percepcion.distancia_minima"))
-	var dist_factor: float = minf(Database.get_balance_float("percepcion.distancia_referencia") / d,
-			Database.get_balance_float("percepcion.factor_distancia_max"))
-	var mult: float = 1.0
+		obstructed: bool, tun: Dictionary = {}) -> float:
+	var t: Dictionary = tun if tun.has("mod_esprint") else load_fill_tunables()
+	var base: float = float(t["velocidad_llenado_base"]) + float(perception) * float(t["mod_perspicacia_por_punto"])
+	var d: float = maxf(distance_m, float(t["distancia_minima"]))
+	var mult: float = minf(float(t["distancia_referencia"]) / d, float(t["factor_distancia_max"]))
 	if crouching:
-		mult *= Database.get_balance_float("percepcion.mod_agachado")
+		mult *= float(t["mod_agachado"])
 	if mode == MODE_STILL:
-		mult *= Database.get_balance_float("percepcion.mod_inmovil")
+		mult *= float(t["mod_inmovil"])
 	elif mode == MODE_SPRINT:
-		mult *= Database.get_balance_float("percepcion.mod_esprint")
+		mult *= float(t["mod_esprint"])
 	if obstructed:
-		mult *= Database.get_balance_float("percepcion.mod_obstruccion_parcial")
-	return maxf(base, 0.0) * dist_factor * mult
+		mult *= float(t["mod_obstruccion_parcial"])
+	return maxf(base, 0.0) * mult
 
 
-## ¿Hay algo que detectar? {noteworthy, crime, hidden}. crime = acto en curso, "body_moved"
-## (arrastra un cuerpo), "trespass" (sala no cubierta o fuera de horario) o "".
+## Vaciado (1/s) tras un llenado de `fill`: factor_vaciado_relativo × fill, acotado.
+static func drain_rate_for(fill: float, tun: Dictionary = {}) -> float:
+	var lo: float = float(tun["velocidad_vaciado_minima"]) if tun.has("velocidad_vaciado_minima") \
+			else Database.get_balance_float("percepcion.velocidad_vaciado_minima")
+	var hi: float = float(tun["velocidad_vaciado_base"]) if tun.has("velocidad_vaciado_base") \
+			else Database.get_balance_float("percepcion.velocidad_vaciado_base")
+	var k: float = float(tun["factor_vaciado_relativo"]) if tun.has("factor_vaciado_relativo") \
+			else Database.get_balance_float("percepcion.factor_vaciado_relativo")
+	return clampf(fill * k, lo, maxf(hi, lo))
+
+
+## ¿Hay algo que detectar? {noteworthy, crime, hidden, room, uniform_access}. crime = acto en
+## curso, "body_moved" (arrastra un cuerpo), "trespass" (sala no cubierta o fuera de horario) o "".
+## uniform_access: la intrusión la cubre un uniforme coherente (solo cuenta si le reconocen).
 static func assess_exposure(player: Node, room_id: String) -> Dictionary:
-	var out: Dictionary = {"noteworthy": false, "crime": "", "hidden": false, "room": room_id}
+	var out: Dictionary = {"noteworthy": false, "crime": "", "hidden": false, "room": room_id,
+			"uniform_access": false}
 	if player == null:
 		return out
 	if _bool_call(player, "is_hiding"):
@@ -386,8 +515,10 @@ static func assess_exposure(player: Node, room_id: String) -> Dictionary:
 		crime = CRIME_BODY_MOVED
 	if crime.is_empty() and is_trespassing(room_id):
 		crime = CRIME_TRESPASS
+		out["uniform_access"] = uniform_covers(room_id)
 	out["crime"] = crime
-	out["noteworthy"] = not crime.is_empty() or bool(disguise_effect("", 0.0, room_id)["suspicious"])
+	var counts: bool = not crime.is_empty() and not bool(out["uniform_access"])
+	out["noteworthy"] = counts or bool(disguise_effect("", 0.0, room_id)["suspicious"])
 	return out
 
 
@@ -412,6 +543,20 @@ static func is_trespassing(room_id: String) -> bool:
 	if occupation != null and DatabaseSystem.get_room_base_id(room.id) == occupation.office_room:
 		return false
 	return room.get_occupants(BAND_NIGHT) <= 0
+
+
+## El disfraz puesto (no el uniforme del propio puesto ni el pasamontañas) es coherente ahora y
+## su rol abre `room_id` (Disguise.grants_access).
+static func uniform_covers(room_id: String) -> bool:
+	var uniform: String = PlayerState.get_disguise()
+	if uniform.is_empty() or uniform == Disguise.BALACLAVA:
+		return false
+	var canonical: String = Disguise.canonical_uniform(uniform)
+	if canonical.is_empty() or Disguise.is_own_uniform(canonical):
+		return false
+	if not Disguise.is_coherent(canonical, GameClock.get_hour(), Disguise.room_floor(room_id)):
+		return false
+	return Disguise.grants_access(uniform, room_id) or Disguise.grants_access(canonical, room_id)
 
 
 static func is_masked_room(room_id: String) -> bool:
@@ -452,76 +597,33 @@ static func _str_call(obj: Object, method: String) -> String:
 	return str(obj.call(method)) if obj != null and obj.has_method(method) else ""
 
 
-# ─── Disfraz (src/simulation/disguise.gd, puede no existir aún) ─
+# ─── Disfraz (src/simulation/disguise.gd) ─────────────────────
 
-## {factor, suspicious}: efecto del uniforme del jugador ante este observador. Sin disfraz o sin
-## módulo Disguise: {1.0, false}. Acepta Disguise.detection_factor(npc_id, distance_m, room_id)
-## -> float o Disguise.evaluate(...) con argumentos por nombre (-> float | Dictionary).
+## {factor, suspicious, hidden, recognised}: efecto del uniforme del jugador ante `observer_id`
+## ("" = observador genérico) a `distance_m` metros en `room_id` (Disguise.evaluate).
 static func disguise_effect(observer_id: String, distance_m: float, room_id: String) -> Dictionary:
-	var out: Dictionary = {"factor": 1.0, "suspicious": false}
 	var uniform: String = PlayerState.get_disguise()
-	if uniform.is_empty() or not _load_disguise():
-		return out
-	var args: Array = _disguise_args(observer_id, distance_m, room_id, uniform)
-	if args.size() < int(_disguise_info.get("required", 0)):
-		return out
-	return _read_disguise_result(_disguise.callv(str(_disguise_info["name"]), args), out)
+	if uniform.is_empty():
+		return NO_DISGUISE.duplicate()
+	var npc: NPCRuntime = NPCDirector.get_npc(observer_id) if not observer_id.is_empty() else null
+	var r: Dictionary = Disguise.evaluate(uniform, GameClock.get_hour(), room_id, distance_m, npc)
+	return {"factor": maxf(float(r[Disguise.R_MULTIPLIER]), 0.0), "suspicious": bool(r[Disguise.R_SUSPICIOUS]),
+			"hidden": bool(r[Disguise.R_HIDDEN]), "recognised": bool(r[Disguise.R_RECOGNISED])}
 
 
-static func _load_disguise() -> bool:
-	if _disguise_checked:
-		return _disguise != null
-	_disguise_checked = true
-	if not ResourceLoader.exists(DISGUISE_SCRIPT):
-		return false
-	var script: Script = load(DISGUISE_SCRIPT) as Script
-	if script == null:
-		return false
-	for info: Dictionary in script.get_script_method_list():
-		if str(info["name"]) in [DISGUISE_DIRECT, DISGUISE_METHOD] \
-				and (_disguise_info.is_empty() or str(info["name"]) == DISGUISE_DIRECT):
-			_disguise_info = {"name": info["name"], "args": info["args"],
-					"required": (info["args"] as Array).size() - (info["default_args"] as Array).size(),
-					"static": (int(info["flags"]) & METHOD_FLAG_STATIC) != 0}
-	if _disguise_info.is_empty():
-		return false
-	_disguise = script if bool(_disguise_info["static"]) else (script.call("new") as Object)
-	return _disguise != null
-
-
-## Argumentos por nombre (se detiene en el primero desconocido: los opcionales finales sobran).
-static func _disguise_args(observer_id: String, distance_m: float, room_id: String,
-		uniform: String) -> Array:
-	var ctx: Dictionary = {"npc_id": observer_id, "observer_id": observer_id, "observer": observer_id,
-			"distance": distance_m, "distance_m": distance_m, "room_id": room_id, "room": room_id,
-			"location": room_id, "hour": GameClock.get_hour(), "band": GameClock.get_current_band(),
-			"day": GameClock.get_day(), "uniform": uniform, "uniform_id": uniform, "disguise": uniform,
-			"floor": PlayerState.get_floor()}
-	var npc: NPCRuntime = NPCDirector.get_npc(observer_id)
-	ctx["npc"] = npc
-	ctx["knows_player"] = NPCDirector.knows_player(observer_id) if npc != null else false
-	ctx["context"] = ctx.duplicate()
-	var args: Array = []
-	for arg: Dictionary in _disguise_info.get("args", []):
-		if not ctx.has(str(arg["name"])):
-			break
-		args.append(ctx[str(arg["name"])])
-	return args
-
-
-static func _read_disguise_result(result: Variant, out: Dictionary) -> Dictionary:
-	if result is float or result is int:
-		out["factor"] = maxf(float(result), 0.0)
-		out["suspicious"] = float(result) > 1.0
-	elif result is Dictionary:
-		var d: Dictionary = result
-		for key: String in DISGUISE_FACTOR_KEYS:
-			if d.has(key) and (d[key] is float or d[key] is int):
-				out["factor"] = maxf(float(d[key]), 0.0)
-				break
-		for key: String in DISGUISE_SUSPICIOUS_KEYS:
-			out["suspicious"] = bool(out["suspicious"]) or bool(d.get(key, false))
-	return out
+## disguise_effect() de este observador, cacheado hasta que la distancia cambie más de
+## percepcion.tolerancia_cache_disfraz metros, cambie el uniforme o piense (refresh_traits).
+func _disguise_view(d_m: float, room_id: String) -> Dictionary:
+	var uniform: String = PlayerState.get_disguise()
+	if uniform.is_empty():
+		return NO_DISGUISE
+	if _dz_distance >= 0.0 and uniform == _dz_uniform \
+			and absf(d_m - _dz_distance) <= float(_tun["tolerancia_cache_disfraz"]):
+		return _dz
+	_dz = disguise_effect(npc_id, d_m, room_id)
+	_dz_distance = d_m
+	_dz_uniform = uniform
+	return _dz
 
 
 # ─── Oído ─────────────────────────────────────────────────────
@@ -530,18 +632,21 @@ static func _read_disguise_result(result: Variant, out: Dictionary) -> Dictionar
 func hear(origin: Vector2, radius_m: float, source: String, room_id: String, noteworthy: bool) -> Dictionary:
 	if npc_id.is_empty() or not _active:
 		return {}
+	var player_alert: bool = noteworthy and source == PLAYER_SOURCE
+	if radius_m < float(_tun["radio_ruido_anomalo"]) and not player_alert:
+		return {}
 	var radius: float = effective_noise_radius(radius_m, room_id)
 	if archetype == ARCH_OBLIVIOUS:
 		radius *= float(_tun["oido_oblivious"])
 	var d_m: float = global_position.distance_to(origin) / _cell
 	if d_m > radius:
 		return {}
-	var anomalous: bool = radius_m >= float(_tun["radio_ruido_anomalo"])
-	if not anomalous and not (noteworthy and source == PLAYER_SOURCE):
+	if d_m > radius * float(_tun["factor_oido_muro"]) and _ray_blocked(global_position, origin, WALL_MASK):
 		return {}
 	_attention = origin
 	_attention_left = float(_tun["segundos_atencion"])
-	var investigate: bool = float(_perception_eff) >= float(_tun["umbral_investigar_ruido"]) \
+	var worth: bool = player_alert or (source != PLAYER_SOURCE and radius_m >= float(_tun["radio_ruido_investigar"]))
+	var investigate: bool = worth and float(_perception_eff) >= float(_tun["umbral_investigar_ruido"]) \
 			and not sees_point(origin)
 	return {"origin": origin, "investigate": investigate, "distance": d_m}
 
@@ -550,18 +655,35 @@ func hear(origin: Vector2, radius_m: float, source: String, room_id: String, not
 
 func _update_cone(delta: float, player: Node2D, exposure: Dictionary) -> void:
 	var target: float = _cone_target_alpha(player, exposure)
-	var previous: float = _cone_alpha
 	_cone_alpha = move_toward(_cone_alpha, target, delta * float(_tun["velocidad_fundido_cono"]))
-	_cone_color = _state_color()
-	if _cone_alpha <= 0.0:
-		if previous > 0.0:
-			queue_redraw()
+	visible = _cone_alpha > 0.0
+	if not visible:
+		_drawn_alpha = 0.0
 		return
-	_cone_timer -= delta
-	if _cone_timer <= 0.0 or _cone.is_empty():
-		_cone_timer = float(_tun["intervalo_cono"])
+	_since_build += delta
+	if _contrast != UITheme.current_high_contrast:
+		_refresh_colors()
+	var dirty: bool = absf(_cone_alpha - _drawn_alpha) > 0.002
+	if _needs_rebuild(target):
+		_since_build = 0.0
 		_rebuild_cone()
-	queue_redraw()
+		dirty = true
+	if dirty:
+		_drawn_alpha = _cone_alpha
+		queue_redraw()
+
+
+## Reconstruye si giró o se movió (como mucho cada intervalo_cono) o cada intervalo_cono_reposo
+## (puertas que se abren); un cono en reposo que no cambia no gasta rayos.
+func _needs_rebuild(target_alpha: float) -> bool:
+	if _cone.is_empty():
+		return true
+	var calm: bool = target_alpha <= float(_tun["alfa_cono"])
+	if _since_build >= float(_tun["intervalo_cono_reposo" if calm else "intervalo_cono"]):
+		return true
+	if _since_build < float(_tun["intervalo_cono"]):
+		return false
+	return _dir.dot(_cone_dir) < REBUILD_COS or global_position.distance_squared_to(_cone_pos) > REBUILD_MOVE_SQ
 
 
 func _cone_target_alpha(player: Node2D, exposure: Dictionary) -> float:
@@ -569,8 +691,8 @@ func _cone_target_alpha(player: Node2D, exposure: Dictionary) -> float:
 		return float(_tun["alfa_cono_depuracion"])
 	if not _active or cone_mode == CONE_OFF or player == null:
 		return 0.0
-	var near: bool = global_position.distance_to(player.global_position) \
-			<= float(_tun["radio_conos_visibles"]) * _cell
+	var near: bool = global_position.distance_squared_to(player.global_position) \
+			<= pow(float(_tun["radio_conos_visibles"]) * _cell, 2.0)
 	if not near and cone_mode != CONE_ALL:
 		return 0.0
 	if _counter > 0.0:
@@ -594,8 +716,8 @@ func _state_color() -> Color:
 
 ## Contorno: percepcion.rayos_cono rayos + bisección en los saltos (jambas nítidas).
 func _rebuild_cone() -> void:
-	var rays: int = maxi(2, Database.get_balance_int("percepcion.rayos_cono"))
-	var depth: int = Database.get_balance_int("percepcion.refinado_cono")
+	var rays: int = int(_tun["rayos_cono"])
+	var depth: int = int(_tun["refinado_cono"])
 	var pts: PackedVector2Array = [Vector2.ZERO]
 	var prev_a: float = -_half_angle
 	var prev: Vector2 = _cast(prev_a)
@@ -608,6 +730,8 @@ func _rebuild_cone() -> void:
 		prev_a = a
 		prev = hit
 	_cone = pts
+	_cone_dir = _dir
+	_cone_pos = global_position
 
 
 func _cast(a: float) -> Vector2:
@@ -622,8 +746,7 @@ func _cast(a: float) -> Vector2:
 
 
 func _refine(pts: PackedVector2Array, a0: float, p0: Vector2, a1: float, p1: Vector2, depth: int) -> void:
-	var jump: float = Database.get_balance_float("percepcion.salto_refinado_cono") * _cell
-	if depth <= 0 or absf(p0.length() - p1.length()) < jump:
+	if depth <= 0 or absf(p0.length() - p1.length()) < float(_tun["salto_refinado_cono"]) * _cell:
 		return
 	var mid: float = (a0 + a1) * 0.5
 	var pm: Vector2 = _cast(mid)
@@ -632,23 +755,39 @@ func _refine(pts: PackedVector2Array, a0: float, p0: Vector2, a1: float, p1: Vec
 	_refine(pts, mid, pm, a1, p1, depth - 1)
 
 
-## Abanico de triángulos con degradado radial en UNA llamada (índices explícitos: sin
-## triangulación, robusto junto a los muros); el borde exterior solo cuando importa (sigilo,
-## alerta o depuración): en reposo el cono es una luz tenue sin líneas.
+## Abanico de triángulos con degradado radial y borde fino antialiasado (franja con plumas
+## transparentes: el arco exterior y los dos lados, que se desvanecen hacia el vértice), todo en UNA
+## orden de dibujo (índices explícitos: sin triangulación, robusto junto a los muros).
 func _draw() -> void:
 	if _cone_alpha <= 0.0 or _cone.size() < 3:
 		return
-	var apex: Color = Color(_cone_color, _cone_alpha)
-	var rim: Color = Color(_cone_color, _cone_alpha * float(_tun["desvanecido_borde_cono"]))
+	var pts: PackedVector2Array = PackedVector2Array(_cone)
 	var colors: PackedColorArray = PackedColorArray()
-	colors.resize(_cone.size())
-	colors.fill(rim)
-	colors[0] = apex
+	colors.resize(pts.size())
+	colors.fill(Color(_cone_color, _cone_alpha * float(_tun["desvanecido_borde_cono"])))
+	colors[0] = Color(_cone_color, _cone_alpha)
 	var indices: PackedInt32Array = PackedInt32Array()
-	for i: int in range(1, _cone.size() - 1):
+	for i: int in range(1, pts.size() - 1):
 		indices.append_array([0, i, i + 1])
-	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, _cone, colors)
-	if _cone_alpha <= float(_tun["alfa_cono"]):
+	var calm: bool = _cone_alpha <= float(_tun["alfa_cono"]) + 0.001
+	var edge: Color = Color(_rim_color, minf(1.0, _cone_alpha * float(_tun["factor_borde_cono"])))
+	var width: float = RIM_WIDTH_CALM if calm else RIM_WIDTH
+	var last: int = _cone.size() - 1
+	_append_stroke(pts, colors, indices, _cone[0], _cone[1], Color(edge, 0.0), edge, width)
+	for i: int in range(1, last):
+		_append_stroke(pts, colors, indices, _cone[i], _cone[i + 1], edge, edge, width)
+	_append_stroke(pts, colors, indices, _cone[last], _cone[0], edge, Color(edge, 0.0), width)
+	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, pts, colors)
+
+
+## Tramo a→b de `width` px: línea central con su color y plumas transparentes a los lados.
+static func _append_stroke(pts: PackedVector2Array, colors: PackedColorArray, indices: PackedInt32Array,
+		a: Vector2, b: Vector2, col_a: Color, col_b: Color, width: float) -> void:
+	var n: Vector2 = (b - a).orthogonal().normalized() * width
+	if n == Vector2.ZERO:
 		return
-	var edge: Color = Color(_cone_color, minf(1.0, _cone_alpha * float(_tun["factor_borde_cono"])))
-	draw_polyline(_cone.slice(1), edge, RIM_WIDTH, true)
+	var base: int = pts.size()
+	pts.append_array([a + n, a, a - n, b + n, b, b - n])
+	colors.append_array([Color(col_a, 0.0), col_a, Color(col_a, 0.0), Color(col_b, 0.0), col_b, Color(col_b, 0.0)])
+	indices.append_array([base, base + 1, base + 4, base, base + 4, base + 3,
+			base + 1, base + 2, base + 5, base + 1, base + 5, base + 4])

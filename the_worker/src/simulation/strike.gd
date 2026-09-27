@@ -12,19 +12,24 @@ extends RefCounted
 ## DECISIONES:
 ##  · Agitar (conversación): personaje en plantilla de escalón ≤ descontento.escalon_max_afectado y
 ##    descontento (ánimo < huelga.animo_max_descontento o algún agravio), una vez cada
-##    huelga.jornadas_entre_agitaciones jornadas por personaje; imposible si el jugador traicionó
-##    una huelga (nadie le escucha). Efecto: descontento inmediato + impulso diario
-##    (Company.add_agitation): el descontento sube más deprisa los días siguientes.
-##  · Rumor contra la dirección: SocialGraph.inject_rumour_about(destino, directivo,
-##    "<huelga.hecho_rumor>:<directivo>", certeza) (emite crime_committed rumour_planted: SEDA);
-##    directivo por defecto = titular de huelga.ocupacion_objetivo_rumor (si no, "company"); más
-##    impulso que una conversación.
+##    huelga.jornadas_entre_agitaciones jornadas por personaje y como mucho
+##    huelga.agitaciones_max_por_jornada personajes al día (conversaciones y rumores juntos);
+##    imposible si el jugador traicionó una huelga (nadie le escucha). Efecto: descontento
+##    inmediato + impulso diario (Company.add_agitation): el descontento sube más deprisa los días
+##    siguientes.
+##  · Rumor contra la dirección: mismos límites que una conversación (el destinatario entra en el
+##    enfriamiento; tras la traición nadie lo repite) pero no exige que ya esté descontento.
+##    SocialGraph.inject_rumour_about(destino, directivo, "<huelga.hecho_rumor>:<directivo>",
+##    certeza) (emite crime_committed rumour_planted: SEDA); directivo por defecto = titular de
+##    huelga.ocupacion_objetivo_rumor (si no, "company"); más impulso que una conversación.
 ##  · Apaciguar: concesión salarial (escalón del jugador ≥ huelga.escalon_min_concesion) →
 ##    Company.apply_labour_event("wage_concession") (−15 y coste en nómina); despido del causante
-##    (directivo de escalón > escalon_max_afectado y menor que el del jugador, con escalón ≥
-##    escalon_min_despido) → NPCDirector.remove_npc(causante, huelga.causa_despido) y
-##    "culprit_dismissed" (−10). Si el descontento vuelve a ≤ 70, Company da la huelga por
-##    apaciguada.
+##    → NPCDirector.remove_npc(causante, huelga.causa_despido) y "culprit_dismissed" (−10). Causante
+##    = directivo (escalón > escalon_max_afectado, menor que el del jugador, que necesita escalón ≥
+##    escalon_min_despido) que ocupa un puesto de huelga.ocupaciones_causantes (el director de
+##    fábrica: «las huelgas se dirigen contra este cargo») o al que la plantilla culpa (rumor
+##    "<hecho_rumor>:<id>" vivo en BeliefNet). Cada causante solo se despide una vez. Si el
+##    descontento vuelve a ≤ 70, Company da la huelga por apaciguada.
 ##  · Liderar (descontento > umbral): Company.call_strike("player") (estalla si no estaba activa;
 ##    Company fija el prestigio laboral);
 ##    PlayerState.modify_reputation(reputacion_direccion_liderar) —la reputación del jugador es
@@ -33,9 +38,10 @@ extends RefCounted
 ##    favores ni señales por personaje (no llena la agenda de contactos).
 ##  · Traicionar (haberla convocado y no comparecer: exige ser su líder):
 ##    strike_resolved("betrayed") (Company la termina y marca la traición para siempre; NewsFeed
-##    cierra el evento), reputación + reputacion_direccion_traicionar («salvó la compañía»),
-##    agravio permanente agravio_traicion a cada personaje de escalones bajos (los agravios no
-##    decaen) y afecto a la dirección.
+##    cierra el evento); ante la dirección se borra la penalización de haberla liderado y se suma
+##    reputacion_direccion_traicionar («salvó la compañía»: muy alta), lo mismo con el afecto de la
+##    dirección; agravio permanente agravio_traicion a cada personaje de escalones bajos (los
+##    agravios no decaen).
 ##  · Huelga activa (ambos cerebros): unidades × empresa.factor_unidades_huelga y riesgo
 ##    (Company), noticia negativa y evento "strike" (NewsFeed al oír strike_started), cotización a
 ##    la baja (Market: sentimiento y valor intrínseco). Este módulo no los duplica.
@@ -64,6 +70,8 @@ const REASON_BELOW_THRESHOLD := "below_threshold"
 const REASON_ALREADY_LEADING := "already_leading"
 const REASON_NOT_LEADER := "not_leader"
 const REASON_RUMOUR_FAILED := "rumour_failed"
+const REASON_DAILY_LIMIT := "daily_limit"
+const REASON_NOT_CULPRIT := "not_culprit"
 const REASON_LABEL_KEYS: Dictionary = {
 	REASON_UNKNOWN_NPC: "STRIKE_REASON_UNKNOWN_NPC",
 	REASON_NOT_LOW_TIER: "STRIKE_REASON_NOT_LOW_TIER",
@@ -75,6 +83,8 @@ const REASON_LABEL_KEYS: Dictionary = {
 	REASON_ALREADY_LEADING: "STRIKE_REASON_ALREADY_LEADING",
 	REASON_NOT_LEADER: "STRIKE_REASON_NOT_LEADER",
 	REASON_RUMOUR_FAILED: "STRIKE_REASON_RUMOUR_FAILED",
+	REASON_DAILY_LIMIT: "STRIKE_REASON_DAILY_LIMIT",
+	REASON_NOT_CULPRIT: "STRIKE_REASON_NOT_CULPRIT",
 }
 const REPUTATION_LED := "strike_led"
 const REPUTATION_BETRAYED := "strike_betrayed"
@@ -86,6 +96,8 @@ const B_MAX_TIER := "descontento.escalon_max_afectado"
 const B_EXEC_TIER := "empresa.escalon_directivo"
 const B_MOOD_MAX := "huelga.animo_max_descontento"
 const B_COOLDOWN := "huelga.jornadas_entre_agitaciones"
+const B_DAILY_CAP := "huelga.agitaciones_max_por_jornada"
+const B_CULPRIT_POSTS := "huelga.ocupaciones_causantes"
 const B_TALK_DISCONTENT := "huelga.descontento_por_conversacion"
 const B_TALK_AGITATION := "huelga.agitacion_por_conversacion"
 const B_RUMOUR_DISCONTENT := "huelga.descontento_por_rumor"
@@ -115,13 +127,15 @@ static func is_discontented(npc_id: String) -> bool:
 
 ## {allowed, reason} de una conversación de agitación con ese personaje.
 static func can_agitate(npc_id: String) -> Dictionary:
-	var reason: String = _low_tier_reason(npc_id)
-	if reason.is_empty() and Company.are_workers_betrayed():
-		reason = REASON_BETRAYED
-	elif reason.is_empty() and not is_discontented(npc_id):
+	var reason: String = _agitation_reason(npc_id)
+	if reason.is_empty() and not is_discontented(npc_id):
 		reason = REASON_NOT_DISCONTENTED
-	elif reason.is_empty() and _in_cooldown(npc_id):
-		reason = REASON_COOLDOWN
+	return {"allowed": reason.is_empty(), "reason": reason}
+
+
+## {allowed, reason} de plantar un rumor contra la dirección en ese personaje.
+static func can_plant_rumour(npc_id: String) -> Dictionary:
+	var reason: String = _agitation_reason(npc_id)
 	return {"allowed": reason.is_empty(), "reason": reason}
 
 
@@ -138,16 +152,16 @@ static func agitate(npc_id: String) -> Dictionary:
 ## Rumor contra la dirección plantado en un personaje de escalones bajos (manager_id "" = titular
 ## de huelga.ocupacion_objetivo_rumor, o la compañía).
 static func plant_rumour(target_npc: String, manager_id: String = "") -> Dictionary:
-	var reason: String = _low_tier_reason(target_npc)
-	if not reason.is_empty():
-		return _failure(reason)
+	var check: Dictionary = can_plant_rumour(target_npc)
+	if not bool(check["allowed"]):
+		return _failure(str(check["reason"]))
 	var subject: String = manager_id if not manager_id.is_empty() else _default_manager()
-	var fact: String = FACT_FORMAT % [str(Database.get_balance(B_RUMOUR_FACT)), subject]
+	var fact: String = _rumour_fact(subject)
 	var rumour_id: String = SocialGraph.inject_rumour_about(target_npc, subject, fact,
 			Database.get_balance_float(B_RUMOUR_CERTAINTY))
 	if rumour_id.is_empty():
 		return _failure(REASON_RUMOUR_FAILED)
-	Company.add_agitation(Database.get_balance_int(B_RUMOUR_AGITATION), "")
+	Company.add_agitation(Database.get_balance_int(B_RUMOUR_AGITATION), target_npc)
 	Company.modify_discontent(Database.get_balance_int(B_RUMOUR_DISCONTENT), CAUSE_RUMOUR)
 	return _success({"rumour_id": rumour_id, "subject": subject})
 
@@ -172,9 +186,22 @@ static func appease_by_firing(culprit_id: String) -> Dictionary:
 	if PlayerState.get_tier() < Database.get_balance_int(B_FIRING_TIER) \
 			or npc.tier >= PlayerState.get_tier():
 		return _failure(REASON_NO_AUTHORITY)
+	if not is_culprit(culprit_id):
+		return _failure(REASON_NOT_CULPRIT)
 	NPCDirector.remove_npc(culprit_id, str(Database.get_balance(B_FIRING_CAUSE)))
 	var delta: int = Company.apply_labour_event(EVENT_CULPRIT_DISMISSED)
 	return _success({"delta": delta, "npc_id": culprit_id})
+
+
+## Causante del malestar a ojos de la plantilla: ocupa un puesto de huelga.ocupaciones_causantes
+## (director de fábrica) o circula un rumor de abuso de dirección contra él.
+static func is_culprit(npc_id: String) -> bool:
+	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
+	if npc == null:
+		return false
+	if _strings(Database.get_balance(B_CULPRIT_POSTS)).has(npc.occupation_id):
+		return true
+	return BeliefNet.count_rumours(_rumour_fact(npc_id)) > 0
 
 
 # ─── Liderar y traicionar ─────────────────────────────────────
@@ -210,15 +237,16 @@ static func betray() -> Dictionary:
 	if not Company.is_strike_active() or Company.get_strike_leader() != PLAYER_ID:
 		return _failure(REASON_NOT_LEADER)
 	EventBus.strike_resolved.emit(RESOLUTION_BETRAYED)
-	PlayerState.modify_reputation(Database.get_balance_float(B_BETRAY_REPUTATION),
-			REPUTATION_BETRAYED)
+	PlayerState.modify_reputation(Database.get_balance_float(B_BETRAY_REPUTATION)
+			- Database.get_balance_float(B_LEAD_REPUTATION), REPUTATION_BETRAYED)
 	var low_tier: int = Database.get_balance_int(B_MAX_TIER)
 	var grievance: String = str(Database.get_balance(B_BETRAY_GRIEVANCE))
 	var severity: int = Database.get_balance_int(B_BETRAY_SEVERITY)
 	for npc: NPCRuntime in NPCDirector.get_all_npcs():
 		if npc.tier <= low_tier:
 			NPCDirector.add_grievance(npc.id, grievance, severity)
-	_shift_affection(0, Database.get_balance_int(B_BETRAY_EXEC_AFFECTION))
+	_shift_affection(0, Database.get_balance_int(B_BETRAY_EXEC_AFFECTION)
+			- Database.get_balance_int(B_LEAD_EXEC_AFFECTION))
 	EventBus.notebook_entry_added.emit(NOTE_CATEGORY, NOTE_BETRAYED, [])
 	return _success({})
 
@@ -242,6 +270,33 @@ static func get_reason_label_key(reason: String) -> String:
 
 
 # ─── Internos ─────────────────────────────────────────────────
+
+## Límites comunes de conversación y rumor: escalones bajos, sin traición, enfriamiento del
+## personaje y tope diario.
+static func _agitation_reason(npc_id: String) -> String:
+	var reason: String = _low_tier_reason(npc_id)
+	if not reason.is_empty():
+		return reason
+	if Company.are_workers_betrayed():
+		return REASON_BETRAYED
+	if _in_cooldown(npc_id):
+		return REASON_COOLDOWN
+	if Company.get_agitations_today() >= Database.get_balance_int(B_DAILY_CAP):
+		return REASON_DAILY_LIMIT
+	return ""
+
+
+static func _rumour_fact(subject: String) -> String:
+	return FACT_FORMAT % [str(Database.get_balance(B_RUMOUR_FACT)), subject]
+
+
+static func _strings(value: Variant) -> Array[String]:
+	var out: Array[String] = []
+	if value is Array:
+		for item: Variant in value:
+			out.append(str(item))
+	return out
+
 
 ## "" si es un personaje en plantilla de escalones bajos; si no, el motivo.
 static func _low_tier_reason(npc_id: String) -> String:

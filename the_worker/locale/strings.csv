@@ -3413,3 +3413,85 @@ LEDGER_GRIEVANCE_STRIKE_BETRAYED,You called the strike and left them standing al
 BELIEF_FACT_MANAGEMENT_ABUSE,Management is squeezing the staff,La dirección exprime a la plantilla
 LABOUR_STANDING_WORKERS,Standing on the shop floor,Prestigio en la nave
 LABOUR_STANDING_MANAGEMENT,Standing with management,Prestigio ante la dirección
+ENDGAME_NOTE_REVEALED,"Legal archive, confidential: the Stellar Sell ownership documents sit in the CEO's safe on floor 20, and they are worthless until the in-house notary on floor 9 formalises them.","Archivo legal, confidencial: los documentos de propiedad de Stellar Sell están en la caja fuerte del CEO, en la planta 20, y no valen nada hasta que la notaría interna de la planta 9 los formalice."
+ENDGAME_NOTE_PEARL_BLACKMAIL,Pearl Osgood gave you the safe combination. She will never forgive the file.,Pearl Osgood te ha dado la combinación de la caja fuerte. Nunca te perdonará lo del expediente.
+ENDGAME_NOTE_PEARL_FAVOUR,Pearl Osgood repaid the favour: you have the safe combination.,Pearl Osgood te ha devuelto el favor: tienes la combinación de la caja fuerte.
+ENDGAME_NOTE_PEARL_INFORMED,Pearl Osgood went straight to Harlan Voss. He is watching you personally.,Pearl Osgood ha ido directa a Harlan Voss. Ahora te vigila en persona.
+ENDGAME_NOTE_FILES_FOUND,"Voss's private files: the safe combination was in there, filed under ""Misc"".","Los archivos privados de Voss: la combinación de la caja estaba ahí, archivada en «Varios»."
+ENDGAME_NOTE_MEETING,Harlan Voss is stuck in a long meeting (%s). His office is empty.,Harlan Voss está atrapado en una reunión interminable (%s). Su despacho está vacío.
+ENDGAME_NOTE_DOCUMENTS,You have the ownership documents. Carrying them into a body search is the end: hide them.,Tienes los documentos de propiedad. Llevarlos encima en un registro es el final: escóndelos.
+ENDGAME_NOTE_SAFE_FORCED,The CEO's safe is forced open. Someone will notice tomorrow morning.,La caja fuerte del CEO está forzada. Alguien lo notará mañana por la mañana.
+ENDGAME_NOTE_FORGED,Authorisation forged with your desk stamp. It looks almost legitimate.,Autorización falsificada con la estampa de tu escritorio. Parece casi legítima.
+ENDGAME_NOTE_VERIFICATION,The notary is verifying your papers: %d days of maximum exposure.,El notario está comprobando tus papeles: %d jornadas de máxima exposición.
+ENDGAME_NOTE_FORGERY_DETECTED,The notary's verification exposed the forged authorisation. The documents went back to the safe.,La comprobación del notario ha destapado la autorización falsa. Los documentos han vuelto a la caja.
+ENDGAME_NOTE_TITLE_LOST,Verification failed: you no longer hold the chair. The notary handed the documents back.,La comprobación ha fallado: ya no ocupas el cargo. El notario te ha devuelto los documentos.
+ENDGAME_NOTE_NOTARISED,Notarised. Stellar Sell is legally yours.,Protocolizado. Stellar Sell es legalmente tuya.
+ENDGAME_NOTE_PRESTON_HOSTILE,%s now sees you as his rival for the top chair.,%s te ve ahora como su rival por el sillón de arriba.
+ENDGAME_NOTE_VOSS_REASSURED,%s told Voss exactly what he wanted to hear. He stopped watching you.,%s le ha contado a Voss exactamente lo que quería oír. Ha dejado de vigilarte.
+OBJECTIVE_HIDDEN,Climb to the office on floor 20. You want the company; you do not yet know how it changes hands.,Llega al despacho de la planta 20. Quieres la compañía; aún no sabes cómo cambia de manos.
+OBJECTIVE_COMBINATION,"Get into the CEO's safe: Pearl Osgood knows the combination, Voss keeps it in his files, or force it.","Entra en la caja fuerte del CEO: Pearl Osgood conoce la combinación, Voss la guarda en sus archivos, o fuérzala."
+OBJECTIVE_SAFE,"Open the safe in the CEO's office while Voss is away. Door, roof ledge or machine-room vent.","Abre la caja del despacho del CEO mientras Voss no está. Puerta, cornisa de la azotea o conducto del cuarto de máquinas."
+OBJECTIVE_CUSTODY,Take the ownership documents to the in-house notary (floor 9) with the chair or an authorisation. Never carry them into a search.,Lleva los documentos de propiedad a la notaría interna (planta 9) con el cargo o una autorización. Nunca los lleves a un registro.
+OBJECTIVE_VERIFICATION,The notary is verifying the transfer. Survive %d more days.,El notario está comprobando la transmisión. Aguanta %d jornadas más.
+OBJECTIVE_RESOLVED,It is over.,Se acabó.
+ENDGAME_ACCESS_MAIN_DOOR,Main door (past Pearl Osgood's desk),Puerta principal (ante la mesa de Pearl Osgood)
+ENDGAME_ACCESS_ROOF_LEDGE,Rooftop terrace ledge,Cornisa de la terraza de la azotea
+ENDGAME_ACCESS_VENT,Machine-room vent,Conducto del cuarto de máquinas
+ENDGAME_STANCE_ALLY,Tactical ally against Voss,Aliado táctico contra Voss
+ENDGAME_STANCE_HOSTILE,Rival for the same chair,Rival por la misma silla
+ENDGAME_STANCE_NEUTRAL,Out of the picture,Fuera de juego
+ENDGAME_REASON_RUN_OVER,The game is already over.,La partida ya ha terminado.
+ENDGAME_REASON_OBJECTIVE_HIDDEN,You do not know what you are looking for yet.,Todavía no sabes qué estás buscando.
+ENDGAME_REASON_INVALID_METHOD,That is not a way to approach her.,Esa no es forma de abordarla.
+ENDGAME_REASON_NOT_IN_OFFICE,You have to be inside the CEO's office.,Tienes que estar dentro del despacho del CEO.
+ENDGAME_REASON_NOT_AT_NOTARY,You have to be at the in-house notary.,Tienes que estar en la notaría interna.
+ENDGAME_REASON_ALREADY_KNOWN,You already know the combination.,Ya conoces la combinación.
+ENDGAME_REASON_UNAVAILABLE,She is not here any more.,Ya no está aquí.
+ENDGAME_REASON_UNBRIBABLE,Pearl Osgood cannot be bought. She will tell Voss.,Pearl Osgood no se vende. Se lo contará a Voss.
+ENDGAME_REASON_NO_MATERIAL,You have nothing on her: read her HR file first.,No tienes nada contra ella: lee antes su expediente de RR. HH.
+ENDGAME_REASON_REFUSED,She called your bluff.,No se ha dejado intimidar.
+ENDGAME_REASON_FAVOUR_TOO_SMALL,You have never done her a favour that big.,Nunca le has hecho un favor tan grande.
+ENDGAME_REASON_OBSERVED,Someone saw you. Start again.,Alguien te ha visto. Vuelta a empezar.
+ENDGAME_REASON_IN_PROGRESS,Still working on it.,Sigues en ello.
+ENDGAME_REASON_OCCUPIED,The office is not empty.,El despacho no está vacío.
+ENDGAME_REASON_NO_COMBINATION,You do not know the combination.,No conoces la combinación.
+ENDGAME_REASON_NO_MEANS,You lack the means to force it (security or maintenance).,No tienes medios para forzarla (seguridad o mantenimiento).
+ENDGAME_REASON_ALREADY_TAKEN,The safe is already empty.,La caja ya está vacía.
+ENDGAME_REASON_INVENTORY_FULL,Your pockets are full.,Llevas los bolsillos llenos.
+ENDGAME_REASON_NO_STAMP,You need your desk stamp.,Necesitas la estampa de tu escritorio.
+ENDGAME_REASON_LOW_REPUTATION,Nobody would believe a signature from someone with your reputation.,Nadie creería una firma de alguien con tu reputación.
+ENDGAME_REASON_NO_DOCUMENTS,You must bring the ownership documents with you.,Tienes que traer contigo los documentos de propiedad.
+ENDGAME_REASON_NO_TITLE,You need the chair or an authorisation that says you hold it.,Necesitas el cargo o una autorización que diga que lo ostentas.
+ENDGAME_REASON_NO_NOTARY,There is no notary left to sign.,No queda ningún notario que firme.
+ENDGAME_REASON_VERIFICATION_PENDING,The notary is still verifying.,El notario sigue comprobando.
+ENDGAME_REASON_INVALID_BAND,Meetings can only be called during working bands.,Solo se pueden convocar reuniones en las franjas de trabajo.
+ENDGAME_REASON_NO_AUTHORITY,You cannot call that meeting.,No puedes convocar esa reunión.
+ENDGAME_REASON_NO_TARGET,Nobody occupies that office.,Nadie ocupa ese despacho.
+ENDGAME_REASON_ALREADY_TODAY,He is already stuck in one meeting today.,Hoy ya está atrapado en una reunión.
+ENDGAME_REASON_UNKNOWN_ROUTE,There is no way in from there.,Por ahí no se entra.
+ENDGAME_REASON_NOT_WATCHED,Nobody is watching you personally.,Nadie te vigila en persona.
+ENDGAME_REASON_NO_ACCESS,That person does not get to talk to Voss.,Esa persona no llega a hablar con Voss.
+ENDGAME_REASON_UNWILLING,That person will not lie to Voss for you.,Esa persona no le mentirá a Voss por ti.
+INCIDENT_FORGED_DOCUMENT,Forged document verified,Documento falsificado verificado
+LEDGER_GRIEVANCE_RIVAL_FOR_CHAIR,Rival for the chair,Rival por la silla
+NIGHT_ERR_NOT_LEAVING,"They are still working. Follow them when they leave, or go to their home on your own.",Todavía está trabajando. Síguele cuando salga o ve por tu cuenta a su casa.
+NIGHT_ERR_NO_BALACLAVA,Not with your face uncovered. Put the balaclava on.,No a cara descubierta. Ponte el pasamontañas.
+FACTORY_MISSING_STOCK,There are not that many pairs left on the shelves,No quedan tantos pares en las estanterías
+FACTORY_MISSING_LIMIT,Another one this week and the count will not add up at all,Otro más esta semana y el recuento no cuadrará por ningún lado
+FACTORY_MISSING_CAPACITY,You have nowhere left to carry it,No te queda dónde llevarlo
+FACTORY_REASON_NOT_AT_NOTES,Delivery notes are only kept at the loading dock and in the foreman's office,Los albaranes solo están en el muelle de carga y en la oficina del capataz
+FACTORY_REASON_NOT_FOREMAN,Only the foreman signs the delivery notes,Solo el capataz firma los albaranes
+FACTORY_REASON_NO_SUPERIOR,There is nobody above you whose signature would pass,No hay nadie por encima de ti cuya firma cuele
+FACTORY_REASON_NOT_AT_FENCE,Nobody here takes goods with no questions asked,Aquí nadie acepta mercancía sin hacer preguntas
+FACTORY_REASON_NOTHING_TO_FENCE,You are not carrying any stolen product,No llevas producto robado encima
+BUYER_REASON_NOT_ARRIVED,That buyer has not arrived yet,Ese comprador aún no ha llegado
+BUYER_REASON_GONE,That buyer left at the end of the working day,Ese comprador se fue al acabar la jornada
+BUYER_REASON_NOT_IN_LOUNGE,Buyers only wait for their meeting in the visitors' lounge,Los compradores solo esperan su reunión en la sala de espera de visitas
+BUYER_REASON_NOBODY_WAITING,No buyer is waiting for a meeting right now,Ahora mismo no hay ningún comprador esperando su reunión
+BUYER_REASON_NOT_IN_ARCHIVE,The buyers' dossiers are kept in the VIP client archive,Los expedientes de los compradores están en el archivo de clientes VIP
+BUYER_REASON_NO_DEMAND,That buyer is not asking you for anything,Ese comprador no te está pidiendo nada
+BUYER_REASON_NO_MONEY,You do not have enough money to keep them quiet,No tienes dinero suficiente para que se calle
+NOTE_BUYER_DEMAND,%s (%s) remembers the kickback and wants %d € to keep forgetting it.,%s (%s) recuerda la mordida y quiere %d € para seguir olvidándola.
+NOTE_BUYER_REPORTED,%s (%s) has told the company about the kickback.,%s (%s) le ha contado la mordida a la compañía.
+STRIKE_REASON_DAILY_LIMIT,You have stirred enough people for one day,Por hoy ya has calentado bastantes cabezas
+STRIKE_REASON_NOT_CULPRIT,The shop floor does not blame them for anything,La nave no le culpa de nada

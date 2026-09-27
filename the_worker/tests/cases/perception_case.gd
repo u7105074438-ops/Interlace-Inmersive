@@ -1,4 +1,4 @@
-# perception_case.gd — Cuerpo de test_perception: multiplicadores §7.3, llenado/vaciado, creencia parcial a media distancia, flagrancia solo con acto, muros y muebles bajos, testigos.
+# perception_case.gd — Cuerpo de test_perception: multiplicadores §7.3, llenado/vaciado (más lento que el llenado a distancias reales), presencia legal sin creencia, creencia parcial a media distancia, flagrancia solo con acto, disfraces, muros y muebles bajos, testigos.
 # PROPIETARIO DE: nada.
 # ESCUCHA: EventBus.player_seen_partially, player_caught_redhanded, player_lost_from_sight (conexiones temporales).
 extends TestCase
@@ -19,9 +19,12 @@ const ACT := "drawer_forced"
 const LEGIT_ROOM := "wing_3b"
 const OTHER_WING := "wing_3a"
 const RESTRICTED_ROOM := "cfo_office"
-const MASKED_ROOM := "call_center"
+const WORKSHOP := "maintenance_workshop"
+const MAINTENANCE := "uniform_maintenance"
 const NIGHT_HOUR := 21
 const DAY_HOUR := 10
+const REAL_DISTANCES: Array[float] = [3.0, 4.0, 5.0, 6.0]
+const REAL_PERCEPTIONS: Array[int] = [40, 60, 80]
 
 
 ## Jugador simulado con la interfaz de Player que Perception consulta.
@@ -66,11 +69,14 @@ func run_case() -> void:
 	_player = FakePlayer.new()
 	add_child(_player)
 	_check_multipliers()
+	_check_drain_slower_than_fill()
 	_check_exposure()
 	await _check_fill_and_drain()
 	await _check_medium_distance_is_partial()
 	await _check_close_act_is_flagrant()
-	await _check_legit_is_ignored()
+	await _check_legit_presence()
+	await _check_disguised_trespass()
+	await _check_hidden_identity()
 	await _check_walls()
 	await _check_low_furniture()
 	await _check_cone_and_hardliner()
@@ -122,6 +128,14 @@ func _body(layer: int, rect: Rect2) -> StaticBody2D:
 	return body
 
 
+func _reset_player() -> void:
+	_player.act = ""
+	_player.mode = "walk"
+	_player.crouching = false
+	_player.hiding = false
+	_player.dragging = false
+
+
 # ─── Casos ────────────────────────────────────────────────────
 
 ## §7.3: agachado ×0,5, inmóvil ×0,7, esprint ×1,8, obstrucción ×0,4, +0,01/punto, distancia inversa.
@@ -139,8 +153,25 @@ func _check_multipliers() -> void:
 	check_near(per_point, 0.01, EPS, "perception adds +0.01 per point (at the reference distance)")
 	var ratio: float = Database.get_balance_float("percepcion.mod_sospecha_por_punto") / Database.get_balance_float("percepcion.mod_perspicacia_por_punto")
 	check_near(ratio, 0.5, EPS, "suspicion counts +0.005 per point (NPCDirector folds it into effective perception)")
-	check(Perception.fill_rate(1.0, 0, "walk", false, false) > Database.get_balance_float("percepcion.velocidad_vaciado_base"),
-			"at base conditions the counter drains slower than it fills")
+	var tun: Dictionary = Perception.load_fill_tunables()
+	check_near(Perception.fill_rate(4.0, p, "walk", false, false, tun), walk, EPS, "cached tunables give the same fill rate")
+
+
+## §7.3 «abandonarlo lo vacía a MENOR velocidad»: a 3-6 m, caminando, quieto y agachado-quieto.
+func _check_drain_slower_than_fill() -> void:
+	var worst: float = 0.0
+	var cases: int = 0
+	for d: float in REAL_DISTANCES:
+		for perception: int in REAL_PERCEPTIONS:
+			for mode: Array in [["walk", false], ["still", false], ["still", true], ["walk", true]]:
+				var fill: float = Perception.fill_rate(d, perception, str(mode[0]), bool(mode[1]), false)
+				worst = maxf(worst, Perception.drain_rate_for(fill) / fill)
+				cases += 1
+	check(worst < 1.0, "in %d realistic cases (3-6 m, still/crouched) the counter drains slower than it filled (worst drain/fill %.2f)" % [cases, worst])
+	var slow: float = Perception.fill_rate(8.0, 0, "still", true, true)
+	check(Perception.drain_rate_for(slow) < slow, "even the slowest fill in the game (%.3f/s) drains slower (%.3f/s)" % [slow, Perception.drain_rate_for(slow)])
+	check(Perception.drain_rate_for(10.0) <= Database.get_balance_float("percepcion.velocidad_vaciado_base") + EPS,
+			"drain never exceeds velocidad_vaciado_base")
 
 
 ## Exposición: acto, arrastre, sala sin acreditación, noche fuera de su puesto, escondido.
@@ -162,32 +193,34 @@ func _check_exposure() -> void:
 	_player.act = ACT
 	var hidden: Dictionary = Perception.assess_exposure(_player, LEGIT_ROOM)
 	check(bool(hidden["hidden"]) and not bool(hidden["noteworthy"]), "a hidden player cannot be detected")
-	_player.hiding = false
-	_player.act = ""
+	_reset_player()
 
 
-## Llena dentro del cono; fuera se vacía a velocidad_vaciado_base; < 0,10 → reinicio y pérdida.
+## Llena dentro del cono; fuera se vacía más despacio de lo que llenó; < 0,10 → reinicio y pérdida.
 func _check_fill_and_drain() -> void:
 	await _physics_ready()
 	_clear_events()
 	var p: Perception = _observer(OBSERVER, "gossip", Vector2.ZERO, Vector2.RIGHT)
-	_player.global_position = Vector2(1.5 * _cell, 0.0)
+	_player.global_position = Vector2(4.0 * _cell, 0.0)
 	_player.mode = "still"
-	_run(p, 0.2, _exposure(ACT))
+	_run(p, 0.3, _exposure(ACT))
 	var filled: float = p.get_counter()
-	check(filled > 0.0 and p.get_state() == Perception.STATE_PROGRESS, "inside the cone the counter fills (%.3f): state in progress" % filled)
-	_run(p, 0.4, _exposure(ACT))
-	check(p.get_counter() >= Database.get_balance_float("percepcion.umbral_parcial"), "…and keeps filling to partial perception")
+	var fill_speed: float = filled / 0.3
+	check(filled > 0.0 and p.get_state() == Perception.STATE_PROGRESS, "inside the cone at 4 m the counter fills (%.3f): state in progress" % filled)
+	_run(p, 2.0, _exposure(ACT))
+	check(p.get_counter() >= Database.get_balance_float("percepcion.umbral_parcial"), "…and keeps filling to partial perception (%.2f)" % p.get_counter())
 	check_eq(p.get_state(), Perception.STATE_PARTIAL, "state partial at 0.45")
 	var before: float = p.get_counter()
 	_player.global_position = Vector2(-2.0 * _cell, 0.0)
 	_run(p, 0.5, _exposure(ACT))
-	check_near(before - p.get_counter(), 0.5 * Database.get_balance_float("percepcion.velocidad_vaciado_base"), 0.01,
-			"outside the cone it drains at velocidad_vaciado_base (slower than it filled here)")
-	_run(p, 3.0, _exposure(ACT))
+	var drained: float = (before - p.get_counter()) / 0.5
+	check(drained > 0.0 and drained < fill_speed,
+			"outside the cone it drains slower than it filled (%.3f/s < %.3f/s)" % [drained, fill_speed])
+	_run(p, 30.0, _exposure(ACT))
 	check(p.get_counter() == 0.0 and p.get_state() == Perception.STATE_NONE, "below 0.10 the counter resets")
 	check_eq(_lost.size(), 1, "player_lost_from_sight emitted once when contact is lost")
 	check(_caught.is_empty(), "no flagrancy without reaching 1.0")
+	_reset_player()
 	p.queue_free()
 
 
@@ -199,7 +232,7 @@ func _check_medium_distance_is_partial() -> void:
 	_player.global_position = Vector2(mid, 0.0)
 	_player.mode = "still"
 	_player.act = ACT
-	_run(p, 20.0, _exposure(ACT))
+	_run(p, 25.0, _exposure(ACT))
 	check(p.get_counter() < Database.get_balance_float("percepcion.umbral_flagrancia"),
 			"at medium distance (%.1f m) the counter never reaches full identification (%.2f)" % [mid / _cell, p.get_counter()])
 	check_eq(_partials.size(), 1, "exactly one partial perception")
@@ -212,7 +245,7 @@ func _check_medium_distance_is_partial() -> void:
 			best = maxf(best, b.certainty)
 	check(best > 0.0 and best < Database.get_balance_float("creencias.certeza_directa_completa"),
 			"the observer holds a LOW-certainty belief (%.2f), not a high one" % best)
-	_player.act = ""
+	_reset_player()
 	p.queue_free()
 
 
@@ -229,25 +262,90 @@ func _check_close_act_is_flagrant() -> void:
 		check_eq(_caught[0][0], OBSERVER, "…by the observer")
 	check_eq(_partials.size(), 1, "partial perception came first")
 	check_eq(p.get_state(), Perception.STATE_FLAGRANT, "state flagrant")
-	_player.act = ""
+	_reset_player()
 	p.queue_free()
 
 
-## Visto de cerca haciendo su trabajo: nada que detectar.
-func _check_legit_is_ignored() -> void:
+## Visto de cerca haciendo su trabajo: el indicador progresa (se aprende a leer el cono), pero se
+## queda por debajo de la percepción parcial: ni creencia ni flagrancia. Una intrusión sí.
+func _check_legit_presence() -> void:
 	_clear_events()
 	var p: Perception = _observer(OBSERVER, "gossip", Vector2.ZERO, Vector2.RIGHT)
 	_player.global_position = Vector2(1.0 * _cell, 0.0)
-	_player.mode = "walk"
-	_run(p, 5.0, Perception.assess_exposure(_player, LEGIT_ROOM))
-	check(p.get_counter() == 0.0 and _partials.is_empty() and _caught.is_empty(),
-			"seen working at 1 m for 5 s: no counter, no belief, no flagrancy")
-	var trespass: Dictionary = Perception.assess_exposure(_player, RESTRICTED_ROOM)
-	_run(p, 5.0, trespass)
+	var legit: Dictionary = Perception.assess_exposure(_player, LEGIT_ROOM)
+	_run(p, 0.2, legit)
+	check(p.get_counter() > 0.0 and p.get_state() == Perception.STATE_PROGRESS,
+			"approaching a colleague: the indicator progresses (%.2f)" % p.get_counter())
+	_run(p, 5.0, legit)
+	check_near(p.get_counter(), Database.get_balance_float("percepcion.tope_contador_presencia"), EPS,
+			"seen working at 1 m for 5 s: the counter stops at the presence cap")
+	check(p.get_counter() < Database.get_balance_float("percepcion.umbral_parcial") and _partials.is_empty() and _caught.is_empty(),
+			"…below partial perception: no belief, no flagrancy")
+	check(not p.is_watching(), "a legal presence is not 'watching' (no reaction is postponed)")
+	_run(p, 5.0, Perception.assess_exposure(_player, RESTRICTED_ROOM))
 	check_eq(_caught.size(), 1, "the same observer catches a trespasser")
 	if not _caught.is_empty():
 		check_eq(_caught[0][1], Perception.CRIME_TRESPASS, "…as trespass")
 	p.queue_free()
+
+
+## §11.4: un uniforme coherente que abre la sala tapa la intrusión ante quien no reconoce al
+## jugador; un compañero que le reconoce de cerca le pilla igual.
+func _check_disguised_trespass() -> void:
+	_clear_events()
+	PlayerState.set_disguise(MAINTENANCE)
+	var exposure: Dictionary = Perception.assess_exposure(_player, WORKSHOP)
+	check_eq(exposure["crime"], Perception.CRIME_TRESPASS, "the workshop is beyond the player's clearance")
+	check(bool(exposure["uniform_access"]) and not bool(exposure["noteworthy"]),
+			"…but a coherent maintenance uniform covers it for an ordinary observer")
+	var stranger_id: String = _stranger()
+	if not check(not stranger_id.is_empty(), "a staff member who does not know the player"):
+		PlayerState.set_disguise("")
+		return
+	_player.global_position = Vector2(2.0 * _cell, 0.0)
+	var stranger: Perception = _observer(stranger_id, "rookie", Vector2.ZERO, Vector2.RIGHT)
+	_run(stranger, 6.0, exposure)
+	check(stranger.get_counter() <= Database.get_balance_float("percepcion.tope_contador_presencia") + EPS
+			and _caught.is_empty() and _partials.is_empty(),
+			"an unknowing observer sees 'maintenance' at 2 m: no belief, no flagrancy (%.2f)" % stranger.get_counter())
+	stranger.queue_free()
+	var colleague: Perception = _observer(OBSERVER, "gossip", Vector2.ZERO, Vector2.RIGHT)
+	_run(colleague, 8.0, exposure)
+	check_eq(_caught.size(), 1, "a colleague who knows the player recognises them under 3 m and catches the trespass")
+	colleague.queue_free()
+	PlayerState.set_disguise("")
+
+
+## Identidad oculta (pasamontañas): la flagrancia no es contra el jugador; la creencia va contra un
+## desconocido y el indicador se queda en parcial (no hay ventana de decisión).
+func _check_hidden_identity() -> void:
+	_clear_events()
+	PlayerState.set_disguise(Disguise.BALACLAVA)
+	var seen: Array = []
+	var p: Perception = _observer(WITNESS_B, "climber", Vector2.ZERO, Vector2.RIGHT)
+	p.witnessed.connect(func(crime: String, identified: bool) -> void: seen.append([crime, identified]))
+	_player.global_position = Vector2(2.0 * _cell, 0.0)
+	_player.act = ACT
+	_run(p, 6.0, Perception.assess_exposure(_player, LEGIT_ROOM))
+	check(_caught.is_empty() and _partials.is_empty(), "a masked act: no player_caught_redhanded / player_seen_partially")
+	check(seen.size() == 1 and not bool(seen[0][1]), "…the observer witnessed a crime without identifying the player")
+	var about_unknown: bool = false
+	for b: Belief in BeliefNet.get_beliefs_held_by(WITNESS_B):
+		about_unknown = about_unknown or (b.subject == BeliefNetSystem.UNKNOWN_SUBJECT and b.fact.begins_with(BeliefNetSystem.FACT_CAUGHT_REDHANDED))
+	check(about_unknown, "…and holds a caught-red-handed belief about an unknown person")
+	check_eq(p.get_state(), Perception.STATE_PARTIAL, "the indicator stays at partial (no decision window)")
+	_reset_player()
+	PlayerState.set_disguise("")
+	p.queue_free()
+
+
+## Alguien de la plantilla que no conoce al jugador y no tiene perspicacia de reconocimiento.
+func _stranger() -> String:
+	var limit: int = Database.get_balance_int("disfraz.perspicacia_reconocimiento")
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if not NPCDirector.knows_player(npc.id) and NPCDirector.get_effective_perception(npc.id) <= limit:
+			return npc.id
+	return ""
 
 
 ## Un muro (capa 1) corta la vista; sin él, se llena.
@@ -282,6 +380,7 @@ func _check_low_furniture() -> void:
 	check_near(p.get_counter() / maxf(free_fill, 0.0001), 0.4, 0.02, "low furniture in between: ×0.4 (partial obstruction)")
 	desk.free()
 	p.queue_free()
+	_reset_player()
 	await _physics_ready()
 
 
@@ -318,6 +417,6 @@ func _check_witnesses() -> void:
 	check_eq(_caught.size(), 1, "one flagrancy")
 	if not _caught.is_empty():
 		check_eq(int(_caught[0][2]), 2, "witnesses = the two others that see the player (the third looks away)")
-	_player.act = ""
+	_reset_player()
 	for p: Perception in [catcher, a, b, c]:
 		p.queue_free()

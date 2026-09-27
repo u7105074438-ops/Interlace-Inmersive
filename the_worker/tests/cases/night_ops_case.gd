@@ -1,5 +1,5 @@
-# night_ops_case.gd — Cuerpo de test_night_ops: domicilio conocido (N6-N7 / expediente completo), seguimiento, residente en casa, allanamiento, botín y reposición por personaje, tablas de las tres tipologías, alarma y seguridad privada de la mansión, testigos (vecino parcial, residente directo), cierre con crime_committed("burglary"), eliminación en casa y persistencia.
-# PROPIETARIO DE: nada (los nodos Police y NightOps que crea viven solo durante el caso).
+# night_ops_case.gd — Cuerpo de test_night_ops: domicilio conocido (N6-N7 / puesto de RR. HH. / intrusión / chantaje), seguimiento solo a quien sale, residente en casa, pasamontañas exigido, allanamiento, botín y reposición por personaje, lo que no cabe se queda, tablas de las tres tipologías, alarma y seguridad privada de la mansión (solo ve al jugador dentro), testigos (vecino parcial, residente directo), cierre con crime_committed("burglary"), eliminación en casa y persistencia (también a través de SaveSystem).
+# PROPIETARIO DE: nada (los nodos Police y NightOps que crea viven solo durante el caso; su carpeta de guardado se borra al final).
 # ESCUCHA: crime_committed, police_dispatched, subtitle_posted, game_over (registro durante el caso).
 extends TestCase
 
@@ -15,6 +15,7 @@ const MANSION := "npc_house_mansion"
 const DAY := 2
 const NIGHT_HOUR := 22
 const TRIALS := 12
+const STORAGE_FORMAT := "user://test_night_ops_%d"
 const WATCHED: Array[String] = ["crime_committed", "police_dispatched", "subtitle_posted", "game_over"]
 
 var _police: Police = null
@@ -30,12 +31,18 @@ func run_case() -> void:
 	add_child(_ops)
 	_log = Fixtures.SignalLog.new().watch(WATCHED)
 	_test_home_address_and_timing()
+	_test_address_routes()
+	_test_follow_needs_leaving()
+	_test_balaclava_required()
 	_test_humble_burglary()
+	_test_loot_overflow()
 	_test_house_tables()
 	_test_mansion_alarm_and_security()
+	_test_private_security_needs_player_inside()
 	_test_witness_rolls()
 	_test_elimination_at_home()
 	_test_day_change_and_save()
+	_test_save_system_round_trip()
 	_log.stop()
 	_ops.queue_free()
 	_police.queue_free()
@@ -53,10 +60,11 @@ func _fresh() -> void:
 	_log.clear()
 
 
-## Jornada, domicilio conocido y operación empezada con el jugador en la vivienda.
-func _start(npc_id: String) -> Dictionary:
+## Jornada, domicilio conocido y operación empezada con el jugador en la vivienda (siguiéndolo o
+## yendo por cuenta propia).
+func _start(npc_id: String, follow: bool = true) -> Dictionary:
 	PlayerState.grant_full_file(npc_id, "hr_intrusion")
-	var result: Dictionary = _ops.follow_home(npc_id)
+	var result: Dictionary = _ops.follow_home(npc_id) if follow else _ops.visit_home(npc_id)
 	EventBus.room_entered.emit(str(result.get("house", "")), true)
 	return result
 
@@ -225,7 +233,7 @@ func _humble_targets(count: int) -> Array[String]:
 
 func _test_elimination_at_home() -> void:
 	_fresh()
-	_start(NIGHT_GUARD)
+	check(bool(_start(NIGHT_GUARD, false)["ok"]), "the night guard's home can be visited")
 	check(not _ops.is_resident_home(), "a night guard's house is empty at night")
 	_ops.break_in("window")
 	check_eq(str(_ops.eliminate_resident([])["reason"]), NightOps.ERR_NOT_HOME, "nobody to eliminate")
@@ -262,3 +270,159 @@ func _test_day_change_and_save() -> void:
 	NPCDirector.load_state(state)
 	check(not NPCDirector.is_house_container_looted(SEMI_NPC, "semi_wardrobe_drawer"),
 			"NPCDirector restores the saved loot state")
+
+
+## §13.4 / §23: las mismas vías que PERSONNEL dan el domicilio (puesto de RR. HH., chantaje).
+func _test_address_routes() -> void:
+	_fresh()
+	check(not NightOps.knows_home_address(HUMBLE_NPC), "R1: address unknown")
+	PlayerState.set_occupation("hr_assistant", "test")
+	check(PlayerState.get_personnel_file_level() < Database.get_balance_int("expedientes.nivel_seccion.home"),
+			"the HR assistant's file level is below N6")
+	check_eq(PlayerState.get_full_file_access_reason(HUMBLE_NPC), "hr_post", "full files by post")
+	check(NightOps.knows_home_address(HUMBLE_NPC), "§23 hr_assistant: every address")
+	check_eq(_ops.can_follow(HUMBLE_NPC), "", "so the HR assistant can follow anyone home")
+	PlayerState.set_occupation("email_worker_3b", "test")
+	check(not NightOps.knows_home_address(SEMI_NPC), "back at R1: unknown again")
+	NPCDirector.add_grievance(SEMI_NPC, NPCDirectorSystem.GRIEVANCE_BLACKMAILED, 3)
+	check_eq(PlayerState.get_full_file_access_reason(SEMI_NPC), "blackmail", "blackmail opens the file")
+	check(NightOps.knows_home_address(SEMI_NPC), "a blackmailed victim's address is known")
+
+
+## §4.3 «seguimiento de un trabajador hasta su domicilio»: solo a quien sale o ya está fuera.
+func _test_follow_needs_leaving() -> void:
+	_fresh()
+	PlayerState.grant_full_file(NIGHT_GUARD, "hr_intrusion")
+	check(not NightOps.is_leaving(NIGHT_GUARD), "the night guard is at work at 22:00")
+	check_eq(_ops.can_follow(NIGHT_GUARD), NightOps.ERR_NOT_LEAVING, "cannot follow someone at work")
+	var result: Dictionary = _ops.follow_home(NIGHT_GUARD)
+	check(not bool(result["ok"]) and not _ops.is_active(), "follow_home refuses")
+	check_eq(_ops.can_visit(NIGHT_GUARD), "", "but the house can be visited")
+	check(NightOps.is_leaving(HUMBLE_NPC), "an office worker is out at 22:00")
+	var turnstile: String = ""
+	GameClock.set_time(DAY, 18, 30)
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if turnstile.is_empty() and NPCDirector.get_location_at(npc.id, 18, 30) == "turnstiles":
+			turnstile = npc.id
+	check(not turnstile.is_empty() and NightOps.is_leaving(turnstile), "at the turnstiles = leaving")
+	check(not NightOps.is_leaving("npc_bernard_lasker"), "still at the desk at 18:30")
+	check_eq(NightOps.reason_key(NightOps.ERR_NOT_LEAVING), "NIGHT_ERR_NOT_LEAVING", "reason key")
+
+
+## §4.3 «Exige el uso de pasamontañas»: allanar y eliminar exigen llevarlo puesto.
+func _test_balaclava_required() -> void:
+	_fresh()
+	check(bool(Database.get_balance("noche.exige_pasamontanas")), "balance flag on")
+	Disguise.take_off()
+	_start(HUMBLE_NPC)
+	check_eq(str(_ops.break_in("window")["reason"]), NightOps.ERR_NO_BALACLAVA, "no break-in bare-faced")
+	Disguise.wear("balaclava")
+	check(bool(_ops.break_in("window")["ok"]), "masked: in")
+	Disguise.take_off()
+	check_eq(str(_ops.eliminate_resident([])["reason"]), NightOps.ERR_NO_BALACLAVA,
+			"no elimination bare-faced")
+	check_eq(NightOps.reason_key(NightOps.ERR_NO_BALACLAVA), "NIGHT_ERR_NO_BALACLAVA", "reason key")
+	_ops.leave_house()
+
+
+## Lo que no cabe se queda en el contenedor (no se destruye ni lo deja «vacío»).
+func _test_loot_overflow() -> void:
+	_fresh()
+	var junk: Array[String] = _fill_inventory()
+	check_eq(PlayerState.get_free_slots(), 0, "inventory full")
+	var found: Dictionary = {}
+	var victim: String = ""
+	for npc_id: String in _house_targets("npc_house_semi", TRIALS):
+		_start(npc_id)
+		_ops.break_in("window")
+		var loot: Dictionary = _ops.loot_container("semi_wardrobe_drawer")
+		if not (loot["left"] as Array).is_empty():
+			found = loot
+			victim = npc_id
+			break
+		_ops.leave_house()
+	check(not victim.is_empty(), "a full inventory leaves something behind")
+	if victim.is_empty():
+		return
+	check(not NPCDirector.is_house_container_looted(victim, "semi_wardrobe_drawer"),
+			"the container is not marked empty while something is left")
+	check_eq(int(_container_info("semi_wardrobe_drawer")["left"]), (found["left"] as Array).size(),
+			"get_containers reports what is left")
+	for i: int in (found["left"] as Array).size():
+		PlayerState.remove_item(junk[i])
+	var second: Dictionary = _ops.loot_container("semi_wardrobe_drawer")
+	check(bool(second["ok"]) and second["items"] == found["left"], "looting again takes what was left")
+	check(NPCDirector.is_house_container_looted(victim, "semi_wardrobe_drawer"), "now it is empty")
+	check_eq(str(_ops.loot_container("semi_wardrobe_drawer")["reason"]), NightOps.ERR_EMPTY, "empty")
+	_ops.leave_house()
+
+
+func _fill_inventory() -> Array[String]:
+	var added: Array[String] = []
+	for item: ItemData in Database.get_all_items():
+		if PlayerState.get_free_slots() == 0:
+			break
+		if InventoryRules.is_stackable(item) or InventoryRules.is_pocket_cash(item) \
+				or PlayerState.is_carrying(item.id):
+			continue
+		if PlayerState.add_item(item.id):
+			added.append(item.id)
+	return added
+
+
+func _container_info(container_id: String) -> Dictionary:
+	for entry: Dictionary in _ops.get_containers():
+		if str(entry["id"]) == container_id:
+			return entry
+	return {}
+
+
+func _house_targets(house: String, count: int) -> Array[String]:
+	var out: Array[String] = []
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if npc.home_address == house and NPCDirector.is_at_home(npc.id) and out.size() < count:
+			out.append(npc.id)
+	return out
+
+
+## La seguridad privada solo ve al jugador si está dentro; si no, espera en la casa.
+func _test_private_security_needs_player_inside() -> void:
+	_fresh()
+	_start(MANSION_NPC)
+	_ops.break_in("window")
+	EventBus.room_entered.emit("street", true)
+	var wait: float = float(NightOps.house_params(MANSION)["minutos_seguridad_privada"])
+	GameClock.advance_minutes(wait + 1.0)
+	_ops.update()
+	check((_ops.get_operation()["inside_witnesses"] as Array).is_empty(),
+			"the guard arrives but the player is out in the street")
+	check_eq(_log.count("game_over"), 0, "nobody saw the player")
+	EventBus.room_entered.emit(MANSION, true)
+	_ops.update()
+	var inside: Array = _ops.get_operation()["inside_witnesses"]
+	check(inside.size() == 1 and NPCDirector.get_role(str(inside[0])) == "private_security",
+			"back inside: the waiting guard sees the player")
+	_ops.leave_house()
+
+
+## La operación viaja en run.json como "scene:NightOps" (SaveSystem).
+func _test_save_system_round_trip() -> void:
+	var dir: String = STORAGE_FORMAT % OS.get_process_id()
+	SaveSystem.set_storage_dir(dir)
+	_fresh()
+	_start(SEMI_NPC)
+	_ops.break_in("window")
+	check(SaveSystem.save_run(), "run saved inside the house")
+	_ops.reset_for_new_run()
+	check(not _ops.is_active(), "reset clears the operation")
+	check(SaveSystem.load_run(), "run loaded")
+	GameClock.pause()
+	check(_ops.is_active() and str(_ops.get_operation()["house"]) == SEMI,
+			"SaveSystem hands the operation back")
+	check(bool(_ops.get_operation()["entered"]), "still inside")
+	_ops.leave_house()
+	SaveSystem.delete_run()
+	DirAccess.remove_absolute(dir)
+	SaveSystem.set_storage_dir("")
+	SaveSystem.reset_for_new_run()
+	check(not DirAccess.dir_exists_absolute(dir), "the case leaves no files behind")

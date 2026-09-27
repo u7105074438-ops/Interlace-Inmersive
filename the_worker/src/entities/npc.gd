@@ -24,8 +24,21 @@ extends CharacterBody2D
 ##  · Reacciones (npc_decided): denunciar → camina a Seguridad (npc_nodo.sala_denuncia_seguridad)
 ##    con walk_report y escudo; al superior → hacia su jefe; confrontar → se planta ante el
 ##    jugador señalando con «!»; chantaje → «moneda»; huir → sobresalto y carrera; cotilleo →
-##    se acerca a un colega y charla («…»); descanso → al office. Las decisiones de franja
-##    (cotillear, descansar) solo si se queda en la sala.
+##    se acerca a un colega y charla («…»); descanso → a la sala de descanso de la planta
+##    (npc_nodo.patron_sala_descanso). Las decisiones de franja (cotillear, descansar) solo si se
+##    queda en la sala.
+##  · Denunciar/confrontar mientras VIGILA al jugador (Perception.is_watching: contacto vivo con
+##    algo digno de atención) se APLAZA: sigue mirándole (sospecha) hasta perder el contacto
+##    (entonces sale el recado), hasta la flagrancia (se descarta: manda CaughtHandler) o como
+##    mucho npc_nodo.espera_max_reaccion s. Así quien le ve de reojo puede llegar a pillarle.
+##  · Bocadillos: sin «?» ni «!» mientras su indicador de detección está a la vista (no se
+##    duplica el glifo); la bombilla de idea se apila encima del indicador.
+##  · Tics §14.6: oblivious no se gira hacia ruidos ni charlas; incorruptible no echa vistazos
+##    (postura estática y frontal); el hardliner sentado vigila («sit», con barrido de cabeza).
+##  · Tránsito (NPCLayer.space_walkers): espera tras quien camina delante en su mismo sentido
+##    (colas en las puertas), se aparta a su derecha ante quien viene de frente y se aparta más
+##    (y se detiene) ante un escalón 7-8 (§14.5); un escalón 5-6 marca el paso de un subordinado
+##    de su departamento que va al mismo sitio (le acompaña).
 ##  · El cono sigue a la CABEZA (misma fórmula que CharacterRig): mirar a un lado mueve la vista.
 
 signal arrived_at_exit(node: NPCNode, target_room: String)
@@ -40,9 +53,10 @@ const ARCH_OBLIVIOUS := "oblivious"
 const ARCH_BURNOUT := "burnout"
 const ARCH_COWARD := "coward"
 const ARCH_CLIMBER := "climber"
+const ARCH_INCORRUPTIBLE := "incorruptible"
 const OBSERVING_TIER := 4
 const ACTIVITY_SLACKING := "slacking"
-const EAT_ACTIVITIES: Array[String] = ["lunch", "relief"]
+const EAT_ACTIVITIES: Array[String] = ["lunch"]
 const WANDER_ACTIVITIES: Array[String] = ["patrol", "patrol_zone", "round", "clean", "clean_zone",
 	"assign_tasks", "attendance_check"]
 const STANDING_GESTURES: Array[String] = ["check_watch", "yawn", "check_watch"]
@@ -79,9 +93,13 @@ const IDEA_COMPUTER := "to_computer"
 const IDEA_TELL := "tell_colleague"
 ## Destino "sin decidir" (ningún id de sala lo usa): obliga a reaplicar la agenda.
 const NO_GOAL := "#none"
-const SHORT_EMOTE := 0.6
-## Sin ruta y a más de estas celdas: se coloca en el destino en vez de cruzar muros.
-const UNREACHABLE_CELLS := 2.0
+## Reacciones que se aplazan mientras vigila al jugador (ver DECISIONES).
+const DEFERRABLE: Array[String] = [UtilityAI.REPORT_TO_SECURITY, UtilityAI.REPORT_TO_SUPERIOR,
+	UtilityAI.CONFRONT_PLAYER]
+const TRIGGER_UNIFORM := "uniform"
+## Recados que ceden ante la agenda (la comida o la salida los interrumpen); denunciar, confrontar,
+## chantajear, huir e investigar no.
+const SOFT_ERRANDS: Array[String] = [ERRAND_GOSSIP, ERRAND_SABOTAGE, ERRAND_REST, ERRAND_TELL_IDEA, ERRAND_FOCUS]
 ## La mirada se cuantiza a 16 rumbos (el dibujo usa 8): menos redibujados con objetivos móviles.
 const LOOK_STEPS := 16.0
 
@@ -141,6 +159,17 @@ var _reported_room: String = ""
 var _wander_left: float = 0.0
 ## Carril propio (desplazamiento fijo de los puntos intermedios): los grupos no caminan apilados.
 var _lane: Vector2 = Vector2.ZERO
+## Reacción aplazada mientras vigila al jugador: {action, context, left}.
+var _pending: Dictionary = {}
+## Tránsito: segundos seguidos esperando en cola (tope npc_nodo.espera_max_cola) y jefe al que
+## acompaña (marca el paso).
+var _queue_wait: float = 0.0
+var _pace_leader: NPCNode = null
+var _pace_mod: float = 1.0
+var _detour_i: int = -1
+var _head_tops: Dictionary = {}
+## Sentado de cara a una mesa: el desplazamiento del dibujo es solo visual (al levantarse no se mueve).
+var _seat_tucked: bool = false
 
 
 func _ready() -> void:
@@ -176,7 +205,9 @@ func _load_tunables() -> void:
 			"pausa_escalon4_intervalo", "pausa_escalon4_segundos", "distancia_retroceso_coward",
 			"paso_retroceso_coward", "margen_llegada", "mod_velocidad_old_hand", "mod_velocidad_prisa",
 			"mod_velocidad_denuncia", "mod_velocidad_huida", "mod_velocidad_agitacion", "factor_vistazo_snitch",
-			"segundos_agitacion", "altura_indicador", "fps_tic", "prob_gesto", "distancia_sobresalto"]:
+			"segundos_agitacion", "fps_tic", "prob_gesto", "distancia_sobresalto",
+			"factor_gesto_breve", "celdas_inalcanzable", "espera_max_reaccion", "radio_destino_recado",
+			"espera_max_cola", "factor_retraso_escolta"]:
 		_tun[key] = Database.get_balance_float("npc_nodo." + key)
 	var by_tier: Array = Database.get_balance("npc_nodo.velocidad_por_escalon")
 	var tier_factor: float = float(by_tier[tier]) if tier < by_tier.size() else 1.0
@@ -210,6 +241,7 @@ func _build_children() -> void:
 	indicator.name = "DetectionIndicator"
 	add_child(indicator)
 	indicator.bind(perception)
+	perception.witnessed.connect(_on_witnessed)
 	_bubble = NPCBubble.new()
 	_bubble.name = "Bubble"
 	add_child(_bubble)
@@ -242,12 +274,35 @@ func get_goal() -> Dictionary:
 	return {"room": _goal_room, "activity": _goal_activity}
 
 
+## Sala a la que se dirige: la de su salida si abandona la planta; si no, su destino de agenda.
+func get_destination() -> String:
+	return _leave_target if _leaving else _goal_room
+
+
 func get_path_points() -> PackedVector2Array:
 	return _path.slice(_path_i)
 
 
 func get_errand_kind() -> String:
 	return str(_errand.get("kind", ""))
+
+
+## Acción aplazada mientras vigila al jugador ("" = ninguna).
+func get_pending_action() -> String:
+	return str(_pending.get("action", ""))
+
+
+## Rumbo de marcha (hacia el siguiente punto de la ruta) o Vector2.ZERO si está quieto.
+func get_travel_dir() -> Vector2:
+	if not is_moving():
+		return Vector2.ZERO
+	var to: Vector2 = _path[_path_i] - global_position
+	return to.normalized() if to.length_squared() > 0.01 else _facing
+
+
+## Velocidad de marcha actual (px/s de mundo).
+func get_speed_px() -> float:
+	return _speed * _speed_mod
 
 
 func get_bubble_kind() -> String:
@@ -314,6 +369,10 @@ func step(delta: float) -> void:
 	if delta <= 0.0:
 		return
 	_tick_errand_clock(delta)
+	_tick_pending(delta)
+	_tick_pace()
+	if _bubble != null and perception != null:
+		_bubble.set_indicator_shown(perception.get_state() != Perception.STATE_NONE)
 	_move(delta)
 	_tick_look(delta)
 	_tick_idle(delta)
@@ -341,9 +400,10 @@ func _move(delta: float) -> void:
 	if _pause_left > 0.0:
 		_pause_left -= delta
 		return
+	_queue_wait = maxf(0.0, _queue_wait - delta)
 	var target: Vector2 = _path[_path_i]
 	var to: Vector2 = target - global_position
-	var step_px: float = _speed * _speed_mod * delta
+	var step_px: float = _speed * _speed_mod * _pace_mod * delta
 	if to.length() <= step_px:
 		global_position = target
 		_path_i += 1
@@ -363,8 +423,55 @@ func _tick_observation(delta: float) -> void:
 	if _pause_timer >= float(_tun["pausa_escalon4_intervalo"]):
 		_pause_timer = 0.0
 		_pause_left = float(_tun["pausa_escalon4_segundos"])
-		_glance = _facing.rotated(deg_to_rad(float(_tun["vistazo_angulo"])) * _sign())
-		_glance_left = _pause_left
+		if _glances():
+			_glance = _facing.rotated(deg_to_rad(float(_tun["vistazo_angulo"])) * _sign())
+			_glance_left = _pause_left
+
+
+# ─── Tránsito (NPCLayer.space_walkers) ────────────────────────
+
+## Espera `seconds` en cola tras otro; false si ya esperó npc_nodo.espera_max_cola seguidos (sigue:
+## nunca se atasca).
+func hold(seconds: float) -> bool:
+	if not is_moving() or _queue_wait >= float(_tun["espera_max_cola"]):
+		return false
+	_pause_left = maxf(_pause_left, seconds)
+	_queue_wait += seconds
+	return true
+
+
+## Se aparta `offset` px con un punto de desvío antes del siguiente punto de la ruta (uno por tramo).
+func sidestep(offset: Vector2, ahead_px: float) -> void:
+	if not is_moving() or _layer == null or _detour_i == _path_i:
+		return
+	var to: Vector2 = _path[_path_i] - global_position
+	var point: Vector2 = global_position + to.limit_length(ahead_px) * 0.5 + offset
+	if _layer.is_walkable_point(point):
+		_path.insert(_path_i, point)
+		_detour_i = _path_i
+
+
+## Acompaña a `leader` (escalón 5-6): ajusta su paso al del jefe mientras ambos caminan.
+func match_pace(leader: NPCNode) -> void:
+	_pace_leader = leader
+
+
+func get_pace_leader() -> NPCNode:
+	return _pace_leader if _pace_leader != null and is_instance_valid(_pace_leader) else null
+
+
+func _tick_pace() -> void:
+	_pace_mod = 1.0
+	if _pace_leader == null:
+		return
+	if not is_instance_valid(_pace_leader) or not _pace_leader.is_moving() or not is_moving():
+		_pace_leader = null
+		return
+	var own: float = maxf(_speed * _speed_mod, 1.0)
+	_pace_mod = _pace_leader.get_speed_px() / own
+	var lead_dir: Vector2 = _pace_leader.get_travel_dir()
+	if (global_position - _pace_leader.global_position).dot(lead_dir) > 0.0:
+		_pace_mod *= float(_tun.get("factor_retraso_escolta", 1.0))
 
 
 func _set_facing(dir: Vector2) -> void:
@@ -396,16 +503,28 @@ func _settle() -> void:
 	var seated: bool = bool(_spot.get("seated", false))
 	global_position = _spot.get("pos", global_position)
 	_seated = seated
-	_set_draw_offset((_spot.get("draw", global_position) as Vector2) - global_position if seated else Vector2.ZERO)
 	var facing: Vector2 = _spot.get("facing", Vector2.ZERO)
 	if facing.length_squared() > 0.0:
 		_facing = facing.normalized()
+	_seat_tucked = seated and bool(_spot.get("tucked", false))
+	_set_draw_offset((_spot.get("draw", global_position) as Vector2) - global_position if seated else Vector2.ZERO)
 	_dirty = true
+
+
+## Coronilla (px de mundo sobre el origen de dibujo, negativa) de pie o sentado: ahí se anclan el
+## indicador y los bocadillos (que se dibujan hacia arriba a tamaño de pantalla constante).
+func head_top(seated: bool) -> float:
+	if not _head_tops.has(seated):
+		var anim: String = "sit" if seated else "idle"
+		var rig: CharacterRig = CharacterRig.build(_app, tier, CharacterPainter.make_pose(anim, 0, Vector2.DOWN,
+				{"seated": seated}))
+		_head_tops[seated] = rig.head_c.y - rig.head_radii.y
+	return float(_head_tops[seated])
 
 
 func _set_draw_offset(offset: Vector2) -> void:
 	_draw_offset = offset
-	var head: Vector2 = offset + Vector2(0.0, -float(_tun.get("altura_indicador", 1.7)) * _cell)
+	var head: Vector2 = offset + Vector2(0.0, head_top(_seated))
 	if perception != null:
 		perception.position = offset
 	if indicator != null:
@@ -414,11 +533,13 @@ func _set_draw_offset(offset: Vector2) -> void:
 		_bubble.position = head
 
 
-## Se levanta: el nodo pasa a donde se le veía sentado.
+## Se levanta: el nodo pasa a donde se le veía sentado (salvo de cara a una mesa: sigue en la silla).
 func _stand_up() -> void:
 	if not _seated:
 		return
-	global_position += _draw_offset
+	if not _seat_tucked:
+		global_position += _draw_offset
+	_seat_tucked = false
 	_seated = false
 	_set_draw_offset(Vector2.ZERO)
 	_dirty = true
@@ -429,19 +550,23 @@ func _stand_up() -> void:
 func _walk_to(target: Vector2) -> void:
 	_stand_up()
 	_path = _layer.path_between(global_position, target) if _layer != null else PackedVector2Array()
-	if _path.is_empty() and _layer != null and global_position.distance_to(target) > _cell * UNREACHABLE_CELLS:
+	if _path.is_empty() and _layer != null \
+			and global_position.distance_to(target) > _cell * float(_tun["celdas_inalcanzable"]):
 		global_position = target
 	if _path.is_empty() or _path[_path.size() - 1].distance_to(target) > 1.0:
 		_path.append(target)
 	for i: int in range(1, _path.size() - 1):
 		_path[i] += _lane
 	_path_i = 0
+	_detour_i = -1
 	_pause_timer = 0.0
 
 
+## Camina a su sitio: al punto de acceso y de ahí a donde se sienta o se queda ("walk_end"; si no,
+## el punto de dibujo).
 func _walk_to_spot() -> void:
 	_walk_to(_spot.get("approach", _spot.get("pos", global_position)))
-	var final_point: Vector2 = _spot.get("draw", _spot.get("pos", global_position))
+	var final_point: Vector2 = _spot.get("walk_end", _spot.get("draw", _spot.get("pos", global_position)))
 	if _path[_path.size() - 1].distance_to(final_point) > 1.0:
 		_path.append(final_point)
 	_walk_anim = "walk"
@@ -460,7 +585,7 @@ func _hurry_factor(room_id: String) -> float:
 
 func _tick_look(delta: float) -> void:
 	_glance_left = maxf(0.0, _glance_left - delta)
-	if not is_moving() and _tic != OBLIVIOUS_TIC:
+	if not is_moving() and _glances():
 		_glance_timer -= delta
 		if _glance_timer <= 0.0:
 			_glance_timer = _rand_range("vistazo_intervalo") * _glance_factor()
@@ -487,7 +612,7 @@ func _wanted_look() -> Vector2:
 		target = _partner.get_visual_position()
 	if target.is_finite():
 		var dir: Vector2 = target - get_visual_position()
-		if not _seated and not is_moving() and dir.length_squared() > 1.0:
+		if not _seated and not is_moving() and dir.length_squared() > 1.0 and archetype != ARCH_OBLIVIOUS:
 			_set_facing(dir)
 		return _quantize(dir) if dir.length_squared() > 1.0 else Vector2.ZERO
 	return _glance if _glance_left > 0.0 else Vector2.ZERO
@@ -569,7 +694,7 @@ func _seated_anim() -> String:
 		return "type_intense"
 	if EAT_ACTIVITIES.has(_goal_activity) or str(_spot.get("room", "")) != home_room:
 		return "chat" if _partner != null else "sit"
-	if archetype == ARCH_BURNOUT:
+	if archetype == ARCH_BURNOUT or archetype == ARCH_HARDLINER:
 		return "sit"
 	return "type_intense" if archetype == ARCH_CLIMBER else "sit_type"
 
@@ -589,6 +714,8 @@ func think() -> void:
 		perception.refresh_traits()
 	if _leaving or _layer == null:
 		return
+	if not _errand.is_empty() and SOFT_ERRANDS.has(get_errand_kind()) and not _staying():
+		_end_errand()
 	if not _errand.is_empty():
 		_think_errand()
 		return
@@ -733,8 +860,35 @@ func _think_idea() -> void:
 
 # ─── Reacciones ───────────────────────────────────────────────
 
-## npc_decided / npc_reported_player (NPCLayer): conducta visible de la decisión.
+## npc_decided / npc_reported_player (NPCLayer): conducta visible de la decisión. Denunciar o
+## confrontar mientras vigila al jugador se aplaza (ver DECISIONES).
 func react(action: String, context: Dictionary) -> void:
+	if DEFERRABLE.has(action) and perception != null and perception.is_watching() and not _leaving:
+		_pending = {"action": action, "context": context, "left": float(_tun["espera_max_reaccion"])}
+		_dirty = true
+		return
+	if DEFERRABLE.has(action):
+		_pending = {}
+	_perform(action, context)
+
+
+## Reacción aplazada: sale al perder el contacto o al agotar npc_nodo.espera_max_reaccion; la
+## flagrancia la descarta (CaughtHandler lleva la escena).
+func _tick_pending(delta: float) -> void:
+	if _pending.is_empty() or perception == null:
+		return
+	if perception.get_state() == Perception.STATE_FLAGRANT:
+		_pending = {}
+		return
+	_pending["left"] = float(_pending["left"]) - delta
+	if perception.is_watching() and float(_pending["left"]) > 0.0:
+		return
+	var pending: Dictionary = _pending
+	_pending = {}
+	_perform(str(pending["action"]), pending["context"])
+
+
+func _perform(action: String, context: Dictionary) -> void:
 	var band: bool = str(context.get("trigger", "")) == NPCDirectorSystem.TRIGGER_BAND
 	match action:
 		UtilityAI.REPORT_TO_SECURITY:
@@ -753,7 +907,7 @@ func react(action: String, context: Dictionary) -> void:
 				_start_gossip(action, str(context.get("target", "")))
 		UtilityAI.REST:
 			if _staying():
-				_start_errand(ERRAND_REST, {"room": _layer.room_like("pantry") if _layer != null else ""})
+				_start_errand(ERRAND_REST, {"room": _layer.rest_room() if _layer != null else ""})
 		UtilityAI.GENERATE_IDEA:
 			if _seated:
 				_start_errand(ERRAND_FOCUS, {"here": true})
@@ -787,15 +941,17 @@ func on_heard(reaction: Dictionary) -> void:
 	if bool(reaction.get("investigate", false)) and (_errand.is_empty() or get_errand_kind() == ERRAND_INVESTIGATE):
 		_start_errand(ERRAND_INVESTIGATE, {"point": reaction["origin"]})
 	elif _errand.is_empty():
-		show_emote(NPCBubble.KIND_QUESTION, float(_tun["emote_segundos"]) * SHORT_EMOTE)
+		show_emote(NPCBubble.KIND_QUESTION, float(_tun["emote_segundos"]) * float(_tun["factor_gesto_breve"]))
 		_dirty = true
 
 
-## Este personaje declaró la flagrancia: se detiene, señala y muestra «!».
+## Este personaje declaró la flagrancia: se detiene y señala (el «!» lo da su indicador; si no
+## está a la vista, un bocadillo). Lo que tuviera aplazado se descarta.
 func on_caught() -> void:
 	_stand_up()
 	_path = PackedVector2Array()
 	_path_i = 0
+	_pending = {}
 	_gesture = "point"
 	show_emote(NPCBubble.KIND_EXCLAIM, UITheme.tune("interfaz.flagrancia_aviso_segundos"))
 	var player: Vector2 = _player_position()
@@ -803,15 +959,23 @@ func on_caught() -> void:
 		_set_facing(player - global_position)
 
 
+## El indicador ya dice «?» (parcial) y «!» (flagrancia): aquí solo la conducta.
 func _on_perception_state(state: int) -> void:
 	if state == Perception.STATE_NONE and _gesture == "point":
 		_gesture = ""
 		_goal_room = NO_GOAL
-	if state == Perception.STATE_PARTIAL:
-		show_emote(NPCBubble.KIND_QUESTION)
-	elif state == Perception.STATE_FLAGRANT:
+	if state == Perception.STATE_FLAGRANT:
 		on_caught()
 	_dirty = true
+
+
+## Vio un delito con la identidad oculta por el disfraz: se sobresalta y, al perder el contacto,
+## va a Seguridad a contarlo (la creencia es sobre el uniforme, no sobre el jugador).
+func _on_witnessed(_crime: String, identified: bool) -> void:
+	if identified:
+		return
+	_gesture = "startle"
+	react(UtilityAI.REPORT_TO_SECURITY, {"trigger": TRIGGER_UNIFORM})
 
 
 ## Recado de `kind` con destino en `data`: {room} | {node} | {player} | {point} | {here}.
@@ -846,11 +1010,14 @@ func _go_errand(spec: Dictionary) -> void:
 		_errand["phase"] = PHASE_STAY
 		return
 	var room: String = str(_errand.get("room", ""))
+	var speed_key: String = str(spec["speed"])
 	if _errand.has("room") and _layer.local_room(room).is_empty():
 		var away: float = float(_errand.get("left", 0.0))
 		_errand = {}
 		leave_floor(room, away)
 		_walk_anim = str(spec["walk"])
+		if not speed_key.is_empty():
+			_speed_mod = float(_tun[speed_key])
 		return
 	var target: Vector2 = _errand_destination()
 	if not target.is_finite():
@@ -858,7 +1025,6 @@ func _go_errand(spec: Dictionary) -> void:
 		return
 	_walk_to(target)
 	_walk_anim = str(spec["walk"])
-	var speed_key: String = str(spec["speed"])
 	_speed_mod = float(_tun[speed_key]) if not speed_key.is_empty() else 1.0
 
 
@@ -870,12 +1036,12 @@ func _errand_destination() -> Vector2:
 		var other: NPCNode = _errand["node"] as NPCNode
 		if other == null or not is_instance_valid(other):
 			return Vector2.INF
-		return _layer.free_point_near(other.get_visual_position(), 1, _rng.randi())
+		return _layer.free_point_near(other.get_visual_position(), _errand_reach(), _rng.randi())
 	if bool(_errand.get("player", false)):
 		var player: Vector2 = _player_position()
-		return _layer.free_point_near(player, 1, _rng.randi()) if player.is_finite() else Vector2.INF
+		return _layer.free_point_near(player, _errand_reach(), _rng.randi()) if player.is_finite() else Vector2.INF
 	if _errand.has("point"):
-		return _layer.free_point_near(_errand["point"], 1, _rng.randi())
+		return _layer.free_point_near(_errand["point"], _errand_reach(), _rng.randi())
 	if _errand.get("kind") == ERRAND_FLEE:
 		return _layer.farthest_point_from(self, _player_position())
 	return Vector2.INF
@@ -920,7 +1086,7 @@ func _think_errand() -> void:
 		_errand["phase"] = PHASE_STAY
 		_face_errand_target()
 	elif is_moving() and _path[_path.size() - 1].distance_to(player) > _cell:
-		_walk_to(_layer.free_point_near(player, 1, _rng.randi()))
+		_walk_to(_layer.free_point_near(player, _errand_reach(), _rng.randi()))
 
 
 func _tick_errand_clock(delta: float) -> void:
@@ -943,6 +1109,11 @@ func _end_errand() -> void:
 
 # ─── Utilidades ───────────────────────────────────────────────
 
+## Radio (celdas) del punto libre junto al destino de un recado.
+func _errand_reach() -> int:
+	return int(_tun["radio_destino_recado"])
+
+
 func _rand_range(key: String) -> float:
 	var r: Array = Database.get_balance("npc_nodo." + key)
 	return _rng.randf_range(float(r[0]), float(r[1]))
@@ -950,6 +1121,11 @@ func _rand_range(key: String) -> float:
 
 func _glance_factor() -> float:
 	return float(_tun["factor_vistazo_snitch"]) if archetype == ARCH_SNITCH else 1.0
+
+
+## Vistazos laterales: no el oblivious (no gira la cabeza) ni el incorruptible (estático y frontal).
+func _glances() -> bool:
+	return _tic != OBLIVIOUS_TIC and archetype != ARCH_INCORRUPTIBLE
 
 
 func _sign() -> float:

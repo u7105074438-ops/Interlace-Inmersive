@@ -10,7 +10,8 @@ extends PanelContainer
 ##   está ahora · N3 seis rasgos en barras (aproximadas; exactas con N5) · N4 debilidad · N5 precio
 ##   de soborno estimado. Lo bloqueado se anuncia con el nivel que lo abre. Botón de objetivo
 ##   (PersonnelApp.set_marked). Se cierra con la X, Esc, un clic fuera (NPCLayer) o si el
-##   personaje sale de la planta. No pausa el reloj ni bloquea al jugador.
+##   personaje sale de la planta. No pausa el reloj ni bloquea al jugador. Acompaña al personaje
+##   en pantalla mientras camina (se recoloca si se desplaza más de FOLLOW_SLACK px).
 
 signal closed()
 
@@ -21,6 +22,7 @@ const ANCHOR_GAP := 28.0
 const ANCHOR_LIFT := 1.1
 const TRAIT_COLUMNS := 2
 const MAX_PHRASES := 2
+const FOLLOW_SLACK := 2.0
 const LOCKED_SECTIONS: Array[String] = [PersonnelApp.S_CHARACTER, PersonnelApp.S_TRAITS,
 	PersonnelApp.S_WEAKNESS, PersonnelApp.S_BRIBE]
 const SECTION_TITLES: Dictionary = {
@@ -41,6 +43,9 @@ class Portrait extends Control:
 
 var npc_id: String = ""
 var _anchor_world: Vector2 = Vector2.INF
+var _anchored: bool = false
+var _anchor_screen: Vector2 = Vector2.INF
+var _layer: NPCLayer = null
 var _mark_button: Button = null
 var _body: VBoxContainer = null
 
@@ -53,8 +58,10 @@ static func open_for(tree: SceneTree, npc_id: String) -> CharacterCard:
 	card.setup(npc_id)
 	var layer: NPCLayer = NPCLayer.find(tree)
 	var node: NPCNode = layer.get_node_for(npc_id) if layer != null else null
+	card._layer = layer
 	if node != null:
 		card._anchor_world = node.get_visual_position()
+		card._anchored = true
 	var ui: UIRoot = UIRoot.find(tree)
 	if ui != null:
 		ui.add_child(card)
@@ -96,10 +103,17 @@ func close() -> void:
 	queue_free()
 
 
+## Sigue al personaje; si sale de la planta (o se libera su nodo), se cierra.
 func _process(_delta: float) -> void:
-	var layer: NPCLayer = NPCLayer.find(get_tree())
-	if _anchor_world.is_finite() and (layer == null or layer.get_node_for(npc_id) == null):
+	if not _anchored:
+		return
+	var node: NPCNode = _layer.get_node_for(npc_id) if _layer != null and is_instance_valid(_layer) else null
+	if node == null:
 		close()
+		return
+	_anchor_world = node.get_visual_position()
+	if _screen_of(_anchor_world).distance_to(_anchor_screen) > FOLLOW_SLACK:
+		_place()
 
 
 # ─── Contenido ────────────────────────────────────────────────
@@ -220,7 +234,7 @@ func _locked_hint(locked: Array) -> Label:
 		if LOCKED_SECTIONS.has(section):
 			var label: Label = _label(UITheme.trf("CARD_LOCKED_FMT", [int(entry["level"]),
 					tr(str(SECTION_TITLES[section]))]), UITheme.V_SMALL)
-			label.add_theme_color_override("font_color", UITheme.color("faint"))
+			label.add_theme_color_override("font_color", UITheme.color("muted"))
 			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			return label
 	return null
@@ -288,11 +302,17 @@ func _place() -> void:
 	var view: Rect2 = get_viewport().get_visible_rect()
 	var target: Vector2 = Vector2(view.end.x - size.x - SCREEN_MARGIN, (view.size.y - size.y) * 0.5)
 	if _anchor_world.is_finite():
-		var cell: float = Database.get_balance_float("mundo.px_por_unidad")
-		var screen: Vector2 = get_viewport().get_canvas_transform() * (_anchor_world - Vector2(0.0, cell * ANCHOR_LIFT))
+		_anchor_screen = _screen_of(_anchor_world)
+		var screen: Vector2 = _anchor_screen
 		target = Vector2(screen.x + ANCHOR_GAP, screen.y - size.y * 0.5)
 		if target.x + size.x > view.end.x - SCREEN_MARGIN:
 			target.x = screen.x - ANCHOR_GAP - size.x
 	target.x = clampf(target.x, view.position.x + SCREEN_MARGIN, view.end.x - size.x - SCREEN_MARGIN)
 	target.y = clampf(target.y, view.position.y + SCREEN_MARGIN, view.end.y - size.y - SCREEN_MARGIN)
 	position = target
+
+
+## Punto de pantalla del pecho del personaje en `world`.
+func _screen_of(world: Vector2) -> Vector2:
+	var cell: float = Database.get_balance_float("mundo.px_por_unidad")
+	return get_viewport().get_canvas_transform() * (world - Vector2(0.0, cell * ANCHOR_LIFT))

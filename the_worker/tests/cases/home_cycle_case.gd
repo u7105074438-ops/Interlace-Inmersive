@@ -1,4 +1,4 @@
-# home_cycle_case.gd — Cuerpo de test_home_cycle: gastos diarios (§15.4), salario, compras en supermercado y tienda de ropa, comidas de despensa o compradas, comida robada sin coste, cuándo se puede dormir, secuencia de dormir (resumen → cambio de jornada → guardado → desayuno), carga, jornada sin dormir e inanición (THE GAP).
+# home_cycle_case.gd — Cuerpo de test_home_cycle: gastos diarios (§15.4), salario, compras en supermercado y tienda de ropa, comidas de despensa o compradas, comida robada sin coste, cuándo se puede dormir, secuencia de dormir (resumen → cambio de jornada → guardado → desayuno), tiempo de las comidas, carga (nodo presente y nodo creado después de load_run), jornada sin dormir e inanición (THE GAP).
 # PROPIETARIO DE: nada (los nodos HomeCycle y Police que crea viven solo durante el caso; su carpeta de guardado se borra al final).
 # ESCUCHA: money_changed, crime_committed, day_summary_ready, day_advanced, game_over, notebook_entry_added (registro durante el caso).
 extends TestCase
@@ -23,6 +23,7 @@ var _order: Array[String] = []
 var _summary_day: int = -1
 var _saved_at_summary: bool = true
 var _money_after_sleep: int = 0
+var _minutes_after_sleep: float = 0.0
 
 
 func run_case() -> void:
@@ -40,6 +41,7 @@ func run_case() -> void:
 	_test_can_sleep()
 	_test_sleep_sequence()
 	_test_load_repeats_breakfast()
+	_test_late_node_repeats_breakfast()
 	_test_day_without_sleep()
 	_test_starvation()
 	_log.stop()
@@ -109,8 +111,14 @@ func _test_meals_and_stolen_food() -> void:
 	_fresh(20)
 	_cycle.buy("food_dinner", SUPERMARKET)
 	var money: int = PlayerState.get_money()
+	var before: float = GameClock.get_total_minutes()
 	var dinner: Dictionary = _cycle.eat(HomeCycle.MEAL_DINNER)
 	check(bool(dinner["eaten"]) and str(dinner["source"]) == HomeCycle.SOURCE_STOCK, "dinner from the fridge")
+	check_near(GameClock.get_total_minutes() - before,
+			Database.get_balance_float("hogar.minutos_comida.dinner"), 0.001, "dinner takes game time")
+	before = GameClock.get_total_minutes()
+	_cycle.eat(HomeCycle.MEAL_DINNER)
+	check_near(GameClock.get_total_minutes(), before, 0.001, "an already eaten meal takes no time")
 	check_eq(PlayerState.get_money(), money, "eating from stock costs nothing")
 	check_eq(PlayerState.get_item_count("food_dinner"), 0, "the food was eaten")
 	check_eq(int(_cycle.eat(HomeCycle.MEAL_DINNER)["cost"]), 0, "no second dinner")
@@ -193,11 +201,28 @@ func _on_day(_day: int) -> void:
 
 ## El guardado es previo al desayuno: al cargar se desayuna otra vez y el dinero cuadra.
 func _test_load_repeats_breakfast() -> void:
+	_minutes_after_sleep = GameClock.get_total_minutes()
 	check(SaveSystem.load_run(), "the run loads")
 	GameClock.pause()
 	check_eq(GameClock.get_day(), 2, "loaded on day 2")
 	check(_cycle.has_eaten(HomeCycle.MEAL_BREAKFAST), "breakfast is repeated after loading")
 	check_eq(PlayerState.get_money(), _money_after_sleep, "the money matches the uninterrupted night")
+	check_near(GameClock.get_total_minutes(), _minutes_after_sleep, 0.001,
+			"and so does the clock (breakfast time included)")
+
+
+## BUILD_NOTES §2: un HomeCycle creado DESPUÉS de load_run reclama su estado en _ready y repite
+## el desayuno igual (no oye run_loaded).
+func _test_late_node_repeats_breakfast() -> void:
+	remove_child(_cycle)
+	_cycle.free()
+	check(SaveSystem.load_run(), "the run loads with no HomeCycle in the tree")
+	GameClock.pause()
+	_cycle = HomeCycle.new()
+	add_child(_cycle)
+	check(_cycle.has_eaten(HomeCycle.MEAL_BREAKFAST), "the late node repeats breakfast")
+	check_eq(PlayerState.get_money(), _money_after_sleep, "money matches the uninterrupted night")
+	check_near(GameClock.get_total_minutes(), _minutes_after_sleep, 0.001, "and the clock too")
 
 
 func _test_day_without_sleep() -> void:

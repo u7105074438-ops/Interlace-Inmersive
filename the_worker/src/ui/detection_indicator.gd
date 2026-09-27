@@ -10,23 +10,30 @@ extends Node2D
 ##                  una aguja en su borde de avance.
 ##   parcial      → círculo COMPLETO naranja con «?» (creencia de certeza baja; sin confrontación).
 ##                  Un arco exterior fino avanza hacia la flagrancia si el contador sigue subiendo.
-##   flagrancia   → ESTRELLA de puntas roja con «!» que late (ventana de decisión).
-## Siempre con cola hacia la cabeza. Tamaño constante en pantalla (compensa el zoom de cámara):
-## radio interfaz.indicador_deteccion_radio px (× escala táctil de UITheme en móvil). Alto
+##   flagrancia   → círculo COMPLETO rojo con «!» y una corona de ocho rayos de alarma que late
+##                  (ventana de decisión).
+## Siempre con cola hacia la cabeza: el nodo se ancla en la coronilla del personaje y el indicador
+## se dibuja encima (centro a ANCHOR_LIFT radios). Tamaño constante en pantalla (compensa el zoom):
+## radio interfaz.indicador_deteccion_radio px (× interfaz.indicador_deteccion_escala_tactil en
+## móvil: la pieza más importante de la interfaz se lee en pantallas pequeñas). Alto
 ## contraste (ajuste high_contrast → UITheme.current_high_contrast): paleta de alto contraste,
 ## contorno más grueso, halo blanco y escala interfaz.indicador_deteccion_escala_alto_contraste.
 ## draw_state() es estática: la reutilizan la leyenda de QA y otras piezas de interfaz.
 
 const Z_INDICATOR := RenderingServer.CANVAS_ITEM_Z_MAX - 3
-const BURST_POINTS := 10
+const ALARM_RAYS := 8
+const ALARM_IN := 1.24
+const ALARM_OUT := 1.62
+const ALARM_PULSE := 0.14
 const ARC_SEGMENTS := 40
 const TAIL_HALF := 0.36
 const TAIL_TOP := 0.78
 const TAIL_TIP := 1.38
+## Centro del indicador sobre el ancla (la coronilla), en radios: la punta de la cola queda justo
+## encima de la cabeza.
+const ANCHOR_LIFT := 1.62
 const GLYPH_SCALE := 1.28
-const BURST_OUTER := 1.3
-const BURST_INNER := 1.02
-const PULSE_AMPLITUDE := 0.08
+const PULSE_AMPLITUDE := 0.06
 const NEEDLE_REACH := 1.24
 const OUTER_ARC_GAP := 0.28
 const SHADOW_OFFSET := Vector2(1.5, 2.5)
@@ -39,12 +46,14 @@ var _state: int = Perception.STATE_NONE
 var _counter: float = 0.0
 var _pulse: float = 0.0
 var _contrast: bool = false
+var _pulse_hz: float = 1.0
 
 
 func _ready() -> void:
 	z_as_relative = false
 	z_index = Z_INDICATOR
 	visible = false
+	_pulse_hz = UITheme.tune("interfaz.flagrancia_pulso_hz")
 
 
 ## Perception cuyo contador representa.
@@ -63,7 +72,7 @@ func _process(delta: float) -> void:
 		_state = state
 		return
 	_compensate_zoom()
-	_pulse = fmod(_pulse + delta * UITheme.tune("interfaz.flagrancia_pulso_hz"), 1.0)
+	_pulse = fmod(_pulse + delta * _pulse_hz, 1.0)
 	var changed: bool = state != _state or absf(counter - _counter) > 0.004 \
 			or UITheme.current_high_contrast != _contrast or state == Perception.STATE_FLAGRANT
 	_state = state
@@ -81,14 +90,15 @@ func _compensate_zoom() -> void:
 
 
 func _draw() -> void:
-	draw_state(self, Vector2.ZERO, base_radius(), _state, _counter, _contrast, _pulse)
+	var r: float = base_radius()
+	draw_state(self, Vector2(0.0, -r * ANCHOR_LIFT), r, _state, _counter, _contrast, _pulse)
 
 
 ## Radio base en píxeles de pantalla (tamaño de texto táctil y alto contraste incluidos).
 static func base_radius() -> float:
 	var r: float = UITheme.tune("interfaz.indicador_deteccion_radio")
 	if UITheme.touch_scale_active:
-		r *= UITheme.tune("interfaz.escala_texto_tactil")
+		r *= UITheme.tune("interfaz.indicador_deteccion_escala_tactil")
 	if UITheme.current_high_contrast:
 		r *= UITheme.tune("interfaz.indicador_deteccion_escala_alto_contraste")
 	return r
@@ -112,8 +122,8 @@ static func draw_state(c: CanvasItem, center: Vector2, radius: float, state: int
 		Perception.STATE_PARTIAL:
 			_draw_partial(c, center, radius, counter, pal, ink, w, high_contrast)
 		Perception.STATE_FLAGRANT:
-			var r: float = radius * (1.0 + PULSE_AMPLITUDE * sin(pulse * TAU))
-			_draw_flagrant(c, center, r, fill, ink, w, high_contrast)
+			var beat: float = sin(pulse * TAU)
+			_draw_flagrant(c, center, radius * (1.0 + PULSE_AMPLITUDE * beat), beat, fill, ink, w, high_contrast)
 
 
 static func _state_color(pal: Dictionary, state: int) -> Color:
@@ -172,18 +182,21 @@ static func _draw_partial(c: CanvasItem, center: Vector2, r: float, counter: flo
 	_glyph(c, center, r, "?", ink, Color.WHITE if high_contrast else Color(ink, 0.0))
 
 
-## Flagrancia: estrella de puntas roja, disco interior y «!» blanco con contorno.
-static func _draw_flagrant(c: CanvasItem, center: Vector2, r: float, fill: Color, ink: Color, w: float,
-		high_contrast: bool) -> void:
-	var star: PackedVector2Array = []
-	for i: int in BURST_POINTS * 2:
-		var k: float = BURST_OUTER if i % 2 == 0 else BURST_INNER
-		star.append(center + Vector2.from_angle(-PI * 0.5 + PI * i / BURST_POINTS) * r * k)
-	if high_contrast:
-		c.draw_colored_polygon(_grow(star, center, w * 1.2), Color.WHITE)
-	c.draw_colored_polygon(_grow(star, center, w), ink)
-	c.draw_colored_polygon(star, fill)
-	c.draw_circle(center, r * 0.78, fill.darkened(0.12))
+## Flagrancia: círculo completo rojo con «!» blanco y ocho rayos de alarma que laten (`beat` -1..1).
+static func _draw_flagrant(c: CanvasItem, center: Vector2, r: float, beat: float, fill: Color, ink: Color,
+		w: float, high_contrast: bool) -> void:
+	var out_k: float = ALARM_OUT + ALARM_PULSE * beat
+	for i: int in ALARM_RAYS:
+		var dir: Vector2 = Vector2.from_angle(-PI * 0.5 + TAU * (float(i) + 0.5) / ALARM_RAYS)
+		var a: Vector2 = center + dir * r * ALARM_IN
+		var b: Vector2 = center + dir * r * out_k
+		if high_contrast:
+			c.draw_line(a, b, Color.WHITE, w * 4.4, true)
+		c.draw_line(a, b, ink, w * 3.0, true)
+		c.draw_line(a + dir * w * 0.5, b - dir * w * 0.5, fill, w * 1.3, true)
+	_disc(c, center, r, ink, w, high_contrast)
+	c.draw_circle(center, r - w, fill)
+	c.draw_arc(center, r - w * 2.2, -PI * 0.95, -PI * 0.35, ARC_SEGMENTS / 2, fill.lightened(0.35), w, true)
 	_glyph(c, center, r, "!", Color.WHITE, ink)
 
 
@@ -192,13 +205,6 @@ static func _disc(c: CanvasItem, center: Vector2, r: float, ink: Color, w: float
 	if high_contrast:
 		c.draw_circle(center, r + w * HALO_EXTRA, Color.WHITE)
 	c.draw_circle(center, r + w * 0.5, ink)
-
-
-static func _grow(poly: PackedVector2Array, center: Vector2, amount: float) -> PackedVector2Array:
-	var out: PackedVector2Array = []
-	for p: Vector2 in poly:
-		out.append(p + (p - center).normalized() * amount)
-	return out
 
 
 ## Glifo centrado con la fuente gruesa del tema (con contorno si `outline` es visible).

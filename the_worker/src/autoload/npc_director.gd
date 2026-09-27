@@ -1,5 +1,5 @@
 # npc_director.gd — Estado completo de los personajes: población, rutinas, ánimo, registro, LOD y cuerpos.
-# PROPIETARIO DE: personajes (NPCRuntime) y perfiles de puesto, ubicación estadística y rutinas, ánimo, mérito, registro de relaciones (§7.9), material de chantaje, cuerpos, nivel de detalle (§19.5, §20) y estado de saqueo de los domicilios (§4.3).
+# PROPIETARIO DE: personajes (NPCRuntime) y perfiles de puesto, ubicación estadística y rutinas, ánimo, mérito, registro de relaciones (§7.9), material de chantaje, cuerpos, nivel de detalle (§19.5, §20), estado de saqueo de los domicilios (§4.3) y vigilancia personal del jugador (§11.8).
 # ESCUCHA: day_advanced, time_band_changed, hour_passed, room_entered, floor_changed, belief_created, belief_decayed, bribe_offered, bribe_result, npc_reported_player, seat_vacated, seat_filled, investigation_resolved, suspect_list_formed, case_went_cold, idea_acquired, idea_presented, blackmail_initiated, body_hidden, notebook_entry_added.
 class_name NPCDirectorSystem
 extends Node
@@ -153,6 +153,8 @@ const LOD_KEY_FORMAT := "NPC_LOD_%d"
 const TRIGGER_BELIEF := "belief"
 const TRIGGER_BAND := "band"
 const TRIGGER_BRIBE := "bribe"
+## Disparador de una denuncia que decide la trama (report_player_to_superior).
+const TRIGGER_PLOT := "plot"
 const CHANNEL_SECURITY := "security"
 const CHANNEL_SUPERIOR := "superior"
 const EVIDENCE_DIRECT := "direct_witness"
@@ -728,6 +730,17 @@ func get_day_plan(npc_id: String) -> Array:
 	return _plan_for(npc).duplicate(true) if npc != null and _planner != null else []
 
 
+## Extra (§11.8 agenda del CEO): agenda de la plantilla para una jornada concreta (determinista;
+## hoy = get_day_plan). No incluye sustituciones de override_routine ni seguimientos.
+func get_day_plan_for_day(npc_id: String, day: int) -> Array:
+	var npc: NPCRuntime = get_npc(npc_id)
+	if npc == null or _planner == null:
+		return []
+	if day == _current_day():
+		return get_day_plan(npc_id)
+	return _planner.build_plan(npc, _profiles.get(npc.id, {}), day, GameClock.get_run_seed())
+
+
 ## Extra (nodos del mundo, §20.1): sala real de un personaje con nodo (LOD 0/1). La agenda deja
 ## de moverlo hasta release_current_location() o hasta que baje a LOD 2.
 func set_current_location(npc_id: String, room_id: String) -> void:
@@ -1005,6 +1018,19 @@ func mark_house_container_looted(npc_id: String, container_id: String) -> void:
 	_house_loot[npc_id] = state
 
 
+## {vigilante: {target, until_day, reason}} de JSON → tipos propios.
+static func _typed_surveillance(raw: Variant) -> Dictionary:
+	var out: Dictionary = {}
+	if not (raw is Dictionary):
+		return out
+	for watcher: Variant in raw:
+		var entry: Variant = raw[watcher]
+		if entry is Dictionary:
+			out[str(watcher)] = {SV_TARGET: str(entry.get(SV_TARGET, PLAYER_ID)),
+					SV_UNTIL: int(entry.get(SV_UNTIL, 0)), SV_REASON: str(entry.get(SV_REASON, ""))}
+	return out
+
+
 static func _typed_house_loot(raw: Variant) -> Dictionary:
 	var out: Dictionary = {}
 	if not raw is Dictionary:
@@ -1090,6 +1116,105 @@ func sync_marked_targets() -> void:
 		if not marked.has(str(npc_id)) \
 				and (_forced_lod[npc_id] as Array).has(REASON_MARKED_TARGET):
 			release_full_lod(str(npc_id), REASON_MARKED_TARGET)
+
+
+## Extra (§11.8): el vigilante sigue al jugador durante `days` jornadas más la de hoy (se suma a
+## una vigilancia en curso: vale el plazo más largo). LOD 0 forzado y bonificación de perspicacia.
+func begin_personal_surveillance(watcher_id: String, days: int, reason: String) -> void:
+	var npc: NPCRuntime = get_npc(watcher_id)
+	if npc == null or not _is_active(npc) or days <= 0:
+		return
+	var until: int = maxi(_current_day() + days,
+			int(get_personal_surveillance(watcher_id).get(SV_UNTIL, 0)))
+	_surveillance[watcher_id] = {SV_TARGET: PLAYER_ID, SV_UNTIL: until, SV_REASON: reason}
+	force_full_lod(watcher_id, REASON_SURVEILLANCE)
+	_relocate_by_schedule(npc)
+
+
+## Extra: termina la vigilancia (plazo cumplido, un intermediario tranquiliza al vigilante...).
+func end_personal_surveillance(watcher_id: String) -> void:
+	if not _surveillance.erase(watcher_id):
+		return
+	release_full_lod(watcher_id, REASON_SURVEILLANCE)
+	var npc: NPCRuntime = get_npc(watcher_id)
+	if npc != null:
+		_relocate_by_schedule(npc)
+
+
+## Extra: {target, until_day, reason} de la vigilancia del personaje ({} si no vigila).
+func get_personal_surveillance(watcher_id: String) -> Dictionary:
+	return (_surveillance.get(watcher_id, {}) as Dictionary).duplicate()
+
+
+## Extra: ids de quienes vigilan personalmente al jugador ahora.
+func get_surveillance_watchers() -> Array[String]:
+	var out: Array[String] = []
+	for watcher: Variant in _surveillance:
+		out.append(str(watcher))
+	return out
+
+
+func is_player_under_surveillance() -> bool:
+	return not _surveillance.is_empty()
+
+
+## Extra (nodo del mundo): a quién debe seguir el personaje ahora ("player" o "").
+func get_follow_target(npc_id: String) -> String:
+	var npc: NPCRuntime = get_npc(npc_id)
+	if npc == null or _planner == null or not _follows_player_in(npc_id,
+			_planner.band_of_minute(_clock_minute())):
+		return ""
+	return str(_surveillance[npc_id].get(SV_TARGET, PLAYER_ID))
+
+
+## Extra (§11.8 Pearl Osgood, §12.2 company_man): denuncia deliberada al superior con certeza
+## completa (canal "superior"). No mira el plazo entre denuncias: es un acto de la trama.
+## `reason` = disparador anotado en npc_decided y en get_last_decision().
+func report_player_to_superior(npc_id: String, location: String,
+		reason: String = TRIGGER_PLOT) -> bool:
+	var npc: NPCRuntime = get_npc(npc_id)
+	if npc == null or not _is_active(npc):
+		return false
+	var summary: Dictionary = {"trigger": reason, "channel": CHANNEL_SUPERIOR,
+			"evidence_type": EVIDENCE_DIRECT, "certainty": Belief.MAX_CERTAINTY, "location": location}
+	_last_decision[npc_id] = {"action": UtilityAI.REPORT_TO_SUPERIOR, "trigger": reason,
+			"day": _current_day(), "minute": _clock_minute()}
+	EventBus.npc_decided.emit(npc_id, UtilityAI.REPORT_TO_SUPERIOR, summary)
+	_report(npc, CHANNEL_SUPERIOR, Belief.MAX_CERTAINTY, location)
+	return true
+
+
+## Seguimiento estadístico: en las franjas de seguimiento, con el jugador dentro del edificio.
+func _follows_player_in(npc_id: String, band: String) -> bool:
+	if not _surveillance.has(npc_id) or _player_room.is_empty() or _planner == null:
+		return false
+	var bands: Variant = Database.get_balance(B_SURVEILLANCE_BANDS)
+	if not (bands is Array and (bands as Array).has(band)):
+		return false
+	var f: int = _planner.room_floor(_player_room)
+	return f != NPCRoutinePlanner.NO_FLOOR and f != Database.get_balance_int(B_EXTERIOR_FLOOR)
+
+
+## Sitúa ya al personaje según su agenda (salvo que lo sitúe un nodo del mundo).
+func _relocate_by_schedule(npc: NPCRuntime) -> void:
+	if _planner == null or _world_located.has(npc.id) or not _is_active(npc):
+		return
+	var loc: Dictionary = _location_at(npc, _clock_minute(), true)
+	_place(npc, str(loc["room"]), str(loc["activity"]))
+
+
+func _move_watchers() -> void:
+	for watcher: Variant in _surveillance:
+		var npc: NPCRuntime = get_npc(str(watcher))
+		if npc != null:
+			_relocate_by_schedule(npc)
+
+
+## Cambio de jornada: caducan las vigilancias cuyo plazo ya pasó.
+func _expire_surveillance(day_number: int) -> void:
+	for watcher: Variant in _surveillance.keys():
+		if int((_surveillance[watcher] as Dictionary).get(SV_UNTIL, 0)) < day_number:
+			end_personal_surveillance(str(watcher))
 
 
 ## Extra: presupuesto de agentes (perfil "max_agents" o lod.max_agentes_total).
@@ -1814,6 +1939,7 @@ func _on_day_advanced(day_number: int) -> void:
 		npc.merit += roundi(npc.get_trait("ambition") * merit_factor)
 		npc.mood = clampf(npc.mood * (1.0 - regression), -MOOD_LIMIT, MOOD_LIMIT)
 	_plans.clear()
+	_expire_surveillance(day_number)
 	_update_locations(_clock_minute(), NPCRuntime.LOD_FULL, NPCRuntime.LOD_STATISTICAL)
 	refresh_lod()
 	_prune_escalated()
@@ -1855,6 +1981,7 @@ func _on_room_entered(room_id: String, by_player: bool) -> void:
 		var f: int = _planner.room_floor(room_id)
 		if f != NPCRoutinePlanner.NO_FLOOR and f != RoomData.TRANSVERSAL_FLOOR:
 			_player_floor = f
+	_move_watchers()
 	refresh_lod()
 
 
@@ -1877,6 +2004,7 @@ func save_state() -> Dictionary:
 		"last_report": _last_report.duplicate(true), "player_room": _player_room,
 		"last_decision": _last_decision.duplicate(true), "lod_pins": _lod_pins.duplicate(),
 		"escalated_beliefs": _escalated.keys(), "house_loot": _house_loot.duplicate(true),
+		"surveillance": _surveillance.duplicate(true),
 		"player_floor": _player_floor, "day": _day,
 		"rng_seed": str(_rng.seed), "rng_state": str(_rng.state),
 	}
@@ -1898,6 +2026,7 @@ func load_state(data: Dictionary) -> void:
 	for belief_id: Variant in data.get("escalated_beliefs", []):
 		_escalated[str(belief_id)] = true
 	_house_loot = _typed_house_loot(data.get("house_loot", {}))
+	_surveillance = _typed_surveillance(data.get("surveillance", {}))
 	var decisions: Variant = data.get("last_decision", {})
 	_last_decision = NPCPopulationGenerator.json_ints(decisions) if decisions is Dictionary else {}
 	_player_room = str(data.get("player_room", ""))

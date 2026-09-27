@@ -24,9 +24,20 @@ extends Node
 ##  · Conos: ajuste "vision_cones" (0 ocultos, 1 automático = cercanos y sutiles, 2 todos; bool →
 ##    1/0) → Perception.cone_mode. F1 (DebugPanel) fuerza todos con set_debug_cones.
 ##  · Clic/toque sobre un personaje (sin dirección pulsada ni ventana modal) → CharacterCard.
-##  · Icono de cámara del HUD (§13.2, PASO 12): a cada sincronía, SecurityCamera.is_player_in_view
-##    de las cámaras de la planta → UIRoot.set_camera_watch(camera_id, dentro). Las grabaciones las
-##    hace ya SecurityCamera (camera_recorded_player → Security guarda la grabación): no se duplican.
+##  · Observadores (PASO 10, GameClock.set_observer_check): la capa registra observers_present() —
+##    algún personaje de LOD 0 con el jugador a su alcance y en línea de visión (aunque no mire hacia
+##    él) — y GameClock.advance_to_band se niega a saltar el tiempo delante de testigos.
+##  · Icono de cámara del HUD (§13.2, PASO 12): CADA fotograma, SecurityCamera.is_player_in_view
+##    (distancia y ángulo antes que el rayo) de las cámaras de la planta → UIRoot.set_camera_watch
+##    (camera_id, dentro) solo al cambiar. Las grabaciones las hace ya SecurityCamera
+##    (camera_recorded_player → Security guarda la grabación): no se duplican.
+##  · Sillas de cara a una mesa (cafetería, reuniones; mirando al sur): el dibujo se desplaza
+##    npc_nodo.recogida_mesa_frontal celdas hacia la mesa y el nodo se queda en la silla, así el
+##    orden en Y pone la mesa delante y tapa el regazo (sentado A la mesa, no de pie junto a ella).
+##  · Tránsito (cada npc_nodo.intervalo_cola s): cola tras quien camina delante en el mismo
+##    sentido, apartarse a la derecha ante quien viene de frente o ante el jugador, apartarse y esperar ante un
+##    escalón ≥ npc_nodo.escalon_se_apartan; un escalón de npc_nodo.escalones_acompanados marca el
+##    paso de un subordinado de su departamento que va a la misma sala (§14.5).
 
 const GROUP := "npc_layer"
 const PLAYER_GROUP := "player"
@@ -43,8 +54,10 @@ const KEY_FORMAT := "cell:%s:%d:%d"
 const PICK_FORMAT := "%s|%s|%d"
 const OWNER_GENERATED := "generated"
 const SELECT_LIFT := 0.7
-const GOSSIP_REACH := 16.0
 const ROLL_STEPS := 1000
+## Coseno mínimo entre rumbos para «mismo sentido» / «de frente» y del cono de «delante».
+const SAME_WAY_COS := 0.5
+const AHEAD_COS := 0.7
 ## Celdas libres alrededor de cada hueco de puerta (nadie se planta en el paso).
 const DOOR_CLEARANCE := 1
 
@@ -74,18 +87,43 @@ var _world_time: float = 0.0
 var _away_until: Dictionary = {}
 ## camera_id → el jugador está en su campo (lo último comunicado a UIRoot.set_camera_watch).
 var _camera_watch: Dictionary = {}
+var _traffic_left: float = 0.0
+var _tun: Dictionary = {}
 
 
 func _ready() -> void:
 	add_to_group(GROUP)
 	_interval = maxf(Database.get_balance_float("lod.intervalo_medio_segundos"), 0.05)
 	_cell = Database.get_balance_float("mundo.px_por_unidad")
+	for key: String in ["alcance_cotilleo", "intervalo_cola", "distancia_cola", "paso_apartarse",
+			"segundos_apartarse", "radio_escolta", "recogida_mesa_frontal", "carril"]:
+		_tun[key] = Database.get_balance_float("npc_nodo." + key)
+	_tun["escalon_se_apartan"] = Database.get_balance_int("npc_nodo.escalon_se_apartan")
+	var escorted: Array[int] = []
+	for tier_value: Variant in Database.get_balance("npc_nodo.escalones_acompanados"):
+		escorted.append(int(tier_value))
+	_tun["escalones_acompanados"] = escorted
 	EventBus.noise_emitted.connect(_on_noise)
 	EventBus.npc_decided.connect(_on_npc_decided)
 	EventBus.npc_reported_player.connect(_on_npc_reported)
 	EventBus.player_caught_redhanded.connect(_on_caught)
+	GameClock.set_observer_check(observers_present)
 	if _streamer == null:
 		_find_streamer.call_deferred()
+
+
+func _exit_tree() -> void:
+	GameClock.set_observer_check(Callable())
+
+
+## Hay testigos: algún personaje activo (LOD 0) podría ver al jugador con solo girarse.
+func observers_present() -> bool:
+	if not _has_floor() or get_player() == null:
+		return false
+	for node: NPCNode in get_nodes():
+		if node.perception != null and node.perception.is_active() and node.perception.can_notice(_player.global_position):
+			return true
+	return false
 
 
 static func find(tree: SceneTree) -> NPCLayer:
@@ -95,6 +133,8 @@ static func find(tree: SceneTree) -> NPCLayer:
 func set_streamer(streamer: FloorStreamer) -> void:
 	if streamer == _streamer:
 		return
+	if _streamer != null and is_instance_valid(_streamer) and _streamer.floor_loaded.is_connected(_on_floor_loaded):
+		_streamer.floor_loaded.disconnect(_on_floor_loaded)
 	_streamer = streamer
 	if _streamer != null:
 		_streamer.floor_loaded.connect(_on_floor_loaded)
@@ -180,6 +220,11 @@ func _advance_world(delta: float) -> void:
 			think_all()
 	get_player()
 	_exposure = _compute_exposure()
+	_sync_camera_watch()
+	_traffic_left -= world_delta
+	if world_delta > 0.0 and _traffic_left <= 0.0:
+		_traffic_left = float(_tun["intervalo_cola"])
+		space_walkers()
 	for node: NPCNode in get_nodes():
 		node.step(world_delta)
 		node.perceive(world_delta, _player, _exposure)
@@ -224,7 +269,6 @@ func sync_now() -> void:
 	_initial = false
 	_sync_ideas()
 	_sync_settings()
-	_sync_camera_watch()
 
 
 func _spawn(npc: NPCRuntime, previous_floor: int) -> void:
@@ -301,10 +345,13 @@ func _sync_ideas() -> void:
 		node.set_idea(active.get(node.npc_id, {}))
 
 
-## Icono de cámara del HUD (§13.2): dentro del campo de alguna cámara de la planta.
+## Icono de cámara del HUD (§13.2): dentro del campo de alguna cámara de la planta (cada fotograma;
+## a UIRoot solo los cambios).
 func _sync_camera_watch() -> void:
+	if _player == null or not is_inside_tree():
+		return
 	var ui: UIRoot = UIRoot.find(get_tree())
-	if ui == null or get_player() == null:
+	if ui == null:
 		return
 	for cam: SecurityCamera in _streamer.get_cameras():
 		var inside: bool = cam.is_player_in_view(_player.global_position)
@@ -350,7 +397,8 @@ func _on_npc_decided(npc_id: String, action: String, context: Dictionary) -> voi
 ## Denuncias sin decisión propia (CaughtHandler, Blackmail): también caminan a Seguridad.
 func _on_npc_reported(npc_id: String, report_type: String, _weight: float, _location: String) -> void:
 	var node: NPCNode = get_node_for(npc_id)
-	if node == null or node.get_errand_kind() in [NPCNode.ERRAND_REPORT, NPCNode.ERRAND_SUPERIOR]:
+	if node == null or node.get_errand_kind() in [NPCNode.ERRAND_REPORT, NPCNode.ERRAND_SUPERIOR] \
+			or node.get_pending_action() in [UtilityAI.REPORT_TO_SECURITY, UtilityAI.REPORT_TO_SUPERIOR]:
 		return
 	var superior: bool = report_type == NPCDirectorSystem.CHANNEL_SUPERIOR
 	node.react(UtilityAI.REPORT_TO_SUPERIOR if superior else UtilityAI.REPORT_TO_SECURITY, {})
@@ -576,9 +624,11 @@ func _free_chair(node: NPCNode, room_id: String) -> Dictionary:
 	for k: int in chairs.size():
 		var chair: Dictionary = chairs[(start + k) % chairs.size()]
 		if _free_key(str(chair["key"]), node.npc_id):
-			var draw: Vector2 = CharacterPainter.seat_origin(chair["center"], node.get_appearance(), node.tier)
-			return {"key": chair["key"], "room": room_id, "pos": draw, "draw": draw, "seated": true,
-					"facing": chair["facing"], "approach": chair["center"]}
+			var pos: Vector2 = CharacterPainter.seat_origin(chair["center"], node.get_appearance(), node.tier)
+			var tuck: Vector2 = Vector2(0.0, float(_tun["recogida_mesa_frontal"]) * _cell) \
+					if bool(chair["at_table"]) else Vector2.ZERO
+			return {"key": chair["key"], "room": room_id, "pos": pos, "draw": pos + tuck, "walk_end": pos,
+					"seated": true, "facing": chair["facing"], "approach": chair["center"], "tucked": bool(chair["at_table"])}
 	return {}
 
 
@@ -588,14 +638,27 @@ func _chairs(room_id: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var room: RoomData = Database.get_room(room_id)
 	var origin: Vector2i = (_streamer.get_plan()["rooms"][room_id] as Rect2i).position
-	for entry: Dictionary in (FloorLayout.room_furniture(room) if room != null else []):
+	var furniture: Array[Dictionary] = FloorLayout.room_furniture(room) if room != null else []
+	for entry: Dictionary in furniture:
 		if str(entry.get("type", "")) != FloorLayout.CHAIR_TYPE:
 			continue
 		var cell: Vector2i = origin + Vector2i(entry["pos"])
+		var facing: Vector2 = Vector2.DOWN.rotated(deg_to_rad(float(entry.get("rotation", 0.0))))
+		var front: bool = facing.dot(Vector2.DOWN) > SAME_WAY_COS
 		out.append({"key": KEY_FORMAT % [room_id, cell.x, cell.y], "center": _streamer.cell_to_world(cell),
-				"facing": Vector2.DOWN.rotated(deg_to_rad(float(entry.get("rotation", 0.0))))})
+				"facing": facing, "at_table": front and _surface_at(furniture, Vector2i(entry["pos"]) + Vector2i.DOWN)})
 	_room_chairs[room_id] = out
 	return out
+
+
+## Hay una mesa (mueble bajo que no es silla) en la celda `local` de la sala.
+func _surface_at(furniture: Array[Dictionary], local: Vector2i) -> bool:
+	for entry: Dictionary in furniture:
+		var type: String = str(entry.get("type", ""))
+		if type != FloorLayout.CHAIR_TYPE and FurniturePainter.is_prop(type) \
+				and FurniturePainter.footprint(entry).has_point(local):
+			return true
+	return false
 
 
 ## Celda libre de la sala (burnout: junto a la pared). Primero una sin vecinos ocupados (nadie
@@ -704,6 +767,86 @@ func farthest_point_from(node: NPCNode, pos: Vector2) -> Vector2:
 	return best
 
 
+# ─── Tránsito ─────────────────────────────────────────────────
+
+## Colas en las puertas, apartarse y acompañar (§14.5). Lo llama advance() cada
+## npc_nodo.intervalo_cola s de mundo.
+func space_walkers() -> void:
+	var walkers: Array[NPCNode] = []
+	for node: NPCNode in get_nodes():
+		if node.is_moving():
+			walkers.append(node)
+	for node: NPCNode in walkers:
+		if not _yield_to_big(node, walkers):
+			_give_way(node, walkers)
+	_pair_escorts(walkers)
+
+
+## Cola tras quien camina delante en su mismo sentido (el de detrás espera); ante quien viene de
+## frente (o el jugador en su camino), un paso a su derecha. Dos apilados: espera el de id mayor.
+func _give_way(node: NPCNode, walkers: Array[NPCNode]) -> void:
+	var dir: Vector2 = node.get_travel_dir()
+	var reach: float = float(_tun["distancia_cola"]) * _cell
+	if _player != null:
+		var to_player: Vector2 = _player.global_position - node.global_position
+		if to_player.length_squared() <= reach * reach and to_player.normalized().dot(dir) >= AHEAD_COS:
+			node.sidestep(dir.rotated(PI * 0.5) * float(_tun["carril"]) * _cell, reach)
+			return
+	for other: NPCNode in walkers:
+		var to: Vector2 = other.global_position - node.global_position
+		if other == node or to.length_squared() > reach * reach:
+			continue
+		var odir: Vector2 = other.get_travel_dir()
+		var same_way: bool = odir.dot(dir) > SAME_WAY_COS
+		var stacked: bool = to.length_squared() < 1.0
+		if stacked and same_way and node.get_instance_id() < other.get_instance_id():
+			continue
+		if not stacked and to.normalized().dot(dir) < AHEAD_COS:
+			continue
+		if same_way:
+			node.hold(float(_tun["intervalo_cola"]))
+		else:
+			node.sidestep(dir.rotated(PI * 0.5) * float(_tun["carril"]) * _cell, reach)
+		return
+
+
+## Escalón ≥ escalon_se_apartan que viene por su camino: se aparta de su trayectoria y espera.
+func _yield_to_big(node: NPCNode, walkers: Array[NPCNode]) -> bool:
+	var big: int = int(_tun["escalon_se_apartan"])
+	if node.tier >= big:
+		return false
+	var reach: float = float(_tun["distancia_cola"]) * _cell * 2.0
+	for other: NPCNode in walkers:
+		var from_big: Vector2 = node.global_position - other.global_position
+		var bdir: Vector2 = other.get_travel_dir()
+		if other.tier < big or from_big.length_squared() > reach * reach or from_big.dot(bdir) <= 0.0:
+			continue
+		var side: Vector2 = from_big - bdir * from_big.dot(bdir)
+		if side.length_squared() < 1.0:
+			side = bdir.rotated(PI * 0.5)
+		node.sidestep(side.normalized() * float(_tun["paso_apartarse"]) * _cell, reach)
+		node.hold(float(_tun["segundos_apartarse"]))
+		return true
+	return false
+
+
+## Escalón 5-6 que camina hacia una sala: un subordinado de su departamento que va a la misma
+## sala y está a npc_nodo.radio_escolta celdas le acompaña (ajusta su paso al del jefe).
+func _pair_escorts(walkers: Array[NPCNode]) -> void:
+	var ranks: Array[int] = _tun["escalones_acompanados"]
+	var reach: float = float(_tun["radio_escolta"]) * _cell
+	for leader: NPCNode in walkers:
+		if not ranks.has(leader.tier) or leader.get_pace_leader() != null:
+			continue
+		for other: NPCNode in walkers:
+			if other == leader or other.department != leader.department or other.tier >= leader.tier \
+					or other.get_pace_leader() != null or other.get_destination() != leader.get_destination():
+				continue
+			if other.global_position.distance_to(leader.global_position) <= reach:
+				other.match_pace(leader)
+				break
+
+
 # ─── Vida social ──────────────────────────────────────────────
 
 ## Compañero de charla: otro personaje quieto a npc_nodo.distancia_charla, en su misma postura.
@@ -719,17 +862,19 @@ func chat_partner(node: NPCNode) -> NPCNode:
 	return best
 
 
-## Destinatario de un cotilleo: el más cercano de su sala, o de la planta a GOSSIP_REACH celdas.
+## Destinatario de un cotilleo: el más cercano de su sala, o de la planta a
+## npc_nodo.alcance_cotilleo celdas (los de otra sala cuentan media distancia de más).
 func gossip_partner(node: NPCNode) -> NPCNode:
 	var room: String = room_at(node.get_visual_position())
 	var best: NPCNode = null
-	var best_d: float = GOSSIP_REACH * _cell
+	var reach: float = float(_tun["alcance_cotilleo"]) * _cell
+	var best_d: float = reach
 	for other: NPCNode in get_nodes():
 		if other == node or other.is_leaving():
 			continue
 		var d: float = other.get_visual_position().distance_to(node.get_visual_position())
 		if room_at(other.get_visual_position()) != room:
-			d += GOSSIP_REACH * _cell * 0.5
+			d += reach * 0.5
 		if d < best_d:
 			best_d = d
 			best = other
@@ -758,10 +903,21 @@ func superior_target(node: NPCNode) -> Dictionary:
 
 ## Primera sala de la planta cuyo id contiene `pattern` ("pantry" → office de la planta).
 func room_like(pattern: String) -> String:
+	if not _has_floor():
+		return ""
 	for room_id: String in _streamer.get_plan().get("rooms", {}).keys():
 		if room_id.contains(pattern):
 			return room_id
 	return ""
+
+
+## Sala de descanso de la planta (npc_nodo.patron_sala_descanso) o "".
+func rest_room() -> String:
+	return room_like(str(Database.get_balance("npc_nodo.patron_sala_descanso")))
+
+
+func is_walkable_point(pos: Vector2) -> bool:
+	return _has_floor() and _streamer.is_walkable_cell(_streamer.world_to_cell(pos))
 
 
 ## Despacho de una ocupación de escalón superior a `tier` (climber acelera hacia él).
