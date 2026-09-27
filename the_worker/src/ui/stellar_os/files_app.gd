@@ -138,8 +138,10 @@ func _guest_header() -> PanelContainer:
 	h.add_child(col)
 	col.add_child(make_label(t("FILES_GUEST_TITLE", [npc_name(get_npc_id())]), OSTheme.V_TITLE, false, true))
 	var occ: OccupationData = Database.get_occupation(npc.occupation_id) if npc != null else null
-	col.add_child(make_label(t("FILES_GUEST_SUB", [t(occ.name_key) if occ != null else "", _room_label()]),
-			OSTheme.V_MUTED, true))
+	var post: String = t(occ.name_key) if occ != null else ""
+	var room: String = _room_label()
+	var sub: String = post if room.is_empty() or post.contains(room) else t("FILES_GUEST_SUB", [post, room])
+	col.add_child(make_label(sub, OSTheme.V_MUTED, true))
 	var warn: Label = make_label(t("FILES_GUEST_WARNING"), OSTheme.V_SMALL, true)
 	warn.add_theme_color_override("font_color", c("bad"))
 	col.add_child(warn)
@@ -283,7 +285,7 @@ func _own_ideas() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for idea: Idea in IdeaPool.get_player_ideas():
 		var method_key: String = "IDEA_METHOD_" + idea.acquisition_method.to_upper()
-		var f: Dictionary = _file("idea_" + idea.id, "idea", t("FILES_IDEA_NAME", [idea.id.right(4)]),
+		var f: Dictionary = _file("idea_" + idea.id, "idea", t("FILES_IDEA_NAME", [_idea_label(idea)]),
 				t("FILES_IDEA_META", [idea.quality, idea.freshness]),
 				t(idea.text_key) + "\n" + t("FILES_IDEA_ORIGIN", [npc_name(idea.owner), t(method_key)]))
 		out.append(f)
@@ -310,7 +312,7 @@ func _guest_ideas() -> Array[Dictionary]:
 	for idea: Idea in IdeaPool.get_ideas_by_owner(get_npc_id()):
 		if idea.is_expired() or idea.presented:
 			continue
-		var f: Dictionary = _file("idea_" + idea.id, "idea", t("FILES_IDEA_NAME", [idea.id.right(4)]),
+		var f: Dictionary = _file("idea_" + idea.id, "idea", t("FILES_IDEA_NAME", [_idea_label(idea)]),
 				t("FILES_IDEA_META", [idea.quality, idea.freshness]), t(idea.text_key))
 		f["action"] = ACTION_COPY_IDEA
 		f["idea_id"] = idea.id
@@ -374,6 +376,12 @@ static func doc_display_name(doc_id: String) -> String:
 	var key: String = DOC_KEY_FORMAT % doc_id.to_upper()
 	var text: String = TranslationServer.translate(key)
 	return text if text != key else t("FILES_DOC_GENERIC")
+
+
+## Sufijo del nombre de archivo de una idea (su número, sin el prefijo del id).
+static func _idea_label(idea: Idea) -> String:
+	var parts: PackedStringArray = idea.id.split("_")
+	return parts[parts.size() - 1] if not parts.is_empty() else idea.id
 
 
 func _file(id: String, icon: String, file_name: String, meta: String, body: String) -> Dictionary:

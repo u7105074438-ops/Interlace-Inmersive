@@ -120,7 +120,7 @@ func _aurora_run(overrides: Dictionary, shot_name: String, full: bool) -> void:
 	await _pilot.shot(shot_name)
 	if full:
 		scene.continue_scene()
-		await _pilot.seconds(2.4)
+		await _pilot.seconds(walk * 3.0 + 1.0)
 		await _pilot.shot("aurora_others")
 	scene.finish()
 	scene.queue_free()
@@ -208,7 +208,7 @@ func _phone_shots() -> void:
 	var inter: InterrogationScene = InterrogationScene.new(_open_case(), {"reputation": 66.0, "suspicion": 30.0})
 	inter.closed.connect(func() -> void: pass)
 	add_child(inter)
-	await _pilot.seconds(4.2)
+	await _pilot.seconds(5.0)
 	await _pilot.shot("interrogation_phone")
 	inter.queue_free()
 	UITheme.touch_scale_active = false

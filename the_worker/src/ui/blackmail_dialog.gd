@@ -67,6 +67,8 @@ var _state: String = STATE_DECIDING
 var _armed: String = ""
 var _result: Dictionary = {}
 var _photo: PhoneOverlay.Portrait
+var _kicker: Label
+var _kicker_glyph: PhoneOverlay.Glyph
 var _who: Label
 var _job: Label
 var _message: Label
@@ -108,8 +110,10 @@ func _build_header() -> Control:
 	var column: VBoxContainer = VBoxContainer.new()
 	var kicker: HBoxContainer = HBoxContainer.new()
 	column.add_child(kicker)
-	kicker.add_child(PhoneOverlay.Glyph.new("phone", "muted", 0.8))
-	kicker.add_child(PhoneOverlay.label(tr("BLACKMAILUI_KICKER").to_upper(), UITheme.V_CAPTION))
+	_kicker_glyph = PhoneOverlay.Glyph.new("phone", "muted", 0.8)
+	kicker.add_child(_kicker_glyph)
+	_kicker = PhoneOverlay.label(tr("BLACKMAILUI_KICKER").to_upper(), UITheme.V_CAPTION)
+	kicker.add_child(_kicker)
 	var row: HBoxContainer = HBoxContainer.new()
 	column.add_child(row)
 	_photo = PhoneOverlay.Portrait.new(3.4)
@@ -326,10 +330,15 @@ func _show_demand() -> void:
 	var demand_type: String = str(_demand.get("demand_type", Blackmail.DEMAND_MONEY))
 	var face: bool = str(_demand.get("kind", "")) == Blackmail.KIND_ASKED_MONEY
 	var keys: Dictionary = Blackmail.FACE_KEYS if face else Blackmail.PHONE_KEYS
+	_kicker.text = tr("BLACKMAILUI_KICKER_FACE" if face else "BLACKMAILUI_KICKER").to_upper()
+	_kicker_glyph.set_glyph("person" if face else "phone")
 	_message.text = UITheme.trf("BLACKMAILUI_QUOTE", [tr(str(keys.get(demand_type, "")))])
 	_demand_glyph.set_glyph(str(DEMAND_GLYPHS.get(demand_type, "cash")))
 	var amount: String = UITheme.format_money(int(_demand.get("amount", 0)))
-	_demand_value.text = amount if demand_type == Blackmail.DEMAND_MONEY else tr(str(DEMAND_KEYS[demand_type]))
+	var money: bool = demand_type == Blackmail.DEMAND_MONEY
+	_demand_value.text = amount if money else tr(str(DEMAND_KEYS[demand_type]))
+	_demand_value.theme_type_variation = UITheme.V_NUMBER if money else UITheme.V_HEADING
+	_pay_button.glyph = "cash" if money else "check"
 	var cost_key: String = str(Blackmail.REPUTATION_COST_KEYS.get(demand_type, ""))
 	_demand_cost.visible = not cost_key.is_empty()
 	if _demand_cost.visible:

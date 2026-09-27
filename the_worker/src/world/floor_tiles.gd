@@ -68,7 +68,9 @@ static func _paint(material: String, base: Color, c: int, extra: Color, seed: in
 		"sidewalk":
 			return _sidewalk(base, c, extra)
 		"hazard":
-			return _hazard(base, c, extra)
+			return _hazard(base, c, extra, maxi(2, c / 3))
+		"hazard_thin":
+			return _hazard(base, c, extra, maxi(2, c / 8))
 	var img: Image = Image.create(c, c, false, Image.FORMAT_RGBA8)
 	img.fill(base)
 	return img
@@ -265,8 +267,7 @@ static func _sidewalk(base: Color, c: int, edge: Color) -> Image:
 
 
 ## Franja de peligro: diagonales `extra` sobre `base` (mosaico horizontal de una celda).
-static func _hazard(base: Color, c: int, stripe: Color) -> Image:
-	var h: int = maxi(2, c / 3)
+static func _hazard(base: Color, c: int, stripe: Color, h: int) -> Image:
 	var img: Image = Image.create(c, h, false, Image.FORMAT_RGBA8)
 	img.fill(base)
 	for y: int in h:

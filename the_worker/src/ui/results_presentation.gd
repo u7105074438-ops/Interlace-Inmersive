@@ -39,6 +39,7 @@ var _logic: ResultsPresentation
 var _inflation: float = 0.0
 var _level: String = ResultsPresentation.LEVEL_NONE
 var _result: Dictionary = {}
+var _aggregate_before: float = 0.0
 var _message: String = ""
 var _in_ui_root: bool = false
 var _built: bool = false
@@ -176,6 +177,21 @@ func _build_preparation() -> Control:
 	var shown: Dictionary = ResultsPresentation.inflate_figures(real, _inflation)
 	row.add_child(_figure_card(tr("RPRES_REAL"), tr("RPRES_REAL_SUB"), real, {}))
 	row.add_child(_figure_card(tr("RPRES_REPORTED"), tr("RPRES_REPORTED_SUB"), shown, real))
+	var charts: Array[ExpectationChart] = []
+	for i: int in 2:
+		var chart: ExpectationChart = ExpectationChart.new()
+		chart.expected = Market.get_expected_quarter_profit()
+		chart.value = float((real if i == 0 else shown).get("profit", 0.0))
+		chart.score = Market.figures_score_for(chart.value, chart.expected)
+		chart.band = Database.get_balance_float(ExpectationChart.B_BAND)
+		row.get_child(i).get_child(0).add_child(chart)
+		charts.append(chart)
+	var costs: CostBreakdown = CostBreakdown.new()
+	costs.fundamentals = Company.get_fundamentals()
+	row.get_child(0).get_child(0).add_child(costs)
+	var paper: HeadlinePreview = HeadlinePreview.new()
+	paper.headline = tr(charts[1].headline_key())
+	row.get_child(1).get_child(0).add_child(paper)
 	row.add_child(_preparation_side())
 	return row
 
@@ -300,6 +316,7 @@ func present() -> Dictionary:
 	if _logic.phase != ResultsPresentation.Phase.PRESENTATION:
 		return {}
 	_logic.select_preparation(_level)
+	_aggregate_before = Market.get_aggregate_confidence()
 	_result = _logic.present()
 	if _result.is_empty():
 		_message = tr("RPRES_NOT_TODAY") % Market.get_presentation_day()
@@ -379,6 +396,8 @@ func _build_reaction() -> Control:
 		line.data = data
 		line.appearance = MarketApp.investor_appearance(str(data["investor_id"]))
 		line.strategy_name = tr("INV_STRATEGY_" + str(data["strategy"]).to_upper())
+		var delta: int = int(data["delta"])
+		line.quip = tr("RPRES_QUIP_UP" if delta > 0 else ("RPRES_QUIP_DOWN" if delta < 0 else "RPRES_QUIP_FLAT"))
 		box.add_child(line)
 	row.add_child(table)
 	row.add_child(_summary_side())
@@ -395,6 +414,11 @@ func _summary_side() -> Control:
 	box.add_child(Look.label(tr("RPRES_VERDICT"), Look.V_HEADING))
 	var met: bool = bool(summary.get("meeting_target", false))
 	box.add_child(Look.wrap(tr("RPRES_TARGET_MET" if met else "RPRES_TARGET_MISSED"), Look.V_BIG))
+	var meter: AggregateMeter = AggregateMeter.new()
+	meter.before = _aggregate_before
+	meter.after = Market.get_aggregate_confidence()
+	meter.target = float(summary.get("target", 0.0))
+	box.add_child(meter)
 	for pair: Array in [["RPRES_SUM_QUALITY", "%.2f" % float(summary.get("quality", 0.0))],
 			["RPRES_SUM_CONFIDENCE", "%.1f / %.1f" % [Market.get_aggregate_confidence(), float(summary.get("target", 0.0))]],
 			["RPRES_SUM_SENTIMENT", "%+.3f" % float(summary.get("sentiment_delta", 0.0))],
@@ -664,9 +688,10 @@ class ReactionRow extends Control:
 	var data: Dictionary = {}
 	var appearance: Dictionary = {}
 	var strategy_name: String = ""
+	var quip: String = ""
 
 	func _init() -> void:
-		custom_minimum_size.y = Look.px(3.0)
+		custom_minimum_size.y = Look.px(3.2)
 
 	func _draw() -> void:
 		var ink: Color = Look.pal("outline")
@@ -679,14 +704,16 @@ class ReactionRow extends Control:
 		var before: int = int(data.get("before", 0))
 		var after: int = int(data.get("after", 0))
 		var delta: int = int(data.get("delta", 0))
-		var bar: Rect2 = Rect2(x + size.x * 0.28, size.y * 0.3, size.x * 0.42, size.y * 0.4)
+		var bar: Rect2 = Rect2(x + size.x * 0.28, size.y * 0.16, size.x * 0.42, size.y * 0.34)
+		Look.text(self, Vector2(bar.position.x, size.y * 0.86), quip, false, Look.px(0.62), ink.lightened(0.35),
+				bar.size.x + Look.px(4.0))
 		draw_rect(bar, Color(ink, 0.1))
 		draw_rect(Rect2(bar.position, Vector2(bar.size.x * after / 100.0, bar.size.y)),
 				Look.GREEN if delta >= 0 else Look.RED)
 		var tick: float = bar.position.x + bar.size.x * before / 100.0
 		draw_line(Vector2(tick, bar.position.y - 4), Vector2(tick, bar.end.y + 4), ink, 3.0)
 		draw_rect(bar, ink, false, 1.5)
-		Look.text(self, Vector2(bar.end.x + Look.px(0.5), size.y * 0.5 + Look.px(0.3)), "%d → %d" % [before, after],
+		Look.text(self, Vector2(bar.end.x + Look.px(0.5), bar.get_center().y + Look.px(0.3)), "%d → %d" % [before, after],
 				false, Look.px(0.75), ink, Look.px(4.0))
 		var badge: String = ("+%d" % delta) if delta > 0 else str(delta)
 		Look.text(self, Vector2(size.x - Look.px(3.0), size.y * 0.5 + Look.px(0.4)), badge, true, Look.px(1.1),
@@ -736,8 +763,8 @@ class HallView extends Control:
 		_draw_investors()
 		_draw_table()
 		_draw_speaker()
-		_draw_transcript(Rect2(size.x * 0.015, size.y * 0.66, size.x * 0.25, size.y * 0.32), 0)
-		_draw_transcript(Rect2(size.x * 0.735, size.y * 0.66, size.x * 0.25, size.y * 0.32), (seats.size() + 1) / 2)
+		_draw_transcript(Rect2(size.x * 0.015, size.y * 0.7, size.x * 0.25, size.y * 0.28), 0)
+		_draw_transcript(Rect2(size.x * 0.735, size.y * 0.7, size.x * 0.25, size.y * 0.28), ceili(seats.size() / 2.0))
 		draw_rect(r, Look.pal("outline"), false, 4.0)
 
 	func _draw_screen(s: Rect2) -> void:
@@ -784,15 +811,15 @@ class HallView extends Control:
 		var t: Rect2 = _table_rect()
 		var fig_h: float = _figure_h()
 		for i: int in seats.size():
-			var foot: Vector2 = Vector2(_seat_x(i), t.end.y - t.size.y * 0.15)
-			var back: Rect2 = Rect2(foot.x - fig_h * 0.42, foot.y - fig_h * 1.05, fig_h * 0.84, fig_h * 0.8)
-			draw_colored_polygon(UITheme.rounded_rect_points(back, fig_h * 0.18), Color("#2a1d18"))
-			draw_polyline(UITheme.rounded_rect_points(back, fig_h * 0.18), Look.pal("outline"), 2.0, true)
+			var foot: Vector2 = Vector2(_seat_x(i), t.position.y + t.size.y * 0.3)
+			var back: Rect2 = Rect2(foot.x - fig_h * 0.34, foot.y - fig_h * 0.92, fig_h * 0.68, fig_h * 0.56)
+			draw_colored_polygon(UITheme.rounded_rect_points(back, fig_h * 0.14), Look.pal("shadow").lightened(0.1))
+			draw_polyline(UITheme.rounded_rect_points(back, fig_h * 0.14), Look.pal("outline"), 2.0, true)
 			var anim: String = "chat" if _asking() == i else "sit"
 			var frame: int = int(_time * CharacterPainter.anim_fps(anim)) % CharacterPainter.anim_frames(anim)
 			CharacterPainter.draw(self, seats[i]["appearance"], tier, CharacterPainter.make_pose(anim, frame,
 					Vector2.DOWN, {"seated": true, "scale": _scale(), "origin": foot}))
-			_draw_bubble(seats[i], Vector2(foot.x + fig_h * 0.34, foot.y - fig_h * 1.02), _asking() == i)
+			_draw_bubble(seats[i], Vector2(foot.x + fig_h * 0.3, foot.y - fig_h * 0.95), _asking() == i)
 
 	func _bubble_color(seat: Dictionary) -> Color:
 		if bool(seat["ally"]):
@@ -832,7 +859,10 @@ class HallView extends Control:
 				false, "")
 		var fig_h: float = _figure_h()
 		var foot: Vector2 = Vector2(size.x * 0.5, size.y * 0.97)
-		var lectern: Rect2 = Rect2(foot.x - fig_h * 0.55, foot.y - fig_h * 1.25, fig_h * 1.1, fig_h * 0.62)
+		var lectern: Rect2 = Rect2(foot.x - fig_h * 0.4, foot.y - fig_h * 1.16, fig_h * 0.8, fig_h * 0.4)
+		draw_line(Vector2(foot.x + fig_h * 0.18, lectern.position.y), Vector2(foot.x + fig_h * 0.1,
+				lectern.position.y - fig_h * 0.14), Look.pal("outline"), 3.0)
+		draw_circle(Vector2(foot.x + fig_h * 0.1, lectern.position.y - fig_h * 0.14), 5.0, Look.pal("outline"))
 		draw_rect(Rect2(lectern.position + Vector2(0, 6), lectern.size), Color(0, 0, 0, 0.3))
 		draw_colored_polygon(UITheme.rounded_rect_points(lectern, Look.px(0.3)), Look.pal("furniture").darkened(0.12))
 		draw_polyline(UITheme.rounded_rect_points(lectern, Look.px(0.3)), Look.pal("outline"), 3.0, true)
@@ -851,7 +881,7 @@ class HallView extends Control:
 		var y: float = box.position.y + pad
 		var fsize: int = Look.px(0.58)
 		var font: Font = UITheme.font(UITheme.FONT_REGULAR)
-		for i: int in range(first, mini(first + (seats.size() + 1) / 2, seats.size())):
+		for i: int in range(first, mini(first + ceili(seats.size() / 2.0), seats.size())):
 			var seat: Dictionary = seats[i]
 			var color: Color = _bubble_color(seat)
 			draw_rect(Rect2(box.position.x + pad, y + 2, 4, fsize * 3.4), color)
@@ -860,3 +890,147 @@ class HallView extends Control:
 			draw_multiline_string(font, Vector2(box.position.x + pad * 2.2, y + fsize * 2.2), "“%s”" % seat["question"],
 					HORIZONTAL_ALIGNMENT_LEFT, box.size.x - pad * 3.2, fsize, 2, ink)
 			y += fsize * 4.2
+
+
+## Beneficio del trimestre frente a lo que espera el mercado (§9.5: la nota de cifras).
+class ExpectationChart extends Control:
+	const B_BAND := "mercado.presentacion_banda_neutra"
+	const NEUTRAL := 0.5
+
+	var expected: float = 0.0
+	var value: float = 0.0
+	var score: float = NEUTRAL
+	var band: float = 0.0
+
+	func _init() -> void:
+		custom_minimum_size.y = Look.px(6.4)
+
+	## Titular que publicará la prensa según la sorpresa (claves de Market).
+	func headline_key() -> String:
+		if score > NEUTRAL + band:
+			return MarketSystem.HEADLINE_RESULTS_BEAT
+		if score < NEUTRAL - band:
+			return MarketSystem.HEADLINE_RESULTS_MISS
+		return MarketSystem.HEADLINE_RESULTS_INLINE
+
+	func _verdict() -> Array:
+		if expected <= 0.0:
+			return ["RPRES_EXPECT_NONE", Look.pal("outline")]
+		if score > NEUTRAL + band:
+			return ["RPRES_EXPECT_BEAT", Look.GREEN]
+		if score < NEUTRAL - band:
+			return ["RPRES_EXPECT_MISS", Look.RED]
+		return ["RPRES_EXPECT_INLINE", Look.pal("accent").darkened(0.2)]
+
+	func _draw() -> void:
+		var ink: Color = Look.pal("outline")
+		var top: float = maxf(maxf(absf(expected), absf(value)), 1.0)
+		var y: float = float(Look.px(0.6))
+		var bar_w: float = size.x - Look.px(6.5)
+		var rows: Array[Array] = [["RPRES_EXPECT_MARKET", expected, Color(ink, 0.35)],
+				["RPRES_EXPECT_YOURS", value, Look.pal("accent")]]
+		for row: Array in rows:
+			Look.text(self, Vector2(0, y + Look.px(0.75)), TranslationServer.translate(str(row[0])), false, Look.px(0.66),
+					ink, Look.px(6.2))
+			var bar: Rect2 = Rect2(Look.px(6.5), y, bar_w * clampf(absf(float(row[1])) / top, 0.0, 1.0), Look.px(1.0))
+			draw_rect(bar, row[2])
+			draw_rect(bar, ink, false, 1.5)
+			y += Look.px(1.5)
+		var verdict: Array = _verdict()
+		var chip: Rect2 = Rect2(0, y + Look.px(0.4), size.x, Look.px(1.6))
+		draw_rect(chip, Color(verdict[1], 0.14))
+		draw_rect(chip, verdict[1], false, 2.0)
+		Look.text(self, Vector2(0, chip.get_center().y + Look.px(0.3)), TranslationServer.translate(str(verdict[0])),
+				true, Look.px(0.8), verdict[1], size.x, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## Confianza agregada antes → después frente al objetivo trimestral (§9.7).
+class AggregateMeter extends Control:
+	var before: float = 0.0
+	var after: float = 0.0
+	var target: float = 0.0
+
+	func _init() -> void:
+		custom_minimum_size.y = Look.px(3.4)
+
+	func _draw() -> void:
+		var ink: Color = Look.pal("outline")
+		Look.text(self, Vector2(0, Look.px(0.8)), TranslationServer.translate("RPRES_AGGREGATE") % [before, after],
+				true, Look.px(0.72), ink, size.x)
+		var bar: Rect2 = Rect2(0, Look.px(1.3), size.x, Look.px(1.2))
+		draw_rect(bar, Color(ink, 0.1))
+		var fill: Color = Look.GREEN if after >= target else Look.RED
+		draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(after / 100.0, 0.0, 1.0), bar.size.y)), fill)
+		var ghost: float = bar.position.x + bar.size.x * clampf(before / 100.0, 0.0, 1.0)
+		draw_line(Vector2(ghost, bar.position.y), Vector2(ghost, bar.end.y), ink, 3.0)
+		var tx: float = bar.position.x + bar.size.x * clampf(target / 100.0, 0.0, 1.0)
+		draw_line(Vector2(tx, bar.position.y - 6), Vector2(tx, bar.end.y + 6), Look.pal("accent").darkened(0.3), 4.0)
+		draw_rect(bar, ink, false, 2.0)
+		Look.text(self, Vector2(tx - Look.px(3.0), bar.end.y + Look.px(0.85)), TranslationServer.translate("RPRES_TARGET_TICK"),
+				false, Look.px(0.6), ink, Look.px(6.0), HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## Desglose de los costes reales (por jornada) en una barra apilada con leyenda (§9.2, §9.10).
+class CostBreakdown extends Control:
+	const KEYS: Array[String] = ["materials", "payroll", "overheads", "legal", "theft_losses", "scandal_costs"]
+	const COLORS: Array[Color] = [Color("#8a5a34"), Color("#b8923a"), Color("#6e695f"), Color("#1f2d4e"),
+			Color("#b8352a"), Color("#7b4aa0")]
+
+	var fundamentals: Dictionary = {}
+
+	func _init() -> void:
+		custom_minimum_size.y = Look.px(6.8)
+		size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	func _draw() -> void:
+		var ink: Color = Look.pal("outline")
+		Look.text(self, Vector2(0, Look.px(0.9)), TranslationServer.translate("RPRES_COSTS_TITLE"), true,
+				Look.px(0.72), ink, size.x)
+		var total: float = 0.0
+		for key: String in KEYS:
+			total += maxf(float(fundamentals.get(key, 0.0)), 0.0)
+		var bar: Rect2 = Rect2(0, Look.px(1.3), size.x, Look.px(1.1))
+		var x: float = bar.position.x
+		for i: int in KEYS.size():
+			var w: float = bar.size.x * maxf(float(fundamentals.get(KEYS[i], 0.0)), 0.0) / maxf(total, 1.0)
+			draw_rect(Rect2(x, bar.position.y, w, bar.size.y), COLORS[i])
+			x += w
+		draw_rect(bar, ink, false, 2.0)
+		var col_w: float = size.x / 2.0
+		for i: int in KEYS.size():
+			var at: Vector2 = Vector2(col_w * (i % 2), bar.end.y + Look.px(0.9) + Look.px(0.95) * floori(i / 2.0))
+			draw_rect(Rect2(at + Vector2(0, -Look.px(0.55)), Vector2(Look.px(0.6), Look.px(0.6))), COLORS[i])
+			var share: float = maxf(float(fundamentals.get(KEYS[i], 0.0)), 0.0) / maxf(total, 1.0) * 100.0
+			Look.text(self, at + Vector2(Look.px(0.9), 0), TranslationServer.translate("RPRES_COST_" + KEYS[i].to_upper())
+					+ "  %.0f%%" % share, false, Look.px(0.62), ink, col_w - Look.px(1.0))
+
+
+## Portada del diario financiero de mañana con el titular que provocarán las cifras.
+class HeadlinePreview extends Control:
+	var headline: String = ""
+
+	func _init() -> void:
+		custom_minimum_size.y = Look.px(6.8)
+		size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	func _draw() -> void:
+		var ink: Color = Look.pal("outline")
+		var r: Rect2 = Rect2(0, Look.px(0.3), size.x, minf(size.y - Look.px(0.3), Look.px(8.0)))
+		draw_set_transform(r.get_center(), -0.02, Vector2.ONE)
+		var local: Rect2 = Rect2(-r.size * 0.5, r.size)
+		draw_rect(Rect2(local.position + Vector2(4, 5), local.size), Color(0, 0, 0, 0.18))
+		draw_rect(local, Color("#efeadc"))
+		draw_rect(local, ink, false, 1.5)
+		var pad: float = float(Look.px(0.6))
+		Look.text(self, local.position + Vector2(pad, pad + Look.px(0.9)), TranslationServer.translate("RPRES_PAPER"), true,
+				Look.px(0.95), ink, local.size.x - pad * 2.0, HORIZONTAL_ALIGNMENT_CENTER)
+		var rule_y: float = local.position.y + pad + Look.px(1.35)
+		draw_line(Vector2(local.position.x + pad, rule_y), Vector2(local.end.x - pad, rule_y), ink, 2.0)
+		draw_line(Vector2(local.position.x + pad, rule_y + 4), Vector2(local.end.x - pad, rule_y + 4), ink, 1.0)
+		draw_multiline_string(UITheme.font(UITheme.FONT_BOLD), Vector2(local.position.x + pad, rule_y + Look.px(1.4)),
+				headline, HORIZONTAL_ALIGNMENT_LEFT, local.size.x - pad * 2.0, Look.px(0.95), 3, ink)
+		for i: int in 3:
+			var y: float = local.end.y - pad - Look.px(0.45) * float(i)
+			draw_line(Vector2(local.position.x + pad, y), Vector2(local.end.x - pad - Look.px(2.0) * i, y),
+					Color(ink, 0.25), 3.0)
+		draw_set_transform(Vector2.ZERO)

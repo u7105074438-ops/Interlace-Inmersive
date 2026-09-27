@@ -158,8 +158,11 @@ func build() -> void:
 	for side: String in ["left", "right", "top", "bottom"]:
 		inner.add_theme_constant_override("margin_" + side, roundi(base * 0.5))
 	right.add_child(inner)
-	_reader = VBoxContainer.new()
-	inner.add_child(_reader)
+	var reader_scroll: ScrollContainer = make_scroll_list()
+	_reader = reader_scroll.get_child(0) as VBoxContainer
+	_reader.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_reader.add_theme_constant_override("separation", roundi(base * 0.3))
+	inner.add_child(reader_scroll)
 	_empty = _build_empty()
 	inner.add_child(_empty)
 	EventBus.duty_completed.connect(_on_duty_event.unbind(3))
@@ -346,7 +349,7 @@ func _fill_list(inbox: Array[Dictionary]) -> void:
 
 
 func _show_empty(title_key: String, body_key: String) -> void:
-	_reader.visible = false
+	_reader.get_parent().visible = false
 	_empty.visible = true
 	(_empty.find_child("EmptyTitle", true, false) as Label).text = t(title_key)
 	(_empty.find_child("EmptyBody", true, false) as Label).text = t(body_key)
@@ -354,7 +357,7 @@ func _show_empty(title_key: String, body_key: String) -> void:
 
 func _show_mail(inbox: Array[Dictionary], index: int) -> void:
 	_empty.visible = false
-	_reader.visible = true
+	(_reader.get_parent() as Control).visible = true
 	OSApp.clear_children(_reader)
 	var entry: Dictionary = inbox[clampi(index, 0, inbox.size() - 1)]
 	var tpl: Dictionary = entry["template"]
@@ -363,8 +366,10 @@ func _show_mail(inbox: Array[Dictionary], index: int) -> void:
 	_reader.add_child(subject)
 	_reader.add_child(HSeparator.new())
 	var body: Label = make_label(t(str(tpl.get("body_key", ""))), "", true)
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_reader.add_child(body)
+	var footer: Label = make_label(t("MAIL_FOOTER"), OSTheme.V_MUTED, true)
+	footer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_reader.add_child(footer)
 	_reader.add_child(_reply_block(entry))
 
 
@@ -390,6 +395,11 @@ func _reply_block(entry: Dictionary) -> VBoxContainer:
 	var index: int = int(entry["index"])
 	if bool(entry["replied"]):
 		box.add_child(_verdict_line(index))
+		if int(_last_answer.get("index", -1)) == index:
+			var keys_sent: Array = tpl.get("replies_keys", []) as Array
+			var choice: int = int(_last_answer.get("choice", -1))
+			if choice >= 0 and choice < keys_sent.size():
+				box.add_child(make_label(t("MAIL_YOU_SENT", [t(str(keys_sent[choice]))]), OSTheme.V_MUTED, true))
 		return box
 	box.add_child(make_section(t("MAIL_REPLY_WITH")))
 	var keys: Array = tpl.get("replies_keys", []) as Array

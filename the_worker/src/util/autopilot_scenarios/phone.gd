@@ -4,10 +4,11 @@
 extends Node
 
 ## tools/screenshot.sh /tmp/shots_phone phone
-## Capturas: phone_contacts, phone_chat, phone_bribe_blind (N1), phone_bribe_n5, phone_call_exposed,
+## Capturas: phone_contacts, phone_chat, phone_bribe_result, phone_chat_deal, phone_bribe_blind (N1),
+## phone_bribe_n5, phone_call_exposed,
 ## phone_call_private, caught_witnesses, caught_clear, caught_confirm, caught_counteroffer,
-## caught_inaction, blackmail_demand, phone_es, phone_mobile_contacts, phone_mobile_bribe,
-## caught_mobile (pantalla 20:9 con controles táctiles).
+## caught_inaction, blackmail_face, blackmail_confirm, blackmail_demand, phone_es,
+## phone_mobile_contacts, phone_mobile_bribe, phone_mobile_call, caught_mobile (pantalla 20:9, táctil).
 
 const FLOOR := 3
 const ROOM := "wing_3b"
@@ -167,6 +168,21 @@ func _chat_shot(pilot: Autopilot) -> void:
 	_phone().open_chat(COWARD)
 	await pilot.seconds(0.9)
 	await pilot.shot("phone_chat")
+	_phone().open_bribe(GOSSIP, Bribery.CHANNEL_MOBILE_CHAT)
+	var panel: BribePanel = _phone().get_bribe_panel()
+	var phone: PhoneOverlay = _phone()
+	panel.ctx_provider = func(channel: String) -> Dictionary:
+		var ctx: Dictionary = phone.offer_context(channel)
+		ctx["roll"] = 0.0
+		return ctx
+	panel.set_amount(Bribery.fair_price(NPCDirector.get_npc(GOSSIP), "look_away_once"))
+	panel.request_offer()
+	panel.confirm_offer()
+	await pilot.frames(SETTLE)
+	await pilot.shot("phone_bribe_result")
+	_phone().open_chat(GOSSIP)
+	await pilot.seconds(0.4)
+	await pilot.shot("phone_chat_deal")
 
 
 func _call_shots(pilot: Autopilot) -> void:
@@ -256,17 +272,30 @@ func _inaction_shot(pilot: Autopilot) -> void:
 # ─── Chantaje, idioma y pantalla de móvil ──────────────────────────
 
 func _blackmail_shot(pilot: Autopilot) -> void:
+	await _close_all(pilot)
+	var face: BlackmailDialog = BlackmailDialog.open_for(_ui, BRIBABLE)
+	if face != null:
+		await pilot.seconds(0.4)
+		await pilot.shot("blackmail_face")
+		face.press_pay()
+		await pilot.frames(SETTLE)
+		await pilot.shot("blackmail_confirm")
+	await _close_all(pilot)
 	var npc: NPCRuntime = NPCDirector.get_npc(SNITCH)
 	var entry: Dictionary = Blackmail.add_material(npc, Blackmail.KIND_LEVERAGE, "idea_stolen",
 			GameClock.get_day(), Blackmail.DEMAND_PROMOTION, 0)
 	Blackmail.issue_demand(npc, entry, GameClock.get_day())
 	await pilot.seconds(0.5)
 	await pilot.shot("blackmail_demand")
-	_ui.close_modal()
+	await _close_all(pilot)
+
+
+func _close_all(pilot: Autopilot) -> void:
 	await pilot.frames(2)
 	while _ui.has_modal():
 		_ui.close_modal()
 		await pilot.frames(1)
+	_ui.get_toasts().clear()
 
 
 func _spanish_shot(pilot: Autopilot) -> void:
@@ -291,6 +320,9 @@ func _mobile_shots(pilot: Autopilot) -> void:
 	_phone().open_bribe(GOSSIP, Bribery.CHANNEL_MOBILE_CHAT)
 	await pilot.frames(SETTLE)
 	await pilot.shot("phone_mobile_bribe")
+	_phone().open_call(GOSSIP)
+	await pilot.seconds(0.6)
+	await pilot.shot("phone_mobile_call")
 	_ui.close_modal()
 	EventBus.player_caught_redhanded.emit(COWARD, "drawer_forced", 1)
 	await pilot.seconds(CAUGHT_RUN_SECONDS)

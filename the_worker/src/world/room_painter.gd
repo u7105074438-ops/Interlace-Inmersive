@@ -74,7 +74,7 @@ func setup(p_room: RoomData, p_room_id: String, plan: Dictionary, p_style: Dicti
 	name = "%s_%s" % [["Floor", "Walls", "Light"][layer], p_room_id.validate_node_name()]
 	if layer != LAYER_WALLS:
 		_clip_to_room()
-	if layer == LAYER_FLOOR:
+	if layer != LAYER_LIGHT:
 		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
@@ -578,19 +578,14 @@ func _face_fill(r: Rect2) -> void:
 			FurniturePainter.segment(self, Vector2(r.position.x, r.position.y + r.size.y * 0.45), Vector2(r.end.x, r.position.y + r.size.y * 0.45),
 					_c("accent").darkened(0.2), 2.0)
 		"factory":
-			_hazard_band(Rect2(r.position.x, r.end.y - 9, r.size.x, 5))
+			_hazard_band(Rect2(r.position.x, r.end.y - 10, r.size.x, 6))
 	FurniturePainter.segment(self, r.position + Vector2(0, 1), Vector2(r.end.x, r.position.y + 1), wall.lightened(0.18), 2.0)
 	draw_rect(Rect2(r.position.x, r.end.y - 4, r.size.x, 4), _c("shadow"))
 
 
+## Franja de peligro (nave) en la cara del muro: mosaico de diagonales, un solo draw.
 func _hazard_band(r: Rect2) -> void:
-	draw_rect(r, Color("#1b1b1b"))
-	var step: float = r.size.y * 2.0
-	var x: float = r.position.x
-	while x < r.end.x:
-		draw_colored_polygon(PackedVector2Array([Vector2(x, r.end.y), Vector2(minf(x + step * 0.5, r.end.x), r.end.y),
-				Vector2(minf(x + step, r.end.x), r.position.y), Vector2(minf(x + step * 0.5, r.end.x), r.position.y)]), C_HAZARD)
-		x += step
+	_tiled("hazard_thin", Color("#1b1b1b"), r, C_HAZARD)
 
 
 func _draw_face_windows(r: Rect2) -> void:

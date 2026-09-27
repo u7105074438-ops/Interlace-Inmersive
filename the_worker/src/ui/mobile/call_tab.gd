@@ -13,6 +13,9 @@ signal deal_requested(npc_id: String)
 signal call_state_changed(npc_id: String, active: bool)
 
 const SECONDS_PER_MINUTE := 60
+const PHOTO_EMS := 5.5
+const PHOTO_EMS_SHORT := 2.6
+const TALL_EMS := 20.0
 
 var _active: String = ""
 var _answered: bool = false
@@ -41,7 +44,6 @@ func _init() -> void:
 	_idle_view.add_child(parts["scroll"])
 	_call_view = VBoxContainer.new()
 	_call_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_call_view.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(_call_view)
 	_build_call_view()
 	_call_view.visible = false
@@ -66,20 +68,24 @@ func _build_privacy_card() -> PanelContainer:
 
 
 func _build_call_view() -> void:
-	_photo = PhoneOverlay.Portrait.new(6.5)
+	var parts: Dictionary = PhoneOverlay.scroll_list()
+	var body: VBoxContainer = parts["list"]
+	body.alignment = BoxContainer.ALIGNMENT_CENTER
+	_call_view.add_child(parts["scroll"])
+	_photo = PhoneOverlay.Portrait.new(PHOTO_EMS)
 	_photo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_call_view.add_child(_photo)
+	body.add_child(_photo)
 	_who = PhoneOverlay.label("", UITheme.V_TITLE)
 	_who.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_who.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_call_view.add_child(_who)
+	body.add_child(_who)
 	_status = PhoneOverlay.label("", UITheme.V_CAPTION)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_call_view.add_child(_status)
-	_call_view.add_child(_build_privacy_card())
+	body.add_child(_status)
+	body.add_child(_build_privacy_card())
 	_outcome = PhoneOverlay.label("", UITheme.V_SMALL, true)
 	_outcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_call_view.add_child(_outcome)
+	body.add_child(_outcome)
 	_deal_button = PhoneOverlay.IconButton.new(tr("PHONE_CALL_PROPOSE"), "coin", UITheme.V_PRIMARY)
 	_deal_button.pressed.connect(func() -> void: deal_requested.emit(_active))
 	_call_view.add_child(_deal_button)
@@ -87,6 +93,16 @@ func _build_call_view() -> void:
 			UITheme.V_DANGER)
 	hang.pressed.connect(hang_up)
 	_call_view.add_child(hang)
+
+
+## Con poca altura (móvil en horizontal, texto grande) la foto se reduce para que quepa la privacidad.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and _photo != null:
+		var base: float = PhoneOverlay.base_size(self)
+		var ems: float = PHOTO_EMS if size.y > base * TALL_EMS else PHOTO_EMS_SHORT
+		if not is_equal_approx(ems, _photo.ems):
+			_photo.ems = ems
+			_photo.custom_minimum_size = Vector2(base * ems, base * ems)
 
 
 func _process(delta: float) -> void:

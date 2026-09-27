@@ -16,7 +16,8 @@ extends Control
 ##  · La cuenta atrás es la del CaughtHandler (seconds_left); al agotarse, el handler resuelve la
 ##    inacción y la ventana muestra la reacción (npc_decided) durante interfaz.flagrancia_resultado_segundos.
 ##  · Esc no la cierra (request_close no hace nada): solo el handler cierra la ventana.
-##  · Teclado: 1 = dinero, 2 = eliminación, Intro = confirmar lo armado, Retroceso = volver.
+##  · Teclado: 1 = dinero, 2 = eliminación (la misma tecla otra vez confirma; el foco queda en
+##    «Volver»), Retroceso = volver.
 
 signal closed
 
@@ -33,7 +34,7 @@ const CRIME_KEY := "CAUGHTUI_CRIME_%s"
 const CRIME_GENERIC := "CAUGHTUI_CRIME_GENERIC"
 const REACTION_KEY := "CAUGHTUI_REACTION_%s"
 const OUTCOME_KEY := "CAUGHTUI_OUTCOME_%s"
-const CARD_WIDTH_EMS := 15.0
+const CARD_WIDTH_EMS := 16.0
 const PORTRAIT_EMS := 7.0
 const DIAL_EMS := 6.0
 const VIGNETTE_FRACTION := 0.2
@@ -104,7 +105,12 @@ class Dial extends Control:
 
 
 ## Tarjeta de opción (botón alto dibujado): icono, título, detalle; roja y rayada si está vetada.
+## Su alto mínimo se calcula con el texto envuelto (nunca recorta el aviso ni el precio).
 class OptionCard extends Button:
+	const TITLE_RATIO := 1.05
+	const DETAIL_RATIO := 0.86
+	const TITLE_LINES := 2
+	const DETAIL_LINES := 5
 	var glyph: String = "coin"
 	var title: String = ""
 	var detail: String = ""
@@ -120,17 +126,44 @@ class OptionCard extends Button:
 		flat = true
 
 	func _notification(what: int) -> void:
-		if what == NOTIFICATION_THEME_CHANGED:
-			var base: float = PhoneOverlay.base_size(self)
-			custom_minimum_size = Vector2(base * CaughtWindow.CARD_WIDTH_EMS, base * 7.2)
+		if what == NOTIFICATION_THEME_CHANGED or what == NOTIFICATION_RESIZED:
+			refresh_size()
+
+	func set_texts(p_title: String, p_detail: String) -> void:
+		title = p_title
+		detail = p_detail
+		refresh_size()
+		queue_redraw()
+
+	func refresh_size() -> void:
+		var base: float = PhoneOverlay.base_size(self)
+		var m: Dictionary = _metrics(base, maxf(size.x, base * CaughtWindow.CARD_WIDTH_EMS))
+		var h: float = base * 1.8 + float(m["title_h"]) + base * 0.3 + float(m["detail_h"])
+		var wanted: Vector2 = Vector2(base * CaughtWindow.CARD_WIDTH_EMS, ceilf(maxf(h, base * 5.0)))
+		if not wanted.is_equal_approx(custom_minimum_size):
+			custom_minimum_size = wanted
+
+	func _metrics(base: float, width: float) -> Dictionary:
+		var side: float = base * 2.0
+		var x: float = base * 0.9 + side + base * 0.7
+		var title_w: float = maxf(width - x - base * 2.6, base * 4.0)
+		var detail_w: float = maxf(width - x - base * 0.9, base * 4.0)
+		var fs_t: int = roundi(base * TITLE_RATIO)
+		var fs_d: int = roundi(base * DETAIL_RATIO)
+		var bold: Font = UITheme.font(UITheme.FONT_BOLD)
+		var regular: Font = UITheme.font(UITheme.FONT_REGULAR)
+		return {"side": side, "x": x, "title_w": title_w, "detail_w": detail_w, "fs_t": fs_t, "fs_d": fs_d,
+				"title_h": bold.get_multiline_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, title_w, fs_t,
+						TITLE_LINES).y,
+				"detail_h": regular.get_multiline_string_size(detail, HORIZONTAL_ALIGNMENT_LEFT, detail_w, fs_d,
+						DETAIL_LINES).y}
 
 	func _draw() -> void:
 		var base: float = PhoneOverlay.base_size(self)
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
 		var col: Color = UITheme.color("danger") if flagged_red else UITheme.color(tone)
-		var bg: Color = _background(col)
 		PhoneOverlay.fill_round(self, Rect2(r.position + Vector2(0, 5), r.size), 14.0, Color(0, 0, 0, 0.35))
-		PhoneOverlay.fill_round(self, r, 14.0, bg)
+		PhoneOverlay.fill_round(self, r, 14.0, _background(col))
 		if flagged_red:
 			_draw_hatch(r, col)
 		var border: Color = col if (not disabled or flagged_red) else UITheme.color("faint")
@@ -163,21 +196,26 @@ class OptionCard extends Button:
 	func _draw_text(base: float, col: Color) -> void:
 		var ink: Color = UITheme.color("faint") if disabled and not flagged_red else UITheme.color("paper")
 		var accent: Color = col.lightened(0.3) if not disabled or flagged_red else ink
-		var side: float = base * 2.1
-		var icon_r: Rect2 = Rect2(base * 1.0, base * 1.0, side, side)
+		var m: Dictionary = _metrics(base, size.x)
+		var side: float = float(m["side"])
+		var icon_r: Rect2 = Rect2(base * 0.9, base * 0.9, side, side)
 		PhoneOverlay.draw_glyph(self, "lock" if flagged_red else glyph, icon_r, accent, maxf(side * 0.08, 2.0))
 		var bold: Font = UITheme.font(UITheme.FONT_BOLD)
 		var regular: Font = UITheme.font(UITheme.FONT_REGULAR)
-		var x: float = icon_r.end.x + base * 0.8
-		var width: float = size.x - x - base * 0.9
-		draw_string(bold, Vector2(x, base * 2.0), title, HORIZONTAL_ALIGNMENT_LEFT, width, roundi(base * 1.15), ink)
-		draw_multiline_string(regular, Vector2(x, base * 3.4), detail, HORIZONTAL_ALIGNMENT_LEFT, width,
-				roundi(base * 0.9), 3, accent if flagged_red else ink)
+		var fs_t: int = int(m["fs_t"])
+		var fs_d: int = int(m["fs_d"])
+		var x: float = float(m["x"])
+		var top: float = base * 0.9
+		draw_multiline_string(bold, Vector2(x, top + bold.get_ascent(fs_t)), title, HORIZONTAL_ALIGNMENT_LEFT,
+				float(m["title_w"]), fs_t, TITLE_LINES, ink)
+		var detail_top: float = top + float(m["title_h"]) + base * 0.3
+		draw_multiline_string(regular, Vector2(x, detail_top + regular.get_ascent(fs_d)), detail,
+				HORIZONTAL_ALIGNMENT_LEFT, float(m["detail_w"]), fs_d, DETAIL_LINES, accent if flagged_red else ink)
 		if not hotkey.is_empty():
 			_draw_hotkey(base)
 
 	func _draw_hotkey(base: float) -> void:
-		var cap: Rect2 = Rect2(size.x - base * 2.2, base * 0.7, base * 1.4, base * 1.4)
+		var cap: Rect2 = Rect2(size.x - base * 2.2, base * 0.8, base * 1.4, base * 1.4)
 		PhoneOverlay.fill_round(self, cap, 6.0, UITheme.color("paper") if not disabled else UITheme.color("faint"))
 		var bold: Font = UITheme.font(UITheme.FONT_BOLD)
 		var fs: int = roundi(base * 0.9)
@@ -214,6 +252,7 @@ var _elim_card: OptionCard
 var _confirm_box: VBoxContainer
 var _confirm_label: Label
 var _confirm_button: PhoneOverlay.IconButton
+var _back_button: PhoneOverlay.IconButton
 var _result_panel: PanelContainer
 var _result_label: Label
 var _notice: Label
@@ -224,7 +263,7 @@ func _init() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_card = PanelContainer.new()
-	_card.add_theme_stylebox_override("panel", PhoneOverlay.box(Color(UITheme.color("ink"), 0.96),
+	_card.add_theme_stylebox_override("panel", PhoneOverlay.box(UITheme.color("ink"),
 			UITheme.color("danger"), 18, 30.0, 24.0, 3))
 	add_child(_card)
 	UITheme.center_fitted(_card)
@@ -246,7 +285,7 @@ func _init() -> void:
 func _build_title() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_badge = PhoneOverlay.Glyph.new("exclaim", "danger", 2.2)
+	_badge = PhoneOverlay.Glyph.new("flagrant", "danger", 2.4)
 	row.add_child(_badge)
 	var text: VBoxContainer = VBoxContainer.new()
 	text.add_theme_constant_override("separation", 0)
@@ -308,10 +347,10 @@ func _build_confirm() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_confirm_box.add_child(row)
-	var back: PhoneOverlay.IconButton = PhoneOverlay.IconButton.new(tr("CAUGHTUI_BACK"), "back")
-	back.focus_mode = Control.FOCUS_ALL
-	back.pressed.connect(back_out)
-	row.add_child(back)
+	_back_button = PhoneOverlay.IconButton.new(tr("CAUGHTUI_BACK"), "back")
+	_back_button.focus_mode = Control.FOCUS_ALL
+	_back_button.pressed.connect(back_out)
+	row.add_child(_back_button)
 	_confirm_button = PhoneOverlay.IconButton.new("", "check", UITheme.V_DANGER)
 	_confirm_button.focus_mode = Control.FOCUS_ALL
 	_confirm_button.pressed.connect(func() -> void: confirm())
@@ -495,7 +534,7 @@ func _arm(option: String) -> void:
 	_confirm_button.set_label(tr("CAUGHTUI_CONFIRM_PAY") if option == OPTION_BRIBE
 			else tr("CAUGHTUI_CONFIRM_KILL"))
 	_refresh_state()
-	_confirm_button.grab_focus.call_deferred()
+	_back_button.grab_focus.call_deferred()
 
 
 func _current_options() -> Dictionary:
@@ -533,16 +572,16 @@ func _apply_bribe_card(bribe: Dictionary) -> void:
 	var enabled: bool = bool(bribe.get("enabled", false))
 	var countered: bool = bool(bribe.get("counteroffer", false))
 	var price: String = UITheme.format_money(int(bribe.get("price", 0)))
-	_bribe_card.title = tr("CAUGHTUI_OFFER_MONEY").to_upper()
 	_bribe_card.tone = "warn" if countered else "hazard"
-	_bribe_card.detail = UITheme.trf(str(bribe.get("label_key", "UI_CAUGHT_BRIBE")), [price])
+	var detail: String = UITheme.trf(str(bribe.get("label_key", "UI_CAUGHT_BRIBE")), [price])
 	if countered:
-		_bribe_card.detail += "\n" + tr("CAUGHTUI_COUNTER_HINT")
+		detail += "\n" + tr("CAUGHTUI_COUNTER_HINT")
 	elif enabled:
-		_bribe_card.detail += "\n" + tr("CAUGHTUI_BRIBE_HINT")
+		detail += "\n" + tr("CAUGHTUI_BRIBE_HINT")
 	if not enabled:
-		_bribe_card.detail = tr(str(bribe.get("disabled_reason_key", "UI_CAUGHT_BRIBE_NO_FUNDS"))) + "\n" \
+		detail = tr(str(bribe.get("disabled_reason_key", "UI_CAUGHT_BRIBE_NO_FUNDS"))) + "\n" \
 				+ UITheme.trf("CAUGHTUI_PRICE", [price])
+	_bribe_card.set_texts(tr("CAUGHTUI_OFFER_MONEY").to_upper(), detail)
 	_set_card_enabled(_bribe_card, enabled)
 
 
@@ -550,10 +589,9 @@ func _apply_elim_card(options: Dictionary) -> void:
 	var eliminate: Dictionary = options.get(OPTION_ELIMINATE, {})
 	var witnesses: int = int(options.get("witnesses", 0))
 	var enabled: bool = bool(eliminate.get("enabled", false)) and witnesses == 0
-	_elim_card.title = tr("CAUGHTUI_ELIMINATE").to_upper()
 	_elim_card.flagged_red = bool(eliminate.get("flagged_red", false)) or witnesses > 0
-	_elim_card.detail = tr("CAUGHTUI_ELIMINATE_HINT") if enabled \
-			else tr(str(eliminate.get("disabled_reason_key", "UI_CAUGHT_ELIMINATE_WITNESSES")))
+	_elim_card.set_texts(tr("CAUGHTUI_ELIMINATE").to_upper(), tr("CAUGHTUI_ELIMINATE_HINT") if enabled
+			else tr(str(eliminate.get("disabled_reason_key", "UI_CAUGHT_ELIMINATE_WITNESSES"))))
 	_set_card_enabled(_elim_card, enabled)
 	_witness_label.visible = witnesses > 0
 	_witness_label.text = UITheme.trf("CAUGHTUI_WITNESSES", [witnesses])
@@ -640,6 +678,16 @@ func _on_money_changed(_old_value: int, _new_value: int, _reason: String) -> voi
 		_apply_options(_current_options())
 
 
+## Tecla de opción: la primera pulsación arma; la misma tecla otra vez confirma (dos gestos, §13.7).
+func _hotkey(option: String) -> void:
+	if _state == STATE_CONFIRM and _armed == option:
+		confirm()
+	elif option == OPTION_BRIBE:
+		press_bribe()
+	else:
+		press_elimination()
+
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if key == null or not key.pressed or key.echo:
@@ -647,9 +695,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var handled: bool = true
 	match key.physical_keycode:
 		KEY_1:
-			press_bribe()
+			_hotkey(OPTION_BRIBE)
 		KEY_2:
-			press_elimination()
+			_hotkey(OPTION_ELIMINATE)
 		KEY_BACKSPACE:
 			back_out()
 		_:

@@ -17,7 +17,11 @@ const PHONE_WINDOW := Vector2i(1170, 540)
 const SAMPLE_DAY := 3
 const SAMPLE_HOUR := 10
 const SAMPLE_MINUTE := 42
-const MARKET_DAYS := 24
+const VACANCY_POSTS: Array[String] = ["wing_3b_chief", "c10_director", "junior_accountant"]
+const NEWS_EVENTS: Array[String] = ["viral_moment", "competitor_launch"]
+const PROMOTION_TARGET := "copy_operator"
+const SAMPLE_REPUTATION := 58.0
+const SAMPLE_MERIT := 12
 const SAMPLE_MONEY := 60000
 const SYSTEMS: Array[String] = [
 	"GameClock", "PlayerState", "NPCDirector", "SocialGraph", "BeliefNet", "Security",
@@ -87,16 +91,26 @@ func _shot_personnel(pilot: Autopilot) -> void:
 
 func _shot_portal(pilot: Autopilot) -> void:
 	PlayerState.set_occupation(N1_POST, "qa")
-	for occupation_id: String in ["order_filer", "wing_3b_chief", "c10_director"]:
-		Company.vacate_seat(occupation_id, "expelled")
+	for occupation_id: String in VACANCY_POSTS:
+		var holder: NPCRuntime = NPCDirector.get_npc_by_occupation(occupation_id)
+		if holder != null:
+			NPCDirector.remove_npc(holder.id, "expelled")
 	var app: PortalApp = PortalApp.open(self, {"occupation_id": "wing_3b_chief"})
 	await pilot.frames(8)
 	await pilot.shot("portal_org_chart")
 	app.select_occupation("ceo")
 	await pilot.frames(4)
 	await pilot.shot("portal_ceo_agenda")
-	app.select_occupation("order_filer")
-	app.request_promotion("order_filer")
+	var holder: NPCRuntime = NPCDirector.get_npc_by_occupation(PROMOTION_TARGET)
+	if holder != null:
+		NPCDirector.remove_npc(holder.id, "expelled")
+	PlayerState.modify_reputation(SAMPLE_REPUTATION, "qa")
+	Company.register_merit("qa", SAMPLE_MERIT)
+	app.refresh()
+	app.select_occupation(PROMOTION_TARGET)
+	await pilot.frames(4)
+	await pilot.shot("portal_promotion_ready")
+	app.request_promotion(PROMOTION_TARGET)
 	await pilot.frames(4)
 	await pilot.shot("portal_confirm")
 	await _close(app, pilot)
@@ -105,15 +119,20 @@ func _shot_portal(pilot: Autopilot) -> void:
 func _shot_market(pilot: Autopilot) -> void:
 	PlayerState.set_occupation(MARKET_POST, "qa")
 	PlayerState.add_money(SAMPLE_MONEY, "qa")
-	for day: int in range(SAMPLE_DAY + 1, SAMPLE_DAY + MARKET_DAYS):
+	var results_day: int = Market.get_presentation_day()
+	for day: int in range(SAMPLE_DAY + 1, results_day - 1):
 		GameClock.set_time(day, SAMPLE_HOUR, SAMPLE_MINUTE)
 		EventBus.day_advanced.emit(day)
 	MarketTrading.buy(120)
+	for i: int in NEWS_EVENTS.size():
+		NewsFeed.schedule_market_event(NEWS_EVENTS[i], GameClock.get_day() + i + 1)
 	var app: MarketApp = MarketApp.open(self)
 	app.set_quantity(250)
 	await pilot.frames(8)
 	await pilot.shot("market_r28")
 	await _close(app, pilot)
+	GameClock.set_time(results_day, SAMPLE_HOUR, SAMPLE_MINUTE)
+	EventBus.day_advanced.emit(results_day)
 
 
 func _shot_results(pilot: Autopilot) -> void:
@@ -125,6 +144,7 @@ func _shot_results(pilot: Autopilot) -> void:
 	await pilot.frames(4)
 	await pilot.shot("results_1_inflated")
 	screen.confirm_figures()
+	screen.select_preparation(ResultsPresentation.LEVEL_ASSIST)
 	await pilot.frames(8)
 	await pilot.shot("results_2_presentation")
 	screen.present()
@@ -135,6 +155,8 @@ func _shot_results(pilot: Autopilot) -> void:
 
 func _shot_phone(pilot: Autopilot) -> void:
 	get_window().size = PHONE_WINDOW
+	UITheme.current_text_size = UITheme.TEXT_LARGE
+	UITheme.touch_scale_active = true
 	PlayerState.set_occupation(N7_POST, "qa")
 	var app: PersonnelApp = PersonnelApp.open(self, {"npc_id": SUBJECT})
 	await pilot.frames(10)

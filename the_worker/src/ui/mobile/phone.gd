@@ -45,6 +45,11 @@ const ROOM_SAFE_KEY := "safe_for_calls"
 const EXPO_SUPERIORS := "superiors"
 const EXPO_LISTENERS := "listeners"
 const EXPO_SAFE := "safe"
+## Terminal según la banda de la foto del escalón (art_bands.json): barato y rajado abajo, con
+## ribete de la banda arriba; la carcasa toma el color «carpet» o «furniture» de esa paleta.
+const BUDGET_BANDS: Array[String] = ["the_guts", "the_pit"]
+const CARPET_BODY_BANDS: Array[String] = ["the_specialists", "the_power"]
+const PREMIUM_BANDS: Array[String] = ["the_power", "the_throne"]
 
 const B_HEARING := "movil.radio_escucha_llamada"
 const B_OPEN_FACTOR := "movil.factor_escucha_sala_abierta"
@@ -60,8 +65,10 @@ const B_INBOX_MAX := "movil.max_mensajes_bandeja"
 const B_CELL := "mundo.px_por_unidad"
 
 ## Maquetación (píxeles del lienzo base y proporciones de dibujo; no son ajustes de juego).
-const DEVICE_ASPECT := 0.5
-const DEVICE_HEIGHT_EMS := 34.0
+const DEVICE_ASPECT := 0.54
+const DEVICE_HEIGHT_EMS := 36.0
+const DEVICE_MIN_WIDTH_EMS := 17.5
+const DEVICE_MAX_WIDTH_FRACTION := 0.45
 const MARGIN_RIGHT := 44.0
 const MARGIN_TOP := 118.0
 const MARGIN_BOTTOM := 28.0
@@ -202,7 +209,7 @@ class TabButton extends Control:
 	func _notification(what: int) -> void:
 		if what == NOTIFICATION_THEME_CHANGED:
 			var base: float = PhoneOverlay.base_size(self)
-			custom_minimum_size = Vector2(base * 3.0, base * 2.9)
+			custom_minimum_size = Vector2(base * 3.0, base * 2.6)
 
 	func _gui_input(event: InputEvent) -> void:
 		if UITheme.is_primary_press(event):
@@ -215,12 +222,12 @@ class TabButton extends Control:
 		if active:
 			draw_rect(Rect2(size.x * 0.22, 0.0, size.x * 0.56, 3.0), accent)
 		var side: float = base * 1.15
-		var icon_r: Rect2 = Rect2((size.x - side) * 0.5, base * 0.45, side, side)
+		var icon_r: Rect2 = Rect2((size.x - side) * 0.5, base * 0.35, side, side)
 		PhoneOverlay.draw_glyph(self, glyph, icon_r, col, maxf(side * 0.09, 1.5))
 		var font: Font = get_theme_font("font", UITheme.V_CAPTION)
 		var fs: int = get_theme_font_size("font_size", UITheme.V_CAPTION)
 		var width: float = font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(font, Vector2((size.x - width) * 0.5, base * 2.45), caption,
+		draw_string(font, Vector2((size.x - width) * 0.5, base * 2.3), caption,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 		if badge > 0:
 			PhoneOverlay.draw_badge(self, icon_r.position + Vector2(side, 0.0), badge, base)
@@ -250,7 +257,10 @@ class Device extends Control:
 		glass.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(glass)
 		glass.draw.connect(_draw_glass)
-		resized.connect(_fit_screen)
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			fit_screen()
 
 	func screen_rect() -> Rect2:
 		var side: float = size.x * SIDE_BEZEL
@@ -258,7 +268,7 @@ class Device extends Control:
 		var bottom: float = size.y * BOTTOM_BEZEL
 		return Rect2(Vector2(side, top), size - Vector2(side * 2.0, top + bottom))
 
-	func _fit_screen() -> void:
+	func fit_screen() -> void:
 		var r: Rect2 = screen_rect()
 		screen.position = r.position
 		screen.size = r.size
@@ -316,11 +326,13 @@ class Device extends Control:
 		glass.draw_colored_polygon(glare, Color(1, 1, 1, 0.025))
 		if not cracked:
 			return
-		var o: Vector2 = Vector2(s.x * 0.86, s.y * 0.07)
-		var col: Color = Color(1, 1, 1, 0.42)
-		for tip: Vector2 in [Vector2(-0.3, 0.1), Vector2(-0.12, 0.2), Vector2(0.1, 0.13), Vector2(-0.2, -0.05)]:
-			var mid: Vector2 = o + Vector2(tip.x * s.x * 0.5, tip.y * s.y * 0.5) + Vector2(4, -3)
-			glass.draw_polyline(PackedVector2Array([o, mid, o + Vector2(tip.x * s.x, tip.y * s.y)]), col, 1.2, true)
+		var o: Vector2 = Vector2(s.x - 6.0, 6.0)
+		var reach: float = s.x * 0.11
+		var col: Color = Color(1, 1, 1, 0.3)
+		for tip: Vector2 in [Vector2(-1.0, 0.35), Vector2(-0.55, 0.9), Vector2(-0.1, 1.0), Vector2(-0.95, -0.02)]:
+			var end: Vector2 = o + tip * reach
+			var mid: Vector2 = o.lerp(end, 0.5) + Vector2(tip.y, -tip.x) * reach * 0.12
+			glass.draw_polyline(PackedVector2Array([o, mid, end]), col, 1.2, true)
 
 
 ## Bandeja de mensajes de la sesión (transitoria): el móvil puede cerrarse y abrirse sin perderlos.
@@ -342,10 +354,14 @@ class Service extends Node:
 				"day": GameClock.get_day(), "time": GameClock.get_time_string(), "read": false})
 		while inbox.size() > maxi(PhoneOverlay.tune_i(PhoneOverlay.B_INBOX_MAX), 1):
 			inbox.pop_front()
-		if PhoneOverlay.is_open(get_tree()) or PhoneOverlay.is_phone_silenced(get_tree()):
+		_notify.call_deferred(from_id)
+
+	## Aviso en pantalla (si el móvil está cerrado y no silenciado); una exigencia ya abre su diálogo.
+	func _notify(from_id: String) -> void:
+		if not is_inside_tree() or PhoneOverlay.is_open(get_tree()) or PhoneOverlay.is_phone_silenced(get_tree()):
 			return
 		var ui: UIRoot = UIRoot.find(get_tree())
-		if ui != null:
+		if ui != null and not ui.get_top_modal() is BlackmailDialog:
 			ui.get_toasts().push(UITheme.trf("PHONE_TOAST_MESSAGE", [PhoneOverlay.npc_name(from_id)]),
 					ToastStack.KIND_INFO, "phone")
 
@@ -539,13 +555,12 @@ func _connect_signals() -> void:
 func _style_device() -> void:
 	var tier: int = clampi(PlayerState.get_tier(), 1, CharacterStyle.PORTRAIT_BANDS.size() - 1)
 	var band: String = CharacterStyle.PORTRAIT_BANDS[tier]
-	var premium: bool = band == "the_power" or band == "the_throne"
-	var key: String = "carpet" if band == "the_specialists" or band == "the_power" else "furniture"
-	_device.body = CharacterStyle.band_color(band, key, Color("#d3c7a4"))
-	_device.trim = CharacterStyle.band_color(band, "accent", Color.TRANSPARENT) if premium \
+	var key: String = "carpet" if CARPET_BODY_BANDS.has(band) else "furniture"
+	_device.body = CharacterStyle.band_color(band, key, _device.body)
+	_device.trim = CharacterStyle.band_color(band, "accent", Color.TRANSPARENT) if PREMIUM_BANDS.has(band) \
 			else Color.TRANSPARENT
-	_device.cracked = band == "the_pit"
-	_device.home_button = band == "the_pit"
+	_device.cracked = BUDGET_BANDS.has(band)
+	_device.home_button = BUDGET_BANDS.has(band)
 	var accent: Color = accent_color()
 	for tab: String in _tab_buttons:
 		(_tab_buttons[tab] as TabButton).accent = accent
@@ -555,10 +570,11 @@ func _style_device() -> void:
 func _layout() -> void:
 	var base: float = base_size(self)
 	var h: float = minf(size.y - MARGIN_TOP - MARGIN_BOTTOM, base * DEVICE_HEIGHT_EMS)
-	var w: float = h * DEVICE_ASPECT
+	var w: float = minf(maxf(h * DEVICE_ASPECT, base * DEVICE_MIN_WIDTH_EMS), size.x * DEVICE_MAX_WIDTH_FRACTION)
 	_rest = Vector2(size.x - MARGIN_RIGHT - w, size.y - MARGIN_BOTTOM - h)
 	_device.size = Vector2(w, h)
 	_device.position = _rest + _offset()
+	_device.fit_screen()
 
 
 func _offset() -> Vector2:
@@ -741,6 +757,7 @@ func _show_exposure() -> void:
 	_expo_panel.add_theme_stylebox_override("panel", box(Color(col.darkened(0.55), 0.95), col, 8, 10.0, 5.0, 2))
 	_expo_glyph.set_glyph(glyph, col.lightened(0.25))
 	_expo_label.text = text
+	_expo_label.add_theme_color_override("font_color", UITheme.color("paper"))
 
 
 func _refresh_badges() -> void:
@@ -1062,6 +1079,10 @@ static func draw_glyph(c: CanvasItem, glyph: String, r: Rect2, col: Color, w: fl
 			_glyph_signal(c, r, col, SIGNAL_BARS if glyph == "signal" else UNDERGROUND_BARS)
 		"exclaim":
 			_glyph_exclaim(c, r, col)
+		"flagrant":
+			c.draw_circle(r.get_center(), r.size.x * 0.48, CharacterStyle.OUTLINE)
+			c.draw_circle(r.get_center(), r.size.x * 0.42, col)
+			_glyph_exclaim(c, r.grow(-r.size.x * 0.16), UITheme.color("paper"))
 		_:
 			UITheme.draw_icon(c, glyph, r, col, w)
 

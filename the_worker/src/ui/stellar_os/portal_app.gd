@@ -137,7 +137,7 @@ static func agenda_for(npc_id: String) -> Array[Dictionary]:
 	var start: int = Database.get_balance_int(B_DAY_START) * MINUTES_PER_HOUR
 	var end: int = Database.get_balance_int(B_DAY_END) * MINUTES_PER_HOUR
 	for minute: int in range(start, end, step):
-		var room: String = NPCDirector.get_location_at(npc_id, minute / MINUTES_PER_HOUR,
+		var room: String = NPCDirector.get_location_at(npc_id, floori(float(minute) / MINUTES_PER_HOUR),
 				minute % MINUTES_PER_HOUR)
 		if not out.is_empty() and str(out.back()["room"]) == room:
 			out.back()["to"] = minute + step
@@ -145,10 +145,12 @@ static func agenda_for(npc_id: String) -> Array[Dictionary]:
 		out.append({"from": minute, "to": minute + step, "room": room})
 	for block: Dictionary in out:
 		block["place"] = PersonnelApp.room_name(str(block["room"]))
-		block["label"] = "%s–%s" % [UITheme.format_hour(int(block["from"]) / MINUTES_PER_HOUR,
-				int(block["from"]) % MINUTES_PER_HOUR),
-				UITheme.format_hour(int(block["to"]) / MINUTES_PER_HOUR, int(block["to"]) % MINUTES_PER_HOUR)]
+		block["label"] = "%s–%s" % [_clock(int(block["from"])), _clock(int(block["to"]))]
 	return out
+
+
+static func _clock(minute_of_day: int) -> String:
+	return UITheme.format_hour(floori(float(minute_of_day) / MINUTES_PER_HOUR), minute_of_day % MINUTES_PER_HOUR)
 
 
 static func shows_agenda(occupation_id: String) -> bool:
@@ -395,6 +397,8 @@ func _add_seats(entry: Dictionary) -> void:
 
 
 func _cause_text(cause: String) -> String:
+	if cause.is_empty():
+		return tr("PORTAL_CAUSE_OTHER")
 	var key: String = "PORTAL_CAUSE_" + cause.to_upper()
 	var text: String = tr(key)
 	return text if text != key else tr("PORTAL_CAUSE_OTHER")
@@ -493,7 +497,7 @@ class OrgChart extends Control:
 	signal picked(occupation_id: String)
 
 	const CARD_W := 7.7
-	const CARD_H := 4.0
+	const CARD_H := 4.3
 	const GAP := 0.4
 	const ROW_GAP := 0.75
 	const LABEL_W := 4.6
@@ -584,6 +588,9 @@ class OrgChart extends Control:
 			var a: Vector2 = Vector2(from.get_center().x, from.position.y)
 			var b: Vector2 = Vector2(to.get_center().x, to.end.y)
 			var mid_y: float = (a.y + b.y) * 0.5
+			if is_equal_approx(from.position.y, to.position.y):
+				b = Vector2(to.get_center().x, to.position.y)
+				mid_y = a.y - Kit.px(ROW_GAP * 0.45)
 			var pts: PackedVector2Array = PackedVector2Array([a, Vector2(a.x, mid_y), Vector2(b.x, mid_y), b])
 			draw_polyline(pts, Kit.FACE_HI, 7.0)
 			draw_polyline(pts, Kit.TEAL_LIGHT, 3.5)
@@ -687,7 +694,7 @@ class WeekStrip extends Control:
 
 	func _draw() -> void:
 		Kit.draw_bevel(self, Rect2(Vector2.ZERO, size), Kit.FACE, true)
-		var label_w: float = float(Kit.px(5.0))
+		var label_w: float = float(Kit.px(6.2))
 		Kit.text(self, Vector2(Kit.px(0.5), Kit.px(1.5)), TranslationServer.translate("PORTAL_WEEK"), Kit.font_black(),
 				Kit.px(0.8), Kit.TEAL, label_w)
 		Kit.text(self, Vector2(Kit.px(0.5), Kit.px(2.8)), TranslationServer.translate("PORTAL_WEEK_SUB"),

@@ -21,6 +21,7 @@ const STATE_RESULT := "result"
 const B_STEP := "movil.soborno_paso"
 const B_START := "movil.soborno_fraccion_inicial"
 const B_FILE_LEVEL := "movil.nivel_expediente_precio_estimado"
+const SLIDER_CURVE := 2.0
 const OUTCOME_TONES: Dictionary = {
 	Bribery.OUTCOME_ACCEPTED: "gain", Bribery.OUTCOME_COUNTEROFFER: "warn",
 	Bribery.OUTCOME_DENOUNCED: "danger", Bribery.OUTCOME_SILENCE: "warn",
@@ -67,15 +68,17 @@ class AmountSlider extends Range:
 	func _knob_radius() -> float:
 		return size.y * 0.3
 
+	## Escala cuadrática: más precisión en las cantidades bajas aunque el capital sea grande.
 	func _x_for(amount: float) -> float:
 		var pad: float = _knob_radius() + 2.0
 		var span: float = maxf(max_value - min_value, 1.0)
-		return pad + (size.x - pad * 2.0) * clampf((amount - min_value) / span, 0.0, 1.0)
+		var t: float = pow(clampf((amount - min_value) / span, 0.0, 1.0), 1.0 / BribePanel.SLIDER_CURVE)
+		return pad + (size.x - pad * 2.0) * t
 
 	func _set_from(x: float) -> void:
 		var pad: float = _knob_radius() + 2.0
 		var t: float = clampf((x - pad) / maxf(size.x - pad * 2.0, 1.0), 0.0, 1.0)
-		value = min_value + t * (max_value - min_value)
+		value = min_value + pow(t, BribePanel.SLIDER_CURVE) * (max_value - min_value)
 
 	func _draw() -> void:
 		var mid: float = size.y * 0.58
@@ -144,15 +147,16 @@ func _init() -> void:
 	column.add_theme_constant_override("separation", 7)
 	add_child(column)
 	column.add_child(_build_header())
-	column.add_child(_caption("PHONE_BRIBE_FAVOUR_CAPTION"))
-	column.add_child(_build_favour_stepper())
-	column.add_child(_caption("PHONE_BRIBE_AMOUNT_CAPTION"))
-	column.add_child(_build_amount())
-	column.add_child(_build_info_line(true))
-	column.add_child(_build_info_line(false))
-	var spacer: Control = Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(spacer)
+	var parts: Dictionary = PhoneOverlay.scroll_list()
+	var body: VBoxContainer = parts["list"]
+	body.add_theme_constant_override("separation", 7)
+	column.add_child(parts["scroll"])
+	body.add_child(_caption("PHONE_BRIBE_FAVOUR_CAPTION"))
+	body.add_child(_build_favour_stepper())
+	body.add_child(_caption("PHONE_BRIBE_AMOUNT_CAPTION"))
+	body.add_child(_build_amount())
+	body.add_child(_build_info_line(true))
+	body.add_child(_build_info_line(false))
 	column.add_child(_build_actions())
 
 

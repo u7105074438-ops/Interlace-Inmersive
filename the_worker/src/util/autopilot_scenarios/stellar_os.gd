@@ -16,6 +16,7 @@ const CREDITOR := "npc_sonia_vail"
 const TARGET := "npc_bernard_lasker"
 const AWAY_ROOM := "p3_pantry"
 const PHONE_WINDOW := Vector2i(1170, 540)
+const DESKTOP_WINDOW := Vector2i(1600, 900)
 const PLAYER_NAME := "Morgan"
 const PERSONNEL_SCRIPT := "res://src/ui/stellar_os/personnel_app.gd"
 
@@ -35,6 +36,7 @@ func run(pilot: Autopilot) -> void:
 	await _shot_notebook(pilot)
 	await _shot_files(pilot)
 	await _shot_phone(pilot)
+	await _shot_spanish(pilot)
 
 
 func _new_run() -> void:
@@ -56,6 +58,7 @@ func _new_run() -> void:
 	GameClock.resume()
 	PlayerState.set_player_name(PLAYER_NAME)
 	if _ds != null:
+		_ds.remove_from_group(DutySystem.GROUP)
 		_ds.queue_free()
 	_ds = DutySystem.new()
 	add_child(_ds)
@@ -72,18 +75,37 @@ func _close() -> void:
 	await get_tree().process_frame
 
 
+## Captura sin los avisos de UIRoot que se acumulan al rehacer la partida de muestra.
+func _shot(pilot: Autopilot, shot_name: String) -> void:
+	_ui.get_toasts().clear()
+	await pilot.frames(2)
+	await pilot.shot(shot_name)
+
+
+## Espera (segundos reales) a que la aplicación abierta sea la pedida.
+func _wait_app(pilot: Autopilot, app_id: String, timeout: float) -> Control:
+	var waited: float = 0.0
+	while waited < timeout:
+		var os: StellarOS = _computer()
+		if os != null and os.get_open_app_id() == app_id and os.get_open_app() != null:
+			return os.get_open_app()
+		await pilot.seconds(0.1)
+		waited += 0.1
+	return null
+
+
 # ─── Arranque y escritorios ───────────────────────────────────────
 
 func _shot_boot(pilot: Autopilot) -> void:
 	_ui.open_computer({"tier": 1})
 	await pilot.seconds(1.6)
-	await pilot.shot("os_boot_tier1_bios")
+	await _shot(pilot, "os_boot_tier1_bios")
 	await pilot.seconds(2.6)
-	await pilot.shot("os_boot_tier1_splash")
+	await _shot(pilot, "os_boot_tier1_splash")
 	await _close()
 	_ui.open_computer({"tier": 5})
 	await pilot.seconds(1.0)
-	await pilot.shot("os_boot_tier5_splash")
+	await _shot(pilot, "os_boot_tier5_splash")
 	await _close()
 
 
@@ -95,18 +117,25 @@ func _shot_desktops(pilot: Autopilot) -> void:
 	os.spawn_ad(4)
 	os.notify(tr("OS_TRAY_SPEED_TIP"))
 	await pilot.frames(6)
-	await pilot.shot("os_desktop_tier1_ads")
+	await _shot(pilot, "os_desktop_tier1_ads")
 	await _close()
 	for tier: int in [3, 5, 8]:
 		_ui.open_computer({"tier": tier, "instant": true})
 		await pilot.frames(6)
-		await pilot.shot("os_desktop_tier%d" % tier)
+		await _shot(pilot, "os_desktop_tier%d" % tier)
 		await _close()
+	_ui.open_computer({"tier": 1})
+	await pilot.frames(3)
+	_computer().skip_boot()
+	_computer().open_app(StellarOS.APP_NOTEBOOK)
+	await pilot.seconds(StellarOS.window_lag_for_tier(1) * 0.55)
+	await _shot(pilot, "os_tier1_opening_hourglass")
+	await _close()
 	_ui.open_computer({"tier": 1, "instant": true})
 	await pilot.frames(3)
 	_computer().open_start_menu()
 	await pilot.frames(4)
-	await pilot.shot("os_start_menu_tier1")
+	await _shot(pilot, "os_start_menu_tier1")
 	await _close()
 
 
@@ -122,11 +151,16 @@ func _shot_mail(pilot: Autopilot) -> void:
 	await mail.answer_current(mail.current_correct_reply())
 	await mail.answer_current((mail.current_correct_reply() + 1) % MailApp.REPLY_COUNT)
 	await pilot.frames(6)
-	await pilot.shot("os_mail_open")
+	await _shot(pilot, "os_mail_open")
 	mail.select_mail(1)
 	await pilot.frames(4)
-	await pilot.shot("os_mail_replied_wrong")
+	await _shot(pilot, "os_mail_replied_wrong")
 	await _close()
+	for tier: int in [5, 8]:
+		_ui.open_computer({"tier": tier, "instant": true, "app": StellarOS.APP_MAIL})
+		await pilot.frames(6)
+		await _shot(pilot, "os_mail_tier%d" % tier)
+		await _close()
 
 
 func _shot_assist(pilot: Autopilot) -> void:
@@ -143,7 +177,7 @@ func _shot_assist(pilot: Autopilot) -> void:
 		await assist.generate(outcome)
 		assist.finish_typing()
 		await pilot.frames(6)
-		await pilot.shot("os_assist_" + outcome)
+		await _shot(pilot, "os_assist_" + outcome)
 		await _close()
 
 
@@ -169,13 +203,13 @@ func _shot_notebook(pilot: Autopilot) -> void:
 	await pilot.frames(3)
 	nb.select_tab(NotebookApp.TAB_FAVOURS)
 	await pilot.frames(6)
-	await pilot.shot("os_notebook_favours")
+	await _shot(pilot, "os_notebook_favours")
 	nb.select_tab(NotebookApp.TAB_LOG)
 	await pilot.frames(4)
-	await pilot.shot("os_notebook_log")
+	await _shot(pilot, "os_notebook_log")
 	nb.select_tab(NotebookApp.TAB_CASES)
 	await pilot.frames(4)
-	await pilot.shot("os_notebook_cases")
+	await _shot(pilot, "os_notebook_cases")
 	await _close()
 
 
@@ -203,19 +237,19 @@ func _shot_files(pilot: Autopilot) -> void:
 	NPCDirector.set_current_location(OWNER, AWAY_ROOM)
 	StellarOS.open_intrusion(OWNER, {"contains": ["voss_agenda", "favour_ledger"]})
 	await pilot.seconds(0.7)
-	await pilot.shot("os_guest_login")
-	await pilot.seconds(1.4)
-	var files: FilesApp = _computer().get_open_app() as FilesApp if _computer() != null else null
+	await _shot(pilot, "os_guest_login")
+	var files: FilesApp = await _wait_app(pilot, StellarOS.APP_FILES, 6.0) as FilesApp
 	if files == null:
+		await _close()
 		return
 	files.select_file("idea_" + idea_id)
 	await pilot.frames(6)
-	await pilot.shot("os_files_intrusion")
+	await _shot(pilot, "os_files_intrusion")
 	await files.copy_file("idea_" + idea_id)
 	files.open_folder(FilesApp.FOLDER_DOCUMENTS)
 	await files.copy_file("doc_voss_agenda")
 	await pilot.frames(6)
-	await pilot.shot("os_files_intrusion_copied")
+	await _shot(pilot, "os_files_intrusion_copied")
 	await _close()
 	_ui.open_computer({"tier": 1, "instant": true, "app": StellarOS.APP_FILES})
 	await pilot.frames(4)
@@ -223,7 +257,7 @@ func _shot_files(pilot: Autopilot) -> void:
 	if own != null:
 		own.open_folder(FilesApp.FOLDER_IDEAS)
 		await pilot.frames(4)
-		await pilot.shot("os_files_own_ideas")
+		await _shot(pilot, "os_files_own_ideas")
 	await _close()
 
 
@@ -234,9 +268,24 @@ func _shot_phone(pilot: Autopilot) -> void:
 	_ui.set_touch_mode(true)
 	_ui.open_computer({"tier": 1, "instant": true, "app": StellarOS.APP_MAIL})
 	await pilot.frames(10)
-	await pilot.shot("os_phone_mail")
+	await _shot(pilot, "os_phone_mail")
 	await _close()
 	_ui.open_computer({"tier": 1, "instant": true, "app": StellarOS.APP_ASSIST})
 	await pilot.frames(6)
-	await pilot.shot("os_phone_assist")
+	await _shot(pilot, "os_phone_assist")
 	await _close()
+
+
+## Español (idioma localizado): los textos más largos deben caber.
+func _shot_spanish(pilot: Autopilot) -> void:
+	_new_run()
+	get_window().size = DESKTOP_WINDOW
+	_ui.set_touch_mode(false)
+	_ui.set_text_options(UITheme.TEXT_MEDIUM, false)
+	TranslationServer.set_locale("es")
+	for app_id: String in [StellarOS.APP_MAIL, StellarOS.APP_ASSIST]:
+		_ui.open_computer({"tier": 1, "instant": true, "app": app_id})
+		await pilot.frames(6)
+		await _shot(pilot, "os_es_" + app_id)
+		await _close()
+	TranslationServer.set_locale("en")

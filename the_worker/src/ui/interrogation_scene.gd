@@ -59,6 +59,8 @@ const B_SHAKE_S := "escenas.temblor_segundos"
 const B_MAX_ACCUSE := "escenas.max_acusables"
 const PERCENT := 100.0
 const CARD_SIZE := Vector2(400, 268)
+## Rapidez con que la tarjeta en reposo sigue su sitio si el panel cambia de alto (1/s).
+const CARD_FOLLOW := 12.0
 
 var instant: bool = false
 var case_id: String = ""
@@ -87,6 +89,7 @@ var _end_result: Dictionary = {}
 var _end_title: String = ""
 var _end_lines: Array[String] = []
 var _door_slammed: bool = false
+var _card_resting: bool = false
 var _done: bool = false
 
 
@@ -320,6 +323,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_timeline.tick(delta)
+	if _card_resting and _card != null:
+		_card.position = _card.position.lerp(_card_target(), minf(delta * CARD_FOLLOW, 1.0))
 
 
 # ─── API ──────────────────────────────────────────────────────
@@ -461,6 +466,11 @@ func open_accuse_picker() -> void:
 	_picker = _build_picker(accuse_candidates())
 	add_child(_picker)
 	UITheme.center_fitted(_picker)
+
+
+## QA/tests: hace avanzar la línea de tiempo `seconds` sin depender del reloj real.
+func advance(seconds: float) -> void:
+	_timeline.tick(seconds)
 
 
 func fast_forward() -> void:
@@ -700,10 +710,10 @@ func _present_piece() -> void:
 	_stage.say(_investigator, line)
 	_stage.set_prop("paper", true)
 	_stage.set_anim(PLAYER, "sit", Vector2.UP)
+	_show_answers()
 	_show_card(_piece)
 	_meter.highlight = str(_piece.get("record_id", ""))
 	_meter.queue_redraw()
-	_show_answers()
 
 
 func _show_card(piece: Dictionary) -> void:
@@ -727,26 +737,35 @@ func _show_card(piece: Dictionary) -> void:
 	_animate_card(_card_target(), Vector2(k, k), -0.05, 1.0)
 
 
-## Posición (sin escalar, pivote en el centro) que deja la tarjeta a la izquierda de la mesa.
+## Posición (sin escalar, pivote en el centro) que deja la tarjeta a la izquierda de la mesa, por
+## encima del panel de respuestas.
 func _card_target() -> Vector2:
 	var k: float = SceneStage.ui_scale()
-	var visual_top_left: Vector2 = Vector2(40.0, maxf(size.y * 0.5 - CARD_SIZE.y * k * 0.62, 150.0 * k))
-	return visual_top_left - CARD_SIZE * 0.5 * (1.0 - k)
+	var height: float = CARD_SIZE.y * k
+	var y: float = maxf(size.y * 0.5 - height * 0.62, 150.0 * k)
+	var panel_h: float = _panel.size.y if _panel.visible else 0.0
+	if panel_h > 0.0:
+		y = minf(y, size.y - 20.0 - panel_h - height - 28.0)
+	return Vector2(40.0, maxf(y, 120.0)) - CARD_SIZE * 0.5 * (1.0 - k)
 
 
 func _animate_card(pos: Vector2, card_scale: Vector2, rot: float, alpha: float) -> void:
 	var seconds: float = Database.get_balance_float(B_CARD)
+	_card_resting = false
 	if instant or seconds <= 0.0:
 		_card.position = pos
 		_card.scale = card_scale
 		_card.rotation = rot
 		_card.modulate.a = alpha
+		_card_resting = alpha > 0.0
 		return
 	var t: Tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(_card, "position", pos, seconds)
 	t.tween_property(_card, "scale", card_scale, seconds)
 	t.tween_property(_card, "rotation", rot, seconds)
 	t.tween_property(_card, "modulate:a", alpha, seconds)
+	if alpha > 0.0:
+		t.chain().tween_callback(func() -> void: _card_resting = true)
 	_tweens.append(t)
 
 
@@ -968,6 +987,7 @@ func _next() -> void:
 func _end() -> void:
 	_step = STEP_END
 	_piece = {}
+	_set_caption("")
 	_meter.highlight = ""
 	_end_result = _session.finish()
 	var frozen: bool = str(_last_result.get("outcome", "")) == Interrogation.OUTCOME_CASE_FROZEN
@@ -1030,7 +1050,7 @@ func _button_row(buttons: Array[Button]) -> void:
 		row.add_child(b)
 	_panel_box.add_child(row)
 	if not buttons.is_empty():
-		buttons.back().call_deferred("grab_focus")
+		MenuKit.focus_later(buttons.back())
 
 
 func _set_caption(text: String) -> void:

@@ -523,40 +523,87 @@ static func _wall_classic(ci: CanvasItem, r: Rect2, pal: Dictionary) -> void:
 
 
 static func _wall_luna(ci: CanvasItem, r: Rect2, pal: Dictionary) -> void:
-	var horizon: float = r.position.y + r.size.y * 0.66
-	draw_vgradient(ci, Rect2(r.position, Vector2(r.size.x, horizon - r.position.y)),
-			col(pal, "band_carpet").darkened(0.3), col(pal, "band_window"))
-	var sun: Vector2 = Vector2(r.position.x + r.size.x * 0.7, horizon - r.size.y * 0.06)
-	ci.draw_circle(sun, r.size.y * 0.11, Color(col(pal, "band_accent"), 0.9))
-	ci.draw_circle(sun, r.size.y * 0.16, Color(col(pal, "band_light"), 0.15))
+	var horizon: float = r.position.y + r.size.y * 0.7
+	var sky: Rect2 = Rect2(r.position, Vector2(r.size.x, horizon - r.position.y))
+	draw_vgradient(ci, sky, col(pal, "band_carpet").darkened(0.45), col(pal, "band_carpet").lerp(col(pal, "band_accent"), 0.6))
+	var sun: Vector2 = Vector2(r.position.x + r.size.x * 0.64, horizon)
+	for i: int in 3:
+		ci.draw_circle(sun, r.size.y * (0.2 - i * 0.04), Color(col(pal, "band_light"), 0.08 + i * 0.05))
+	ci.draw_circle(sun, r.size.y * 0.1, col(pal, "band_light"))
+	_skyline(ci, r, horizon, pal)
+	var water: Rect2 = Rect2(r.position.x, horizon, r.size.x, r.end.y - horizon)
+	draw_vgradient(ci, water, col(pal, "band_carpet").darkened(0.35), col(pal, "band_carpet").darkened(0.7))
+	for i: int in 7:
+		var y: float = horizon + (i + 1) * r.size.y * 0.025
+		var half: float = r.size.y * (0.11 - i * 0.013)
+		ci.draw_line(Vector2(sun.x - half, y), Vector2(sun.x + half, y), Color(col(pal, "band_light"), 0.5 - i * 0.06), 3.0)
+	_wall_caption(ci, Vector2(r.position.x + r.size.x * 0.56, r.end.y - r.size.y * 0.08), r.size.y * 0.1, pal,
+			"OS_WALL_SLOGAN_LUNA")
+
+
+## Perfil de la ciudad al atardecer con ventanas encendidas y la torre Stellar en el centro.
+static func _skyline(ci: CanvasItem, r: Rect2, horizon: float, pal: Dictionary) -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = hash("skyline")
+	var body: Color = col(pal, "band_carpet").darkened(0.55)
+	var lit: Color = Color(col(pal, "band_light"), 0.75)
 	var x: float = r.position.x
+	var tower_x: float = r.position.x + r.size.x * 0.34
+	var tower_done: bool = false
 	while x < r.end.x:
-		var w: float = r.size.x * rng.randf_range(0.03, 0.07)
-		var h: float = r.size.y * rng.randf_range(0.08, 0.36)
-		ci.draw_rect(Rect2(x, horizon - h, w * 0.94, h), col(pal, "band_shadow").lerp(col(pal, "band_carpet"), 0.3))
+		var w: float = r.size.x * rng.randf_range(0.035, 0.07)
+		var h: float = r.size.y * rng.randf_range(0.06, 0.2)
+		var tower: bool = not tower_done and x + w > tower_x
+		tower_done = tower_done or tower
+		if tower:
+			h = r.size.y * 0.42
+		var b: Rect2 = Rect2(x, horizon - h, w * 0.92, h)
+		ci.draw_rect(b, body)
+		_windows(ci, b, rng, lit, r.size.y * 0.012)
+		if tower:
+			_shape(ci, star_points(Vector2(b.get_center().x, b.position.y - r.size.y * 0.03), r.size.y * 0.03,
+					r.size.y * 0.013), col(pal, "band_accent"), body, 1.5)
 		x += w
-	draw_vgradient(ci, Rect2(r.position.x, horizon, r.size.x, r.end.y - horizon),
-			col(pal, "band_floor"), col(pal, "band_shadow"))
-	ci.draw_line(Vector2(r.position.x, horizon), Vector2(r.end.x, horizon), col(pal, "band_accent"), 3.0)
+
+
+static func _windows(ci: CanvasItem, b: Rect2, rng: RandomNumberGenerator, lit: Color, cell: float) -> void:
+	var y: float = b.position.y + cell
+	while y < b.end.y - cell:
+		var x: float = b.position.x + cell * 0.8
+		while x < b.end.x - cell:
+			if rng.randf() < 0.35:
+				ci.draw_rect(Rect2(x, y, cell * 0.6, cell * 0.7), lit)
+			x += cell * 1.3
+		y += cell * 1.6
 
 
 static func _wall_sovereign(ci: CanvasItem, r: Rect2, pal: Dictionary) -> void:
 	draw_vgradient(ci, r, col(pal, "band_wall"), col(pal, "band_floor"))
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = hash("marble")
-	for i: int in 14:
-		var p: Vector2 = r.position + Vector2(rng.randf() * r.size.x, rng.randf() * r.size.y)
-		var pts: PackedVector2Array = [p]
-		for _s: int in 8:
-			p += Vector2(rng.randf_range(20.0, 90.0), rng.randf_range(-40.0, 40.0))
-			pts.append(p)
-		var vein: Color = col(pal, "band_accent") if i % 4 == 0 else col(pal, "band_shadow")
-		ci.draw_polyline(pts, Color(vein, 0.18 if i % 4 else 0.35), 1.5 + (i % 3), true)
+	for i: int in 9:
+		var gold: bool = i % 3 == 0
+		var vein: Color = Color(col(pal, "band_accent"), 0.4) if gold else Color(col(pal, "band_shadow"), 0.14)
+		ci.draw_polyline(_vein(r, rng), vein, 2.0 if gold else 1.4, true)
 	var c: Vector2 = r.get_center() + Vector2(r.size.x * 0.08, -r.size.y * 0.04)
-	draw_logo(ci, c, r.size.y * 0.12, Color(col(pal, "band_accent"), 0.35), Color(col(pal, "band_accent"), 0.7))
-	_wall_caption(ci, c + Vector2(0, r.size.y * 0.2), r.size.y * 0.12, pal, "OS_WALL_SLOGAN_SOVEREIGN")
+	var rad: float = r.size.y * 0.12
+	ci.draw_arc(c - Vector2(0, rad * 0.1), rad * 1.45, 0.0, TAU, 96, Color(col(pal, "band_accent"), 0.55), 2.0, true)
+	draw_logo(ci, c, rad, Color(col(pal, "band_accent"), 0.3), Color(col(pal, "band_accent"), 0.8))
+	_wall_caption(ci, c + Vector2(0, rad * 2.0), rad, pal, "OS_WALL_SLOGAN_SOVEREIGN")
+
+
+## Veta de mármol: curva suave (suma de senos) que cruza el rectángulo en diagonal.
+static func _vein(r: Rect2, rng: RandomNumberGenerator) -> PackedVector2Array:
+	var pts: PackedVector2Array = PackedVector2Array()
+	var y0: float = r.position.y + rng.randf() * r.size.y
+	var slope: float = rng.randf_range(-0.35, 0.35)
+	var phase: float = rng.randf() * TAU
+	var amp: float = r.size.y * rng.randf_range(0.01, 0.035)
+	for i: int in 49:
+		var t: float = float(i) / 48.0
+		var x: float = r.position.x + t * r.size.x
+		pts.append(Vector2(x, y0 + slope * t * r.size.y + sin(t * 9.0 + phase) * amp + sin(t * 23.0 + phase * 2.0) * amp * 0.3))
+	return pts
 
 
 static func _wall_caption(ci: CanvasItem, pos: Vector2, rad: float, pal: Dictionary, key: String) -> void:
@@ -609,11 +656,71 @@ static func star_points(c: Vector2, outer: float, inner: float) -> PackedVector2
 
 # ─── Iconos de aplicación y de archivo ────────────────────────────
 
+## Icono del escritorio: en los equipos caros va sobre una baldosa (brillante en luna, cuero negro
+## con filo dorado en sovereign); en los baratos, suelto como en 1998.
+static func draw_icon_tile(ci: CanvasItem, icon: String, r: Rect2, pal: Dictionary) -> void:
+	var skin: String = str(pal.get("skin", SKIN_RETRO))
+	if skin != SKIN_LUNA and skin != SKIN_SOVEREIGN:
+		draw_icon(ci, icon, r, pal)
+		return
+	var tile: PackedVector2Array = UITheme.rounded_rect_points(r.grow(r.size.x * 0.08), r.size.x * 0.24)
+	var closed: PackedVector2Array = tile.duplicate()
+	closed.append(tile[0])
+	if skin == SKIN_SOVEREIGN:
+		ci.draw_colored_polygon(tile, col(pal, "dark"))
+		ci.draw_polyline(closed, col(pal, "accent"), 2.0, true)
+	else:
+		var colors: PackedColorArray = PackedColorArray()
+		for pt: Vector2 in tile:
+			colors.append(Color("#ffffff").lerp(Color("#d8e2f2"), clampf((pt.y - r.position.y) / r.size.y, 0.0, 1.0)))
+		ci.draw_polygon(tile, colors)
+		ci.draw_polyline(closed, col(pal, "title_a"), 2.0, true)
+	var inner_pal: Dictionary = pal
+	if skin == SKIN_SOVEREIGN:
+		inner_pal = pal.duplicate()
+		inner_pal["icon_ink"] = col(pal, "title_text")
+	draw_icon(ci, icon, r.grow(-r.size.x * 0.12), inner_pal)
+
+
+## Estrella del botón de inicio como textura (con suavizado por supermuestreo 4×4).
+static func star_texture(px: int) -> ImageTexture:
+	var side: int = maxi(px, 8)
+	var img: Image = Image.create(side, side, false, Image.FORMAT_RGBA8)
+	var c: Vector2 = Vector2(side, side) * 0.5
+	var outer: PackedVector2Array = star_points(c, side * 0.5, side * 0.22)
+	var inner: PackedVector2Array = star_points(c, side * 0.5 - 2.2, side * 0.22 - 1.0)
+	var fill: Color = Color("#f5c542")
+	var ink: Color = Color("#1a1a1a")
+	for y: int in side:
+		for x: int in side:
+			img.set_pixel(x, y, _star_pixel(Vector2(x, y), outer, inner, fill, ink))
+	return ImageTexture.create_from_image(img)
+
+
+static func _star_pixel(p: Vector2, outer: PackedVector2Array, inner: PackedVector2Array, fill: Color, ink: Color) -> Color:
+	var in_fill: int = 0
+	var in_ink: int = 0
+	for sy: int in 4:
+		for sx: int in 4:
+			var q: Vector2 = p + Vector2((sx + 0.5) / 4.0, (sy + 0.5) / 4.0)
+			if Geometry2D.is_point_in_polygon(q, inner):
+				in_fill += 1
+			elif Geometry2D.is_point_in_polygon(q, outer):
+				in_ink += 1
+	var total: float = float(in_fill + in_ink)
+	if total <= 0.0:
+		return Color(0, 0, 0, 0)
+	var colour: Color = ink.lerp(fill, float(in_fill) / total)
+	colour.a = total / 16.0
+	return colour
+
 ## Icono vectorial plano con contorno dentro de `r`. Ids: mail, notebook, personnel, assist, portal,
 ## files, market, not_found, trash, hourglass, lock, idea, doc, report, personal, warning, user,
 ## start, snail, drop, shoe, check, cross, folder, star.
 static func draw_icon(ci: CanvasItem, icon: String, r: Rect2, pal: Dictionary) -> void:
 	var ink: Color = Color("#1a1a1a") if pal.get("skin") != SKIN_CONTRAST else Color.WHITE
+	if pal.get("icon_ink") is Color:
+		ink = pal["icon_ink"]
 	var w: float = maxf(1.5, r.size.x * 0.055)
 	if _icons_apps(ci, icon, r, ink, w, pal):
 		return

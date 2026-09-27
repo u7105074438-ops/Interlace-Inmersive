@@ -415,19 +415,21 @@ func move_actor(actor_id: String, pos: Vector2) -> void:
 		_actors[actor_id]["seated"] = false
 
 
-## Camina de su posición a `target` en `seconds` (animación walk) y al llegar mira a `end_facing`
-## con `end_anim`. finish_moves() completa los paseos en curso (saltar animación, tests).
+## Camina de su posición a `target` en `seconds` (animación walk), pasando por `via` si se da (rodear
+## la mesa), y al llegar mira a `end_facing` con `end_anim`. finish_moves() completa los paseos.
 func walk_to(actor_id: String, target: Vector2, seconds: float, end_facing: Vector2,
-		end_anim: String = "idle") -> void:
+		end_anim: String = "idle", via: Array[Vector2] = []) -> void:
 	var a: Dictionary = _actors.get(actor_id, {})
 	if a.is_empty():
 		return
-	var from: Vector2 = _origin_of(a)
+	var points: Array[Vector2] = [_origin_of(a)]
+	points.append_array(via)
+	points.append(target)
 	a["seated"] = false
-	a["pos"] = from
-	set_anim(actor_id, "walk", target - from)
-	_moves[actor_id] = {"from": from, "to": target, "t": 0.0, "dur": maxf(seconds, 0.001),
-			"facing": end_facing, "anim": end_anim}
+	a["pos"] = points[0]
+	set_anim(actor_id, "walk", points[1] - points[0])
+	_moves[actor_id] = {"points": points, "t": 0.0, "dur": maxf(seconds, 0.001),
+			"facing": end_facing, "anim": end_anim, "leg": 0}
 
 
 func is_moving() -> bool:
@@ -444,9 +446,29 @@ func _advance_moves(delta: float) -> void:
 		var m: Dictionary = _moves[id]
 		m["t"] = float(m["t"]) + delta
 		var k: float = clampf(float(m["t"]) / float(m["dur"]), 0.0, 1.0)
-		_actors[id]["pos"] = (m["from"] as Vector2).lerp(m["to"], k)
+		var at: Dictionary = path_point(m["points"], k)
+		_actors[id]["pos"] = at["pos"]
+		if int(at["leg"]) != int(m["leg"]):
+			m["leg"] = at["leg"]
+			_actors[id]["facing"] = (at["dir"] as Vector2)
 		if k >= 1.0:
 			_end_move(id)
+
+
+## Punto a la fracción `k` (0..1) de una polilínea, por longitud: {pos, leg, dir}.
+static func path_point(points: Array[Vector2], k: float) -> Dictionary:
+	var total: float = 0.0
+	for i: int in points.size() - 1:
+		total += points[i].distance_to(points[i + 1])
+	var goal: float = total * k
+	for i: int in points.size() - 1:
+		var seg: float = points[i].distance_to(points[i + 1])
+		if goal <= seg or i == points.size() - 2:
+			var f: float = clampf(goal / maxf(seg, 0.001), 0.0, 1.0)
+			return {"pos": points[i].lerp(points[i + 1], f), "leg": i,
+					"dir": (points[i + 1] - points[i]).normalized()}
+		goal -= seg
+	return {"pos": points.back(), "leg": 0, "dir": Vector2.DOWN}
 
 
 func _end_move(actor_id: String) -> void:
@@ -454,7 +476,7 @@ func _end_move(actor_id: String) -> void:
 	_moves.erase(actor_id)
 	if not _actors.has(actor_id):
 		return
-	_actors[actor_id]["pos"] = m["to"]
+	_actors[actor_id]["pos"] = (m["points"] as Array).back()
 	set_anim(actor_id, str(m["anim"]), m["facing"])
 
 

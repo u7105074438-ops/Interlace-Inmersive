@@ -17,6 +17,7 @@ signal thread_changed(npc_id: String)
 const DIR_IN := "in"
 const DIR_OUT := "out"
 const DIR_NOTE := "note"
+const DIR_LOG := "log"
 const DEMAND_CHIP_KEYS: Dictionary = {
 	Blackmail.DEMAND_MONEY: "PHONE_DEMAND_CHIP_MONEY",
 	Blackmail.DEMAND_PROMOTION: "PHONE_DEMAND_CHIP_PROMOTION",
@@ -189,10 +190,10 @@ func note_offer(result: Dictionary) -> void:
 			UITheme.format_money(int(result.get("amount", 0))), tr(str(favour.get("name_key", "")))])
 	var time: String = GameClock.get_time_string()
 	_notes.append({"npc_id": npc_id, "dir": DIR_OUT, "text": offer_text, "time": time, "chip": ""})
-	_notes.append({"npc_id": npc_id, "dir": DIR_IN, "text": tr(str(result.get("text_key", ""))),
+	_notes.append({"npc_id": npc_id, "dir": DIR_NOTE, "text": tr(str(result.get("text_key", ""))),
 			"time": time, "chip": ""})
 	if not str(result.get("record_id", "")).is_empty():
-		_notes.append({"npc_id": npc_id, "dir": DIR_NOTE, "text": tr("PHONE_CHAT_LOGGED"), "time": "",
+		_notes.append({"npc_id": npc_id, "dir": DIR_LOG, "text": tr("PHONE_CHAT_LOGGED"), "time": "",
 				"chip": ""})
 	if npc_id == _thread:
 		_rebuild_thread()
@@ -312,10 +313,8 @@ func _rebuild_thread() -> void:
 
 func _bubble(message: Dictionary) -> Control:
 	var dir: String = str(message["dir"])
-	if dir == DIR_NOTE:
-		var note: Label = PhoneOverlay.label(str(message["text"]).to_upper(), UITheme.V_CAPTION, true)
-		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		return note
+	if dir == DIR_NOTE or dir == DIR_LOG:
+		return _note(str(message["text"]), dir == DIR_LOG)
 	var outgoing: bool = dir == DIR_OUT
 	var accent: Color = PhoneOverlay.accent_color()
 	var bg: Color = accent.darkened(0.45) if outgoing else UITheme.color("slot")
@@ -335,6 +334,18 @@ func _bubble(message: Dictionary) -> Control:
 		time.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		column.add_child(time)
 	return bubble
+
+
+## Narración (qué hizo el contacto) en cursiva, o aviso de registro en el servidor en versalitas.
+func _note(text: String, log_line: bool) -> Control:
+	var note: Label = PhoneOverlay.label(text.to_upper() if log_line else text,
+			UITheme.V_CAPTION if log_line else UITheme.V_SMALL, true)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if log_line:
+		note.add_theme_color_override("font_color", UITheme.color("warn"))
+	else:
+		note.add_theme_font_override("font", UITheme.italic(UITheme.font(UITheme.FONT_REGULAR)))
+	return note
 
 
 func _chip(text: String) -> Control:

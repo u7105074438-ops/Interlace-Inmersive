@@ -239,6 +239,13 @@ func _build() -> void:
 	col.add_child(bottom)
 
 
+func _rebuild_window() -> void:
+	_window.queue_free()
+	remove_child(_window)
+	_ticker = null
+	_build()
+
+
 func _panel(parent: HBoxContainer, title_key: String, width: int) -> VBoxContainer:
 	var frame: PanelContainer = PanelContainer.new()
 	frame.theme_type_variation = Kit.V_PAPER
@@ -270,9 +277,13 @@ func _denied() -> Control:
 	return center
 
 
-## Vuelve a leer Market y repinta la ventana.
+## Vuelve a leer Market y repinta la ventana (la reconstruye si el acceso cambió con el rango).
 func refresh() -> void:
-	if not _built or not is_available():
+	if not _built:
+		return
+	if (_ticker != null) != is_available():
+		_rebuild_window()
+	if not is_available():
 		return
 	var snap: Dictionary = snapshot()
 	_ticker.snap = snap

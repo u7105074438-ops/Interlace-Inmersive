@@ -171,7 +171,7 @@ class OSDesktopIcon extends Control:
 		var icon_rect: Rect2 = Rect2(Vector2((size.x - side) * 0.5, base * 0.35), Vector2(side, side))
 		if _hover or has_focus():
 			draw_rect(Rect2(Vector2.ZERO, size).grow(-base * 0.1), Color(OSTheme.col(pal, "select"), 0.35))
-		OSTheme.draw_icon(self, icon_id, icon_rect, pal)
+		OSTheme.draw_icon_tile(self, icon_id, icon_rect, pal)
 		if locked:
 			draw_rect(icon_rect, Color(OSTheme.col(pal, "desk"), 0.45))
 			OSTheme.draw_icon(self, "lock", Rect2(icon_rect.end - Vector2(side, side) * 0.45, Vector2(side, side) * 0.5), pal)
@@ -327,6 +327,7 @@ class OSTaskbar extends PanelContainer:
 		_start.text = OSApp.t("OS_GUEST_START") if guest else OSApp.t("OS_START")
 		_start.theme_type_variation = OSTheme.V_DANGER if guest else OSTheme.V_PRIMARY
 		_start.add_theme_font_override("font", UITheme.font(UITheme.FONT_BOLD))
+		_start.icon = OSTheme.star_texture(roundi(base * 1.1))
 		_start.pressed.connect(func() -> void: start_pressed.emit())
 		h.add_child(_start)
 		_task = Button.new()
@@ -363,7 +364,9 @@ class OSTaskbar extends PanelContainer:
 		if _clock.text != clock_text:
 			_clock.text = clock_text
 			_day.text = OSApp.t("OS_TRAY_DAY", [GameClock.get_day()])
-			_speed.text = OSApp.t("OS_TRAY_SPEED", [roundi(GameClock.get_speed_multiplier() * StellarOS.PERCENT)])
+		var speed_text: String = OSApp.t("OS_TRAY_SPEED", [roundi(GameClock.get_speed_multiplier() * StellarOS.PERCENT)])
+		if _speed.text != speed_text:
+			_speed.text = speed_text
 
 	func set_task(text: String) -> void:
 		_task.text = text
@@ -619,46 +622,54 @@ class OSAdPopup extends Control:
 		base = base_px
 		index = ad_index
 		icon_id = icon
-		size = Vector2(base * 20.0, base * 10.0)
+		size = Vector2(base * 21.0, base * 12.0)
 		mouse_filter = Control.MOUSE_FILTER_STOP
 		var title: Label = OSApp.make_label(OSApp.t("OS_AD_WINDOW_TITLE"), OSTheme.V_ON_DARK, false, true)
-		title.position = Vector2(base * 0.5, base * 0.2)
-		title.size = Vector2(size.x - base * 3.0, base * 1.3)
+		title.position = Vector2(base * 0.6, base * 0.25)
+		title.size = Vector2(size.x - base * 3.2, base * 1.3)
 		add_child(title)
 		var close: Button = Button.new()
 		close.text = "×"
-		close.position = Vector2(size.x - base * 1.6, base * 0.25)
+		close.focus_mode = Control.FOCUS_NONE
+		close.position = Vector2(size.x - base * 1.75, base * 0.3)
 		close.size = Vector2(base * 1.2, base * 1.2)
 		close.pressed.connect(func() -> void: dismissed.emit())
 		add_child(close)
-		_build_body()
+		add_child(_build_body())
 
-	func _build_body() -> void:
+	func _build_body() -> MarginContainer:
+		var margin: MarginContainer = MarginContainer.new()
+		margin.position = Vector2(base * 5.0, base * 2.3)
+		margin.size = Vector2(size.x - base * 5.6, size.y - base * 2.8)
+		var col: VBoxContainer = VBoxContainer.new()
+		margin.add_child(col)
 		var head: Label = OSApp.make_label(OSApp.t("OS_AD_%d_TITLE" % index), OSTheme.V_TITLE, true)
-		head.position = Vector2(base * 5.2, base * 2.2)
-		head.size = Vector2(size.x - base * 6.0, base * 1.5)
 		head.add_theme_color_override("font_color", OSTheme.col(pal, "accent"))
-		add_child(head)
+		head.max_lines_visible = 2
+		col.add_child(head)
 		var body: Label = OSApp.make_label(OSApp.t("OS_AD_%d_BODY" % index), OSTheme.V_SMALL, true)
-		body.position = Vector2(base * 5.2, base * 3.9)
-		body.size = Vector2(size.x - base * 6.0, base * 3.4)
-		add_child(body)
+		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		body.max_lines_visible = 4
+		col.add_child(body)
 		var ok: Button = Button.new()
 		ok.text = OSApp.t("OS_AD_%d_BUTTON" % index)
 		ok.theme_type_variation = OSTheme.V_PRIMARY
 		ok.pressed.connect(func() -> void: dismissed.emit())
-		add_child(ok)
-		ok.position = Vector2(base * 5.2, size.y - base * 2.3)
-		ok.size = Vector2(size.x - base * 6.0, base * 1.7)
+		col.add_child(ok)
+		return margin
 
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
 		draw_rect(Rect2(r.position + Vector2(6, 6), r.size), Color(0, 0, 0, 0.3))
 		OSTheme.draw_bevel(self, r, pal, false, base)
-		OSTheme.draw_title_bar(self, Rect2(Vector2(4, 4), Vector2(size.x - 8, base * 1.7)), pal, true)
-		var art: Rect2 = Rect2(Vector2(base * 0.8, base * 2.6), Vector2(base * 3.8, base * 3.8))
-		draw_circle(art.get_center(), art.size.x * 0.55, Color(OSTheme.col(pal, "paper"), 0.9))
-		OSTheme.draw_icon(self, icon_id, art, pal)
+		var fw: float = OSTheme.bevel_width(base) * 2.0
+		OSTheme.draw_title_bar(self, Rect2(Vector2(fw, fw), Vector2(size.x - fw * 2.0, base * 1.8)), pal, true)
+		var art: Rect2 = Rect2(Vector2(base * 0.7, base * 2.8), Vector2(base * 3.8, base * 3.8))
+		draw_circle(art.get_center(), art.size.x * 0.58, Color(OSTheme.col(pal, "paper"), 0.95))
+		draw_arc(art.get_center(), art.size.x * 0.58, 0.0, TAU, 40, OSTheme.col(pal, "accent"), 2.0, true)
+		OSTheme.draw_icon(self, icon_id, art.grow(-base * 0.3), pal)
+		OSTheme.draw_logo(self, Vector2(base * 2.6, size.y - base * 2.0), base * 0.9,
+				Color(OSTheme.col(pal, "accent"), 0.35), Color(OSTheme.col(pal, "dark"), 0.4))
 
 
 ## Contenido de una aplicación sin desplegar (PERSONNEL/PORTAL/MARKET mientras no existan).
@@ -717,6 +728,9 @@ func _ready() -> void:
 	_build_desktop()
 	_take_clock()
 	_start_boot()
+	EventBus.duty_progressed.connect(_on_duty_changed.unbind(2))
+	EventBus.duty_completed.connect(_on_duty_changed.unbind(3))
+	EventBus.duty_failed.connect(_on_duty_changed.unbind(2))
 
 
 func _exit_tree() -> void:
@@ -877,10 +891,10 @@ func wait_lag(factor: float = 1.0) -> void:
 func get_duty_system() -> DutySystem:
 	if is_instance_valid(_fallback_duties):
 		return _fallback_duties
-	var found: DutySystem = get_tree().get_first_node_in_group(DutySystem.GROUP) as DutySystem \
-			if is_inside_tree() else null
-	if found != null:
-		return found
+	if is_inside_tree():
+		for node: Node in get_tree().get_nodes_in_group(DutySystem.GROUP):
+			if node is DutySystem and not node.is_queued_for_deletion():
+				return node as DutySystem
 	_fallback_duties = DutySystem.new()
 	_fallback_duties.name = "FallbackDutySystem"
 	add_child(_fallback_duties)
@@ -1064,17 +1078,27 @@ func _layer(layer_name: String, filter: Control.MouseFilter) -> Control:
 
 
 func _build_icons() -> void:
-	var locked: Array[String] = []
 	for app_id: String in get_desktop_apps():
 		var icon: OSDesktopIcon = OSDesktopIcon.new(_pal, _base, app_id, t(app_name_key(app_id)))
 		icon.locked = not is_app_available(app_id)
-		if icon.locked:
-			locked.append(app_id)
-		if app_id == APP_MAIL and not is_guest():
-			icon.badge = MailApp.pending_count(get_duty_system())
 		icon.activated.connect(func(id: String) -> void: open_app(id))
 		add_child(icon)
 		_icons[app_id] = icon
+	_refresh_badges()
+
+
+## Insignia de MAIL: correos del deber de hoy sin contestar.
+func _refresh_badges() -> void:
+	var icon: OSDesktopIcon = _icons.get(APP_MAIL) as OSDesktopIcon
+	if icon == null:
+		return
+	icon.badge = 0 if is_guest() else MailApp.pending_count(get_duty_system())
+	icon.queue_redraw()
+
+
+func _on_duty_changed() -> void:
+	if is_inside_tree():
+		_refresh_badges.call_deferred()
 
 
 func _guest_banner() -> PanelContainer:

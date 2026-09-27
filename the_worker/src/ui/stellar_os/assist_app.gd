@@ -28,6 +28,7 @@ const OK_SENTENCES := 6
 const EX_POINTS := 6
 const FAIL_SENTENCES := 6
 const LOG_SHOWN := 4
+const QUIP_COUNT := 4
 const EXCELLENT_COLOR := Color("#d9a53a")
 const PERCENT := 100.0
 
@@ -46,6 +47,47 @@ var _detected: Label
 var _typing: float = 0.0
 var _last_result: Dictionary = {}
 var _working: bool = false
+var _mascot: AssistMascot
+
+
+## La mascota de A.S.S.I.S.T. con su bocadillo (la frase cambia con el resultado).
+class AssistMascot extends Control:
+	var pal: Dictionary = {}
+	var base: int = 24
+	var quip: String = ""
+
+	func _init(p: Dictionary, base_px: int) -> void:
+		pal = p
+		base = base_px
+		size_flags_vertical = Control.SIZE_EXPAND_FILL
+		size_flags_stretch_ratio = 1.3
+		custom_minimum_size = Vector2(0, base * 5.0)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func say(text: String) -> void:
+		quip = text
+		queue_redraw()
+
+	func _draw() -> void:
+		var side: float = minf(size.y * 0.72, base * 6.5)
+		var bot: Rect2 = Rect2(Vector2(base * 0.4, size.y - side - base * 0.3), Vector2(side, side))
+		OSTheme.draw_icon(self, "assist", bot, pal)
+		var f: Font = UITheme.font(UITheme.FONT_SEMIBOLD)
+		var fs: int = roundi(base * 0.8)
+		var left: float = bot.end.x + base * 0.5
+		var width: float = maxf(size.x - left - base * 0.4, base * 4.0)
+		var text_h: float = f.get_multiline_string_size(quip, HORIZONTAL_ALIGNMENT_LEFT, width - base, fs, 4).y
+		var h: float = text_h + base * 1.0
+		var y: float = clampf(bot.position.y - h * 0.4, base * 0.3, maxf(size.y - h - base * 0.3, base * 0.3))
+		var bubble: Rect2 = Rect2(Vector2(left, y), Vector2(width, h))
+		var tail: PackedVector2Array = [bubble.position + Vector2(base * 0.6, h - 2.0),
+				bubble.position + Vector2(base * 1.8, h - 2.0), bot.position + Vector2(side * 0.9, side * 0.3)]
+		draw_colored_polygon(tail, OSTheme.col(pal, "field"))
+		draw_polyline(PackedVector2Array([tail[0], tail[2], tail[1]]), OSTheme.col(pal, "shadow").darkened(0.3), 1.5, true)
+		OSTheme.draw_panel(self, bubble, pal, OSTheme.col(pal, "field"))
+		draw_line(tail[0] + Vector2(1.5, 0), tail[1] - Vector2(1.5, 0), OSTheme.col(pal, "field"), 3.0)
+		draw_multiline_string(f, bubble.position + Vector2(base * 0.5, base * 0.35 + fs), quip, HORIZONTAL_ALIGNMENT_LEFT,
+				width - base, fs, 4, OSTheme.col(pal, "text"))
 
 
 # ─── Texto generado (puro) ────────────────────────────────────────
@@ -121,6 +163,9 @@ func build() -> void:
 	var scroll: ScrollContainer = make_scroll_list()
 	_duty_list = scroll.get_child(0) as VBoxContainer
 	left.add_child(scroll)
+	_mascot = AssistMascot.new(pal, base)
+	_mascot.say(t("ASSIST_QUIP_IDLE_%d" % (GameClock.get_day() % QUIP_COUNT + 1)))
+	left.add_child(_mascot)
 	_risk = make_label("", OSTheme.V_SMALL, true)
 	_risk.add_theme_color_override("font_color", c("bad"))
 	left.add_child(_risk)
@@ -256,6 +301,7 @@ func generate(forced_outcome: String = "") -> Dictionary:
 	_generate.disabled = true
 	_summary.text = t("ASSIST_THINKING")
 	_output.text = t("ASSIST_THINKING_BODY")
+	_mascot.say(t("ASSIST_QUIP_THINKING"))
 	await wait_lag(1.5)
 	var ds: DutySystem = duty_system()
 	var result: Dictionary = ds.use_assist(_selected_duty) if forced_outcome.is_empty() \
@@ -280,6 +326,7 @@ func show_result(result: Dictionary) -> void:
 	_badge_holder.add_child(make_badge(t("ASSIST_BADGE_" + outcome.to_upper()), _outcome_color(outcome)))
 	_summary.text = t(str(result.get("text_key", "")))
 	_output.text = str(result.get("text", ""))
+	_mascot.say(t("ASSIST_QUIP_" + outcome.to_upper()))
 	_output.visible_characters = 0 if _typing_speed() > 0.0 else -1
 	_typing = 0.0
 	var stats: String = t("ASSIST_STATS", [int(result.get("minutes", 0)), roundi(float(result.get("quality", 0.0)) * PERCENT)])

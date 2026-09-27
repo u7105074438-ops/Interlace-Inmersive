@@ -2367,7 +2367,7 @@ PERS_CAT_TARGETS,Marked targets,Objetivos marcados
 PERS_CLASSIFIED,Classified,Clasificado
 PERS_CLEARANCE,File clearance,Acreditación
 PERS_CMP_ATTITUDE,Attitude to you,Actitud contigo
-PERS_CMP_BRIBE,Bribe to look away,Soborno por mirar a otro lado
+PERS_CMP_BRIBE,Bribe price,Precio del soborno
 PERS_CMP_DEBT,Debts,Deudas
 PERS_CMP_FACTS,On file,En el expediente
 PERS_CMP_HOME,Home,Domicilio
@@ -2528,7 +2528,7 @@ AURORA_ASSIST_WHISPER,Are those figures… made up?,¿Esas cifras son… inventa
 PHONE_TAB_CONTACTS,Contacts,Contactos
 PHONE_TAB_CHAT,Chat,Chat
 PHONE_TAB_CALL,Call,Llamar
-PHONE_CARRIER,STELLAR MOBILE,STELLAR MÓVIL
+PHONE_CARRIER,STELLAR,STELLAR
 PHONE_SILENT_TOGGLE,Silent mode: your phone will not vibrate.,Modo silencio: el móvil no vibrará.
 PHONE_UNKNOWN_NUMBER,Unknown number,Número desconocido
 PHONE_TOAST_MESSAGE,New message from %s,Mensaje nuevo de %s
@@ -2552,7 +2552,7 @@ PHONE_ACTION_DEAL,Deal,Trato
 PHONE_BACK,Back,Volver
 PHONE_CHAT_TITLE,Chats,Conversaciones
 PHONE_CHAT_EMPTY,No messages. Enjoy it while it lasts.,Sin mensajes. Disfrútalo mientras dure.
-PHONE_CHAT_RECORD_WARNING,Everything written here is stored on the company server. IT can read it.,Todo lo que escribas aquí queda en el servidor de la empresa. IT puede leerlo.
+PHONE_CHAT_RECORD_WARNING,Stored on the company server. IT reads it.,Queda en el servidor de la empresa. IT lo lee.
 PHONE_CHAT_RECORD_COUNT,On file: %d messages,En el archivo: %d mensajes
 PHONE_CHAT_IGNORED,Seen. No reply.,Visto. Sin respuesta.
 PHONE_CHAT_ANSWER_DEMAND,Answer their demand,Responder a su exigencia
@@ -2574,7 +2574,7 @@ PHONE_PRIVACY_PRIVATE,Private,Privado
 PHONE_PRIVACY_EXPOSED,Exposed,Expuesto
 PHONE_PRIVACY_NOBODY,Nobody can hear you.,Nadie puede oírte.
 PHONE_PRIVACY_LISTENERS,%d people can hear you.,%d personas pueden oírte.
-PHONE_PRIVACY_HINT,Only the toilets and the service stairs are safe to talk.,Solo los baños y la escalera de servicio son seguros para hablar.
+PHONE_PRIVACY_HINT,Only the toilets and service stairs are safe.,Solo los baños y la escalera de servicio son seguros.
 PHONE_BRIBE_TITLE,Deal with %s,Trato con %s
 PHONE_BRIBE_VIA_CHAT,By chat,Por chat
 PHONE_BRIBE_VIA_CALL,By phone call,Por llamada
@@ -2582,9 +2582,9 @@ PHONE_BRIBE_FAVOUR_CAPTION,What you want,Qué quieres
 PHONE_BRIBE_AMOUNT_CAPTION,Your offer,Tu oferta
 PHONE_BRIBE_FUNDS,You have %s,Tienes %s
 PHONE_BRIBE_ESTIMATE,Personnel file estimate: %s,Estimación del expediente: %s
-PHONE_BRIBE_BLIND,Price unknown. You are guessing (a level N%d personnel file shows an estimate).,Precio desconocido. Vas a ciegas (el expediente de nivel N%d muestra una estimación).
+PHONE_BRIBE_BLIND,Price unknown: you are guessing. (A level N%d personnel file shows an estimate.),Precio desconocido: vas a ciegas. (El expediente de nivel N%d muestra una estimación.)
 PHONE_BRIBE_ASKED,They asked for %s.,Te ha pedido %s.
-PHONE_BRIBE_RISK_CHAT,Leaves a permanent record on the company server.,Deja un registro permanente en el servidor de la empresa.
+PHONE_BRIBE_RISK_CHAT,Leaves a permanent record on the server.,Deja un registro permanente en el servidor.
 PHONE_BRIBE_SEND,Send offer · %s,Enviar oferta · %s
 PHONE_BRIBE_CONFIRM,Send it,Enviarla
 PHONE_BRIBE_CONFIRM_BODY,Offer %s to %s for: %s? This cannot be undone.,¿Ofrecer %s a %s por: %s? No hay vuelta atrás.
@@ -2615,8 +2615,8 @@ CAUGHTUI_CRIME_GENERIC,doing something you really should not,haciendo algo que n
 CAUGHTUI_INACTION,"If you do nothing, %s will decide for you.","Si no haces nada, %s decidirá por ti."
 CAUGHTUI_WITNESSES,Witnesses: %d,Testigos: %d
 CAUGHTUI_OFFER_MONEY,Offer money,Ofrecer dinero
-CAUGHTUI_BRIBE_HINT,On the spot: the priciest silence there is (×20).,En el acto: el silencio más caro que existe (×20).
-CAUGHTUI_COUNTER_HINT,They named their price. Pay it or live with it.,Ha puesto precio. Págalo o apechuga.
+CAUGHTUI_BRIBE_HINT,The priciest silence there is (×20).,El silencio más caro que existe (×20).
+CAUGHTUI_COUNTER_HINT,Pay it or live with it.,Págalo o apechuga.
 CAUGHTUI_PRICE,Price: %s,Precio: %s
 CAUGHTUI_ELIMINATE,Silence them permanently,Silenciarlo para siempre
 CAUGHTUI_ELIMINATE_HINT,Nobody else is looking. It cannot be undone.,Nadie más mira. No tiene vuelta atrás.
@@ -2698,7 +2698,7 @@ OS_BOOT_TIP_6,Every second this bar takes is logged as 'engagement'. Thank you f
 OS_GUEST_LOGIN_TITLE,StellarOS — Log on,StellarOS — Iniciar sesión
 OS_GUEST_PASSWORD,Password: ,Contraseña: 
 OS_GUEST_LOGIN_HINT,The password was on a sticky note under the keyboard. Company policy forbids this. Everybody does it.,La contraseña estaba en un pósit debajo del teclado. La normativa lo prohíbe. Todo el mundo lo hace.
-OS_AD_WINDOW_TITLE,StellarOS Messenger — Internal Comms,StellarOS Messenger — Comunicación Interna
+OS_AD_WINDOW_TITLE,StellarOS Messenger,StellarOS Messenger
 OS_AD_1_TITLE,HYDRATION IS A TEAM SPORT,LA HIDRATACIÓN ES UN DEPORTE DE EQUIPO
 OS_AD_1_BODY,"Hydrated employees answer 4% more emails. Drink responsibly, during your break.","Los empleados hidratados responden un 4 % más de correos. Bebe con responsabilidad, en tu descanso."
 OS_AD_1_BUTTON,I am hydrated,Estoy hidratado
@@ -2902,7 +2902,7 @@ FILES_REPORT_BODY_STOLEN_MATERIAL,Produced from 'borrowed' material. The formatt
 FILES_ASSIST_NAME,assist_output_d%d_%02dh_%d.txt,salida_assist_d%d_%02dh_%d.txt
 FILES_ASSIST_META,Task: %s · Result: %s,Tarea: %s · Resultado: %s
 FILES_ASSIST_BODY,"Automatically saved copy of an A.S.S.I.S.T. session. A second copy has been sent to IT, for transparency.","Copia guardada automáticamente de una sesión de A.S.S.I.S.T. Se ha enviado una segunda copia a IT, por transparencia."
-FILES_IDEA_NAME,idea_%s.doc,idea_%s.doc
+FILES_IDEA_NAME,brilliant_idea_%s.doc,idea_brillante_%s.doc
 FILES_IDEA_META,Quality %d · expires in %d day(s),Calidad %d · caduca en %d día(s)
 FILES_IDEA_ORIGIN,Original author: %s · obtained: %s,Autor original: %s · obtenida: %s
 FILES_DOC_META,Paper document,Documento en papel
@@ -2968,3 +2968,163 @@ OSQA_NOTES,"Claudia: lunch 13:00-14:00, desk empty.
 - George me debe una. Usarla.
 - Devolverle lo suyo a Sonia antes del viernes.
 - Nunca usar A.S.S.I.S.T. cerca de Lasker."
+PERS_FULL_FILE_FMT,Full file: %s,Expediente completo: %s
+PERS_LEVEL_HINT,"Clearance comes with your post. An HR break-in, an HR job or some blackmail opens the full file.","La acreditación va con tu puesto. Una intrusión en RR. HH., un puesto en RR. HH. o algo de chantaje abren el expediente entero."
+OS_IRREVERSIBLE,This action cannot be undone.,Esta acción no se puede deshacer.
+PORTAL_APP_TITLE,PORTAL — Organisational Chart & Opportunities,PORTAL — Organigrama y Oportunidades
+PORTAL_AGENDA_OF,Today's agenda of %s,Agenda de hoy de %s
+PORTAL_AURORA_FMT,Aurora %s · F12,Aurora %s · P12
+PORTAL_CAUSE_OTHER,reasons undisclosed,motivos no revelados
+PORTAL_CAUSE_EXPELLED,dismissed,despido
+PORTAL_CAUSE_EXPULSION,dismissed,despido
+PORTAL_CAUSE_FIRED,fired,despido
+PORTAL_CAUSE_FRAMED,convicted,condena
+PORTAL_CAUSE_ELIMINATED,vanished,desaparición
+PORTAL_CAUSE_ELIMINATION,vanished,desaparición
+PORTAL_CAUSE_PROMOTED,promoted,ascenso
+PORTAL_CAUSE_PLAYER_PROMOTED,you moved up,tu ascenso
+PORTAL_CAUSE_PLAYER_LATERAL,you moved sideways,tu traslado
+PORTAL_CAUSE_DEMOTED,demoted,descenso
+PORTAL_CAUSE_RETIRED,retired,jubilación
+PORTAL_CAUSE_REASSIGNED,reassigned,reasignación
+PORTAL_COND_OK_PATH,Reachable from your current post,Accesible desde tu puesto actual
+PORTAL_COND_OK_REPUTATION,Your reputation is high enough,Tu reputación es suficiente
+PORTAL_COND_OK_MERIT,You have enough recent merit,Tienes mérito reciente suficiente
+PORTAL_COND_OK_VACANCY,The chair is free (or would be created for you),La silla está libre (o se crearía para ti)
+PORTAL_CONFIRM_TITLE,Confirm request,Confirmar solicitud
+PORTAL_CONFIRM_BODY,Request the post of %s? Your current chair (%s) will be given to someone else the moment you sign. There is no way back.,¿Solicitar el puesto de %s? Tu silla actual (%s) pasará a otra persona en cuanto firmes. No hay vuelta atrás.
+PORTAL_CONFIRM_YES,Sign the request,Firmar la solicitud
+PORTAL_DAY_FMT,Day %d,Día %d
+PORTAL_DETAIL_KICKER,POST · SEAT RECORD,PUESTO · REGISTRO DE SILLAS
+PORTAL_FIELD_OFFICE,Office,Despacho
+PORTAL_FIELD_RANK,Grade,Categoría
+PORTAL_HINT,"Find the hole you must fill, or make one.","Encuentra el hueco que debes ocupar, o créalo."
+PORTAL_RANK_FMT,R%d · tier %d · clearance N%d,R%d · escalón %d · acreditación N%d
+PORTAL_REQUEST,Request this post,Solicitar este puesto
+PORTAL_RESULTS_DAY,Results · F16,Resultados · P16
+PORTAL_SEAT_FMT,Seat %d,Silla %d
+PORTAL_SEC_AGENDA,Agenda,Agenda
+PORTAL_SEC_PROMOTION,Your chances,Tus opciones
+PORTAL_SEC_SEATS,Seats,Sillas
+PORTAL_STATUS_SEATS,%d seats in %d posts,%d sillas en %d puestos
+PORTAL_STATUS_VACANT,%d vacant,%d vacantes
+PORTAL_TAG_NEXT,NEXT,SIGUIENTE
+PORTAL_TAG_YOU,YOU,TÚ
+PORTAL_VACANCIES,Vacant,Vacantes
+PORTAL_VACANT,Vacant,Vacante
+PORTAL_VACANT_N,%d VACANT,%d VACANTES
+PORTAL_VACANT_SINCE,VACANT since day %d (%s),VACANTE desde el día %d (%s)
+PORTAL_WEEK,THIS WEEK,ESTA SEMANA
+PORTAL_WEEK_SUB,Aurora & results,Aurora y resultados
+PORTAL_YOUR_CHAIR,This is your chair. Somebody is already eyeing it.,Esta es tu silla. Alguien ya le ha echado el ojo.
+PORTAL_YOUR_SEAT,Your chair,Tu silla
+PORTAL_YOU_FMT,%s (you),%s (tú)
+MARKET_APP_TITLE,MARKET — StellarQuote Terminal 2.0,MARKET — Terminal StellarQuote 2.0
+MARKET_BUY,Buy (%s),Comprar (%s)
+MARKET_CALENDAR_EMPTY,Nothing scheduled. Suspiciously quiet.,Nada previsto. Sospechosamente tranquilo.
+MARKET_CHART_TITLE,SSEL · CLOSE · LAST %d SESSIONS,SSEL · CIERRE · ÚLTIMAS %d SESIONES
+MARKET_CONFIDENCE_FMT,INVESTOR CONFIDENCE %.1f  ·  Q TARGET %.1f  ·  Q%d,CONFIANZA INVERSORA %.1f  ·  OBJETIVO %.1f  ·  T%d
+MARKET_CONFIRM_INSIDER,"You already know which way this is going. The exchange keeps records, and the Chief Auditor reads them. Trade anyway?",Ya sabes hacia dónde va a moverse. La bolsa guarda registros y el Auditor Jefe los lee. ¿Operar de todas formas?
+MARKET_CONFIRM_STAKE,"Buy the board stake for %s? You will vote on the board and live on dividends instead of a salary. If the company sinks, it sinks with your money.","¿Comprar el paquete accionarial por %s? Votarás en el consejo y vivirás de dividendos en lugar de salario. Si la empresa se hunde, se hunde con tu dinero."
+MARKET_CONFIRM_TITLE,Confirm order,Confirmar orden
+MARKET_CONFIRM_YES,Place the order,Cursar la orden
+MARKET_DENIED_BODY,Share trading from the office terminal requires rank R%d.,Operar en bolsa desde el terminal de oficina requiere rango R%d.
+MARKET_DENIED_TITLE,ACCESS DENIED,ACCESO DENEGADO
+MARKET_DIVIDEND,Dividend / year,Dividendo / año
+MARKET_GAIN,Gain / loss,Plusvalía
+MARKET_NEWS_INTRO,"Friends in Communications mention, off the record:","Amigos en Comunicación comentan, extraoficialmente:"
+MARKET_NEWS_NONE,Nothing on the grapevine.,Radio macuto no dice nada.
+MARKET_PATTERN,INSIDER PATTERN (AUDIT ATTENTION),PATRÓN PRIVILEGIADO (ATENCIÓN DE AUDITORÍA)
+MARKET_SEC_CALENDAR,Results calendar,Calendario de resultados
+MARKET_SEC_INVESTORS,Investors · confidence,Inversores · confianza
+MARKET_SEC_NEWS,Heads-up,Soplos
+MARKET_SEC_PORTFOLIO,Your portfolio,Tu cartera
+MARKET_SELL,Sell,Vender
+MARKET_SHARES,Shares,Acciones
+MARKET_STAKE_BUY,Buy board stake · %s,Comprar paquete · %s
+MARKET_STAKE_LOCKED,Board stake available from R%d.,Paquete accionarial disponible desde R%d.
+MARKET_STAKE_OWNED,You own a board stake: you vote.,Tienes paquete accionarial: votas en el consejo.
+MARKET_STATUS_SHARES,%d shares,%d acciones
+MARKET_STATUS_WALLET,Cash: %s,Efectivo: %s
+MARKET_SYMBOL,SSEL,SSEL
+MARKET_VALUE,Market value,Valor de mercado
+MARKET_VOTES,Board votes,Votos en el consejo
+RPRES_ALLIES,Allies in the room: %d,Aliados en la sala: %d
+RPRES_ALLIES_NONE,Nobody owes you a friendly question.,Nadie te debe una pregunta amable.
+RPRES_ASSIST_ACCEPTABLE,A.S.S.I.S.T. produced something presentable.,A.S.S.I.S.T. produjo algo presentable.
+RPRES_ASSIST_EXCELLENT,A.S.S.I.S.T. outdid itself. Nobody knows why.,A.S.S.I.S.T. se superó a sí misma. Nadie sabe por qué.
+RPRES_ASSIST_EVIDENT_FAILURE,A.S.S.I.S.T. invented a subsidiary in Narnia. Someone noticed.,A.S.S.I.S.T. se inventó una filial en Narnia. Alguien se dio cuenta.
+RPRES_CONFIRM_FIGURES,Lock the figures and go on stage,Cerrar las cifras y salir a escena
+RPRES_DAYS,Quarter so far and projection: %d days,Trimestre acumulado y proyección: %d días
+RPRES_DECIDE,What will you tell them?,¿Qué les vas a contar?
+RPRES_FIG_REVENUE,Revenue,Ingresos
+RPRES_FIG_COSTS,Costs,Costes
+RPRES_FIG_PROFIT,Profit,Beneficio
+RPRES_FUSE_BODY,Internal Audit will check in about %d week(s). Chance they spot it: %d%%.,Auditoría interna revisará en unas %d semana(s). Probabilidad de que lo detecte: %d%%.
+RPRES_FUSE_TITLE,Audit fuse lit,Mecha de auditoría encendida
+RPRES_INFLATION,Revenue adjusted by +%d%%,Ingresos ajustados un +%d%%
+RPRES_KICKER,FLOOR %d · RESULTS HALL,PLANTA %d · SALA DE RESULTADOS
+RPRES_LEAVE,Leave the stage,Bajar del estrado
+RPRES_LEVEL_HINT_NONE,You walk on with nothing but confidence.,Sales con lo puesto y mucha seguridad.
+RPRES_LEVEL_HINT_ASSIST,Generated now. Usually fine. Occasionally catastrophic.,"Generado ahora. Suele salir bien. A veces, catastrófico."
+RPRES_LEVEL_HINT_STOLEN_COO_REPORT,Needs the COO's report in your hands.,Necesitas el informe del COO en tus manos.
+RPRES_LEVEL_HINT_REAL_WORK,Needs the quarterly report done properly today.,Necesitas el informe trimestral hecho como es debido hoy.
+RPRES_NOT_AUTHORISED,"Only the CFO, the B10 director or the CEO can touch these numbers.","Solo el CFO, el director del B10 o el consejero delegado pueden tocar estas cifras."
+RPRES_NOT_TODAY,The stage is closed. Results day is day %d.,El estrado está cerrado. El día de resultados es el día %d.
+RPRES_PART_ALLIES,0.3 × allies in the room (%.2f),"0,3 × aliados en la sala (%.2f)"
+RPRES_PART_PREP,0.4 × preparation (%.2f),"0,4 × preparación (%.2f)"
+RPRES_PART_REP,0.3 × your reputation (%.2f),"0,3 × tu reputación (%.2f)"
+RPRES_PREPARATION,How was the report produced?,¿Cómo se hizo el informe?
+RPRES_PRESENT,Take the stage,Salir al estrado
+RPRES_QUALITY,Presentation quality: %.2f,Calidad de la presentación: %.2f
+RPRES_Q_VALUE,"Walk me through the margin, excluding one-offs.","Explíqueme el margen, sin partidas extraordinarias."
+RPRES_Q_MOMENTUM,What is the next big announcement?,¿Cuál es el próximo gran anuncio?
+RPRES_Q_INFO_HUNTER,Anything you can tell us before the press does?,¿Algo que pueda contarnos antes que la prensa?
+RPRES_Q_ACTIVIST,Why should this board keep its current management?,¿Por qué debería este consejo mantener a la dirección actual?
+RPRES_Q_PASSIVE,Is there anything we should be worried about?,¿Hay algo que deba preocuparnos?
+RPRES_Q_ALLY,Would you agree this has been a remarkable quarter?,¿Diría usted que ha sido un trimestre extraordinario?
+RPRES_REACTION,How the room took it,Cómo se lo tomó la sala
+RPRES_REAL,The real numbers,Las cifras reales
+RPRES_REAL_SUB,What actually happened this quarter.,Lo que pasó de verdad este trimestre.
+RPRES_REPORTED,What you will report,Lo que vas a comunicar
+RPRES_REPORTED_SUB,What the market will hear.,Lo que oirá el mercado.
+RPRES_SCREEN_TITLE,STELLAR SELL · QUARTERLY RESULTS,STELLAR SELL · RESULTADOS TRIMESTRALES
+RPRES_SUM_ALLIES,Friendly questions,Preguntas amables
+RPRES_SUM_CONFIDENCE,Confidence / target,Confianza / objetivo
+RPRES_SUM_QUALITY,Presentation quality,Calidad de la presentación
+RPRES_SUM_SENTIMENT,Market sentiment,Sentimiento de mercado
+RPRES_TARGET_MET,Confidence target met. For now.,Objetivo de confianza cumplido. De momento.
+RPRES_TARGET_MISSED,Below the confidence target. The board has noticed.,Por debajo del objetivo de confianza. El consejo se ha dado cuenta.
+RPRES_TITLE,Q%d results presentation,Presentación de resultados del T%d
+RPRES_VERDICT,Verdict,Veredicto
+OS_WALL_SLOGAN_LUNA,THE VIEW IS PART OF THE SALARY,LAS VISTAS FORMAN PARTE DEL SUELDO
+MAIL_FOOTER,"This email and any attachments are confidential and intended solely for the 1,400 people it was sent to. If you received it, you were meant to. Please consider the environment before replying.","Este correo y sus adjuntos son confidenciales y van dirigidos exclusivamente a las 1.400 personas a las que se ha enviado. Si lo has recibido, era para ti. Piensa en el medio ambiente antes de responder."
+MAIL_YOU_SENT,You sent: “%s”,Enviaste: «%s»
+ASSIST_QUIP_IDLE_1,Hi! I can do your job. Want me to do your job?,¡Hola! Puedo hacer tu trabajo. ¿Quieres que haga tu trabajo?
+ASSIST_QUIP_IDLE_2,Remember: every task I do is a task you did. Legally speaking.,Recuerda: cada tarea que hago yo es una tarea que hiciste tú. Legalmente hablando.
+ASSIST_QUIP_IDLE_3,I have read every email ever sent in this building. Ask me anything. Please don't.,He leído todos los correos enviados en este edificio. Pregúntame lo que quieras. Mejor no.
+ASSIST_QUIP_IDLE_4,"Today's forecast: 60% acceptable, 25% excellent, 15% career-ending.","Previsión de hoy: 60 % aceptable, 25 % excelente, 15 % fin de tu carrera."
+ASSIST_QUIP_THINKING,"Thinking very hard. Well, statistically.","Pensando muchísimo. Bueno, estadísticamente."
+ASSIST_QUIP_ACCEPTABLE,"Done! It says nothing, beautifully.","¡Listo! No dice nada, y lo dice precioso."
+ASSIST_QUIP_EXCELLENT,Nailed it. Please take full credit.,Lo he bordado. Atribúyete todo el mérito.
+ASSIST_QUIP_EVIDENT_FAILURE,I may have invented a few numbers. And a department.,Puede que me haya inventado algunas cifras. Y un departamento.
+BLACKMAILUI_KICKER_FACE,Face to face,Cara a cara
+RPRES_EXPECT_NONE,First quarter: nobody expects anything yet.,Primer trimestre: nadie espera nada todavía.
+RPRES_EXPECT_BEAT,Beats expectations,Supera las expectativas
+RPRES_EXPECT_MISS,Misses expectations,No alcanza las expectativas
+RPRES_EXPECT_INLINE,In line with expectations,En línea con lo esperado
+RPRES_EXPECT_MARKET,Market expects,El mercado espera
+RPRES_EXPECT_YOURS,Quarter profit,Beneficio del trimestre
+RPRES_QUIP_UP,Nods slowly and writes something down.,Asiente despacio y apunta algo.
+RPRES_QUIP_DOWN,Checks the exit. Then their phone.,"Mira la salida. Luego, el móvil."
+RPRES_QUIP_FLAT,"Unmoved, as per their mandate.","Impasible, como marca su mandato."
+RPRES_AGGREGATE,Aggregate confidence %.1f → %.1f,Confianza agregada %.1f → %.1f
+RPRES_TARGET_TICK,target,objetivo
+RPRES_COSTS_TITLE,Where the money goes (per day),Adónde va el dinero (por jornada)
+RPRES_COST_MATERIALS,Materials,Materiales
+RPRES_COST_PAYROLL,Payroll,Nóminas
+RPRES_COST_OVERHEADS,Overheads,Gastos generales
+RPRES_COST_LEGAL,Legal,Legales
+RPRES_COST_THEFT_LOSSES,Theft losses,Pérdidas por robo
+RPRES_COST_SCANDAL_COSTS,Scandals,Escándalos
+RPRES_PAPER,THE FINANCIAL COURIER · TOMORROW,EL CORREO FINANCIERO · MAÑANA

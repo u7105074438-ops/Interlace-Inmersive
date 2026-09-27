@@ -48,6 +48,10 @@ const B_PAUSE := "escenas.pausa_segundos"
 const B_METER := "escenas.medidor_segundos"
 const B_MAX_IDEAS := "escenas.max_ideas_listadas"
 const PERCENT := 100.0
+## Penalización de orden para asistentes de espaldas (más que cualquier distancia del lienzo).
+const DESIGN_FAR := 10000.0
+## Separación del pasillo respecto a la fila de sillas (px del lienzo de diseño).
+const AISLE_OFFSET := 40.0
 
 var instant: bool = false
 var clash_overrides: Dictionary = {}
@@ -314,6 +318,11 @@ func continue_scene() -> void:
 			finish()
 
 
+## QA/tests: hace avanzar la línea de tiempo `seconds` sin depender del reloj real.
+func advance(seconds: float) -> void:
+	_timeline.tick(seconds)
+
+
 func fast_forward() -> void:
 	_timeline.flush()
 	_stage.finish_moves()
@@ -498,7 +507,7 @@ func _button_row(buttons: Array[Button]) -> void:
 		row.add_child(b)
 	_panel_box.add_child(row)
 	if not buttons.is_empty():
-		buttons.back().call_deferred("grab_focus")
+		MenuKit.focus_later(buttons.back())
 
 
 func _show_message(text: String, button_key: String, action: Callable) -> void:
@@ -978,17 +987,21 @@ func _react_loss() -> void:
 	_stage.set_prop("screen_sub", tr("AURORA_SCREEN_BY") % _accuser_name())
 
 
-## Un asistente de la fila del fondo (de cara a cámara, no lo tapa el panel), fuera de `excluded`.
+## Un asistente de la fila del fondo (de cara a cámara, no lo tapa el panel) fuera de `excluded`,
+## el más alejado de ellos para que los bocadillos no se pisen.
 func _visible_other(excluded: Array[String]) -> String:
-	var fallback: String = ""
+	var best: String = ""
+	var best_score: float = -INF
 	for id: String in _attendees:
 		if excluded.has(id) or not _stage.has_actor(id):
 			continue
-		if (_stage.get_actor(id)["facing"] as Vector2).y > 0.5:
-			return id
-		if fallback.is_empty():
-			fallback = id
-	return fallback
+		var score: float = 0.0 if (_stage.get_actor(id)["facing"] as Vector2).y > 0.5 else -DESIGN_FAR
+		for other: String in excluded:
+			score += absf(_stage.actor_feet(id).x - _stage.actor_feet(other).x)
+		if score > best_score:
+			best_score = score
+			best = id
+	return best
 
 
 # ─── Presentaciones ajenas y cierre ───────────────────────────
@@ -1004,8 +1017,7 @@ func _run_others() -> void:
 	_others = _close_meeting()
 	var delay: float = _walk()
 	for entry: Dictionary in _others:
-		_timeline.then(delay, _stage_other.bind(entry))
-		delay = SceneStage.reading_time(tr("AURORA_OTHER_PITCH") % str(entry["title"]))
+		delay = _schedule_other(entry, delay)
 	if _others.is_empty() and not _chair_id.is_empty():
 		_timeline.then(delay, _stage.say.bind(_chair_id, tr("AURORA_OTHERS_NONE"), SceneStage.STYLE_SAY, 0.0))
 		delay = _pause()
@@ -1038,21 +1050,53 @@ func _close_meeting() -> Array[Dictionary]:
 	return captured
 
 
-func _stage_other(entry: Dictionary) -> void:
+## Cada presentador va al atril, presenta (pantalla, bocadillo, mérito) y vuelve a su silla.
+## Devuelve la espera hasta el siguiente golpe.
+func _schedule_other(entry: Dictionary, delay: float) -> float:
 	var presenter: String = str(entry["owner"])
-	for id: String in _stage.actor_ids():
-		_stage.say(id, "")
-		_stage.badge(id, "", Color.WHITE)
-		if id != presenter and id != PLAYER and _stage.get_actor(id).get("seat", "") != "":
-			_stage.set_seated(id, true)
+	var pitch: String = tr("AURORA_OTHER_PITCH") % str(entry["title"])
+	_timeline.then(delay, _walk_to_podium.bind(presenter, entry))
+	if not _stage.has_actor(presenter):
+		return SceneStage.reading_time(pitch)
+	_timeline.then(_walk(), _pitch_other.bind(presenter, entry, pitch))
+	_timeline.then(SceneStage.reading_time(pitch), _walk_back.bind(presenter))
+	_timeline.then(_walk(), _stage.set_seated.bind(presenter, true))
+	return _pause()
+
+
+func _walk_to_podium(presenter: String, entry: Dictionary) -> void:
+	_stage.clear_bubbles()
+	_stage.clear_badges()
 	_stage.set_prop("screen_title", str(entry["title"]))
 	_stage.set_prop("screen_sub", tr("AURORA_SCREEN_BY") % IdeaPool.get_npc_display_name(presenter))
-	if not _stage.has_actor(presenter):
-		return
-	_stage.set_seated(presenter, false)
-	_stage.set_anim(presenter, "chat")
-	_stage.say(presenter, tr("AURORA_OTHER_PITCH") % str(entry["title"]), SceneStage.STYLE_SAY, 0.0)
+	if _stage.has_actor(presenter):
+		_stage.walk_to(presenter, SceneStage.aurora_podium_spot(), _walk(), Vector2(0.45, 1), "chat",
+				_aisle(presenter))
+
+
+func _pitch_other(presenter: String, entry: Dictionary, pitch: String) -> void:
+	_stage.say(presenter, pitch, SceneStage.STYLE_SAY, 0.0)
 	_stage.badge(presenter, tr("AURORA_BADGE_MERIT") % int(entry["merit"]), UITheme.color("gain"))
+	for id: String in _attendees:
+		if id != presenter:
+			_stage.look_at_actor(id, presenter)
+
+
+func _walk_back(presenter: String) -> void:
+	_stage.say(presenter, "")
+	_stage.badge(presenter, "", Color.WHITE)
+	var back: Array[Vector2] = _aisle(presenter)
+	back.reverse()
+	_stage.walk_to(presenter, _stage.seat_point(presenter), _walk(), Vector2.DOWN, "idle", back)
+
+
+## Pasillo para rodear la mesa entre la silla de `actor_id` y el atril (por el lado izquierdo).
+func _aisle(actor_id: String) -> Array[Vector2]:
+	var seat: Vector2 = _stage.seat_point(actor_id)
+	var x: float = SceneStage.aurora_podium_spot().x + AISLE_OFFSET
+	if seat.y > SceneStage.AURORA_TABLE.get_center().y:
+		return [Vector2(seat.x, seat.y + AISLE_OFFSET), Vector2(x, seat.y + AISLE_OFFSET)]
+	return [Vector2(seat.x, seat.y - AISLE_OFFSET), Vector2(x, seat.y - AISLE_OFFSET)]
 
 
 func _show_others_panel() -> void:

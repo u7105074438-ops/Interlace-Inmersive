@@ -1700,9 +1700,12 @@ class OsKit extends RefCounted:
 		var s: int = px(0.7)
 		var img: Image = Image.create(s, s, false, Image.FORMAT_RGBA8)
 		img.fill(Color(0, 0, 0, 0))
-		for y: int in range(s / 4, s * 3 / 4):
-			var half: int = (s * 3 / 4 - y) * 2 / 3
-			for x: int in range(s / 2 - half, s / 2 + half + 1):
+		var top: int = roundi(s * 0.25)
+		var bottom: int = roundi(s * 0.75)
+		var mid: int = roundi(s * 0.5)
+		for y: int in range(top, bottom):
+			var half: int = roundi((bottom - y) * 0.66)
+			for x: int in range(mid - half, mid + half + 1):
 				img.set_pixel(clampi(x, 0, s - 1), y, INK)
 		var tex: ImageTexture = ImageTexture.create_from_image(img)
 		_textures["arrow"] = tex

@@ -78,6 +78,8 @@ const CONVEYOR_SPEED := 16.0
 const INSET := 3.0
 const OUTLINE_W := 2.0
 const THIN_W := 1.0
+## Radio (px de referencia) hasta el que un punto se pinta como cuadradito agrupable (PASO 40).
+const DOT_MAX := 3.2
 const SHADOW := Color(0, 0, 0, 0.22)
 const SHADOW_OFFSET := Vector2(3, 4)
 const C_SCREEN := Color("#9fd8f0")
@@ -319,7 +321,18 @@ static func segment(ci: CanvasItem, a: Vector2, b: Vector2, col: Color, w: float
 		ci.draw_line(a, b, col, w)
 
 
+## Punto: si es pequeño (≤ DOT_MAX px de referencia), un cuadradito agrupable; si no, un círculo.
+func _dot(ci: CanvasItem, c: Vector2, rad: float, fill: Color) -> void:
+	if rad <= _px(DOT_MAX):
+		ci.draw_rect(Rect2(c - Vector2(rad, rad) * 0.9, Vector2(rad, rad) * 1.8), fill)
+	else:
+		ci.draw_circle(c, rad, fill)
+
+
 func _circle(ci: CanvasItem, c: Vector2, rad: float, fill: Color, outline: bool = true) -> void:
+	if rad <= _px(DOT_MAX):
+		_rect(ci, Rect2(c - Vector2(rad, rad) * 0.9, Vector2(rad, rad) * 1.8), fill, outline)
+		return
 	ci.draw_circle(c, rad, fill)
 	if outline:
 		ci.draw_arc(c, rad, 0.0, TAU, 24, _ol(), _px(OUTLINE_W))
@@ -387,8 +400,8 @@ func _papers(ci: CanvasItem, r: Rect2, count: int) -> void:
 
 
 func _mug(ci: CanvasItem, p: Vector2) -> void:
-	_circle(ci, p, _px(3.2), _pick(C_BOOKS))
-	ci.draw_circle(p, _px(1.6), Color("#3a2418"))
+	_rect(ci, Rect2(p - Vector2(_px(3.5), _px(3.5)), Vector2(_px(7), _px(7))), _pick(C_BOOKS))
+	ci.draw_rect(Rect2(p - Vector2(_px(1.5), _px(1.5)), Vector2(_px(3), _px(3))), Color("#3a2418"))
 
 
 # ─── Oficina ──────────────────────────────────────────────────
@@ -436,7 +449,7 @@ func _cubicle_desk_items(ci: CanvasItem, top: Rect2, vacant: bool, screen_visibl
 	var mon_c: Vector2 = Vector2(top.get_center().x + _px(6), mon_y)
 	ci.draw_rect(Rect2(mon_c.x - _px(11), key_y, _px(22), _px(6)), Color("#e7e4dc"))
 	frame_rect(ci, Rect2(mon_c.x - _px(11), key_y, _px(22), _px(6)), _ol(), _px(1))
-	ci.draw_circle(Vector2(mon_c.x + _px(16), key_y + _px(3)), _px(2.5), Color("#e7e4dc"))
+	_dot(ci, Vector2(mon_c.x + _px(16), key_y + _px(3)), _px(2.5), Color("#e7e4dc"))
 	_monitor(ci, mon_c, _px(26), screen_visible)
 	if vacant:
 		ci.draw_rect(Rect2(top.position.x + _px(4), top.position.y + _px(4), _px(12), _px(9)), C_CARDBOARD)
@@ -446,20 +459,19 @@ func _cubicle_desk_items(ci: CanvasItem, top: Rect2, vacant: bool, screen_visibl
 	if _rng.randf() < 0.5:
 		_rect(ci, Rect2(top.position.x + _px(4), top.end.y - _px(12), _px(7), _px(8)), _pick(C_BOOKS))
 	if _rng.randf() < 0.35:
-		ci.draw_circle(Vector2(top.end.x - _px(6), top.end.y - _px(8)), _px(3.5), _pick(C_LEAF_PLASTIC))
+		_dot(ci, Vector2(top.end.x - _px(6), top.end.y - _px(8)), _px(3.5), _pick(C_LEAF_PLASTIC))
 
 
+## Silla de oficina en rectángulos (asiento, respaldo, contorno): se agrupa con el resto (PASO 40).
 func _office_chair(ci: CanvasItem, c: Vector2, facing: Vector2, pushed: bool) -> void:
 	var col: Color = Color("#3b3f45") if str(style.get("band", "")) != "the_throne" else _leather()
 	var off: Vector2 = facing * _px(4) if pushed else Vector2.ZERO
-	var seat: Rect2 = Rect2(c + off - Vector2(_px(10), _px(10)), Vector2(_px(20), _px(20)))
+	var seat: Rect2 = Rect2(c + off - Vector2(_px(9), _px(9)), Vector2(_px(18), _px(18)))
 	_shadow(ci, seat)
-	_poly(ci, _rounded(seat, _px(5)), col)
-	var back_c: Vector2 = c + off - facing * _px(10)
-	var along: Vector2 = Vector2(-facing.y, facing.x)
-	var back: PackedVector2Array = [back_c - along * _px(10) - facing * _px(3), back_c + along * _px(10) - facing * _px(3),
-			back_c + along * _px(9) + facing * _px(3), back_c - along * _px(9) + facing * _px(3)]
-	_poly(ci, back, col.lightened(0.12))
+	_rect(ci, seat, col)
+	ci.draw_rect(seat.grow(-_px(4)), col.lightened(0.08))
+	var back: Rect2 = _edge_strip(seat.grow(_px(1)), -facing, _px(6))
+	_rect(ci, back, col.lightened(0.14))
 
 
 func _draw_chair(ci: CanvasItem, r: Rect2) -> void:
@@ -487,7 +499,7 @@ func _draw_executive_desk(ci: CanvasItem, r: Rect2) -> void:
 	_rect(ci, pad, Color("#1d3a2c") if str(style.get("band", "")) == "the_power" else Color("#2a2a2e"))
 	_monitor(ci, Vector2(top.get_center().x, top.position.y + _px(12)), _px(26), _facing.y < -0.5)
 	_circle(ci, Vector2(top.position.x + _px(9), top.position.y + _px(9)), _px(5), C_GOLD)
-	ci.draw_circle(Vector2(top.position.x + _px(9), top.position.y + _px(9)), _px(2.5), Color("#fff3c4"))
+	_dot(ci, Vector2(top.position.x + _px(9), top.position.y + _px(9)), _px(2.5), Color("#fff3c4"))
 	ci.draw_rect(Rect2(top.end.x - _px(18), top.end.y - _px(10), _px(12), _px(4)), C_GOLD)
 	_papers(ci, Rect2(top.end.x - _px(22), top.position.y + _px(4), _px(14), _px(10)), 1)
 
@@ -544,7 +556,7 @@ func _draw_printer(ci: CanvasItem, r: Rect2) -> void:
 	var top: Rect2 = _box(ci, d, height_of("printer"), Color("#d8dadb"), Color("#9ea3a6"))
 	ci.draw_rect(Rect2(top.position.x + _px(5), top.position.y + _px(4), top.size.x - _px(10), _px(8)), C_STEEL_DARK)
 	ci.draw_rect(Rect2(top.position.x + _px(7), top.end.y - _px(10), top.size.x - _px(14), _px(6)), C_PAPER)
-	ci.draw_circle(Vector2(top.end.x - _px(6), top.end.y - _px(5)), _px(1.8), C_GREEN_LED)
+	_dot(ci, Vector2(top.end.x - _px(6), top.end.y - _px(5)), _px(1.8), C_GREEN_LED)
 
 
 func _draw_photocopier(ci: CanvasItem, r: Rect2) -> void:
@@ -598,16 +610,16 @@ func _draw_water_cooler(ci: CanvasItem, r: Rect2) -> void:
 	_box(ci, base, _px(10), Color("#e9ecee"), Color("#b7bec2"))
 	var bottle_c: Vector2 = Vector2(c.x, base.position.y - _px(16))
 	_circle(ci, bottle_c, _px(9), C_WATER.lightened(0.2))
-	ci.draw_circle(bottle_c + Vector2(-_px(3), -_px(3)), _px(3), Color(1, 1, 1, 0.7))
-	ci.draw_circle(Vector2(c.x - _px(4), base.end.y - _px(12)), _px(1.6), C_RED_LED)
-	ci.draw_circle(Vector2(c.x + _px(4), base.end.y - _px(12)), _px(1.6), Color("#4da3ff"))
+	_dot(ci, bottle_c + Vector2(-_px(3), -_px(3)), _px(3), Color(1, 1, 1, 0.7))
+	_dot(ci, Vector2(c.x - _px(4), base.end.y - _px(12)), _px(1.6), C_RED_LED)
+	_dot(ci, Vector2(c.x + _px(4), base.end.y - _px(12)), _px(1.6), Color("#4da3ff"))
 
 
 func _draw_coffee_machine(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = Rect2(r.get_center().x - _px(12), r.position.y + _px(8), _px(24), _px(30))
 	var top: Rect2 = _box(ci, d, height_of("coffee_machine"), Color("#2b2b2e"), Color("#18181a"))
 	ci.draw_rect(Rect2(top.position.x + _px(4), top.position.y + _px(4), _px(9), _px(6)), C_SCREEN)
-	ci.draw_circle(Vector2(top.end.x - _px(6), top.position.y + _px(7)), _px(2), C_RED_LED)
+	_dot(ci, Vector2(top.end.x - _px(6), top.position.y + _px(7)), _px(2), C_RED_LED)
 	_circle(ci, Vector2(d.get_center().x, d.end.y - _px(6)), _px(3.5), C_CERAMIC)
 
 
@@ -631,21 +643,14 @@ func _draw_plant(ci: CanvasItem, r: Rect2) -> void:
 	_foliage(ci, Vector2(c.x, pot.position.y - _px(14)), _px(15))
 
 
+## Follaje: sprite horneado (una textura por tipo de planta y variante: un solo draw y agrupable).
 func _foliage(ci: CanvasItem, c: Vector2, size: float) -> void:
 	var plastic: bool = bool(style.get("plastic", true))
-	var leaves: Array[Color] = C_LEAF_PLASTIC if plastic else C_LEAF_NATURAL
-	var blobs: int = 5 if plastic else 9
-	ci.draw_circle(c + Vector2(_px(2), _px(4)), size, SHADOW)
-	for i: int in blobs:
-		var ang: float = TAU * i / blobs + _rng.randf() * 0.4
-		var dist: float = size * (0.45 if plastic else _rng.randf_range(0.3, 0.7))
-		var rad: float = size * (0.55 if plastic else _rng.randf_range(0.35, 0.55))
-		var p: Vector2 = c + Vector2(cos(ang), sin(ang) * 0.8) * dist
-		ci.draw_circle(p, rad, leaves[i % leaves.size()] if plastic else _pick(leaves))
-		ci.draw_arc(p, rad, 0.0, TAU, 16, _ol(), _px(1.2))
-	ci.draw_circle(c, size * 0.45, leaves[0].lightened(0.1))
-	if plastic:
-		ci.draw_circle(c + Vector2(-size * 0.25, -size * 0.3), size * 0.18, Color(1, 1, 1, 0.55))
+	var tex: ImageTexture = FurnitureSprites.foliage(plastic, _rng.randi_range(0, FurnitureSprites.FOLIAGE_VARIANTS - 1),
+			C_LEAF_PLASTIC if plastic else C_LEAF_NATURAL, _ol())
+	var half: float = size * FurnitureSprites.FOLIAGE_SPAN
+	ci.draw_texture_rect(tex, Rect2(c - Vector2(half, half) + Vector2(_px(2), _px(3)), Vector2(half, half) * 2.0), false, SHADOW)
+	ci.draw_texture_rect(tex, Rect2(c - Vector2(half, half), Vector2(half, half) * 2.0), false)
 
 
 func _draw_planter_box(ci: CanvasItem, r: Rect2) -> void:
@@ -732,8 +737,8 @@ func _draw_wardrobe(ci: CanvasItem, r: Rect2) -> void:
 	_box(ci, d, h, C_WOOD.lightened(0.1), C_WOOD.darkened(0.25))
 	var front: Rect2 = _front(d, h)
 	segment(ci, Vector2(front.get_center().x, front.position.y), Vector2(front.get_center().x, front.end.y), _ol(), _px(1))
-	ci.draw_circle(Vector2(front.get_center().x - _px(4), front.get_center().y), _px(1.6), C_GOLD)
-	ci.draw_circle(Vector2(front.get_center().x + _px(4), front.get_center().y), _px(1.6), C_GOLD)
+	_dot(ci, Vector2(front.get_center().x - _px(4), front.get_center().y), _px(1.6), C_GOLD)
+	_dot(ci, Vector2(front.get_center().x + _px(4), front.get_center().y), _px(1.6), C_GOLD)
 
 
 func _draw_lockers(ci: CanvasItem, r: Rect2) -> void:
@@ -767,7 +772,7 @@ func _draw_server_rack(ci: CanvasItem, r: Rect2) -> void:
 			var y: float = front.position.y + _px(3) + row * front.size.y / 4.0
 			segment(ci, Vector2(x + _px(2), y), Vector2(x + front.size.x / units - _px(2), y), Color("#3c434c"), _px(1))
 			var led: Color = [C_GREEN_LED, Color("#4da3ff"), Color("#ffb14d")][_rng.randi_range(0, 2)]
-			ci.draw_circle(Vector2(x + _px(4), y + _px(2)), _px(1.3), led)
+			_dot(ci, Vector2(x + _px(4), y + _px(2)), _px(1.3), led)
 
 
 func _draw_vending_machine(ci: CanvasItem, r: Rect2) -> void:
@@ -921,7 +926,7 @@ func _draw_massage_table(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 6.0)
 	_shadow(ci, d)
 	_poly(ci, _rounded(d, _px(8)), Color("#e8d8c4"))
-	ci.draw_circle(Vector2(d.position.x + _px(10), d.get_center().y), _px(4), Color("#b8a894"))
+	_dot(ci, Vector2(d.position.x + _px(10), d.get_center().y), _px(4), Color("#b8a894"))
 	ci.draw_rect(Rect2(d.get_center().x, d.position.y + _px(3), d.size.x * 0.35, d.size.y - _px(6)), Color("#ffffff"))
 
 
@@ -958,13 +963,13 @@ func _draw_toilet_stall(ci: CanvasItem, r: Rect2) -> void:
 		var bowl_c: Vector2 = Vector2(r.get_center().x, r.position.y + _px(18) if south else r.end.y - _px(22))
 		_rect(ci, Rect2(bowl_c.x - _px(9), tank_y, _px(18), _px(7)), C_CERAMIC)
 		_poly(ci, _rounded(Rect2(bowl_c.x - _px(8), bowl_c.y - _px(6), _px(16), _px(20)), _px(8)), C_CERAMIC)
-		ci.draw_circle(bowl_c + Vector2(0, _px(4)), _px(4), C_WATER.lightened(0.3))
+		_dot(ci, bowl_c + Vector2(0, _px(4)), _px(4), C_WATER.lightened(0.3))
 	if _part == PART_SIDES or _part == PART_FULL:
 		for wall: Rect2 in [Rect2(r.position.x, r.position.y, t, r.size.y), Rect2(r.end.x - t, r.position.y, t, r.size.y)]:
 			_box(ci, wall, h, col, col.darkened(0.25))
 		var door: Rect2 = Rect2(r.position.x + t, r.end.y - t if south else r.position.y, r.size.x * 0.62, t)
 		_box(ci, door, h * 0.92, col.darkened(0.08), col.darkened(0.2))
-		ci.draw_circle(Vector2(door.end.x - _px(5), door.position.y - h * 0.45), _px(1.6), C_RED_LED)
+		_dot(ci, Vector2(door.end.x - _px(5), door.position.y - h * 0.45), _px(1.6), C_RED_LED)
 
 
 func _draw_sink(ci: CanvasItem, r: Rect2) -> void:
@@ -973,7 +978,7 @@ func _draw_sink(ci: CanvasItem, r: Rect2) -> void:
 	var top: Rect2 = _box(ci, counter, height_of("sink"), Color("#dfe3e5"), Color("#aeb5b9"))
 	var basin: Rect2 = _inset(top, 5.0)
 	_poly(ci, _rounded(basin, _px(6)), Color("#f6f8f9"))
-	ci.draw_circle(basin.get_center(), _px(1.8), C_STEEL_DARK)
+	_dot(ci, basin.get_center(), _px(1.8), C_STEEL_DARK)
 	segment(ci, basin.get_center() - _facing * _px(8), basin.get_center() - _facing * _px(3), C_METAL, _px(2))
 
 
@@ -1139,7 +1144,7 @@ func _draw_industrial_machine(ci: CanvasItem, r: Rect2) -> void:
 	var body: Color = _c("furniture") if str(style.get("band", "")) == "factory" else Color("#e0761a")
 	var top: Rect2 = _box(ci, d, h, body, body.darkened(0.3))
 	_rect(ci, Rect2(top.position.x + _px(5), top.position.y + _px(5), top.size.x * 0.45, top.size.y * 0.45), Color("#2b3035"))
-	ci.draw_circle(Vector2(top.end.x - _px(8), top.position.y + _px(8)), _px(3), C_GREEN_LED)
+	_dot(ci, Vector2(top.end.x - _px(8), top.position.y + _px(8)), _px(3), C_GREEN_LED)
 	var front: Rect2 = _front(d, h)
 	var stripes: int = maxi(3, int(front.size.x / _px(8)))
 	for i: int in stripes:
@@ -1201,8 +1206,8 @@ func _draw_car(ci: CanvasItem, r: Rect2) -> void:
 		roof = Rect2(d.position.x + _px(6), d.position.y + d.size.y * 0.3, d.size.x - _px(12), d.size.y * 0.42)
 		_poly(ci, _rounded(Rect2(roof.position.x, roof.position.y - _px(12), roof.size.x, _px(14)), _px(4)), glass)
 		_poly(ci, _rounded(Rect2(roof.position.x, roof.end.y - _px(3), roof.size.x, _px(12)), _px(4)), glass)
-		ci.draw_circle(Vector2(d.position.x + _px(8), d.position.y + _px(5)), _px(3), Color("#fff4c8"))
-		ci.draw_circle(Vector2(d.end.x - _px(8), d.position.y + _px(5)), _px(3), Color("#fff4c8"))
+		_dot(ci, Vector2(d.position.x + _px(8), d.position.y + _px(5)), _px(3), Color("#fff4c8"))
+		_dot(ci, Vector2(d.end.x - _px(8), d.position.y + _px(5)), _px(3), Color("#fff4c8"))
 	else:
 		roof = Rect2(d.position.x + d.size.x * 0.3, d.position.y + _px(6), d.size.x * 0.42, d.size.y - _px(12))
 		_poly(ci, _rounded(Rect2(roof.end.x - _px(3), roof.position.y, _px(14), roof.size.y), _px(4)), glass)
@@ -1213,13 +1218,13 @@ func _draw_car(ci: CanvasItem, r: Rect2) -> void:
 func _draw_street_lamp(ci: CanvasItem, r: Rect2) -> void:
 	var base: Vector2 = r.get_center() + Vector2(0, _px(10))
 	var h: float = height_of("street_lamp")
-	ci.draw_circle(base + Vector2(_px(2), _px(3)), _px(6), SHADOW)
+	_dot(ci, base + Vector2(_px(2), _px(3)), _px(6), SHADOW)
 	_circle(ci, base, _px(5), Color("#2b2f38"))
 	segment(ci, base, base - Vector2(0, h), Color("#2b2f38"), _px(3.5))
 	var head: Vector2 = base - Vector2(-_px(8), h)
 	segment(ci, base - Vector2(0, h), head, Color("#2b2f38"), _px(3))
 	_poly(ci, _rounded(Rect2(head - Vector2(_px(8), _px(4)), Vector2(_px(16), _px(8))), _px(3)), Color("#3a404c"))
-	ci.draw_circle(head + Vector2(0, _px(2)), _px(4), Color("#ffe6a0"))
+	_dot(ci, head + Vector2(0, _px(2)), _px(4), Color("#ffe6a0"))
 
 
 ## Pedestal del torno (a la izquierda de su calle): acero pulido, lector y flecha verde. La aleta de
@@ -1256,7 +1261,7 @@ func _draw_wall_clock(ci: CanvasItem, r: Rect2) -> void:
 	_circle(ci, c, _px(7), C_PAPER)
 	segment(ci, c, c + Vector2(0, -_px(5.5)), Color("#1b1b1b"), _px(1.5))
 	segment(ci, c, c + Vector2(_px(4), _px(1.5)), Color("#1b1b1b"), _px(1.5))
-	ci.draw_circle(c, _px(1.4), C_RED_LED)
+	_dot(ci, c, _px(1.4), C_RED_LED)
 
 
 ## Extintor colgado (cara norte): cuerpo rojo, válvula negra y soporte.
@@ -1285,7 +1290,7 @@ func _draw_podium(ci: CanvasItem, r: Rect2) -> void:
 	var top: Rect2 = _box(ci, d, height_of("podium"), C_WOOD.lightened(0.1), C_WOOD.darkened(0.25))
 	ci.draw_rect(Rect2(d.get_center().x - _px(5), d.end.y - _px(12), _px(10), _px(8)), C_GOLD)
 	segment(ci, top.get_center(), top.get_center() + Vector2(_px(4), -_px(10)), C_STEEL_DARK, _px(1.5))
-	ci.draw_circle(top.get_center() + Vector2(_px(4), -_px(11)), _px(2.2), Color("#1b1b1b"))
+	_dot(ci, top.get_center() + Vector2(_px(4), -_px(11)), _px(2.2), Color("#1b1b1b"))
 
 
 func _draw_light_stand(ci: CanvasItem, r: Rect2) -> void:
@@ -1310,7 +1315,7 @@ func _draw_photo_backdrop(ci: CanvasItem, r: Rect2) -> void:
 
 func _draw_mannequin(ci: CanvasItem, r: Rect2) -> void:
 	var c: Vector2 = r.get_center() + Vector2(0, _px(10))
-	ci.draw_circle(c + Vector2(_px(2), _px(3)), _px(7), SHADOW)
+	_dot(ci, c + Vector2(_px(2), _px(3)), _px(7), SHADOW)
 	segment(ci, c, c - Vector2(0, _px(12)), C_STEEL_DARK, _px(2))
 	_poly(ci, _rounded(Rect2(c.x - _px(8), c.y - _px(30), _px(16), _px(20)), _px(6)), _pick(C_CLOTHES))
 	_circle(ci, c - Vector2(0, _px(34)), _px(5), Color("#e8dcc8"))
@@ -1378,7 +1383,7 @@ func _draw_foosball_table(ci: CanvasItem, r: Rect2) -> void:
 	for i: int in 4:
 		var x: float = pitch.position.x + (i + 0.5) * pitch.size.x / 4.0
 		segment(ci, Vector2(x, top.position.y - _px(3)), Vector2(x, top.end.y + _px(3)), C_METAL, _px(1.5))
-		ci.draw_circle(Vector2(x, pitch.get_center().y), _px(2.5), C_RED_LED if i % 2 == 0 else Color("#4da3ff"))
+		_dot(ci, Vector2(x, pitch.get_center().y), _px(2.5), C_RED_LED if i % 2 == 0 else Color("#4da3ff"))
 
 
 func _draw_hot_tub(ci: CanvasItem, r: Rect2) -> void:
@@ -1420,14 +1425,14 @@ func _draw_runway(ci: CanvasItem, r: Rect2) -> void:
 	_rect(ci, d, Color("#f4f4f2"))
 	for i: int in int(d.size.x / _px(24)):
 		var x: float = d.position.x + _px(12) + i * _px(24)
-		ci.draw_circle(Vector2(x, d.position.y + _px(3)), _px(2), Color("#fff2b0"))
-		ci.draw_circle(Vector2(x, d.end.y - _px(3)), _px(2), Color("#fff2b0"))
+		_dot(ci, Vector2(x, d.position.y + _px(3)), _px(2), Color("#fff2b0"))
+		_dot(ci, Vector2(x, d.end.y - _px(3)), _px(2), Color("#fff2b0"))
 
 
 func _draw_helipad(ci: CanvasItem, r: Rect2) -> void:
 	var c: Vector2 = r.get_center()
 	var rad: float = minf(r.size.x, r.size.y) * 0.48
-	ci.draw_circle(c, rad, Color("#3a3f47"))
+	_dot(ci, c, rad, Color("#3a3f47"))
 	ci.draw_arc(c, rad - _px(6), 0.0, TAU, 48, C_HAZARD, _px(5))
 	ci.draw_arc(c, rad, 0.0, TAU, 48, _ol(), _px(2))
 	var s: float = rad * 0.4

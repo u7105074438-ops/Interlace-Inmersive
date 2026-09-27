@@ -70,11 +70,14 @@ class NotebookLegalPad extends Control:
 		draw_rect(r, OSTheme.col(pal, "paper"))
 		var strip: float = base * 0.9
 		draw_rect(Rect2(0, 0, size.x, strip), Color("#8c2f2f") if not contrast else Color.WHITE)
+		for i: int in 3:
+			draw_circle(Vector2(size.x * (0.25 + i * 0.25), strip * 0.5), strip * 0.18, Color(0, 0, 0, 0.35))
 		var step: float = editor.get_line_height() if editor != null else base * 1.4
-		var y: float = strip + base * 0.1 + step
+		var top: float = editor.position.y + editor.get_theme_stylebox("normal").content_margin_top if editor != null else strip
+		var y: float = top + step
 		var line: Color = Color("#8fb0dc") if not contrast else Color(1, 1, 1, 0.4)
 		while y < size.y:
-			draw_line(Vector2(0, y), Vector2(size.x, y), line, 1.0)
+			draw_rect(Rect2(0, roundf(y) - 1.0, size.x, 2.0), line)
 			y += step
 		draw_line(Vector2(base * 1.8, strip), Vector2(base * 1.8, size.y), Color("#e0645a"), 1.5)
 		draw_rect(r, OSTheme.col(pal, "shadow"), false, 1.5)
@@ -123,6 +126,7 @@ func _notes_column() -> VBoxContainer:
 	_paper.text_changed.connect(_on_text_changed)
 	_pad.editor = _paper
 	_pad.add_child(_paper)
+	_paper.resized.connect(_pad.queue_redraw)
 	_saved = make_label("", OSTheme.V_MUTED, true)
 	col.add_child(_saved)
 	return col
