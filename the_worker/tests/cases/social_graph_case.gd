@@ -540,7 +540,8 @@ func _test_raise_without_echo() -> void:
 	_hops.clear()
 	SocialGraph.propagate_at_gathering(CAFETERIA_CLAN)
 	check_near(_certainty(GEORGE, PLAYER, NEGATIVE_FACT), seen * MANUAL_DEPARTMENT, EPS,
-			"George's weak 0.12 belief was raised to Debbie's × 0.75")
+			"George's weak 0.12 belief was raised by the witness to her × 0.75 (and no rumour"
+			+ " raised it further)")
 	check(_hop_to(DEBBIE, CLAUDIA), "Debbie told her rival Claudia (×1.15)")
 	check(not _hop_to(CLAUDIA, DEBBIE), "Claudia never tells it back to Debbie")
 	check_near(_certainty(DEBBIE, PLAYER, NEGATIVE_FACT), seen, EPS,
@@ -574,18 +575,28 @@ func _check_burial_ends_at_day_change() -> void:
 			"")
 	BeliefNet.create_belief(NATE, PLAYER, NEGATIVE_FACT, SIGHTING_CERTAINTY, Belief.SOURCE_RUMOR,
 			"")
+	var buried_id: String = _belief_id(NATE, PLAYER, NEGATIVE_FACT)
+	var witness_id: String = _belief_id(DEBBIE, PLAYER, NEGATIVE_FACT)
 	check_eq(SocialGraph.kill_rumour(NEGATIVE_FACT), 1, "only Nate's copy is a rumour")
+	_hops.clear()
+	SocialGraph.propagate_at_gathering(CAFETERIA_CLAN)
+	check(not _hop_to(DEBBIE, GEORGE), "the rest of that day the fact does not travel")
 	GameClock.set_time(day, BEFORE_ROLLOVER_HOUR, BEFORE_HOUR)
 	GameClock.advance_minutes(TEN_MINUTES)
 	check_eq(GameClock.get_day(), day + 1, "the day changed")
 	check(not SocialGraph.is_fact_killed(NEGATIVE_FACT), "the burial ended with the day change")
-	check(_certainty(NATE, PLAYER, NEGATIVE_FACT) < 0.0, "BeliefNet forgot the buried rumour")
+	check(BeliefNet.get_belief(buried_id) == null, "BeliefNet forgot the buried rumour copy")
 	var seen: float = _certainty(DEBBIE, PLAYER, NEGATIVE_FACT)
-	check(seen > 0.0, "Debbie still remembers what she saw herself")
+	check(seen > 0.0 and BeliefNet.get_belief(witness_id) != null,
+			"Debbie still remembers what she saw herself")
 	GameClock.set_time(day + 1, THIRTEEN, HALF_PAST_ONE)
 	SocialGraph.propagate_at_gathering(CAFETERIA_CLAN)
-	check_near(_certainty(GEORGE, PLAYER, NEGATIVE_FACT), seen * MANUAL_DEPARTMENT, EPS,
-			"after the day change her first-hand sighting spreads again (no lasting veto)")
+	var witness_hops: int = 0
+	for hop: Dictionary in _hops:
+		witness_hops += 1 if hop["id"] == witness_id else 0
+	check(witness_hops > 0, "after the day change her first-hand sighting spreads again")
+	check(_certainty(GEORGE, PLAYER, NEGATIVE_FACT) >= seen * MANUAL_DEPARTMENT - EPS,
+			"George holds it at least at her certainty × 0.75 (no lasting veto)")
 
 
 func _test_determinism_and_save() -> void:
@@ -728,3 +739,10 @@ func _certainty(holder: String, subject: String, fact: String) -> float:
 		if b.subject == subject and b.fact == fact and not b.is_record:
 			return b.certainty
 	return -1.0
+
+
+func _belief_id(holder: String, subject: String, fact: String) -> String:
+	for b: Belief in BeliefNet.get_beliefs_held_by(holder):
+		if b.subject == subject and b.fact == fact and not b.is_record:
+			return b.id
+	return ""

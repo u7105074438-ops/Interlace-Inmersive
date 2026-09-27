@@ -776,10 +776,19 @@ func _grieve_removal(npc: NPCRuntime, cause: String, grievance: String,
 		add_grievance(npc.id, grievance, Database.get_balance_int(severity_key))
 		_shift_mood(npc, Database.get_balance_float(str(REMOVAL_MOOD.get(grievance,
 				B_MOOD_SEAT_LOST))))
-	for link: Dictionary in SocialGraph.get_links(npc.id):
-		var ally: String = _link_target(link, npc.id)
-		if ALLY_LINK_TYPES.has(_link_type(link)) and ally != npc.id and is_active(ally):
-			add_grievance(ally, GRIEVANCE_FRIEND_SUNK, Database.get_balance_int(B_SEV_FRIEND))
+	for ally: String in _allies_of(npc.id):
+		add_grievance(ally, GRIEVANCE_FRIEND_SUNK, Database.get_balance_int(B_SEV_FRIEND))
+
+
+## Amistades y pareja en plantilla (SocialGraph, aristas en ambos sentidos, sin repetir).
+func _allies_of(npc_id: String) -> Array[String]:
+	var out: Array[String] = []
+	for link: Dictionary in SocialGraph.get_links(npc_id):
+		var ally: String = _link_target(link, npc_id)
+		if ALLY_LINK_TYPES.has(_link_type(link)) and ally != npc_id and is_active(ally) \
+				and not out.has(ally):
+			out.append(ally)
+	return out
 
 
 ## Deja la plantilla (estado propio): cuerpo si es eliminación; sin sala, sin LOD forzado ni fijado.
@@ -1713,7 +1722,7 @@ func load_state(data: Dictionary) -> void:
 	for raw: Variant in data.get("npcs", []):
 		if raw is Dictionary:
 			var npc: NPCRuntime = NPCRuntime.from_dict(raw, SAVE_CONTEXT)
-			npc.blackmail_material = _restore_ints(npc.blackmail_material)
+			npc.blackmail_material = NPCPopulationGenerator.json_ints(npc.blackmail_material)
 			_register(npc, _typed_profile(data.get("profiles", {}).get(npc.id, {})))
 	_bodies = _typed_bodies(data.get("bodies", {}))
 	_forced_lod = (data.get("forced_lod", {}) as Dictionary).duplicate(true)
@@ -1722,7 +1731,7 @@ func load_state(data: Dictionary) -> void:
 	_last_report = _int_map(data.get("last_report", {}))
 	_lod_pins = _int_map(data.get("lod_pins", {}))
 	var decisions: Variant = data.get("last_decision", {})
-	_last_decision = _restore_ints(decisions) if decisions is Dictionary else {}
+	_last_decision = NPCPopulationGenerator.json_ints(decisions) if decisions is Dictionary else {}
 	_player_room = str(data.get("player_room", ""))
 	_player_floor = int(data.get("player_floor", 0))
 	_day = int(data.get("day", GameClock.get_day()))
@@ -1751,23 +1760,8 @@ static func _typed_profile(raw: Variant) -> Dictionary:
 	for f: Variant in profile.get("zone_floors", []):
 		floors.append(int(f))
 	profile["zone_floors"] = floors
-	profile["special"] = _restore_ints(profile.get("special", {}))
+	profile["special"] = NPCPopulationGenerator.json_ints(profile.get("special", {}))
 	return profile
-
-
-## Los datos de personaje (perfil, material de chantaje, decisiones) solo usan enteros: un float
-## entero leído de JSON vuelve a int.
-static func _restore_ints(value: Variant) -> Variant:
-	if value is float and is_finite(value) and value == floorf(value):
-		return int(value)
-	if value is Array:
-		return (value as Array).map(_restore_ints)
-	if value is Dictionary:
-		var out: Dictionary = {}
-		for key: Variant in value:
-			out[key] = _restore_ints(value[key])
-		return out
-	return value
 
 
 static func _typed_bodies(raw: Variant) -> Dictionary:

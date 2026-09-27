@@ -7,7 +7,12 @@ extends Node
 ## Nodo que añade game_root.gd (o el menú, para su música). API pública para otros constructores:
 ##   play_sfx(id, position := NO_POSITION, volume_db := 0.0)   — ids de SfxBank.ids(); publica subtítulo
 ##   play_menu_music() · play_epilogue(axis, worn := false) · stop_music() · interrupt_muzak(seconds)
-##   set_phone_silenced(bool) · is_masked() · refresh_settings() · AudioDirector.find(tree)
+##   AudioDirector.epilogue_choice(Tracking.get_snapshot()) → {axis, worn} (lo usa game_over)
+##   set_phone_silenced(bool) · is_masked() (+ señal mask_changed) · refresh_settings()
+##   AudioDirector.find(tree) (el activo) · is_active() · is_listening() · get_queued_music_frames()
+## Los NPC (npc.gd) pueden exponer is_seated() -> bool: la silla solo cruje si estaban sentados
+## (sin ese método se usa la cercanía a un asiento de FloorStreamer). El reloj parado (GameClock en
+## pausa con partida en curso) o el árbol en pausa congelan la escucha de NPC.
 ## Todo sonido informativo emite EventBus.subtitle_posted(clave, posición_mundo, importancia) (§13.10)
 ## con el contrato de SubtitleFeed: posición de mundo o Vector2.INF (sin posición: el móvil, la
 ## alarma, el hilo musical); importancia 0 ambiente · 1 informativo · 2 peligro.
@@ -241,14 +246,13 @@ func set_player_room(room_id: String) -> void:
 	post_subtitle(key, NO_POSITION, SfxBank.IMPORTANCE_INFO if masked else SfxBank.IMPORTANCE_AMBIENT)
 
 
-## Silencio total del hilo musical durante `seconds` (flagrancia: 1 s, §14.10). Vacía lo ya
-## encolado en el generador: el corte es inmediato ("se detiene en seco").
+## Silencio total del hilo musical durante `seconds` (flagrancia: 1 s, §14.10). Descarta lo ya
+## encolado (clear_buffer no vale con la reproducción activa: se para y el siguiente fotograma
+## vuelve a arrancar el generador vacío): el corte es inmediato ("se detiene en seco").
 func interrupt_muzak(seconds: float) -> void:
 	_deck.interrupt(seconds)
 	if _muzak_player != null and _muzak_player.playing:
-		var playback: AudioStreamGeneratorPlayback = _muzak_player.get_stream_playback() as AudioStreamGeneratorPlayback
-		if playback != null:
-			playback.clear_buffer()
+		_muzak_player.stop()
 
 
 ## Música del menú principal (no diegética): el tema de la compañía como música de espera.
@@ -340,6 +344,14 @@ func is_masked() -> bool:
 
 func get_deck() -> MuzakDeck:
 	return _deck
+
+
+## Muestras del hilo musical ya encoladas en el generador (latencia de cualquier cambio).
+func get_queued_music_frames() -> int:
+	if _muzak_player == null or not _muzak_player.playing or _gen_capacity < 0:
+		return 0
+	var playback: AudioStreamGeneratorPlayback = _muzak_player.get_stream_playback() as AudioStreamGeneratorPlayback
+	return 0 if playback == null else maxi(0, _gen_capacity - playback.get_frames_available())
 
 
 func get_ambience() -> Ambience:

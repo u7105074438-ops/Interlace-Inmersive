@@ -8,9 +8,12 @@ const PLAYER_FLOOR := 3
 const HARLAN := "npc_harlan_voss"
 const CONNIE := "npc_connie_marks"
 const MAURICE := "npc_maurice_sandbell"
+const GEORGE := "npc_george_penn"
+const WALKING_ROOM := "corridors_low@3"
+const FAR_ROOM := "cafeteria"
 const SMALL_BUDGET := 10
 const PROFILE_BUDGET := 45
-const IDLE_FRAMES := 5
+const RUNNING_FRAMES := 45
 
 var _decided: Array = []
 
@@ -20,13 +23,18 @@ func run_case() -> void:
 		return
 	EventBus.npc_decided.connect(func(n: String, a: String, c: Dictionary) -> void:
 		_decided.append([n, a, c]))
+	check(not PlayerState.get_room().is_empty()
+			and NPCDirector.get_player_room() == PlayerState.get_room(),
+			"a new run seeds the player's room from PlayerState (%s)" % PlayerState.get_room())
 	_move_clock(10)
 	EventBus.floor_changed.emit(0, PLAYER_FLOOR)
 	EventBus.room_entered.emit(PLAYER_ROOM, true)
 	check_eq(NPCDirector.get_player_room(), PLAYER_ROOM, "player room tracked from room_entered")
 	_check_levels_by_location()
+	_check_world_located()
 	_check_intervals()
 	_check_forced_levels()
+	_check_pins_and_social_debt()
 	_check_caps()
 	await _check_event_driven()
 
@@ -64,6 +72,29 @@ func _check_levels_by_location() -> void:
 				"get_npcs_near(%s) returns %s in an adjacent room" % [PLAYER_ROOM, npc.id])
 
 
+## §20.1: la agenda solo sitúa a quien no tiene nodo. La sala que informa un nodo (LOD 0/1) no
+## se pisa con la hora; al bajar a LOD 2 (sin nodo) vuelve la posición inferida del horario.
+func _check_world_located() -> void:
+	check_eq(NPCDirector.get_lod(GEORGE), 0, "George is simulated in full")
+	NPCDirector.set_current_location(GEORGE, WALKING_ROOM)
+	_move_clock(11)
+	EventBus.time_band_changed.emit("work_morning", "work_morning")
+	check_eq(NPCDirector.get_current_location(GEORGE), WALKING_ROOM,
+			"the room reported by George's node survives hour_passed and band updates")
+	NPCDirector.release_current_location(GEORGE)
+	_move_clock(11)
+	check_eq(NPCDirector.get_current_location(GEORGE), NPCDirector.get_location_at(GEORGE, 11, 0),
+			"released: the schedule places George again")
+	NPCDirector.set_current_location(HARLAN, FAR_ROOM)
+	_move_clock(12)
+	check(not NPCDirector.is_world_located(HARLAN) and NPCDirector.get_lod(HARLAN) == 2,
+			"an NPC far from the player (LOD 2, no node) loses the node lock")
+	_move_clock(12)
+	check_eq(NPCDirector.get_current_location(HARLAN), NPCDirector.get_location_at(HARLAN, 12, 0),
+			"…and is placed by the timetable again")
+	_move_clock(10)
+
+
 func _check_intervals() -> void:
 	check_eq(NPCDirector.get_lod_update_interval(0), 0.0, "LOD 0 updates every frame")
 	check_eq(NPCDirector.get_lod_update_interval(1),
@@ -91,6 +122,24 @@ func _check_forced_levels() -> void:
 	check_eq(NPCDirector.get_lod(MAURICE), 0, "debt with the player → LOD 0")
 	NPCDirector.add_debt(MAURICE, -5)
 	check_eq(NPCDirector.get_lod(MAURICE), 2, "debt settled → statistical again")
+
+
+## set_lod() fija un nivel hasta clear_lod(); una arista de deuda de SocialGraph con el jugador
+## también es «trama activa» (§20.2).
+func _check_pins_and_social_debt() -> void:
+	NPCDirector.set_lod(HARLAN, 1)
+	NPCDirector.refresh_lod()
+	check_eq(NPCDirector.get_lod(HARLAN), 1, "set_lod pins the level across reassignments")
+	NPCDirector.clear_lod(HARLAN)
+	check_eq(NPCDirector.get_lod(HARLAN), 2, "clear_lod returns it to the location rule")
+	SocialGraph.add_link(MAURICE, "player", "debt", 0.8)
+	NPCDirector.refresh_lod()
+	check(NPCDirector.get_lod(MAURICE) == 0 and NPCDirector.get_full_lod_reasons(MAURICE).has("debt")
+			and NPCDirector.is_report_suppressed(MAURICE),
+			"a SocialGraph debt edge towards the player forces LOD 0 and suppresses reports")
+	SocialGraph.remove_link(MAURICE, "player")
+	NPCDirector.refresh_lod()
+	check_eq(NPCDirector.get_lod(MAURICE), 2, "debt edge gone → statistical again")
 
 
 func _check_caps() -> void:
@@ -132,12 +181,18 @@ func _configured_max_agents() -> int:
 	return Database.get_balance_int("lod.max_agentes_total")
 
 
-## Reevaluación por eventos (§7.5, §20.2): solo al cambiar de franja y solo LOD 0/1; nada por
-## fotograma mientras el reloj está parado.
+## Reevaluación por eventos (§7.5, §20.2): solo al cambiar de franja y solo LOD 0/1; con el reloj
+## en marcha (el temporizador de LOD recoloca personajes) no hay decisiones por fotograma.
 func _check_event_driven() -> void:
+	GameClock.set_time(GameClock.get_day(), 14, 10)
 	_decided.clear()
-	await wait_frames(IDLE_FRAMES)
-	check(_decided.is_empty(), "no decisions happen per frame")
+	var before: float = GameClock.get_total_minutes()
+	GameClock.resume()
+	await wait_frames(RUNNING_FRAMES)
+	GameClock.pause()
+	check(GameClock.get_total_minutes() > before and _decided.is_empty(),
+			"the clock ran %.1f game minutes and no NPC decided anything per frame"
+			% (GameClock.get_total_minutes() - before))
 	GameClock.set_time(GameClock.get_day(), 14, 0)
 	EventBus.time_band_changed.emit("lunch", "work_afternoon")
 	var eligible: int = 0

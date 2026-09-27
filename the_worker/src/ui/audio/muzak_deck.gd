@@ -1,5 +1,5 @@
 # muzak_deck.gd — La "pletina" del edificio: reproduce las pistas del hilo musical como una cinta que se degrada.
-# PROPIETARIO DE: el estado de reproducción (posición, granos, variante de la melodía, silencios, oscilaciones, telemetría).
+# PROPIETARIO DE: el estado de reproducción (posición, saltos por pulso, variante de la melodía, silencios, oscilaciones, telemetría).
 # ESCUCHA: nada.
 class_name MuzakDeck
 extends RefCounted

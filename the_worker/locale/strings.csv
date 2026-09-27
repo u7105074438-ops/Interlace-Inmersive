@@ -2138,3 +2138,218 @@ QA_AUDIO_LEGEND_PITCH,Pitch,Tono
 BLACKMAIL_FACE_MONEY,"Nice little scene. Silence costs money, and you are paying.","Bonita escena. El silencio cuesta dinero, y lo vas a pagar tú."
 BLACKMAIL_FACE_PROMOTION,"I saw that. Next vacancy, you back me. Understood?","Lo he visto. En la próxima vacante, me apoyas tú. ¿Entendido?"
 BLACKMAIL_FACE_FAVOUR,I saw that. You owe me one now. A big one.,Lo he visto. Ahora me debes una. Y gorda.
+MAP_TITLE,EMERGENCY EVACUATION PLAN,PLAN DE EVACUACIÓN DE EMERGENCIA
+MAP_SUBTITLE,Stellar Sell Tower · Section A–A · All floors,Torre Stellar Sell · Sección A–A · Todas las plantas
+MAP_SUBTITLE_FLOOR,Stellar Sell Tower · Floor plan · %s,Torre Stellar Sell · Plano de planta · %s
+MAP_EXIT_SIGN,EXIT,SALIDA
+MAP_FOOTER_JOKE,"In case of fire, do not use the elevators. In case of audit, do not use the stairs.","En caso de incendio, no utilice los ascensores. En caso de auditoría, no utilice las escaleras."
+MAP_FOOTER_POSTED,Posted by order of Facilities Management. Removing this plan is a disciplinary offence.,Colocado por orden de Servicios Generales. Retirar este plano constituye falta disciplinaria.
+MAP_HINT_CUT,Click a floor to open its plan · 1 2 3 toggle layers · Tab closes,Clic en una planta para abrir su plano · 1 2 3 activan capas · Tab cierra
+MAP_HINT_ZOOM,↑ ↓ change floor · Esc back to the section · Tab closes,↑ ↓ cambiar de planta · Esc vuelve al corte · Tab cierra
+MAP_HINT_TOUCH,Tap a floor to open its plan,Toca una planta para abrir su plano
+MAP_ROOF_SHORT,Roof,Azot.
+MAP_FACTORY_SHORT,Plant,Nave
+MAP_FLOOR_NAME_FMT,Floor %d,Planta %d
+MAP_FLOOR_GROUND,Ground floor,Planta baja
+MAP_FLOOR_BASEMENT_FMT,Basement %d,Sótano %d
+MAP_FLOOR_ROOF,Roof,Azotea
+MAP_FLOOR_FACTORY,Factory annex,Nave anexa
+MAP_ACCESS_ALLOWED,Authorised,Autorizado
+MAP_ACCESS_ALTERNATIVE,Alternative method,Método alternativo
+MAP_ACCESS_FORBIDDEN,Forbidden,Vetado
+MAP_ACCESS_ALLOWED_DESC,Your card or post opens it,Tu tarjeta o tu puesto lo abren
+MAP_ACCESS_ALTERNATIVE_DESC,"Uniform, keys, ducts, someone else's card…","Uniforme, llaves, conductos, tarjeta ajena…"
+MAP_ACCESS_FORBIDDEN_DESC,No way in with what you have,Sin forma de entrar con lo que tienes
+MAP_METHOD_UNIFORM,Uniform,Uniforme
+MAP_METHOD_MASTER_KEYS,Master keys,Llaves maestras
+MAP_METHOD_CARD,Someone else's card,Tarjeta ajena
+MAP_METHOD_OLD_KEYS,Old desk keys,Llaves antiguas
+MAP_METHOD_FORCED_LOCK,Forced lock,Cerradura forzada
+MAP_METHOD_VENT,Ventilation duct,Conducto de ventilación
+MAP_METHOD_ROOF_LEDGE,Roof ledge,Cornisa
+MAP_LEGEND_TITLE,Legend,Leyenda
+MAP_LEGEND_YOU,You are here,Usted está aquí
+MAP_YOU_ARE_HERE,YOU ARE HERE,USTED ESTÁ AQUÍ
+MAP_LEGEND_KNOWN,Colleague (routine on file),Conocido (rutina en expediente)
+MAP_LEGEND_TARGET,Marked target,Objetivo marcado
+MAP_LEGEND_EVAC,Evacuation route,Ruta de evacuación
+MAP_ASSEMBLY_POINT,ASSEMBLY POINT,PUNTO DE ENCUENTRO
+MAP_ASSEMBLY_NOTE,Executives first,Directivos primero
+MAP_LAYERS_TITLE,Layers,Capas
+MAP_LAYER_CAMERAS,Cameras,Cámaras
+MAP_LAYER_ROUTES,Alternative routes,Rutas alternativas
+MAP_LAYER_OCCUPANCY,Occupancy,Ocupación
+MAP_OCCUPANCY_BAND_FMT,Occupancy: %s,Ocupación: %s
+MAP_YOUR_ACCESS,Your card,Tu tarjeta
+MAP_CLEARANCE_FMT,N%d,N%d
+MAP_DISGUISE_FMT,Disguised as: %s,Disfrazado de: %s
+MAP_NO_DISGUISE,No disguise,Sin disfraz
+MAP_FILE_LEVEL_FMT,Personnel files: level %d,Expedientes: nivel %d
+MAP_ROUTINES_LOCKED_FMT,Colleagues' routines need file level %d,Las rutinas de los compañeros requieren expediente de nivel %d
+MAP_FLOOR_PROMPT,Point at a floor to inspect it,Señala una planta para inspeccionarla
+MAP_FLOOR_ZOOM_HINT,Click to open the floor plan,Clic para abrir el plano de planta
+MAP_BACK,Back to section,Volver al corte
+MAP_ROUTE_VENTS,DUCTS,CONDUCTOS
+MAP_ROUTE_SERVICE,SERVICE STAIRS,ESC. SERVICIO
+MAP_ROUTE_FREIGHT,FREIGHT LIFT,MONTACARGAS
+MAP_ROUTE_LEDGE,LEDGE,CORNISA
+MAP_NO_CAMERAS,No cameras,Sin cámaras
+MAP_PEOPLE_FMT,%d people,%d personas
+MAP_SCALE_FMT,%d m,%d m
+MAP_NORTH,N,N
+MAP_TARGET_APPROX_FMT,%s · usual post,%s · puesto habitual
+MAP_ROOMS_TITLE,Rooms,Salas
+MAP_DOTS_COUNT_FMT,%d known colleagues on the plan,%d conocidos en el plano
+MAP_TARGETS_COUNT_FMT,%d marked targets,%d objetivos marcados
+AURORA_HEADER,Aurora Room · Floor 12,Sala Aurora · Planta 12
+AURORA_HEADER_SUB,Weekly ideas meeting · %s,Reunión semanal de ideas · %s
+AURORA_NO_MEETING,No meeting right now. The room smells of whiteboard marker.,Ahora no hay reunión. La sala huele a rotulador de pizarra.
+AURORA_SCREEN_KICKER,AURORA · WEEKLY IDEAS,AURORA · IDEAS DE LA SEMANA
+AURORA_SCREEN_AGENDA,Agenda: 1. Ideas · 2. Credit · 3. Any other business,Orden del día: 1. Ideas · 2. Méritos · 3. Ruegos y preguntas
+AURORA_SCREEN_BY,Presented by %s,Presenta: %s
+AURORA_POSTER,INNOVATE · ITERATE · IMITATE,INNOVAR · ITERAR · IMITAR
+AURORA_CHAIR_OPEN,Right. Let's get started. Who has disrupted something this week?,"Bien, empecemos. ¿Quién ha disruptido algo esta semana?"
+AURORA_EMPTY_ROOM,Nobody came. The projector hums for you alone.,No ha venido nadie. El proyector zumba solo para ti.
+AURORA_PICK_TITLE,Present an idea,Presentar una idea
+AURORA_PICK_BODY,Pick the idea you will present as your own.,Elige la idea que presentarás como tuya.
+AURORA_PICK_NONE,You have no ideas. Of your own or anyone else's.,No tienes ideas. Ni propias ni ajenas.
+AURORA_SKIP,Just nod along,Limitarte a asentir
+AURORA_PRESENT_THIS,Present this,Presentar esta
+AURORA_IDEA_QUALITY,Quality %d,Calidad %d
+AURORA_IDEA_FRESH,Fresh for %d more days,Fresca %d jornadas más
+AURORA_IDEA_MERIT_RANGE,Merit %d–%d,Mérito %d–%d
+AURORA_OWNER_IN_ROOM,%s is in the room. They know it's theirs.,%s está en la sala. Sabe que es suya.
+AURORA_OWNER_ABSENT,%s is not here.,%s no está.
+AURORA_OWNER_CONSENTED,%s agreed to this. For a price.,%s está de acuerdo. Por un precio.
+AURORA_OWNER_GONE,%s is no longer with the company.,%s ya no está en la empresa.
+AURORA_PREP_TITLE,How prepared are you?,¿Cuánto te has preparado?
+AURORA_PREP_NONE,Wing it,Improvisar
+AURORA_PREP_NONE_HINT,"×%s · no time, no trace","×%s · sin tiempo, sin rastro"
+AURORA_PREP_ASSIST,A.S.S.I.S.T.,A.S.S.I.S.T.
+AURORA_PREP_ASSIST_HINT,×%s · leaves a digital trace. Sometimes it invents the figures.,×%s · deja rastro digital. A veces se inventa las cifras.
+AURORA_PREP_REAL,Real preparation,Preparación real
+AURORA_PREP_REAL_HINT,×%s · costs %d minutes of your day,×%s · cuesta %d minutos de tu jornada
+AURORA_PREP_READY,Ready: you prepared it earlier,Lista: la preparaste antes
+AURORA_PREP_NO_TIME,No time left: the meeting ends at %s,No queda tiempo: la reunión acaba a las %s
+AURORA_PREP_MERIT,Merit %d,Mérito %d
+AURORA_PREP_CHOOSE,Choose,Elegir
+AURORA_BACK,Back,Volver
+AURORA_CONTINUE,Continue,Continuar
+AURORA_LEAVE,Back to work,Volver al trabajo
+AURORA_PITCH,Thank you all. I've been working on this for weeks.,Gracias a todos. Llevo semanas trabajando en esto.
+AURORA_ACCUSE_1,Excuse me. That is MY idea.,Perdona. Esa idea es MÍA.
+AURORA_ACCUSE_2,Funny. I said exactly that at the coffee machine on Tuesday.,Qué curioso. Dije exactamente eso en la máquina de café el martes.
+AURORA_ACCUSE_3,I have the draft on my computer. Timestamped.,Tengo el borrador en mi ordenador. Con fecha y hora.
+AURORA_CLASH_TITLE,CREDIBILITY CLASH,CHOQUE DE CREDIBILIDAD
+AURORA_CLASH_YOU,You,Tú
+AURORA_CLASH_REPUTATION,Reputation %d,Reputación %d
+AURORA_CLASH_ALLIES,Allies present ×%d: +%d,Aliados presentes ×%d: +%d
+AURORA_CLASH_SUSPICION,Suspicion %d: −%d,Sospecha %d: −%d
+AURORA_CLASH_BELIEVERS,Know it's theirs ×%d: +%d,Saben que es suya ×%d: +%d
+AURORA_CLASH_TIE_BAND,±%d: nobody wins,±%d: no gana nadie
+AURORA_CLASH_SIDE_ACCUSER,%s wins,Gana %s
+AURORA_CLASH_SIDE_YOU,You win,Ganas tú
+AURORA_RESULT_WIN,The idea is yours,La idea es tuya
+AURORA_RESULT_TIE,Stalemate,Empate
+AURORA_RESULT_LOSS,The idea goes back,La idea vuelve a su dueño
+AURORA_RESULT_PRESENTED,Presented,Presentada
+AURORA_RESULT_FAILED,Nothing presented,No se presentó nada
+AURORA_LINE_MERIT,Merit +%d,Mérito +%d
+AURORA_LINE_NO_MERIT,Nobody earns merit. The idea is burnt.,Nadie gana mérito. La idea queda quemada.
+AURORA_LINE_USURPER,%s is branded a usurper: reputation %d,%s queda como usurpador: reputación %d
+AURORA_LINE_TIE_SUSPICION,Suspicion +%d for you and for %s. It's in the minutes.,Sospecha +%d para ti y para %s. Consta en el acta.
+AURORA_LINE_REVERTS,The idea returns to %s.,La idea vuelve a %s.
+AURORA_LINE_REPUTATION,Your reputation %d,Tu reputación %d
+AURORA_LINE_BELIEF,%d people now believe you steal ideas (certainty %d%%),%d personas creen ahora que robas ideas (certeza %d%%)
+AURORA_LINE_STATUS,The idea could not be presented: %s,No se pudo presentar la idea: %s
+AURORA_STATUS_NO_MEETING,there is no meeting,no hay reunión
+AURORA_STATUS_EXPIRED,it went stale,caducó
+AURORA_STATUS_ALREADY_PRESENTED,someone already presented it,alguien ya la presentó
+AURORA_STATUS_NOT_HELD,"it is not yours, not even in that sense","no es tuya, ni siquiera en ese sentido"
+AURORA_STATUS_NOT_FOUND,it no longer exists,ya no existe
+AURORA_STATUS_NOT_STAGED,the room was not ready,la sala no estaba lista
+AURORA_REACT_WIN_ACCUSER,…I may have misremembered.,…Puede que lo recordara mal.
+AURORA_REACT_WIN_ROOM,Awkward.,Qué incómodo.
+AURORA_REACT_TIE_CHAIR,Let's take this offline.,Lo hablamos fuera de la reunión.
+AURORA_REACT_LOSS_ACCUSER,As I was saying. MY idea.,Como iba diciendo. MI idea.
+AURORA_REACT_LOSS_ROOM,Did they just…?,¿Acaba de…?
+AURORA_REACT_LOSS_PLAYER,I… think there's been a misunderstanding.,Creo… que ha habido un malentendido.
+AURORA_REACT_APPLAUSE,Synergy.,Sinergia.
+AURORA_REACT_APPLAUSE_2,Love it. Let's circle back.,Me encanta. Lo retomamos.
+AURORA_BADGE_ALLY,Ally +%d,Aliado +%d
+AURORA_BADGE_BELIEVER,Knows +%d,Lo sabe +%d
+AURORA_BADGE_REP,Reputation %d,Reputación %d
+AURORA_BADGE_SUSPICION,Suspicion +%d,Sospecha +%d
+AURORA_BADGE_THIEF,Idea thief?,¿Roba ideas?
+AURORA_BADGE_MERIT,Merit +%d,Mérito +%d
+AURORA_ASSIST_DETECTED,%s noticed the invented figures. Reputation %d.,%s notó las cifras inventadas. Reputación %d.
+AURORA_ASSIST_MERIT,A.S.S.I.S.T. outdid itself: merit +%d.,A.S.S.I.S.T. se ha lucido: mérito +%d.
+AURORA_PREP_SPENT,You spent %d minutes preparing.,Has dedicado %d minutos a prepararla.
+AURORA_OTHERS_TITLE,Other presentations,Otras presentaciones
+AURORA_OTHERS_NONE,No other business.,Sin ruegos ni preguntas.
+AURORA_OTHER_PITCH,Quick one from me: %s,Una cosa rápida: %s
+AURORA_OTHER_LINE,%s presented: %s (merit +%d),%s presentó: %s (mérito +%d)
+AURORA_WRAP_TITLE,Meeting adjourned,Se levanta la sesión
+AURORA_WRAP_ACTIONS,Action items: none.,Acciones a tomar: ninguna.
+AURORA_CHAIR_CLOSE,"Great meeting, everyone. Same time next week.","Buena reunión. La semana que viene, a la misma hora."
+AURORA_WRAP_YOURS,You: %s,Tú: %s
+AURORA_WRAP_OTHERS,Colleagues presented %d ideas,Tus colegas presentaron %d ideas
+AURORA_WRAP_SILENT,You said nothing. Nobody noticed.,No dijiste nada. Nadie se dio cuenta.
+INTERROGATION_HEADER,Interrogation Room · Floor 15,Sala de interrogatorios · Planta 15
+INTERROGATION_HEADER_CASE,Case %s · %s,Caso %s · %s
+INTERROGATION_EXHIBIT,EXHIBIT %d OF %d,PRUEBA %d DE %d
+INTERROGATION_CARD_WEIGHT,Weight,Peso
+INTERROGATION_CARD_CERTAINTY,Certainty,Certeza
+INTERROGATION_CARD_COUNTS,Counts,Cuenta
+INTERROGATION_METER_TITLE,CASE WEIGHT AGAINST YOU,PESO DEL CASO CONTRA TI
+INTERROGATION_METER_LINE,Walk free below %s,Libre por debajo de %s
+INTERROGATION_METER_EXTRA,Circumstances +%s,Circunstancias +%s
+INTERROGATION_REQ_ALIBI,Needs an alibi,Necesitas una coartada
+INTERROGATION_REQ_LAWYER,Needs a contact at the law firm (floor 9),Necesitas un contacto en el bufete (planta 9)
+INTERROGATION_HINT_DENY,Works with reputation over %d and weight under %s,Funciona con reputación > %d y peso < %s
+INTERROGATION_HINT_EXPLAIN,Removes it. A false alibi doubles it.,La elimina. Una coartada falsa la duplica.
+INTERROGATION_HINT_ACCUSE,Moves it to someone. They never forget.,Se la pasa a otro. No lo olvidará.
+INTERROGATION_HINT_SILENCE,Weight unchanged. Suspicion +%d.,El peso no cambia. Sospecha +%d.
+INTERROGATION_HINT_LAWYER,Freezes the case for %d days.,Congela el caso %d jornadas.
+INTERROGATION_ACCUSE_TITLE,"Who was it, then?","¿Quién fue, entonces?"
+INTERROGATION_ACCUSE_BODY,Pick a colleague. They will know it was you.,Elige a un colega. Sabrá que fuiste tú.
+INTERROGATION_ACCUSE_NOBODY,There is nobody to blame. Unusually.,No hay nadie a quien culpar. Qué raro.
+INTERROGATION_CANCEL,Never mind,Déjalo
+INTERROGATION_LEAVE,Leave,Salir
+INTERROGATION_NO_CASE,There is nothing to discuss yet. The investigator looks disappointed.,Aún no hay nada de qué hablar. El investigador parece decepcionado.
+INTERROGATION_SLAM,SLAM!,¡PUM!
+INTERROGATION_SUSPICION_BADGE,Suspicion +%d,Sospecha +%d
+INTERROGATION_STAMP_STRUCK,STRUCK,TACHADA
+INTERROGATION_STAMP_CLEARED,CLEARED,ACLARADA
+INTERROGATION_STAMP_DOUBLED,FALSE ALIBI ×%s,COARTADA FALSA ×%s
+INTERROGATION_STAMP_MOVED,→ %s,→ %s
+INTERROGATION_STAMP_FROZEN,FROZEN,CONGELADO
+INTERROGATION_STAMP_NOTED,NOTED,ANOTADO
+INTERROGATION_FROZEN_TITLE,Case frozen,Caso congelado
+INTERROGATION_END_WEIGHT,Final weight %s · walk free below %s,Peso final %s · libre por debajo de %s
+INTERROGATION_END_SUSPICION,Suspicion added in this room: +%d,Sospecha sumada en esta sala: +%d
+INTERROGATION_END_VERDICT,Verdict: %s,Veredicto: %s
+INTERROGATION_END_FROZEN_HINT,Three days. Use them wisely. Or unwisely.,Tres jornadas. Úsalas con cabeza. O sin ella.
+INTERROGATION_SAY_DENY,I've never been there in my life.,No he estado ahí en mi vida.
+INTERROGATION_SAY_EXPLAIN,I can explain. I was somewhere else. There are records.,Puedo explicarlo. Estaba en otro sitio. Hay registros.
+INTERROGATION_SAY_ACCUSE,Have you asked %s? Just saying.,¿Le habéis preguntado a %s? Solo digo.
+INTERROGATION_SAY_SILENCE,…,…
+INTERROGATION_SAY_LAWYER,I'd like to call my lawyer. Floor nine.,Quiero llamar a mi abogado. Planta nueve.
+INTERROGATION_PRESENT_DIRECT_WITNESS,A colleague saw you. Clearly. They were very specific about your shoes.,Un colega te vio. Con claridad. Fue muy concreto con tus zapatos.
+INTERROGATION_PRESENT_PARTIAL_WITNESS,Someone thinks they might have seen someone a bit like you.,Alguien cree que pudo ver a alguien parecido a ti.
+INTERROGATION_PRESENT_CAMERA_FOOTAGE,"Camera footage. That is you, isn't it? Lovely walk.","Grabación de cámara. Eres tú, ¿verdad? Qué andares."
+INTERROGATION_PRESENT_CARD_LOG,Your access card had a very busy day.,Tu tarjeta de acceso tuvo un día muy ajetreado.
+INTERROGATION_PRESENT_COMPROMISING_ITEM,This was in your possession. Care to explain?,Esto estaba en tu poder. ¿Quieres explicarlo?
+INTERROGATION_PRESENT_ACCOUNTING_TRAIL,The numbers left a trail. It ends at your desk.,Los números dejaron un rastro. Termina en tu mesa.
+INTERROGATION_PRESENT_UNSOURCED_RUMOUR,People are talking. I don't know who. But they are talking.,La gente habla. No sé quién. Pero habla.
+INTERROGATION_PRESENT_BODY_FOUND,We found a colleague. Not in a good way.,Encontramos a un colega. Y no en buen estado.
+INTERROGATION_PRESENT_FORGED_DOCUMENT,This document is a forgery. A good one. Yours?,Este documento es falso. Muy bien hecho. ¿Tuyo?
+INTERROGATION_PRESENT_GENERIC,And then there is this.,Y luego está esto.
+INTERROGATION_REACT_PIECE_REMOVED,Fine. I'll strike that.,Bien. Lo tacho.
+INTERROGATION_REACT_DENIAL_REJECTED,Noted.,Anotado.
+INTERROGATION_REACT_ALIBI_ACCEPTED,That checks out. Annoyingly.,Cuadra. Por desgracia.
+INTERROGATION_REACT_ALIBI_FALSE,We called them. They had never heard of you.,Les hemos llamado. No te conocen de nada.
+INTERROGATION_REACT_PIECE_TRANSFERRED,Interesting. I'll have a word with %s.,Interesante. Hablaré con %s.
+INTERROGATION_REACT_SILENCE_KEPT,Silence is also an answer.,El silencio también es una respuesta.
+INTERROGATION_REACT_CASE_FROZEN,Your lawyer is here. We'll continue in three days.,Ha llegado tu abogado. Seguiremos dentro de tres días.
+INTERROGATION_REACT_REQUIREMENT_MISSING,Try again.,Inténtalo otra vez.

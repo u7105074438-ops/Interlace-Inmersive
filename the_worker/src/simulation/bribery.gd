@@ -17,10 +17,10 @@ extends RefCounted
 ## DECISIONES (contrato para el resto de sistemas):
 ##  · Precio justo = salario diario × multiplicador del favor × registro (§7.9) × preset de
 ##    dificultad (precio_soborno, §15.7) × (1 + sobornos.mod_precio_por_sospecha × sospecha/100)
-##    (§7.10: la sospecha encarece). Con sospecha 0 coincide con
-##    NPCDirector.get_fair_bribe_price(). Salario: NPCDirector.get_daily_wage() para la
-##    plantilla (ocupación o puesto no jugable); fuera de ella, ocupación → daily_wage/role del
-##    nominado → media del escalón.
+##    (§7.10: la sospecha encarece). NPCDirector.get_fair_bribe_price() y
+##    get_bribe_price_modifier() delegan aquí (una sola fórmula, claves registro.precio_*).
+##    Salario: NPCDirector.get_daily_wage() para la plantilla (ocupación o puesto no jugable);
+##    fuera de ella, ocupación → daily_wage/role del nominado → media del escalón.
 ##  · P = 0 si codicia < 20 y lealtad > 80 (§8.2) o si el arquetipo está en
 ##    sobornos.arquetipos_insobornables (§8.1: el incorruptible es nulo «por definición», aunque la
 ##    variación ±15 lo saque de la regla de rasgos). Nada lo salta: tampoco una contraoferta.

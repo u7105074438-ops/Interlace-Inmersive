@@ -89,6 +89,8 @@ const EXIT_ID_FORMAT := "exit_%s_%s"
 const CORRIDOR_CAMERA_FORMAT := "%s_cam_%d"
 const HUGE_SCORE := 1.0e18
 const CENTER_WEIGHT := 4.0
+## Premio (en unidades de puntuación de contorno) por tocar otra sala enlazada ya colocada.
+const LINK_BONUS := 20000.0
 ## Decoración de pasillo por banda (contra los muros, entre puertas): [tipo, ancho en celdas].
 const DECOR_BY_BAND: Dictionary = {
 	"the_pit": [["plant", 1], ["water_cooler", 1], ["trash_bin", 1], ["plant", 1], ["vending_machine", 1]],
@@ -690,9 +692,9 @@ static func _attach(ctx: Ctx, id: String, parent_id: String) -> bool:
 	if ctx.gates.has(parent_id) and ctx.parent.has(parent_id) and _is_placed(ctx, parent_id):
 		parent_id = str(ctx.parent[parent_id])
 	var size: Vector2i = (ctx.defs[id] as RoomData).size
-	var rect: Rect2i = _find_adjacent(ctx, size, ctx.rects[parent_id], ctx.min_overlap)
+	var rect: Rect2i = _find_adjacent(ctx, size, parent_id, ctx.min_overlap, id)
 	if rect.size == Vector2i.ZERO:
-		rect = _find_adjacent(ctx, size, ctx.rects[parent_id], ctx.door_width)
+		rect = _find_adjacent(ctx, size, parent_id, ctx.door_width, id)
 	if rect.size == Vector2i.ZERO:
 		return false
 	ctx.rects[id] = rect
@@ -750,7 +752,9 @@ static func _gate_children(ctx: Ctx, gate: String) -> Array[String]:
 		else:
 			transit.append(id)
 	transit.sort_custom(func(a: String, b: String) -> bool:
-		return LEFT_CAP_KINDS.find(transit_kind_of(ctx.defs[a])) < LEFT_CAP_KINDS.find(transit_kind_of(ctx.defs[b])))
+		var ka: int = LEFT_CAP_KINDS.find(transit_kind_of(ctx.defs[a]))
+		var kb: int = LEFT_CAP_KINDS.find(transit_kind_of(ctx.defs[b]))
+		return ka < kb or (ka == kb and a < b))
 	transit.append_array(_by_area_desc(ctx, rest))
 	return transit
 
@@ -819,6 +823,7 @@ static func _outward_side(rect: Rect2i, parent_rect: Rect2i) -> int:
 static func _reserve_exit_apron(ctx: Ctx, id: String, side: int) -> void:
 	if not _has_cross(ctx, id):
 		return
+	ctx.apron_side[id] = side
 	var r: Rect2i = ctx.rects[id]
 	var span: int = ctx.min_overlap
 	match side:
@@ -845,8 +850,17 @@ static func _place_remaining(ctx: Ctx) -> void:
 					progress = true
 					break
 	for id: String in ctx.ids:
-		if not _is_placed(ctx, id) and not _attach(ctx, id, ctx.spine):
+		if not _is_placed(ctx, id) and not _attach_secure(ctx, id) and not _attach(ctx, id, ctx.spine):
 			_attach_anywhere(ctx, id)
+
+
+## En una planta con compuerta, lo que no enlaza con nada se adosa a una sala del lado seguro.
+static func _attach_secure(ctx: Ctx, id: String) -> bool:
+	for other: String in ctx.gate_side:
+		if ctx.gate_side[other] == SIDE_SECURE and _attach(ctx, id, other):
+			ctx.gate_side[id] = SIDE_SECURE
+			return true
+	return false
 
 
 ## Último recurso: junto a cualquier sala colocada (con puerta), para no dejar salas fuera.
@@ -862,8 +876,12 @@ static func _is_placed(ctx: Ctx, id: String) -> bool:
 	return ctx.rects.has(id) and (ctx.rects[id] as Rect2i).size != Vector2i.ZERO
 
 
-## Mejor posición adosada: minimiza el área del contorno total y el descentrado.
-static func _find_adjacent(ctx: Ctx, size: Vector2i, parent_rect: Rect2i, min_overlap: int) -> Rect2i:
+## Mejor posición adosada: minimiza el área del contorno total y el descentrado, y premia tocar
+## también las otras salas ya colocadas con las que `id` enlaza (puerta directa a cada una).
+static func _find_adjacent(ctx: Ctx, size: Vector2i, parent_id: String, min_overlap: int, id: String) -> Rect2i:
+	var parent_rect: Rect2i = ctx.rects[parent_id]
+	var others: Array[Rect2i] = _other_link_rects(ctx, id, parent_id)
+	var pending: Array[Dictionary] = _pending_rings(ctx, id)
 	var best: Rect2i = Rect2i()
 	var best_score: float = HUGE_SCORE
 	var bounds: Rect2i = _bounds(ctx)
@@ -880,10 +898,70 @@ static func _find_adjacent(ctx: Ctx, size: Vector2i, parent_rect: Rect2i, min_ov
 			var centre_off: float = absf(float(offset) + own_len * 0.5 - along_len * 0.5)
 			var side_len: float = maxf(grown.size.x / aspect, float(grown.size.y))
 			var score: float = side_len * side_len + float(grown.get_area()) * 0.25 + centre_off * CENTER_WEIGHT
+			score -= LINK_BONUS * _touching(ctx, rect, others)
+			if not pending.is_empty() and _leaves_room(ctx, rect, pending):
+				score -= LINK_BONUS
 			if score < best_score:
 				best_score = score
 				best = rect
 	return best
+
+
+## Rectángulos de las salas enlazadas con `id` ya colocadas (sin contar `parent_id`).
+static func _other_link_rects(ctx: Ctx, id: String, parent_id: String) -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	if id.is_empty():
+		return out
+	for other: String in ctx.links[id]:
+		if other != parent_id and _is_placed(ctx, other):
+			out.append(ctx.rects[other])
+	return out
+
+
+## Anillos por cerrar: enlaces Y de `id` aún sin colocar que también enlazan con salas ya
+## colocadas Z. [{size: tamaño de Y, touch: [Rect2i de cada Z]}].
+static func _pending_rings(ctx: Ctx, id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if id.is_empty():
+		return out
+	for y: String in ctx.links[id]:
+		if _is_placed(ctx, y) or _is_transversal(ctx, y):
+			continue
+		var touch: Array[Rect2i] = _other_link_rects(ctx, y, id)
+		if not touch.is_empty():
+			out.append({"size": (ctx.defs[y] as RoomData).size, "touch": touch})
+	return out
+
+
+## Con `rect` colocada, cada anillo pendiente aún tiene un hueco para Y que toca `rect` y sus Z.
+static func _leaves_room(ctx: Ctx, rect: Rect2i, pending: Array[Dictionary]) -> bool:
+	for ring: Dictionary in pending:
+		var size: Vector2i = ring["size"]
+		var touch: Array[Rect2i] = ring["touch"]
+		var found: bool = false
+		for side: int in HUB_SIDES:
+			var along_len: int = rect.size.x if side <= SIDE_BOTTOM else rect.size.y
+			var own_len: int = size.x if side <= SIDE_BOTTOM else size.y
+			for offset: int in range(ctx.min_overlap - own_len, along_len - ctx.min_overlap + 1):
+				var y_rect: Rect2i = _adjacent_rect(rect, size, side, offset)
+				if _touching(ctx, y_rect, touch) == touch.size() and not _collides(ctx, y_rect):
+					found = true
+					break
+			if found:
+				break
+		if not found:
+			return false
+	return true
+
+
+## Cuántos de `others` comparten con `rect` un muro donde cabe una puerta con sus márgenes.
+static func _touching(ctx: Ctx, rect: Rect2i, others: Array[Rect2i]) -> int:
+	var count: int = 0
+	for other: Rect2i in others:
+		var wall: Dictionary = shared_wall(rect, other)
+		if not wall.is_empty() and int(wall["length"]) >= ctx.min_overlap:
+			count += 1
+	return count
 
 
 static func _adjacent_rect(parent_rect: Rect2i, size: Vector2i, side: int, offset: int) -> Rect2i:
@@ -985,6 +1063,13 @@ static func _door_start(ctx: Ctx, a: String, b: String, wall: Dictionary) -> int
 	if hi < lo:
 		lo = int(wall["from"])
 		hi = int(wall["from"]) + int(wall["length"]) - ctx.door_width
+	var span: Vector2i = _gate_span(ctx, a, b, wall)
+	if span.x >= 0:
+		lo = maxi(lo, span.x)
+		hi = mini(hi, span.y - ctx.door_width)
+		if hi < lo:
+			lo = maxi(int(wall["from"]), span.x)
+			hi = lo
 	var centre: int = (lo + hi) / 2
 	var blocked: Dictionary = blocked_cells(ctx.defs[a], ctx.rects[a])
 	blocked.merge(blocked_cells(ctx.defs[b], ctx.rects[b]))
@@ -1161,6 +1246,9 @@ static func _free_wall(ctx: Ctx, room_id: String) -> Dictionary:
 		var outward: int = _outward_side(rect, ctx.rects[ctx.parent[room_id]])
 		sides.erase(outward)
 		sides.push_front(outward)
+	if ctx.apron_side.has(room_id):
+		sides.erase(int(ctx.apron_side[room_id]))
+		sides.push_front(int(ctx.apron_side[room_id]))
 	for side: int in sides:
 		var along_len: int = rect.size.x if side <= SIDE_BOTTOM else rect.size.y
 		var centre: int = (along_len - ctx.door_width) / 2
@@ -1300,6 +1388,7 @@ static func _band_id(floor_number: int) -> String:
 ## Muebles decorativos contra los muros norte y sur del eje, entre puertas (deterministas).
 static func _build_decor(ctx: Ctx) -> void:
 	_hiding_fixtures(ctx)
+	_gate_barriers(ctx)
 	var kit: Array = DECOR_BY_BAND.get(_band_id(ctx.floor_number), [])
 	var rect: Rect2i = ctx.rects[ctx.spine]
 	if kit.is_empty() or rect.size.y < 3:
@@ -1317,7 +1406,36 @@ static func _build_decor(ctx: Ctx) -> void:
 						"rotation": 0.0 if row == 0 else 180.0, "decor": true})
 				index += 1
 			x += spacing
-	ctx.decor[ctx.spine] = out
+	_add_decor(ctx, ctx.spine, out)
+
+
+static func _add_decor(ctx: Ctx, id: String, entries: Array[Dictionary]) -> void:
+	if entries.is_empty():
+		return
+	var list: Array = ctx.decor.get(id, [])
+	list.append_array(entries)
+	ctx.decor[id] = list
+
+
+## Barandillas de cristal en las celdas libres de la fila de tornos: solo se cruza por los tornos.
+static func _gate_barriers(ctx: Ctx) -> void:
+	for gate: String in ctx.gates:
+		if not _is_placed(ctx, gate):
+			continue
+		var room: RoomData = ctx.defs[gate]
+		var row: int = int(ctx.gates[gate])
+		var taken: Dictionary = {}
+		for entry: Dictionary in room.furniture:
+			if str(entry["type"]) == GATE_FURNITURE or FurniturePainter.blocking_of(str(entry["type"])) != FurniturePainter.BLOCK_NONE:
+				var fp: Rect2i = FurniturePainter.footprint(entry)
+				for x: int in range(fp.position.x, fp.end.x):
+					if row >= fp.position.y and row < fp.end.y:
+						taken[x] = true
+		var out: Array[Dictionary] = []
+		for x: int in room.size.x:
+			if not taken.has(x):
+				out.append({"type": GATE_BARRIER, "pos": Vector2i(x, row), "rotation": 0.0, "decor": true})
+		_add_decor(ctx, gate, out)
 
 
 ## Escondites sin mueble propio: armario de material (alto) o cortinas (planas) en su celda.
@@ -1333,8 +1451,7 @@ static func _hiding_fixtures(ctx: Ctx) -> void:
 			if type.is_empty() or occupied.has(spot["pos"]) or _near_door(ctx, id, spot["pos"]):
 				continue
 			out.append({"type": type, "pos": spot["pos"], "rotation": 0.0, "decor": true})
-		if not out.is_empty():
-			ctx.decor[id] = out
+		_add_decor(ctx, id, out)
 
 
 static func _furniture_cells(room: RoomData) -> Dictionary:

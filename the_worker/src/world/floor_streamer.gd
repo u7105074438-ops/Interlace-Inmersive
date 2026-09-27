@@ -336,6 +336,7 @@ func _build_navigation() -> void:
 	_add_nav_points(size)
 	_connect_inside(size)
 	_connect_doors()
+	_disable_isolated()
 	for room_id: String in _room_ids:
 		_spawn_cells[room_id] = _find_spawn_cell(room_id)
 
@@ -418,6 +419,27 @@ func _connect_doors() -> void:
 			var ib: int = _cell_index(outer)
 			if ia >= 0 and ib >= 0 and _astar.has_point(ia) and _astar.has_point(ib):
 				_astar.connect_points(ia, ib)
+
+
+## Celda de planta transitable (dentro de una sala y sin mueble que bloquee).
+func is_walkable_cell(floor_cell: Vector2i) -> bool:
+	var i: int = _cell_index(floor_cell)
+	return i >= 0 and _cell_owner[i] > 0 and _walkable[i] == 1
+
+
+## Centro (px globales) de la celda transitable y conectada más cercana, o Vector2.INF.
+func nearest_walkable_point(world_pos: Vector2) -> Vector2:
+	if _astar.get_point_count() == 0:
+		return Vector2.INF
+	var id: int = _astar.get_closest_point(to_local(world_pos))
+	return Vector2.INF if id < 0 else to_global(_astar.get_point_position(id))
+
+
+## Las celdas sin vecinos transitables (encerradas por muebles) no cuentan como destino.
+func _disable_isolated() -> void:
+	for id: int in _astar.get_point_ids():
+		if _astar.get_point_connections(id).is_empty():
+			_astar.set_point_disabled(id, true)
 
 
 func _find_spawn_cell(room_id: String) -> Vector2i:

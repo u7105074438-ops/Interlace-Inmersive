@@ -2003,7 +2003,11 @@
     "stick_zona_muerta": 0.18,
     "doble_toque_segundos": 0.3,
     "barra_inferior_segundos": 0.22,
-    "escala_texto_tactil": 1.25
+    "escala_texto_tactil": 1.25,
+    "flagrancia_resultado_segundos": 2.4,
+    "flagrancia_pulso_hz": 1.3,
+    "flagrancia_aviso_segundos": 3.0,
+    "flagrancia_ralentizacion_visual": 0.35
   },
   "flagrancia": {
     "_nota": "§12.2. plazo_decision_segundos: segundos reales de la ventana de decisión (con el reloj ralentizado a multiplicador_tiempo), × (1 + plazo_extra_por_reputacion × reputación/100) (§7.10: con reputación alta el testigo duda más). plazo_minimo_contraoferta_segundos: tras una contraoferta el plazo no se reinicia, pero quedan al menos estos segundos para responder. peso_denuncia_*: puntos de sospecha de npc_reported_player (+20 en Seguridad, +10 ante el superior; BeliefNet los escala por la credibilidad del denunciante, §7.2). prob_indiferencia: probabilidad de desinterés de burnout/oblivious; si no se desinteresan, lo recuerdan en silencio. duda_*: probabilidad de que un testigo que iba a denunciar calle = (duda_por_rango × rango relativo del jugador + duda_por_temor × temor/100 + duda_por_afecto × afecto/100) × (1 − valentía/100), acotada a duda_maxima (§7.5, §7.9). franja_cotilleo / amplificacion_cotilla: el cotilla cuenta la flagrancia en esa franja a todos sus vínculos, con el factor del vínculo × amplificacion_cotilla (BeliefNet lo acota a creencias.amplificacion_rumor_max).",
@@ -2891,7 +2895,7 @@
     "escaqueo_escalon_max": 3
   },
   "grafo_social": {
-    "_nota": "SocialGraph (PASO 15, §7.7, §19.6). Corrillo: cada par con vínculo que coincide en él conversa con probabilidad clamp(fuerza × amplificación del corrillo × propagation_bonus del arquetipo × sociabilidad ÷ sociabilidad_referencia, 0, 1); los tipos de tipos_propagacion_total conversan siempre (pareja: propagación total). Certeza transmitida = certeza del emisor × degradation del tipo de vínculo (si no tiene: creencias.descuento_por_transmision), factor acotado a creencias.amplificacion_rumor_max y certeza a 1 (§7.2, §7.13: 0,35 → 0,26 por departamento). rondas_por_corrillo = saltos por sesión. tipos_alcanzan_ausentes: el destinatario no necesita estar en el corrillo (la información relevante asciende al superior). arquetipos_sin_vinculos: sin aristas sociales (rookie, §8.3). Aislado = menos de min_vinculos_no_aislado vínculos salientes que propagan. Corrillos con interval_hours: cada N horas desde hora_primer_corrillo_periodico hasta tiempo.hora_fin_jornada (fumadores 10:00, como routine_common_modifiers). Deuda (§7.7, suprime la denuncia temporalmente): pierde deuda_decaimiento_diario de fuerza por jornada y desaparece al llegar a 0. kill_rumour entierra un hecho durante dias_rumor_enterrado jornadas. max_entradas_chat: tope del registro del chat legible por IT. paso_fuerza: redondeo de las fuerzas sorteadas (expediente legible y guardado JSON exacto).",
+    "_nota": "SocialGraph (PASO 15, §7.7, §19.6). Sesión de corrillo: cada par con vínculo que coincide en él conversa con probabilidad clamp(fuerza × amplificación del corrillo × propagation_bonus del arquetipo × sociabilidad ÷ sociabilidad_referencia, 0, 1); los tipos de tipos_propagacion_total conversan siempre (pareja: propagación total). Certeza transmitida = certeza del emisor × degradation del tipo de vínculo (si no tiene: creencias.descuento_por_transmision), factor acotado a creencias.amplificacion_rumor_max y certeza a 1 (§7.2, §7.13: 0,35 → 0,26 por departamento); solo se cuenta si eleva la certeza del oyente, y lo que el oyente ya sabía antes de la sesión solo lo eleva un testigo de primera mano. rondas_por_corrillo = saltos por sesión. tipos_alcanzan_ausentes: en corrillos presenciales el destinatario no necesita estar (la información relevante asciende al superior); el chat digital no. arquetipos_sin_vinculos: sin aristas (rookie, §8.3). Aislado = menos de min_vinculos_no_aislado vínculos salientes que propagan. Calendario: corrillo de franja (cafetería) al TERMINAR su franja; band any en cada cambio de franja con quien pasó por su sala en la franja que acaba; interval_hours cada N horas desde hora_primer_corrillo_periodico hasta tiempo.hora_fin_jornada con quien salió a su sala en esas N horas; chat cada hora. Deuda (§7.7, suprime la denuncia temporalmente): add_link la acota a [strength_min, strength_max] de §31, pero después pierde deuda_decaimiento_diario de fuerza por jornada (también por debajo de strength_min) y desaparece al llegar a 0 (0,5 → 10 jornadas). kill_rumour entierra un hecho hasta el cambio de jornada número dias_rumor_enterrado (1 = el siguiente): BeliefNet olvida entonces sus copias de origen rumor y los testigos de primera mano vuelven a contarlo. amplificacion_secreto_descubierto: amplificación de un corrillo is_secret (pareja de contabilidad) cuando ya no hay pareja clandestina entre sus miembros. max_entradas_chat: tope del registro del chat legible por IT. paso_fuerza: redondeo de las fuerzas sorteadas (expediente legible y guardado JSON exacto).",
     "rondas_por_corrillo": 2,
     "sociabilidad_referencia": 50.0,
     "tipos_propagacion_total": [
@@ -3062,5 +3066,210 @@
     "cuaderno_max_entradas": 40,
     "intrusion_inicio_sesion_segundos": 1.2,
     "objeto_copia_documento": "foreign_document"
+  },
+  "expedientes": {
+    "_nota": "PERSONNEL (§13.4, PASO 20): nivel mínimo de expediente (N1–N7) de cada sección de la ficha — tabla exacta del manual; el acceso completo anticipado equivale a nivel_maximo. Estudio: minutos de juego consumidos (15–30) y conversión de probabilidad a palabra difusa (umbrales ascendentes: muy improbable, improbable, incierto, probable, muy probable). temperatura_estudio = softmax sobre las utilidades de UtilityAI para confrontar/denunciar ante una flagrancia hipotética de certeza certeza_estudio. Categorías: sobornable = no insobornable y codicia ≥ sobornable_codicia_min; peligroso = perspicacia ≥ peligro_perspicacia_min o denunciaría un soborno (umbrales de sobornos).",
+    "nivel_seccion": {
+      "routine": 2,
+      "character": 2,
+      "traits": 3,
+      "links": 3,
+      "weakness": 4,
+      "history": 4,
+      "exact_figures": 5,
+      "discipline": 5,
+      "bribe_price": 5,
+      "secrets": 6,
+      "home": 6,
+      "politics": 6
+    },
+    "nivel_maximo": 7,
+    "vinculos_principales": 5,
+    "estudio_minutos_min": 15,
+    "estudio_minutos_max": 30,
+    "estudio_favor_soborno": "look_away_once",
+    "certeza_estudio": 1.0,
+    "temperatura_estudio": 0.5,
+    "umbrales_probabilidad": [
+      0.15,
+      0.35,
+      0.65,
+      0.85
+    ],
+    "rasgo_alto": 70,
+    "rasgo_bajo": 30,
+    "frases_caracter_max": 3,
+    "peligro_perspicacia_min": 70,
+    "sobornable_codicia_min": 55,
+    "favores_precio": [
+      "look_away_once",
+      "lend_access",
+      "silence_witnessed",
+      "lie_in_interrogation"
+    ],
+    "afecto_umbral": 25,
+    "temor_umbral": 40,
+    "max_comunicaciones": 8,
+    "max_disciplinario": 6
+  },
+  "portal": {
+    "_nota": "PORTAL (§13.3, PASO 25): agendas visibles en el organigrama para titulares de escalón ≥ escalon_agenda_min (la de Voss, §11.8).",
+    "escalon_agenda_min": 5
+  },
+  "mercado_ui": {
+    "_nota": "MARKET (§13.3, §9.11, PASO 34): jornadas del gráfico y del calendario; lotes de compra/venta.",
+    "dias_grafico": 30,
+    "dias_calendario": 10,
+    "lotes": [
+      10,
+      100,
+      1000
+    ]
+  },
+  "presentacion_ui": {
+    "_nota": "Pantalla de resultados (§9.5): paso del control de inflado; la preparación sale de cómo se produjo el informe: deber de informe (subtipos) completado con método de trabajo real u objeto/método de informe robado al COO.",
+    "paso_inflado": 0.05,
+    "objeto_informe_coo": "coo_report",
+    "subtipos_informe": [
+      "quarterly_results",
+      "quarterly_board",
+      "investor_confidence",
+      "full_operation"
+    ],
+    "metodos_trabajo_real": [
+      "honest",
+      "delegated"
+    ],
+    "metodos_informe_robado": [
+      "stolen_material"
+    ],
+    "escalon_inversor": 7
+  },
+  "escenas": {
+    "_nota": "Escenas guionizadas de la sala Aurora (P12, §11.2) y del interrogatorio (P15, §12.5): src/ui/aurora_scene.gd, interrogation_scene.gd y scene_stage.gd. Tiempos en segundos reales; escalas de personaje sobre el lienzo de diseño 1920×1080.",
+    "aurora_escala_personajes": 2.3,
+    "interrogatorio_escala_personajes": 3.1,
+    "bocadillo_segundos_base": 1.3,
+    "bocadillo_segundos_por_caracter": 0.035,
+    "bocadillo_segundos_max": 4.5,
+    "paseo_segundos": 1.1,
+    "pausa_segundos": 0.6,
+    "medidor_segundos": 1.4,
+    "tarjeta_segundos": 0.45,
+    "portazo_espera_segundos": 0.9,
+    "portazo_segundos": 0.12,
+    "temblor_px": 22,
+    "temblor_segundos": 0.55,
+    "max_acusables": 8,
+    "max_ideas_listadas": 6
+  },
+  "movil": {
+    "_nota": "Móvil (§13.5, §14.10). radio_escucha_llamada: celdas (1 celda = 1 metro) en las que se oye una llamada en una sala con safe_for_calls (baños, escaleras de servicio); en el resto de salas × factor_escucha_sala_abierta (§13.5: son los únicos espacios seguros). Sin nodos de NPC en la escena, cuenta quien comparte la sala del jugador. certeza_superior_ve_movil: player_seen_partially de un personaje de escalón superior que ve al jugador usando el móvil (a percepcion.cono_distancia_base); se repite cada enfriamiento_superior_segundos reales mientras siga mirando. escalon_directivo / brecha_escalon_sin_respuesta: un directivo (escalón >= escalon_directivo) no responde a un jugador que esté esa brecha de escalones o más por debajo. nivel_expediente_precio_estimado: nivel de expediente (§13.4, N5) desde el que la interfaz de soborno muestra el precio estimado. afecto_minimo_contacto: afecto del registro desde el que alguien te da su número (vía favores). departamento_rrhh: trabajar en ese departamento da acceso a todos los números. soborno_paso: paso del deslizador (EUR); soborno_fraccion_inicial: valor inicial del deslizador a ciegas, fracción del capital. max_mensajes_bandeja: mensajes de la sesión que guarda el servicio del móvil. vibracion_*: sacudida visual del móvil al recibir un mensaje sin silenciar (segundos, píxeles, hercios). animacion_apertura_segundos: deslizamiento al abrirlo.",
+    "radio_escucha_llamada": 4.0,
+    "factor_escucha_sala_abierta": 2.0,
+    "certeza_superior_ve_movil": 0.3,
+    "enfriamiento_superior_segundos": 15.0,
+    "intervalo_vigilancia_segundos": 0.5,
+    "escalon_directivo": 5,
+    "brecha_escalon_sin_respuesta": 3,
+    "nivel_expediente_precio_estimado": 5,
+    "afecto_minimo_contacto": 25,
+    "departamento_rrhh": "hr",
+    "soborno_paso": 10,
+    "soborno_fraccion_inicial": 0.25,
+    "max_mensajes_bandeja": 80,
+    "vibracion_segundos": 0.7,
+    "vibracion_amplitud": 5.0,
+    "vibracion_hz": 26.0,
+    "animacion_apertura_segundos": 0.18
+  },
+  "mapa": {
+    "_nota": "Mapa de evacuación (Tab, §13.6, PASO 36). Acceso por sala: verde = la tarjeta/ocupación la abre (regla de puertas de FloorStreamer: nivel y special_access según special_access_mode, más despacho propio y acceso_por_etiqueta); ámbar = método alternativo disponible ahora (uniformes: etiquetas de rol que imita el disfraz puesto o llevado; llaves_maestras hasta llaves_maestras_nivel_max; tarjetas ajenas con su nivel; llaves_antiguas para entradas old_keys; herramientas_forzar para forced_lock; conductos: trampilla hacia una sala autorizada o red de conductos utilizable; cornisas desde una sala autorizada); rojo = nada. Puntos de personajes conocidos si el nivel de expediente alcanza nivel_expediente_rutina (rutina N2).",
+    "nivel_expediente_rutina": 2,
+    "uniformes": {
+      "uniform_security": [
+        "guard"
+      ],
+      "uniform_cleaning": [
+        "cleaning"
+      ],
+      "uniform_maintenance": [
+        "maintenance",
+        "basements",
+        "vents"
+      ],
+      "guard_uniform": [
+        "guard"
+      ],
+      "cleaning_uniform": [
+        "cleaning"
+      ],
+      "maintenance_uniform": [
+        "maintenance",
+        "basements",
+        "vents"
+      ]
+    },
+    "llaves_maestras": [
+      "master_keys",
+      "guard_keys",
+      "guard_master_keys",
+      "security_master_key",
+      "cleaning_cart_master_keys"
+    ],
+    "llaves_maestras_nivel_max": 6,
+    "tarjetas": {
+      "stolen_card": 4,
+      "cloned_card": 4,
+      "exec_keycard": 6
+    },
+    "llaves_antiguas": [
+      "keys_basic"
+    ],
+    "herramientas_forzar": [
+      "lockpick",
+      "pry_bar",
+      "cutting_tools"
+    ],
+    "llaves_conductos": [
+      "vent_key"
+    ],
+    "acceso_por_etiqueta": {
+      "basements": {
+        "floors": [
+          -3,
+          -2,
+          -1
+        ]
+      },
+      "factory_floor": {
+        "floors": [
+          100
+        ],
+        "max_room_clearance": 3
+      },
+      "sales_floor_11": {
+        "floors": [
+          11
+        ]
+      },
+      "copy_rooms": {
+        "rooms": [
+          "main_copyroom",
+          "p3_copyroom"
+        ]
+      },
+      "active_archive": {
+        "rooms": [
+          "orders_archive"
+        ]
+      },
+      "vents": {
+        "rooms": [
+          "vent_network"
+        ]
+      }
+    },
+    "ocupacion_marcas_max": 10
   }
 }

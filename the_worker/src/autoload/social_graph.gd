@@ -41,10 +41,13 @@ extends Node
 ##    lo que sabía al empezar la ronda. Certeza nueva = certeza × get_transfer_factor (degradación
 ##    del tipo, §7.2/§7.13: 0,35 → 0,26 por departamento; la rivalidad amplifica ×1,15), factor
 ##    acotado a creencias.amplificacion_rumor_max y certeza a 1. Solo se cuenta si ELEVA la
-##    certeza del oyente (una fuente más fiable refresca una creencia débil); nunca se devuelve a
-##    quien se lo contó en la misma sesión, ni se cuenta al sujeto, ni por debajo de
-##    creencias.umbral_olvido. La amplificación del corrillo y la sociabilidad deciden el VOLUMEN
-##    (quién habla), no la certeza (§7.13: en la cafetería, amplificación 1,4, George recibe 0,26).
+##    certeza del oyente, y a quien ya lo sabía antes de la sesión solo lo eleva un testigo de
+##    primera mano (creencia "direct": refresca una creencia débil, §7.6); lo oído en la misma
+##    sesión lo eleva cualquiera (el rival que llega después con ×1,15 gana al primero). Nunca se
+##    devuelve a quien se lo contó en la sesión, ni se cuenta al sujeto, ni por debajo de
+##    creencias.umbral_olvido: los rumores no se inflan entre sesiones (el chat es horario) por eco
+##    entre rivales. La amplificación del corrillo y la sociabilidad deciden el VOLUMEN (quién
+##    habla), no la certeza (§7.13: en la cafetería, amplificación 1,4, George recibe 0,26).
 ##  · Tipos de propagación: all; negative_only (BeliefNet.is_negative_fact); relevant_only
 ##    (negativos o con sujeto "player"); none (deuda).
 ##  · PROTOCOLO CON BeliefNet (un autoload no muta otro): SocialGraph NO crea creencias. Por cada
@@ -95,6 +98,8 @@ const CRIME_RUMOUR_PLANTED := "rumour_planted"
 const KEY_SEPARATOR := "\u001f"
 const TRAIT_SOCIABILITY := "sociability"
 const NEUTRAL_BONUS := 1.0
+## Una pareja (vínculos fijos) y un intervalo [mínimo, máximo] (fuerza de la jerarquía).
+const PAIR_SIZE := 2
 const MINUTES_PER_HOUR := NPCRoutinePlanner.MINUTES_PER_HOUR
 
 # Esquema de social_graph.json (§31).
@@ -160,6 +165,8 @@ const E_SUBJECT := "subject"
 const E_FACT := "fact"
 const E_LOCATION := "location"
 const E_CERTAINTY := "certainty"
+const E_SOURCE := "source"
+const E_IN_SESSION := "in_session"
 const S_SUBORDINATES := "subordinates"
 const S_SUPERIOR := "superior"
 const S_TO := "to"
@@ -199,7 +206,8 @@ class RumourPass extends RefCounted:
 	var forget: float = 0.0
 	var present: Dictionary[String, bool] = {}
 	var active: Dictionary[String, bool] = {}
-	## portador → {clave (sujeto, hecho, lugar) → {id, subject, fact, location, certainty}}.
+	## portador → {clave (sujeto, hecho, lugar) → {id, subject, fact, location, certainty,
+	## source, in_session}}; in_session = lo supo en esta sesión.
 	var knowledge: Dictionary[String, Dictionary] = {}
 	## Portadores que recibieron algo en la ronda anterior (su id se resuelve en BeliefNet).
 	var fresh: Dictionary[String, bool] = {}
@@ -291,7 +299,7 @@ func _build_named_links(active: Dictionary[String, bool]) -> void:
 func _build_fixed_spec(npcs: Array[NPCRuntime], spec: Dictionary) -> void:
 	var members: Array[String] = _fixed_members(npcs, spec)
 	var flags: Dictionary = {L_SECRET: bool(spec.get(L_SECRET, false))}
-	for i: int in range(0, members.size() - 1, 2):
+	for i: int in range(0, members.size() - 1, PAIR_SIZE):
 		_put(members[i], members[i + 1], str(spec.get(L_TYPE, "")),
 				float(spec.get(L_STRENGTH, 0.0)), flags)
 
@@ -375,7 +383,7 @@ func _link_to_superior(npc: NPCRuntime, active: Dictionary[String, bool]) -> voi
 			or not _may_link(npc.id, active):
 		return
 	var strength: float = _roll_between(_hierarchy_strength[0], _hierarchy_strength[1]) \
-			if _hierarchy_strength.size() >= 2 else _roll_strength(LINK_HIERARCHY)
+			if _hierarchy_strength.size() >= PAIR_SIZE else _roll_strength(LINK_HIERARCHY)
 	_put(npc.id, boss, LINK_HIERARCHY, strength, {})
 
 
@@ -736,11 +744,9 @@ func _tell_all(p: RumourPass, teller: String, to: String, link_type: String,
 		var certainty: float = minf(float(e[E_CERTAINTY]) * factor, Belief.MAX_CERTAINTY)
 		if factor <= 0.0 or certainty < p.forget:
 			continue
-		if heard.has(key) and not _raises(certainty, float(heard[key][E_CERTAINTY])):
+		if heard.has(key) and not _may_raise(heard[key], e, certainty):
 			continue
-		var own_id: String = str(heard[key][E_ID]) if heard.has(key) else str(e[E_ID])
-		heard[key] = _entry(own_id, str(e[E_SUBJECT]), str(e[E_FACT]), str(e[E_LOCATION]),
-				certainty)
+		heard[key] = _heard_entry(heard.get(key, {}), e, certainty)
 		p.told[_echo_key(key, teller, to)] = true
 		p.fresh[to] = true
 		p.spreads += 1
@@ -749,8 +755,21 @@ func _tell_all(p: RumourPass, teller: String, to: String, link_type: String,
 		EventBus.rumor_spread.emit(teller, to, str(e[E_ID]))
 
 
-static func _raises(new_certainty: float, old_certainty: float) -> bool:
-	return new_certainty > old_certainty and not is_equal_approx(new_certainty, old_certainty)
+## Eleva la certeza; lo sabido antes de la sesión solo lo eleva un testigo de primera mano.
+static func _may_raise(old: Dictionary, teller_entry: Dictionary, certainty: float) -> bool:
+	var before: float = float(old[E_CERTAINTY])
+	if certainty <= before or is_equal_approx(certainty, before):
+		return false
+	return bool(old[E_IN_SESSION]) or str(teller_entry[E_SOURCE]) == Belief.SOURCE_DIRECT
+
+
+## Lo que el oyente sabe tras el salto (conserva su id, su origen y si lo sabía de antes).
+static func _heard_entry(old: Dictionary, e: Dictionary, certainty: float) -> Dictionary:
+	if old.is_empty():
+		return _entry(str(e[E_ID]), str(e[E_SUBJECT]), str(e[E_FACT]), str(e[E_LOCATION]),
+				certainty, Belief.SOURCE_RUMOR, true)
+	return _entry(str(old[E_ID]), str(e[E_SUBJECT]), str(e[E_FACT]), str(e[E_LOCATION]),
+			certainty, str(old[E_SOURCE]), bool(old[E_IN_SESSION]))
 
 
 func _link_factor(link_type: String, fact: String, subject: String) -> float:
@@ -779,7 +798,8 @@ func _knowledge(p: RumourPass, holder: String) -> Dictionary:
 	for b: Belief in BeliefNet.get_beliefs_held_by(holder):
 		if b.is_record or is_fact_killed(b.fact):
 			continue
-		var e: Dictionary = _entry(b.id, b.subject, b.fact, b.location, b.certainty)
+		var e: Dictionary = _entry(b.id, b.subject, b.fact, b.location, b.certainty, b.source,
+				false)
 		var key: String = _entry_key(e)
 		if not known.has(key) or float(known[key][E_CERTAINTY]) < b.certainty:
 			known[key] = e
@@ -795,8 +815,10 @@ func _entries_of(p: RumourPass, holder: String) -> Array[Dictionary]:
 		for b: Belief in BeliefNet.get_beliefs_held_by(holder):
 			var key: String = _key(b.subject, b.fact, b.location)
 			if not b.is_record and known.has(key):
+				var old: Dictionary = known[key]
 				known[key] = _entry(b.id, b.subject, b.fact, b.location,
-						maxf(b.certainty, float(known[key][E_CERTAINTY])))
+						maxf(b.certainty, float(old[E_CERTAINTY])), str(old[E_SOURCE]),
+						bool(old[E_IN_SESSION]))
 	var out: Array[Dictionary] = []
 	for e: Dictionary in known.values():
 		out.append(e)
@@ -804,9 +826,9 @@ func _entries_of(p: RumourPass, holder: String) -> Array[Dictionary]:
 
 
 static func _entry(id: String, subject: String, fact: String, location: String,
-		certainty: float) -> Dictionary:
+		certainty: float, source: String, in_session: bool) -> Dictionary:
 	return {E_ID: id, E_SUBJECT: subject, E_FACT: fact, E_LOCATION: location,
-			E_CERTAINTY: certainty}
+			E_CERTAINTY: certainty, E_SOURCE: source, E_IN_SESSION: in_session}
 
 
 static func _entry_key(e: Dictionary) -> String:
@@ -1221,6 +1243,9 @@ func _on_seat_filled(occupation_id: String, new_holder: String) -> void:
 		return
 	var parked: Dictionary = _seat_links.get(occupation_id, {})
 	_seat_links.erase(occupation_id)
+	for link: Dictionary in get_links(new_holder):
+		if str(link[L_TYPE]) == LINK_HIERARCHY and str(link["from"]) == new_holder:
+			remove_link(new_holder, str(link["to"]))
 	var subs: Dictionary = parked.get(S_SUBORDINATES, {})
 	for sub: String in subs:
 		var ref: Dictionary = subs[sub]

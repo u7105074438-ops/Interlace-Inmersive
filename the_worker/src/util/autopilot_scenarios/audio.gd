@@ -24,10 +24,12 @@ const INGAME_ROOM := "wing_3b"
 const INGAME_OCCUPATION := "order_filer"
 const INGAME_TIME := Vector3i(3, 10, 42)
 const INGAME_MONEY := 1240
+const INGAME_SUSPICION := 62.0
 const WALK_S := 2.6
-const WALK_PX_PER_S := 150.0
+const WALK_PX_PER_S := 115.0
+const HIDDEN_PX_PER_S := 150.0
 const RADIO_OFFSET := Vector2(260, -170)
-const NPC_START_OFFSET := Vector2(-400, 30)
+const NPC_START_OFFSET := Vector2(-390, 30)
 const HIDDEN_START_DX := 380.0
 const PLAYER_SEAT_OFFSET := Vector2(0, 40)
 const SHEET_LAYER := 20
@@ -235,11 +237,13 @@ func _fire_demo_events(pilot: Autopilot) -> void:
 
 # ─── Captura en juego: la planta 3 con el feed de subtítulos real ─
 
-## Partida de muestra: día 3, 10:42, archivador de pedidos (rango 2, acreditación 1), reloj en marcha.
+## Partida de muestra: día 3, 10:42, archivador de pedidos (rango 2, acreditación 1), reloj en marcha
+## (la seguridad vuelve a cero tras los eventos de la hoja).
 func _prepare_run() -> void:
 	GameClock.reset_for_new_run()
 	GameClock.set_time(INGAME_TIME.x, INGAME_TIME.y, INGAME_TIME.z)
 	PlayerState.reset_for_new_run()
+	Security.reset_for_new_run()
 	PlayerState.set_occupation(INGAME_OCCUPATION, "preview")
 	PlayerState.add_money(INGAME_MONEY, "preview")
 	GameClock.resume()
@@ -247,6 +251,7 @@ func _prepare_run() -> void:
 
 func _ingame_shot(pilot: Autopilot) -> void:
 	_prepare_run()
+	EventBus.suspicion_changed.emit(0.0, INGAME_SUSPICION)
 	var streamer: FloorStreamer = FloorStreamer.new()
 	add_child(streamer)
 	streamer.load_floor(INGAME_FLOOR)
@@ -262,7 +267,7 @@ func _ingame_shot(pilot: Autopilot) -> void:
 	add_child(director)
 	await pilot.frames(SETTLE_FRAMES)
 	EventBus.floor_changed.emit(0, INGAME_FLOOR)
-	EventBus.suspicion_changed.emit(0.0, 62.0)
+	EventBus.suspicion_changed.emit(INGAME_SUSPICION, INGAME_SUSPICION)
 	await _walk_npcs(pilot, streamer, player, layout["hidden"])
 	director.play_sfx("guard_radio", player.global_position + RADIO_OFFSET)
 	EventBus.phone_message_received.emit("npc_amelia_cole", "MSG_TEST", false)
@@ -316,7 +321,7 @@ func _walk_npcs(pilot: Autopilot, streamer: FloorStreamer, player: Node2D, hidde
 		var dt: float = get_process_delta_time()
 		t += dt
 		walker.position.x += WALK_PX_PER_S * dt
-		hidden.position.x -= WALK_PX_PER_S * dt
+		hidden.position.x -= HIDDEN_PX_PER_S * dt
 		walker.queue_redraw()
 		hidden.queue_redraw()
 		await pilot.frames(1)

@@ -101,7 +101,7 @@ func _add_named(data: NPCData) -> void:
 	else:
 		profile["seat_index"] = _next_seat(data.occupation)
 	profile["zone_floors"] = _int_array(special.get("cleaning_zone_floors", []))
-	profile["special"] = special.duplicate(true)
+	profile["special"] = json_ints(special)
 	for key: String in ["secrets", "blackmail_secrets"]:
 		profile[key] = _string_array(extra.get(key, []))
 	profile["knows_safe_combination"] = bool(extra.get("knows_safe_combination", false))
@@ -352,6 +352,21 @@ static func _desk_for(slot: Dictionary, index: int) -> Vector2i:
 		if pos is Array and (pos as Array).size() >= 2:
 			return Vector2i(int(pos[0]), int(pos[1]))
 	return NPCRuntime.NO_DESK
+
+
+## Los datos de personaje (perfil, material de chantaje, decisiones) solo usan enteros: un float
+## entero leído de JSON vuelve a int (misma forma en memoria y tras cargar una partida).
+static func json_ints(value: Variant) -> Variant:
+	if value is float and is_finite(value) and value == floorf(value):
+		return int(value)
+	if value is Array:
+		return (value as Array).map(json_ints)
+	if value is Dictionary:
+		var out: Dictionary = {}
+		for key: Variant in value:
+			out[key] = json_ints(value[key])
+		return out
+	return value
 
 
 static func _int_array(raw: Variant) -> Array[int]:

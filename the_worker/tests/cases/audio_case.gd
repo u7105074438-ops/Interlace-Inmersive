@@ -632,6 +632,11 @@ func _check_floor_arrangements(director: AudioDirector) -> void:
 	check_eq(director.get_deck().variant_count(), MuzakSynth.VARIANT_COUNT, "degradable variants arrive")
 	await wait_frames(3)
 	check((director.get_node("MuzakPlayer") as AudioStreamPlayer).playing, "the muzak generator is playing")
+	var lead: float = AudioTuning.num("audio.muzak.adelanto_s") * float(_rate)
+	check(director.get_queued_music_frames() > 0 and director.get_queued_music_frames() <= int(lead) + 1,
+			"only ~adelanto_s of music is queued (changes and the flagrancy cut are heard at once)")
+	director.interrupt_muzak(AudioTuning.num("audio.corte_flagrancia_s"))
+	check_eq(director.get_queued_music_frames(), 0, "flagrancy drops the queued music: the cut is immediate")
 	EventBus.floor_changed.emit(19, 100)
 	await wait_frames(3)
 	check(not (director.get_node("MuzakPlayer") as AudioStreamPlayer).playing, "no muzak on the factory floor")
