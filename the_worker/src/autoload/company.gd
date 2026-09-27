@@ -142,7 +142,8 @@ extends Node
 ##    FactoryTheft.report_mismatches, conectado a week_closed por Company al arrancar). Albaranes
 ##    falsificados (set_forged_delivery_target) desvían el descuadre de ESA semana al superior.
 ##    Informe: get_inventory_reports(). Producto robado pendiente de reventa (bolsillo, caja): lotes
-##    FIFO {item_id, units, pairs, income} (add_stolen_goods / take_stolen_goods).
+##    FIFO {item_id, units, pairs, income} (add_stolen_goods / take_stolen_goods); devolverlo antes
+##    del recuento resta sus pares de los robos pendientes (compensate_factory_thefts).
 ##  · COMPRADORES (§11.5): cartera (Buyers.generate_roster, semilla de partida) y agenda por
 ##    jornada (Buyers.generate_visits, semilla de partida + jornada) en la sala de demostraciones;
 ##    get_buyers_today() (rasgos solo de los compradores conocidos: reveal_buyer). La nota de la
@@ -1304,10 +1305,11 @@ func add_stolen_goods(item_id: String, units: int, pairs: int, income: int) -> v
 		_stolen_goods.append({G_ITEM: item_id, G_UNITS: units, G_PAIRS: pairs, G_INCOME: income})
 
 
-## Extra (FactoryTheft.fence): consume hasta `units` unidades de ese objeto de los lotes, FIFO
-## (un lote a medias se prorratea). Devuelve {units, income} de lo consumido.
+## Extra (FactoryTheft.fence / return_goods): consume hasta `units` unidades de ese objeto de los
+## lotes, FIFO (un lote a medias se prorratea). Devuelve {units, pairs, income} de lo consumido.
 func take_stolen_goods(item_id: String, units: int) -> Dictionary:
 	var taken: int = 0
+	var pairs: int = 0
 	var income: int = 0
 	for lot: Dictionary in _stolen_goods.duplicate():
 		if taken >= units:
@@ -1317,15 +1319,37 @@ func take_stolen_goods(item_id: String, units: int) -> Dictionary:
 		var lot_units: int = int(lot[G_UNITS])
 		var used: int = mini(lot_units, units - taken)
 		var share: int = roundi(float(lot[G_INCOME]) * used / lot_units)
+		var lot_pairs: int = roundi(float(lot[G_PAIRS]) * used / lot_units)
 		taken += used
 		income += share
+		pairs += lot_pairs
 		if used == lot_units:
 			_stolen_goods.erase(lot)
 			continue
-		lot[G_PAIRS] = int(lot[G_PAIRS]) - roundi(float(lot[G_PAIRS]) * used / lot_units)
+		lot[G_PAIRS] = int(lot[G_PAIRS]) - lot_pairs
 		lot[G_UNITS] = lot_units - used
 		lot[G_INCOME] = int(lot[G_INCOME]) - share
-	return {G_UNITS: taken, G_INCOME: income}
+	return {G_UNITS: taken, G_PAIRS: pairs, G_INCOME: income}
+
+
+## Extra (FactoryTheft.return_goods, «inventario compensado» §12.3): pares devueltos a las
+## estanterías antes del recuento; se restan de los robos sin recontar, del más reciente al más
+## antiguo (con su pérdida). Devuelve los pares compensados.
+func compensate_factory_thefts(pairs: int) -> int:
+	var left: int = maxi(pairs, 0)
+	for i: int in range(_factory_thefts.size() - 1, -1, -1):
+		if left <= 0:
+			break
+		var theft: Dictionary = _factory_thefts[i]
+		var own: int = int(theft[T_PAIRS])
+		var used: int = mini(own, left)
+		left -= used
+		if used == own:
+			_factory_thefts.remove_at(i)
+			continue
+		theft[T_LOSS] = float(theft[T_LOSS]) * (own - used) / own
+		theft[T_PAIRS] = own - used
+	return maxi(pairs, 0) - left
 
 
 ## Extra: lotes de producto robado pendientes de reventa (copias).

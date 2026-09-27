@@ -1,62 +1,81 @@
 # endgame.gd — Secuencia final de apropiación (§2.2, §11.8, §12.9, PASO 45): revelación, combinación, ventana temporal, documentos, notaría y resolución.
 # PROPIETARIO DE: nada propio (BUILD_NOTES §12): el estado de la misión vive en las banderas de PlayerState (claves "endgame.*", se guardan con PlayerState); la vigilancia personal de Voss, en NPCDirector; la notaría y los ejes, en Tracking.
-# ESCUCHA: occupation_changed, day_advanced, quarter_closed (solo el nodo que añade game_root).
+# ESCUCHA: occupation_changed, day_advanced, quarter_closed, room_entered, npc_removed, item_disposed (diferida) — solo el nodo que añade game_root.
 class_name Endgame
 extends Node
 
 ## Manual §2.2, §5.3, §7.10, §8.3, §9.11, §11.8, §12.4, §12.9, §15.3; PASO 45; BUILD_NOTES §2, §12-§14.
 ## Emite: ownership_documents_obtained, ownership_notarised, game_over (victoria y THE FIGUREHEAD),
-## crime_committed (file_copied, lock_forced, forgery), blackmail_initiated, noise_emitted,
-## player_seen_partially (Pearl en estadístico), notebook_entry_added (categoría final.categoria_cuaderno).
+## crime_committed (file_copied, lock_forced, forgery, records_deleted), blackmail_initiated,
+## noise_emitted, player_seen_partially (Pearl en estadístico), notebook_entry_added (categoría
+## final.categoria_cuaderno).
 ## USO: API ESTÁTICA (la llaman la interacción del mundo, la interfaz y las pruebas). El nodo
-## (Endgame.new() hijo de la escena de juego) solo escucha el calendario: sin él no hay revelación
-## automática en el ascenso, ni investigación del día siguiente, ni plazo de notaría, ni mandato.
-## Toda acción devuelve {ok: bool, reason: String, ...}; ok = el paso se completó. reason_key(r)
-## = ENDGAME_REASON_<R>. Endgame NUNCA avanza el reloj: los tiempos van en el resultado (minutes) y
-## los actos largos se informan por tramos con los minutos que el mundo midió.
+## (Endgame.new() hijo de la escena de juego) escucha el calendario y el mundo: sin él no hay
+## revelación automática en el ascenso, ni investigación del día siguiente, ni plazo de notaría, ni
+## mandato, ni corte de la visita a los archivos al salir del despacho, ni anulación inmediata si el
+## notario deja la plantilla, ni recuperación inmediata de los documentos perdidos (process_day
+## repasa estas dos cada jornada). Toda acción devuelve {ok: bool, reason: String, ...}; ok = el
+## paso se completó. reason_key(r) = ENDGAME_REASON_<R>. Endgame no avanza el reloj salvo
+## retrieve_documents (InventoryRules.retrieve_from_stash cobra los minutos del alijo): los demás
+## tiempos van en el resultado (minutes) y los actos largos se informan por tramos con los minutos
+## que el mundo midió.
 ## DECISIONES (contrato):
 ##  · FASE 1: is_objective_revealed() = bandera o rango ≥ el de final.ocupacion_revelacion
 ##    (legal_director, R26). Se revela UNA vez (ENDGAME_NOTE_REVEALED) y no se olvida al descender.
-##    Antes, toda acción de la misión devuelve "objective_hidden" (el memorándum del bufete o el
-##    PDF del ordenador del director legal no la revelan: solo el puesto). get_phase() /
-##    get_objective_text_key() (OBJECTIVE_<FASE>) / get_objective_args() para el HUD y el cuaderno.
+##    Antes, toda acción de la misión devuelve "objective_hidden" salvo register_office_entry (gancho
+##    de movimiento del mundo: los accesos existen antes de la revelación; solo informa de testigo y
+##    minutos). get_phase() / get_objective_text_key() (OBJECTIVE_<FASE>) / get_objective_args().
 ##  · FASE 2, tres vías. PEARL: approach_pearl("blackmail" | "favour" | "bribe"). Soborno
-##    inviable (fracasa siempre); chantaje con su expediente completo de RR. HH.
-##    (PlayerState.has_full_file) y tirada prob_chantaje × (1 − peso_valentia × valentía/100)
-##    (emite blackmail_initiated → temor y agravio en NPCDirector); favor = uno del registro de
-##    magnitud ≥ magnitud_favor_extraordinario. FRACASO → NPCDirector.report_player_to_superior
-##    (Pearl) y begin_personal_surveillance(ocupante del despacho, dias_vigilancia): LOD 0,
+##    inviable (fracasa siempre). Chantaje: con su secreto (knows_pearl_secret: expediente completo
+##    de RR. HH. o un puesto con final.pearl.acceso_expediente) funciona SIEMPRE (emite
+##    blackmail_initiated → temor y agravio); sin él fracasa. Favor: uno del registro de magnitud ≥
+##    magnitud_favor_extraordinario; do_pearl_favour(tipo) lo produce (final.pearl.favores:
+##    bury_annex = retirar el anexo de su expediente en hr_office, delito records_deleted;
+##    ratify_signatures = convalidarlo como legal_director en legal_archive). Ambos exigen su
+##    secreto y lo cubren: después ya no hay material de chantaje. get_pearl_favours() para la
+##    interfaz. FRACASO → Pearl informa al ocupante del despacho: denuncia al superior
+##    (NPCDirector.report_player_to_superior) solo si no está ya vigilando por su palabra, y
+##    begin_personal_surveillance(ocupante, dias_vigilancia) (renueva el plazo): LOD 0,
 ##    perspicacia + bonus y seguimiento. ARCHIVOS: search_voss_files(minutos, observado) en el
-##    despacho: acumula minutos sin testigos hasta minutos_requeridos; alguien en el despacho (o
-##    `observed` del mundo, o Pearl que se asoma: tirada por minuto) pone el progreso a 0; al
-##    terminar emite crime_committed("file_copied") (rastro del servidor). FÍSICA:
-##    work_on_safe(minutos, posición) con una ocupación de apertura_fisica.ocupaciones (actual o ya
-##    ejercida) o su disfraz: ruido de radio_ruido en cada tramo; al terminar crime_committed
-##    ("lock_forced") y, a la jornada siguiente, investigación segura (object_missing en el
-##    despacho, exenta de respiro, con el jugador como sospechoso con medios). Ocupar la silla da
-##    la combinación ("ceo_chair").
+##    despacho: minutos_requeridos sin testigos en UNA visita (salir del despacho, entrar por un
+##    acceso, cambiar de jornada o ser visto —alguien dentro, `observed`, o Pearl que se asoma:
+##    tirada por minuto— ponen el progreso a 0); al terminar crime_committed("file_copied").
+##    FÍSICA: work_on_safe(minutos, posición) con puesto (security_director actual o ejercido,
+##    maintenance_aide actual o uniforme de mantenimiento) Y herramienta de forzado encima
+##    (cutting_tools / angle_grinder): ruido de radio_ruido por tramo; al terminar
+##    crime_committed("lock_forced") y, a la jornada siguiente, investigación segura (object_missing
+##    en el despacho, exenta de respiro, con el jugador entre los sospechosos por móvil:
+##    register_motive; el bonus de acceso lo calcula Security por acreditación y registro de
+##    tarjetas). Ocupar la silla da la combinación ("ceo_chair").
 ##  · FASE 3: get_voss_absence_windows(día) = huecos del ocupante del despacho dentro de su horario
 ##    (npcs_named special.office_hours de Voss, 10:00-17:00): [{start, end, room}] en minutos del
-##    día (hoy, con sustituciones y seguimiento; otro día, su agenda). provoke_long_meeting(franja,
-##    vía) lo encierra la franja entera en final.reunion.sala (override_routine): el jugador si ocupa
-##    u ocupó meeting_coordinator, o un aliado (titular del puesto con afecto o deuda; Preston
-##    mientras es aliado táctico). Tres accesos (get_access_routes, register_office_entry): puerta
-##    principal (ante la mesa de Pearl), cornisa de la terraza y conducto del cuarto de máquinas.
+##    día según su AGENDA (hoy con sustituciones, sin el seguimiento de la vigilancia personal:
+##    is_office_holder_following() avisa de que ahora mismo va detrás del jugador).
+##    provoke_long_meeting(franja, vía) lo encierra la franja entera en final.reunion.sala: el
+##    jugador si ocupa u ocupó meeting_coordinator, o un aliado (titular del puesto con afecto o
+##    deuda; Preston mientras es aliado táctico); una por jornada y solo franjas que no hayan
+##    terminado. Tres accesos (get_access_routes: {id, name_key, from_room, interactable, minutes,
+##    pearl_witness}; register_office_entry): puerta principal, cornisa de la terraza y conducto.
 ##  · FASE 4: los documentos (ownership_documents, comprometedor): open_safe() (combinación) o la
 ##    vía física. Llevarlos a un registro corporal con sospecha > 0 es condena grave (InventoryRules);
 ##    hide_documents / retrieve_documents usan los alijos de PlayerState. are_documents_at_risk().
-##  · FASE 5: request_notarisation() en la notaría con los documentos ENCIMA y título: ocupar el
-##    cargo (final.ocupacion_cargo) o llevar una forged_authorization (forge_authorization(): estampa +
+##    PERDIDOS fuera de la notaría (tirados, requisados, hallados en un alijo): check_documents_lost()
+##    los devuelve a la caja (la empresa los recupera; la combinación sigue valiendo) con nota.
+##  · FASE 5: request_notarisation() en la notaría con los documentos ENCIMA, título —ocupar el cargo
+##    (final.ocupacion_cargo) o llevar una forged_authorization (forge_authorization(): estampa +
 ##    reputación ≥ reputacion_minima, rebajada si se ocupa u ocupó c10_director; delito "forgery" →
-##    registro neutro sin verificar de BeliefNet). Notario: sospecha efectiva (Security: la máxima
-##    si el jugador está marcado por un veredicto leve) ≥ sospecha_verificacion →
+##    registro neutro sin verificar de BeliefNet)— y el NOTARIO EN SU SALA (final.sala_notaria;
+##    si no, "notary_absent"). Notario: sospecha efectiva (Security) ≥ sospecha_verificacion →
 ##    comprueba (gana a la reputación); si no, reputación ≥ reputacion_sin_verificacion o deuda del
 ##    notario → firma; si no, comprueba con su perspicacia. COMPROBACIÓN: documentos (y
 ##    autorización) en custodia (Tracking los sigue contando), plazo verification_days de la mesa
 ##    (3 jornadas) de MÁXIMA VULNERABILIDAD: cada caso activo contra el jugador recibe una pieza
-##    file_annotation de bonus_peso_investigacion. Al vencer: autorización falsa → BeliefNet la
-##    confirma y Security abre un caso forged_document (peso documento_falsificado, 5,0) contra el
-##    jugador; los documentos vuelven a la caja. Cargo perdido → los devuelve. Si no, firma.
+##    file_annotation de bonus_peso_investigacion. Si el notario deja la plantilla, la comprobación
+##    se anula y devuelve los papeles (y la autorización sin comprobar). Al vencer, con el título
+##    de ese momento: ocupar la silla → firma (supera a una autorización falsa, que no se examina);
+##    autorización falsa → BeliefNet la confirma y Security abre un caso forged_document (pieza
+##    documento_falsificado, 5,0) contra el jugador y los documentos vuelven a la caja; cargo
+##    perdido → los devuelve.
 ##  · FASE 6: firmar = ownership_notarised y en el acto game_over("ownership_notarised", final de
 ##    Tracking.evaluate_ending_for_cause, snapshot + {notary_title, combination_source}). R33 → final
 ##    por eje dominante; por debajo (autorización falsa) → THE OWNER IN EXILE. THE FIGUREHEAD:
@@ -122,12 +141,9 @@ const DOCS_CARRIED := "carried"
 const DOCS_HIDDEN := "hidden"
 const DOCS_WITH_NOTARY := "with_notary"
 const DOCS_NOTARISED := "notarised"
-# Resultados de la notaría y de la comprobación.
+# Resultados de la notaría.
 const NOTARY_SIGNED := "signed"
 const NOTARY_VERIFY := "verification"
-const VERIFY_PASSED := "notarised"
-const VERIFY_FORGERY := "forgery_detected"
-const VERIFY_TITLE_LOST := "title_lost"
 const DECISION_UNCERTAIN := "uncertain"
 
 # Motivos (reason) → ENDGAME_REASON_<R>.
@@ -140,13 +156,16 @@ const R_ALREADY_KNOWN := "already_known"
 const R_UNAVAILABLE := "unavailable"
 const R_UNBRIBABLE := "unbribable"
 const R_NO_MATERIAL := "no_material"
-const R_REFUSED := "refused"
 const R_FAVOUR_TOO_SMALL := "favour_too_small"
+const R_NO_SECRET := "no_secret"
+const R_ALREADY_DONE := "already_done"
+const R_WRONG_ROOM := "wrong_room"
 const R_OBSERVED := "observed"
 const R_IN_PROGRESS := "in_progress"
 const R_OCCUPIED := "occupied"
 const R_NO_COMBINATION := "no_combination"
 const R_NO_MEANS := "no_means"
+const R_NO_TOOLS := "no_tools"
 const R_ALREADY_TAKEN := "already_taken"
 const R_INVENTORY_FULL := "inventory_full"
 const R_NO_STAMP := "no_stamp"
@@ -154,8 +173,10 @@ const R_LOW_REPUTATION := "low_reputation"
 const R_NO_DOCUMENTS := "no_documents"
 const R_NO_TITLE := "no_title"
 const R_NO_NOTARY := "no_notary"
+const R_NOTARY_ABSENT := "notary_absent"
 const R_PENDING := "verification_pending"
 const R_BAD_BAND := "invalid_band"
+const R_BAND_OVER := "band_over"
 const R_NO_AUTHORITY := "no_authority"
 const R_NO_TARGET := "no_target"
 const R_ALREADY_TODAY := "already_today"
@@ -167,6 +188,7 @@ const REASON_KEY_FORMAT := "ENDGAME_REASON_%s"
 const OBJECTIVE_KEY_FORMAT := "OBJECTIVE_%s"
 const ACCESS_KEY_FORMAT := "ENDGAME_ACCESS_%s"
 const STANCE_KEY_FORMAT := "ENDGAME_STANCE_%s"
+const FAVOUR_KEY_FORMAT := "ENDGAME_FAVOUR_%s"
 
 # Claves de los resultados.
 const K_OK := "ok"
@@ -183,17 +205,29 @@ const K_DAYS := "days"
 const K_RECORD := "record_id"
 const K_INFORMED := "informed_voss"
 const K_WINDOW := "window"
-const K_CASE := "case_id"
-# Ventanas y accesos.
+const K_MAGNITUDE := "magnitude"
+const K_OCCUPATION := "occupation"
+const K_AVAILABLE := "available"
+# Ventanas y accesos (salida en inglés; entrada: claves de balance final.accesos).
 const W_START := "start"
 const W_END := "end"
 const W_ROOM := "room"
 const A_ID := "id"
-const A_FROM := "desde"
-const A_INTERACTABLE := "interactivo"
-const A_MINUTES := "minutos"
-const A_PEARL := "testigo_pearl"
 const A_NAME_KEY := "name_key"
+const A_FROM := "from_room"
+const A_INTERACTABLE := "interactable"
+const A_MINUTES := "minutes"
+const A_PEARL := "pearl_witness"
+const BA_FROM := "desde"
+const BA_INTERACTABLE := "interactivo"
+const BA_MINUTES := "minutos"
+const BA_PEARL := "testigo_pearl"
+# Tabla final.pearl.favores.
+const FV_ROOM := "sala"
+const FV_OCCUPATION := "ocupacion"
+const FV_CRIME := "delito"
+const FV_MAGNITUDE := "magnitud"
+const FAVOUR_COVERED_SECRET := "covered_secret"
 const M_DAY := "day"
 const M_BAND := "band"
 const M_VIA := "via"
@@ -212,13 +246,15 @@ const S_COMBINATION := "combination_source"
 const F_REVEALED := "endgame.revealed"
 const F_REVEALED_DAY := "endgame.revealed_day"
 const F_COMBINATION := "endgame.combination_source"
-const F_PEARL_ATTEMPTS := "endgame.pearl_attempts"
 const F_PEARL_FAILED := "endgame.pearl_failed_day"
+const F_PEARL_COVERED := "endgame.pearl_secret_covered"
 const F_FILES_MINUTES := "endgame.files_minutes"
+const F_FILES_DAY := "endgame.files_day"
 const F_SAFE_MINUTES := "endgame.safe_minutes"
 const F_DOCS_TAKEN := "endgame.documents_taken"
 const F_DOCS_DAY := "endgame.documents_day"
 const F_DOCS_ROUTE := "endgame.documents_route"
+const F_DOCS_LOST_DAY := "endgame.documents_lost_day"
 const F_DOCS_LODGED := TrackingSystem.DOCS_LODGED_FLAG
 const F_SAFE_FORCED_DAY := "endgame.safe_forced_day"
 const F_SAFE_FORCED_HOUR := "endgame.safe_forced_hour"
@@ -244,6 +280,7 @@ const D_TARGET := "target"
 const D_DOCUMENT := "document"
 const FILES_TARGET := "voss_files"
 const SAFE_TARGET := "ceo_safe_main"
+const PEARL_SECRET_TARGET := "pearl_secret"
 const LEVERAGE_FILE := "personnel_file"
 const NOISE_SOURCE_SAFE := "safe_forced"
 const SURVEILLANCE_REASON := "pearl_report"
@@ -253,7 +290,6 @@ const INCIDENT_FORGED := "forged_document"
 const EV_FORGED := "forged_document"
 const LEDGER_FAVOURS := "favours"
 const LEDGER_MAGNITUDE := "magnitude"
-const TRAIT_COURAGE := "courage"
 const TRAIT_PERCEPTION := "perception"
 const I_ALWAYS_OPENS := "always_opens"
 const I_SUBJECT := "subject"
@@ -269,15 +305,18 @@ const I_FROM_DAY := "evidence_from_day"
 const NOTE_REVEALED := "ENDGAME_NOTE_REVEALED"
 const NOTE_PEARL_BLACKMAIL := "ENDGAME_NOTE_PEARL_BLACKMAIL"
 const NOTE_PEARL_FAVOUR := "ENDGAME_NOTE_PEARL_FAVOUR"
+const NOTE_PEARL_COVERED := "ENDGAME_NOTE_PEARL_SECRET_COVERED"
 const NOTE_PEARL_INFORMED := "ENDGAME_NOTE_PEARL_INFORMED"
 const NOTE_FILES_FOUND := "ENDGAME_NOTE_FILES_FOUND"
 const NOTE_MEETING := "ENDGAME_NOTE_MEETING"
 const NOTE_DOCUMENTS := "ENDGAME_NOTE_DOCUMENTS"
+const NOTE_DOCUMENTS_LOST := "ENDGAME_NOTE_DOCUMENTS_LOST"
 const NOTE_SAFE_FORCED := "ENDGAME_NOTE_SAFE_FORCED"
 const NOTE_FORGED := "ENDGAME_NOTE_FORGED"
 const NOTE_VERIFICATION := "ENDGAME_NOTE_VERIFICATION"
 const NOTE_FORGERY_DETECTED := "ENDGAME_NOTE_FORGERY_DETECTED"
 const NOTE_TITLE_LOST := "ENDGAME_NOTE_TITLE_LOST"
+const NOTE_NOTARY_GONE := "ENDGAME_NOTE_NOTARY_GONE"
 const NOTE_NOTARISED := "ENDGAME_NOTE_NOTARISED"
 const NOTE_PRESTON_HOSTILE := "ENDGAME_NOTE_PRESTON_HOSTILE"
 const NOTE_VOSS_REASSURED := "ENDGAME_NOTE_VOSS_REASSURED"
@@ -295,15 +334,17 @@ const B_NOTARY_ROLE := "final.rol_notario"
 const B_NOTE_CATEGORY := "final.categoria_cuaderno"
 const B_WINDOW_STEP := "final.ventana.minutos_muestra"
 const B_WINDOW_MIN := "final.ventana.minutos_minimos"
-const B_PEARL_PROB := "final.pearl.prob_chantaje"
-const B_PEARL_COURAGE := "final.pearl.peso_valentia"
+const B_PEARL_ACCESS := "final.pearl.acceso_expediente"
 const B_PEARL_FAVOUR := "final.pearl.magnitud_favor_extraordinario"
+const B_PEARL_FAVOURS := "final.pearl.favores"
 const B_PEARL_DAYS := "final.pearl.dias_vigilancia"
 const B_FILES_MINUTES := "final.archivos_voss.minutos_requeridos"
 const B_FILES_PEARL_CHANCE := "final.archivos_voss.prob_pearl_por_minuto"
 const B_FILES_PEARL_CERTAINTY := "final.archivos_voss.certeza_pearl"
-const B_PHYS_OCCUPATIONS := "final.apertura_fisica.ocupaciones"
+const B_PHYS_HELD := "final.apertura_fisica.ocupaciones_ejercidas"
+const B_PHYS_CURRENT := "final.apertura_fisica.ocupaciones_actuales"
 const B_PHYS_DISGUISES := "final.apertura_fisica.disfraces"
+const B_PHYS_TOOLS := "final.apertura_fisica.herramientas"
 const B_PHYS_MINUTES := "final.apertura_fisica.minutos_requeridos"
 const B_PHYS_NOISE := "final.apertura_fisica.radio_ruido"
 const B_PHYS_SEVERITY := "final.apertura_fisica.gravedad_investigacion"
@@ -340,6 +381,10 @@ func _ready() -> void:
 	EventBus.occupation_changed.connect(_on_occupation_changed)
 	EventBus.day_advanced.connect(_on_day_advanced)
 	EventBus.quarter_closed.connect(_on_quarter_closed)
+	EventBus.room_entered.connect(_on_room_entered)
+	EventBus.npc_removed.connect(_on_npc_removed)
+	# Diferida: una requisa emite item_disposed antes de sacar el objeto del inventario.
+	EventBus.item_disposed.connect(_on_item_disposed, CONNECT_DEFERRED)
 	note_occupation(PlayerState.get_occupation_id())
 
 
@@ -353,6 +398,20 @@ func _on_day_advanced(day_number: int) -> void:
 
 func _on_quarter_closed(quarter_number: int) -> void:
 	process_quarter(quarter_number)
+
+
+func _on_room_entered(room_id: String, by_player: bool) -> void:
+	if by_player:
+		note_player_room(room_id)
+
+
+func _on_npc_removed(npc_id: String, _cause: String) -> void:
+	note_npc_removed(npc_id)
+
+
+func _on_item_disposed(item_id: String, _method: String) -> void:
+	if item_id == OWNERSHIP_ITEM:
+		check_documents_lost()
 
 
 # ═══ Fase 1: revelación y objetivo ════════════════════════════════════
@@ -411,6 +470,19 @@ static func has_held(occupation_id: String) -> bool:
 			or _flag_array(F_HELD).has(occupation_id)
 
 
+## Oyente del nodo (y de pruebas): salir del despacho corta la visita a los archivos de Voss.
+static func note_player_room(room_id: String) -> void:
+	if Database.get_room_base_id(room_id) != _bal_s(B_OFFICE):
+		_reset_files_progress()
+
+
+## Oyente del nodo: si el notario que comprobaba deja la plantilla, la comprobación se anula ya.
+static func note_npc_removed(npc_id: String) -> void:
+	var v: Dictionary = get_verification()
+	if not _is_over() and not v.is_empty() and str(v.get(V_NOTARY, "")) == npc_id:
+		_cancel_verification(v)
+
+
 # ═══ Fase 2: la combinación ═══════════════════════════════════════════
 
 static func knows_combination() -> bool:
@@ -430,18 +502,25 @@ static func is_bribe_viable(npc_id: String) -> bool:
 	return npc_id != PEARL_ID
 
 
-## Probabilidad del chantaje con expediente: prob × (1 − peso × valentía/100).
-static func pearl_blackmail_chance() -> float:
-	var courage: float = float(NPCDirector.get_trait(PEARL_ID, TRAIT_COURAGE)) / PERCENT
-	return clampf(_bal_f(B_PEARL_PROB) * (1.0 - _bal_f(B_PEARL_COURAGE) * courage), 0.0, 1.0)
+## Su secreto (el anexo sellado de su expediente): expediente completo o un puesto con acceso a
+## todos los expedientes (final.pearl.acceso_expediente).
+static func knows_pearl_secret() -> bool:
+	if PlayerState.has_full_file(PEARL_ID):
+		return true
+	var occupation: OccupationData = PlayerState.get_occupation()
+	return occupation != null and occupation.special_access.has(_bal_s(B_PEARL_ACCESS))
 
 
-## Vía Pearl Osgood. Fracaso (soborno, sin material, negativa, favor pequeño) → informa a Voss.
+## Un favor extraordinario ya cubrió su secreto: no queda material de chantaje.
+static func is_pearl_secret_covered() -> bool:
+	return PlayerState.has_flag(F_PEARL_COVERED)
+
+
+## Vía Pearl Osgood. Fracaso (soborno, sin material, favor pequeño) → informa al ocupante del despacho.
 static func approach_pearl(method: String) -> Dictionary:
 	var blocked: String = _pearl_block(method)
 	if not blocked.is_empty():
 		return _fail(blocked)
-	PlayerState.set_flag(F_PEARL_ATTEMPTS, _flag_int(F_PEARL_ATTEMPTS) + 1)
 	var refusal: String = _pearl_refusal(method)
 	if not refusal.is_empty():
 		_pearl_informs_voss()
@@ -453,7 +532,39 @@ static func approach_pearl(method: String) -> Dictionary:
 	return _ok({K_SOURCE: SOURCE_PEARL})
 
 
-## Vía archivos de Voss: tramo de búsqueda de `minutes` minutos en su despacho.
+## Favor de magnitud extraordinaria (final.pearl.favores): cubrir su secreto. Deja el favor en su
+## registro (approach_pearl("favour") lo cobra) y agota el material de chantaje. {ok, magnitude}.
+static func do_pearl_favour(kind: String) -> Dictionary:
+	var blocked: String = _pearl_favour_block(kind)
+	if not blocked.is_empty():
+		return _fail(blocked)
+	var spec: Dictionary = _favour_spec(kind)
+	var crime: String = str(spec.get(FV_CRIME, ""))
+	if not crime.is_empty():
+		EventBus.crime_committed.emit(crime, PlayerState.get_room(), {D_TARGET: PEARL_SECRET_TARGET})
+	var magnitude: int = int(spec.get(FV_MAGNITUDE, 0))
+	NPCDirector.add_favour(PEARL_ID, FAVOUR_COVERED_SECRET, magnitude)
+	PlayerState.set_flag(F_PEARL_COVERED, kind)
+	_note(NOTE_PEARL_COVERED, [_npc_name(PEARL_ID)])
+	return _ok({K_MAGNITUDE: magnitude})
+
+
+## Para la interfaz: [{id, name_key, room, occupation, magnitude, available, reason}].
+static func get_pearl_favours() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for kind: Variant in _bal_dict(B_PEARL_FAVOURS):
+		var spec: Dictionary = _favour_spec(str(kind))
+		if spec.is_empty():
+			continue
+		var reason: String = _pearl_favour_block(str(kind))
+		out.append({A_ID: str(kind), A_NAME_KEY: FAVOUR_KEY_FORMAT % str(kind).to_upper(),
+				W_ROOM: str(spec.get(FV_ROOM, "")), K_OCCUPATION: str(spec.get(FV_OCCUPATION, "")),
+				K_MAGNITUDE: int(spec.get(FV_MAGNITUDE, 0)), K_AVAILABLE: reason.is_empty(),
+				K_REASON: reason})
+	return out
+
+
+## Vía archivos de Voss: tramo de búsqueda de `minutes` minutos en su despacho (una sola visita).
 static func search_voss_files(minutes: int, observed: bool = false) -> Dictionary:
 	var blocked: String = _office_block()
 	if blocked.is_empty() and knows_combination():
@@ -463,10 +574,11 @@ static func search_voss_files(minutes: int, observed: bool = false) -> Dictionar
 	var required: int = _bal_i(B_FILES_MINUTES)
 	var witness: String = _office_witness(minutes)
 	if observed or not witness.is_empty():
-		PlayerState.set_flag(F_FILES_MINUTES, 0)
+		_reset_files_progress()
 		return _fail(R_OBSERVED, {K_WITNESS: witness, K_PROGRESS: 0, K_REQUIRED: required})
-	var total: int = _flag_int(F_FILES_MINUTES) + maxi(minutes, 0)
+	var total: int = get_files_progress() + maxi(minutes, 0)
 	PlayerState.set_flag(F_FILES_MINUTES, total)
+	PlayerState.set_flag(F_FILES_DAY, GameClock.get_day())
 	if total < required:
 		return _fail(R_IN_PROGRESS, {K_PROGRESS: total, K_REQUIRED: required})
 	EventBus.crime_committed.emit(CRIME_FILE_COPIED, _bal_s(B_OFFICE), {D_TARGET: FILES_TARGET})
@@ -474,13 +586,35 @@ static func search_voss_files(minutes: int, observed: bool = false) -> Dictionar
 	return _ok({K_PROGRESS: total, K_REQUIRED: required, K_SOURCE: SOURCE_FILES})
 
 
-## Medios materiales de apertura: ocupación (actual o ejercida) o disfraz de apertura_fisica.
+## Minutos acumulados en la visita en curso a los archivos (0 si es otra jornada).
+static func get_files_progress() -> int:
+	if _flag_int(F_FILES_DAY, NO_DAY) != GameClock.get_day():
+		return 0
+	return _flag_int(F_FILES_MINUTES)
+
+
+## Medios materiales de apertura: puesto de apertura_fisica Y herramienta de forzado encima.
 static func has_physical_means() -> bool:
-	for occupation: Variant in _bal_array(B_PHYS_OCCUPATIONS):
+	return has_forcing_post() and has_forcing_tool()
+
+
+## Director de Seguridad (actual o ejercido), mantenimiento actual o su uniforme.
+static func has_forcing_post() -> bool:
+	for occupation: Variant in _bal_array(B_PHYS_HELD):
 		if has_held(str(occupation)):
 			return true
+	if _bal_array(B_PHYS_CURRENT).has(PlayerState.get_occupation_id()):
+		return true
 	var disguise: String = PlayerState.get_disguise()
 	return not disguise.is_empty() and _bal_array(B_PHYS_DISGUISES).has(disguise)
+
+
+## Herramienta de forzado (final.apertura_fisica.herramientas) en el inventario.
+static func has_forcing_tool() -> bool:
+	for tool: Variant in _bal_array(B_PHYS_TOOLS):
+		if PlayerState.is_carrying(str(tool)):
+			return true
+	return false
 
 
 # ═══ Fase 3: la ventana temporal ══════════════════════════════════════
@@ -506,7 +640,8 @@ static func get_office_hours() -> Vector2i:
 			NPCRoutinePlanner.parse_time(str(hours[1])))
 
 
-## Huecos del ocupante dentro de su horario: [{start, end, room}] (minutos; room = dónde está).
+## Huecos del ocupante dentro de su horario según su agenda: [{start, end, room}] (minutos;
+## room = dónde estará). Hoy incluye las sustituciones (reuniones provocadas), no el seguimiento.
 static func get_voss_absence_windows(day: int) -> Array[Dictionary]:
 	var hours: Vector2i = get_office_hours()
 	var holder: String = get_office_holder()
@@ -526,6 +661,13 @@ static func is_voss_in_office() -> bool:
 	return not holder.is_empty() and _npc_in(holder, _bal_s(B_OFFICE))
 
 
+## El ocupante vigila ahora al jugador: su agenda no dice dónde estará (va detrás de él en las
+## franjas de seguimiento). La interfaz lo advierte junto a las ventanas.
+static func is_office_holder_following() -> bool:
+	var holder: String = get_office_holder()
+	return not holder.is_empty() and not NPCDirector.get_personal_surveillance(holder).is_empty()
+
+
 ## Reunión prolongada: el ocupante pasa la franja entera en final.reunion.sala (solo hoy).
 static func provoke_long_meeting(band: String, via_npc_id: String = "") -> Dictionary:
 	var blocked: String = _meeting_block(band, via_npc_id)
@@ -538,37 +680,38 @@ static func provoke_long_meeting(band: String, via_npc_id: String = "") -> Dicti
 	var meetings: Array = _flag_array(F_MEETINGS)
 	meetings.append({M_DAY: GameClock.get_day(), M_BAND: band, M_VIA: via_npc_id})
 	PlayerState.set_flag(F_MEETINGS, meetings)
-	_note(NOTE_MEETING, [GameClock.get_band_name_key(band)])
+	_note(NOTE_MEETING, [_npc_name(get_office_holder()), GameClock.get_band_name_key(band)])
 	return _ok({K_WINDOW: _band_window(band)})
 
 
-## Los tres accesos: [{id, desde, interactivo, minutos, testigo_pearl, name_key}].
+## Los tres accesos: [{id, name_key, from_room, interactable, minutes, pearl_witness}].
 static func get_access_routes() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var table: Dictionary = _bal_dict(B_ACCESSES)
-	for route: Variant in table:
-		if str(route).begins_with(COMMENT_PREFIX) or not (table[route] is Dictionary):
+	for route: Variant in _bal_dict(B_ACCESSES):
+		var spec: Dictionary = _route_spec(str(route))
+		if spec.is_empty():
 			continue
-		var entry: Dictionary = (table[route] as Dictionary).duplicate()
-		entry[A_ID] = str(route)
-		entry[A_NAME_KEY] = ACCESS_KEY_FORMAT % str(route).to_upper()
-		out.append(entry)
+		out.append({A_ID: str(route), A_NAME_KEY: ACCESS_KEY_FORMAT % str(route).to_upper(),
+				A_FROM: str(spec.get(BA_FROM, "")), A_INTERACTABLE: str(spec.get(BA_INTERACTABLE, "")),
+				A_MINUTES: int(spec.get(BA_MINUTES, 0)), A_PEARL: bool(spec.get(BA_PEARL, false))})
 	return out
 
 
-## El jugador entra al despacho por `route`. Por la puerta, Pearl lo ve pasar si no tiene
+## El jugador entra al despacho por `route` (gancho de movimiento: también antes de la revelación;
+## cada entrada es una visita nueva a los archivos). Por la puerta, Pearl lo ve pasar si no tiene
 ## acreditación (sin nodo que la simule). {ok, minutes (el mundo los gasta), witness}.
 static func register_office_entry(route: String) -> Dictionary:
 	var spec: Dictionary = _route_spec(route)
 	if spec.is_empty():
 		return _fail(R_UNKNOWN_ROUTE)
 	PlayerState.set_flag(F_ENTRY_ROUTE, route)
+	_reset_files_progress()
 	var witness: String = ""
-	if bool(spec.get(A_PEARL, false)) and _pearl_sees_entry():
+	if bool(spec.get(BA_PEARL, false)) and _pearl_sees_entry():
 		witness = PEARL_ID
 		EventBus.player_seen_partially.emit(PEARL_ID, _bal_f(B_DOOR_CERTAINTY),
 				_bal_s(B_SECRETARIAT))
-	return _ok({K_ROUTE: route, K_MINUTES: int(spec.get(A_MINUTES, 0)), K_WITNESS: witness})
+	return _ok({K_ROUTE: route, K_MINUTES: int(spec.get(BA_MINUTES, 0)), K_WITNESS: witness})
 
 
 # ═══ Fase 4: los documentos ═══════════════════════════════════════════
@@ -586,8 +729,10 @@ static func open_safe() -> Dictionary:
 ## Vía física: tramo de `minutes` forzando la caja (ruido en `position`, píxeles del mundo).
 static func work_on_safe(minutes: int, position: Vector2 = Vector2.ZERO) -> Dictionary:
 	var blocked: String = _safe_block()
-	if blocked.is_empty() and not has_physical_means():
+	if blocked.is_empty() and not has_forcing_post():
 		blocked = R_NO_MEANS
+	if blocked.is_empty() and not has_forcing_tool():
+		blocked = R_NO_TOOLS
 	if not blocked.is_empty():
 		return _fail(blocked)
 	EventBus.noise_emitted.emit(position, _bal_f(B_PHYS_NOISE), NOISE_SOURCE_SAFE)
@@ -628,9 +773,23 @@ static func hide_documents(spot_id: String, room_id: String) -> bool:
 	return PlayerState.stash_item(OWNERSHIP_ITEM, spot_id, room_id)
 
 
-## Recupera del alijo (InventoryRules cobra en reloj los minutos de la ubicación). −1 si falla.
+## Recupera del alijo. ÚNICA acción que avanza el reloj: InventoryRules cobra los minutos de la
+## ubicación. −1 si falla.
 static func retrieve_documents(spot_id: String) -> int:
 	return InventoryRules.retrieve_from_stash(spot_id, OWNERSHIP_ITEM)
+
+
+## Documentos perdidos fuera de la notaría (tirados, requisados en un registro, hallados en un
+## alijo): la empresa los recupera y vuelven a la caja del despacho (la combinación sigue
+## valiendo). Idempotente: el nodo la llama tras item_disposed y process_day cada jornada.
+static func check_documents_lost() -> bool:
+	if _is_over() or not bool(PlayerState.get_flag(F_DOCS_TAKEN, false)) or has_documents() \
+			or is_verification_pending():
+		return false
+	PlayerState.set_flag(F_DOCS_TAKEN, false)
+	PlayerState.set_flag(F_DOCS_LOST_DAY, GameClock.get_day())
+	_note(NOTE_DOCUMENTS_LOST, [])
+	return true
 
 
 # ═══ Fase 5: la notaría ═══════════════════════════════════════════════
@@ -660,13 +819,25 @@ static func forge_authorization() -> Dictionary:
 	return _ok({K_RECORD: record})
 
 
-## Notario de la plantilla (rol final.rol_notario) en activo; "" si no queda ninguno.
+## Notario de la plantilla (rol final.rol_notario) en activo, antes el que está en su sala;
+## "" si no queda ninguno.
 static func get_notary_id() -> String:
 	var role: String = _bal_s(B_NOTARY_ROLE)
+	var found: String = ""
 	for npc: NPCRuntime in NPCDirector.get_all_npcs():
-		if NPCDirector.get_role(npc.id) == role:
+		if NPCDirector.get_role(npc.id) != role:
+			continue
+		if _npc_in(npc.id, _bal_s(B_NOTARY_ROOM)):
 			return npc.id
-	return ""
+		if found.is_empty():
+			found = npc.id
+	return found
+
+
+## El notario está en la notaría (sin él no hay formalización: "notary_absent").
+static func is_notary_present() -> bool:
+	var notary: String = get_notary_id()
+	return not notary.is_empty() and _npc_in(notary, _bal_s(B_NOTARY_ROOM))
 
 
 ## Plazo de comprobación: verification_days de la mesa de la notaría (o final.notaria).
@@ -738,6 +909,7 @@ static func process_day(day: int) -> void:
 	PlayerState.set_flag(F_LAST_DAY, day)
 	_open_safe_investigation(day)
 	_tick_verification(day)
+	check_documents_lost()
 
 
 ## Cierre de trimestre (idempotente): THE FIGUREHEAD tras figurehead_term_quarters trimestres
@@ -795,7 +967,7 @@ static func reassure_voss_via(npc_id: String) -> Dictionary:
 		NPCDirector.add_debt(npc_id, -mini(_bal_i(B_VOSS_DEBT), NPCDirector.get_debt(npc_id)))
 	for watcher: String in watchers:
 		NPCDirector.end_personal_surveillance(watcher)
-	_note(NOTE_VOSS_REASSURED, [_npc_name(npc_id)])
+	_note(NOTE_VOSS_REASSURED, [_npc_name(npc_id), _npc_name(watchers[0])])
 	return _ok({})
 
 
@@ -859,25 +1031,58 @@ static func _pearl_block(method: String) -> String:
 static func _pearl_refusal(method: String) -> String:
 	match method:
 		METHOD_BLACKMAIL:
-			if not PlayerState.has_full_file(PEARL_ID):
-				return R_NO_MATERIAL
-			return "" if _roll() < pearl_blackmail_chance() else R_REFUSED
+			return "" if knows_pearl_secret() and not is_pearl_secret_covered() else R_NO_MATERIAL
 		METHOD_FAVOUR:
 			return "" if _largest_favour(PEARL_ID) >= _bal_i(B_PEARL_FAVOUR) \
 					else R_FAVOUR_TOO_SMALL
 	return R_UNBRIBABLE
 
 
-## Pearl informa a Voss (denuncia al superior) y el ocupante del despacho vigila al jugador.
+## Pearl informa al ocupante del despacho: denuncia al superior (una sola mientras él ya vigila
+## por su palabra) y vigilancia personal del jugador (cada fracaso renueva el plazo).
 static func _pearl_informs_voss() -> void:
 	PlayerState.set_flag(F_PEARL_FAILED, GameClock.get_day())
-	var room: String = NPCDirector.get_current_location(PEARL_ID)
-	NPCDirector.report_player_to_superior(PEARL_ID,
-			room if not room.is_empty() else _bal_s(B_SECRETARIAT), SURVEILLANCE_REASON)
 	var watcher: String = get_office_holder()
+	if not _watching_on_pearls_word(watcher):
+		var room: String = NPCDirector.get_current_location(PEARL_ID)
+		NPCDirector.report_player_to_superior(PEARL_ID,
+				room if not room.is_empty() else _bal_s(B_SECRETARIAT), SURVEILLANCE_REASON)
 	if not watcher.is_empty():
 		NPCDirector.begin_personal_surveillance(watcher, _bal_i(B_PEARL_DAYS), SURVEILLANCE_REASON)
-	_note(NOTE_PEARL_INFORMED, [])
+	_note(NOTE_PEARL_INFORMED, [_npc_name(watcher if not watcher.is_empty() else VOSS_ID)])
+
+
+static func _watching_on_pearls_word(watcher: String) -> bool:
+	return not watcher.is_empty() and str(NPCDirector.get_personal_surveillance(watcher).get(
+			NPCDirectorSystem.SV_REASON, "")) == SURVEILLANCE_REASON
+
+
+static func _pearl_favour_block(kind: String) -> String:
+	if _is_over():
+		return R_OVER
+	if not _ensure_revealed():
+		return R_HIDDEN
+	var spec: Dictionary = _favour_spec(kind)
+	if spec.is_empty():
+		return R_INVALID
+	if not NPCDirector.is_active(PEARL_ID):
+		return R_UNAVAILABLE
+	if knows_combination():
+		return R_ALREADY_KNOWN
+	if is_pearl_secret_covered():
+		return R_ALREADY_DONE
+	if not knows_pearl_secret():
+		return R_NO_SECRET
+	var occupation: String = str(spec.get(FV_OCCUPATION, ""))
+	if not occupation.is_empty() and PlayerState.get_occupation_id() != occupation:
+		return R_NO_AUTHORITY
+	return "" if _player_in(str(spec.get(FV_ROOM, ""))) else R_WRONG_ROOM
+
+
+static func _favour_spec(kind: String) -> Dictionary:
+	if kind.is_empty() or kind.begins_with(COMMENT_PREFIX):
+		return {}
+	return _dict(_bal_dict(B_PEARL_FAVOURS).get(kind, {}))
 
 
 static func _learn_combination(source: String, note_key: String) -> void:
@@ -891,6 +1096,12 @@ static func _largest_favour(npc_id: String) -> int:
 		if entry is Dictionary:
 			best = maxi(best, int((entry as Dictionary).get(LEDGER_MAGNITUDE, 0)))
 	return best
+
+
+static func _reset_files_progress() -> void:
+	if PlayerState.has_flag(F_FILES_MINUTES):
+		PlayerState.set_flag(F_FILES_MINUTES, null)
+		PlayerState.set_flag(F_FILES_DAY, null)
 
 
 static func _office_block() -> String:
@@ -919,8 +1130,8 @@ static func _office_witness(minutes: int) -> String:
 
 static func _holder_room_at(holder: String, plan: Array, minute: int, today: bool) -> String:
 	if today:
-		return NPCDirector.get_location_at(holder, floori(float(minute) / MINUTES_PER_HOUR),
-				minute % MINUTES_PER_HOUR)
+		return NPCDirector.get_agenda_location_at(holder,
+				floori(float(minute) / MINUTES_PER_HOUR), minute % MINUTES_PER_HOUR)
 	var iv: Dictionary = NPCRoutinePlanner.pick(plan, minute, true)
 	if iv.is_empty():
 		var npc: NPCRuntime = NPCDirector.get_npc(holder)
@@ -949,19 +1160,27 @@ static func _windows_from(rooms: Array[String], hours: Vector2i, step: int) -> A
 static func _meeting_block(band: String, via_npc_id: String) -> String:
 	if _is_over():
 		return R_OVER
+	if not _ensure_revealed():
+		return R_HIDDEN
 	if not _bal_array(B_MEETING_BANDS).has(band):
 		return R_BAD_BAND
+	if int(_band_window(band)[W_END]) <= floori(GameClock.get_day_minutes()):
+		return R_BAND_OVER
 	if get_office_holder().is_empty():
 		return R_NO_TARGET
-	var today: int = 0
-	for entry: Variant in _flag_array(F_MEETINGS):
-		if entry is Dictionary and int((entry as Dictionary).get(M_DAY, NO_DAY)) == GameClock.get_day():
-			today += 1
-	if today >= _bal_i(B_MEETING_MAX):
+	if _meetings_today() >= _bal_i(B_MEETING_MAX):
 		return R_ALREADY_TODAY
 	var allowed: bool = has_held(_bal_s(B_COORDINATOR)) if via_npc_id.is_empty() \
 			else _is_meeting_ally(via_npc_id)
 	return "" if allowed else R_NO_AUTHORITY
+
+
+static func _meetings_today() -> int:
+	var count: int = 0
+	for entry: Variant in _flag_array(F_MEETINGS):
+		if entry is Dictionary and int((entry as Dictionary).get(M_DAY, NO_DAY)) == GameClock.get_day():
+			count += 1
+	return count
 
 
 ## Aliado que convoca: el titular de meeting_coordinator con afecto o deuda, o Preston aliado.
@@ -1005,7 +1224,7 @@ static func _safe_block() -> String:
 	var blocked: String = _office_block()
 	if not blocked.is_empty():
 		return blocked
-	if bool(PlayerState.get_flag(F_DOCS_TAKEN, false)):
+	if bool(PlayerState.get_flag(F_DOCS_TAKEN, false)) and not check_documents_lost():
 		return R_ALREADY_TAKEN
 	if not NPCDirector.get_npcs_in_room(_bal_s(B_OFFICE)).is_empty():
 		return R_OCCUPIED
@@ -1032,7 +1251,7 @@ static func _open_safe_investigation(day: int) -> void:
 			_bal_s(B_OFFICE), true, {I_ALWAYS_OPENS: true, I_DAY: forced_day,
 			I_HOUR: _flag_int(F_SAFE_FORCED_HOUR, NO_DAY), I_FROM_DAY: forced_day})
 	if not case_id.is_empty():
-		Security.register_motive(case_id, PLAYER_ID)
+		Security.register_motive(case_id, PLAYER_ID)  # sospechoso por móvil; el acceso lo calcula Security
 	PlayerState.set_flag(F_SAFE_CASE, case_id)
 	PlayerState.set_flag(F_SAFE_FORCED_DAY, null)
 
@@ -1078,7 +1297,9 @@ static func _notary_block() -> String:
 		return R_NO_DOCUMENTS
 	if not _holds_chair() and not PlayerState.is_carrying(FORGED_ITEM):
 		return R_NO_TITLE
-	return R_NO_NOTARY if get_notary_id().is_empty() else ""
+	if get_notary_id().is_empty():
+		return R_NO_NOTARY
+	return "" if is_notary_present() else R_NOTARY_ABSENT
 
 
 ## Sospecha alta → comprueba; reputación alta o deuda → firma; si no, su perspicacia decide.
@@ -1092,6 +1313,7 @@ static func _notary_verifies(notary: String) -> bool:
 
 
 static func _open_verification(title: String, notary: String) -> Dictionary:
+	PlayerState.set_flag(F_DOCS_LODGED, true)
 	PlayerState.remove_item(OWNERSHIP_ITEM)
 	var record: String = ""
 	if title == TITLE_FORGED:
@@ -1100,7 +1322,6 @@ static func _open_verification(title: String, notary: String) -> Dictionary:
 		record = str(records.back()) if not records.is_empty() else ""
 	var days: int = get_verification_days()
 	var today: int = GameClock.get_day()
-	PlayerState.set_flag(F_DOCS_LODGED, true)
 	PlayerState.set_flag(F_VERIFICATION, {V_START: today, V_END: today + days, V_TITLE: title,
 			V_NOTARY: notary, V_RECORD: record, V_CASES: []})
 	_note(NOTE_VERIFICATION, [days])
@@ -1108,22 +1329,36 @@ static func _open_verification(title: String, notary: String) -> Dictionary:
 	return _ok({K_OUTCOME: NOTARY_VERIFY, K_TITLE: title, K_DAYS: days})
 
 
+## Plazo de comprobación. Al vencer decide el título de ESE momento: la silla firma (y supera a
+## una autorización falsa, que ya no se examina); si no, la falsa se destapa; si no, cargo perdido.
 static func _tick_verification(day: int) -> void:
 	var v: Dictionary = get_verification()
 	if v.is_empty():
+		return
+	if not NPCDirector.is_active(str(v.get(V_NOTARY, ""))):
+		_cancel_verification(v)
 		return
 	if day < int(v[V_END]):
 		_apply_vulnerability()
 		return
 	PlayerState.set_flag(F_VERIFICATION, null)
-	PlayerState.set_flag(F_DOCS_LODGED, null)
-	if str(v.get(V_TITLE, "")) == TITLE_FORGED:
-		_expose_forgery(str(v.get(V_RECORD, "")))
-	elif not _holds_chair():
-		_return_documents()
-	else:
+	if _holds_chair():
 		_note(NOTE_NOTARISED, [])
 		_resolve_ownership(TITLE_CHAIR)
+	elif str(v.get(V_TITLE, "")) == TITLE_FORGED:
+		PlayerState.set_flag(F_DOCS_LODGED, null)
+		_expose_forgery(str(v.get(V_RECORD, "")))
+	else:
+		_return_documents(NOTE_TITLE_LOST)
+
+
+## El notario que comprobaba dejó la plantilla: ni comprobación ni firma. Devuelve los papeles y
+## la autorización (sin comprobar: no pasa a pesar).
+static func _cancel_verification(v: Dictionary) -> void:
+	PlayerState.set_flag(F_VERIFICATION, null)
+	_return_documents(NOTE_NOTARY_GONE)
+	if str(v.get(V_TITLE, "")) == TITLE_FORGED:
+		PlayerState.add_item(FORGED_ITEM)
 
 
 ## Plazo abierto: una pieza file_annotation por caso activo contra el jugador (una vez por caso).
@@ -1157,12 +1392,13 @@ static func _expose_forgery(record_id: String) -> void:
 	_note(NOTE_FORGERY_DETECTED, [])
 
 
-## Cargo perdido durante la comprobación: el notario devuelve los papeles (o vuelven a la caja
-## si no caben en el inventario).
-static func _return_documents() -> void:
+## La notaría devuelve los papeles (cargo perdido o notario desaparecido): al inventario, o a la
+## caja del despacho si no caben.
+static func _return_documents(note_key: String) -> void:
 	if not PlayerState.add_item(OWNERSHIP_ITEM):
 		PlayerState.set_flag(F_DOCS_TAKEN, false)
-	_note(NOTE_TITLE_LOST, [])
+	PlayerState.set_flag(F_DOCS_LODGED, null)
+	_note(note_key, [])
 
 
 ## Fase 6: ownership_notarised y el final que decide Tracking (victoria también por game_over).

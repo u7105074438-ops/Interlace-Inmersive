@@ -3416,9 +3416,9 @@ LABOUR_STANDING_MANAGEMENT,Standing with management,Prestigio ante la dirección
 ENDGAME_NOTE_REVEALED,"Legal archive, confidential: the Stellar Sell ownership documents sit in the CEO's safe on floor 20, and they are worthless until the in-house notary on floor 9 formalises them.","Archivo legal, confidencial: los documentos de propiedad de Stellar Sell están en la caja fuerte del CEO, en la planta 20, y no valen nada hasta que la notaría interna de la planta 9 los formalice."
 ENDGAME_NOTE_PEARL_BLACKMAIL,Pearl Osgood gave you the safe combination. She will never forgive the file.,Pearl Osgood te ha dado la combinación de la caja fuerte. Nunca te perdonará lo del expediente.
 ENDGAME_NOTE_PEARL_FAVOUR,Pearl Osgood repaid the favour: you have the safe combination.,Pearl Osgood te ha devuelto el favor: tienes la combinación de la caja fuerte.
-ENDGAME_NOTE_PEARL_INFORMED,Pearl Osgood went straight to Harlan Voss. He is watching you personally.,Pearl Osgood ha ido directa a Harlan Voss. Ahora te vigila en persona.
+ENDGAME_NOTE_PEARL_INFORMED,"Pearl Osgood went straight to %s, who is now watching you personally.","Pearl Osgood ha ido directa a %s, que ahora te vigila en persona."
 ENDGAME_NOTE_FILES_FOUND,"Voss's private files: the safe combination was in there, filed under ""Misc"".","Los archivos privados de Voss: la combinación de la caja estaba ahí, archivada en «Varios»."
-ENDGAME_NOTE_MEETING,Harlan Voss is stuck in a long meeting (%s). His office is empty.,Harlan Voss está atrapado en una reunión interminable (%s). Su despacho está vacío.
+ENDGAME_NOTE_MEETING,%s is stuck in a long meeting (%s). The office is empty.,%s está atrapado en una reunión interminable (%s). El despacho está vacío.
 ENDGAME_NOTE_DOCUMENTS,You have the ownership documents. Carrying them into a body search is the end: hide them.,Tienes los documentos de propiedad. Llevarlos encima en un registro es el final: escóndelos.
 ENDGAME_NOTE_SAFE_FORCED,The CEO's safe is forced open. Someone will notice tomorrow morning.,La caja fuerte del CEO está forzada. Alguien lo notará mañana por la mañana.
 ENDGAME_NOTE_FORGED,Authorisation forged with your desk stamp. It looks almost legitimate.,Autorización falsificada con la estampa de tu escritorio. Parece casi legítima.
@@ -3427,7 +3427,7 @@ ENDGAME_NOTE_FORGERY_DETECTED,The notary's verification exposed the forged autho
 ENDGAME_NOTE_TITLE_LOST,Verification failed: you no longer hold the chair. The notary handed the documents back.,La comprobación ha fallado: ya no ocupas el cargo. El notario te ha devuelto los documentos.
 ENDGAME_NOTE_NOTARISED,Notarised. Stellar Sell is legally yours.,Protocolizado. Stellar Sell es legalmente tuya.
 ENDGAME_NOTE_PRESTON_HOSTILE,%s now sees you as his rival for the top chair.,%s te ve ahora como su rival por el sillón de arriba.
-ENDGAME_NOTE_VOSS_REASSURED,%s told Voss exactly what he wanted to hear. He stopped watching you.,%s le ha contado a Voss exactamente lo que quería oír. Ha dejado de vigilarte.
+ENDGAME_NOTE_VOSS_REASSURED,%s told %s exactly what they wanted to hear. The personal surveillance is over.,%s le ha contado a %s exactamente lo que quería oír. Se acabó la vigilancia personal.
 OBJECTIVE_HIDDEN,Climb to the office on floor 20. You want the company; you do not yet know how it changes hands.,Llega al despacho de la planta 20. Quieres la compañía; aún no sabes cómo cambia de manos.
 OBJECTIVE_COMBINATION,"Get into the CEO's safe: Pearl Osgood knows the combination, Voss keeps it in his files, or force it.","Entra en la caja fuerte del CEO: Pearl Osgood conoce la combinación, Voss la guarda en sus archivos, o fuérzala."
 OBJECTIVE_SAFE,"Open the safe in the CEO's office while Voss is away. Door, roof ledge or machine-room vent.","Abre la caja del despacho del CEO mientras Voss no está. Puerta, cornisa de la azotea o conducto del cuarto de máquinas."
@@ -3448,14 +3448,14 @@ ENDGAME_REASON_NOT_AT_NOTARY,You have to be at the in-house notary.,Tienes que e
 ENDGAME_REASON_ALREADY_KNOWN,You already know the combination.,Ya conoces la combinación.
 ENDGAME_REASON_UNAVAILABLE,She is not here any more.,Ya no está aquí.
 ENDGAME_REASON_UNBRIBABLE,Pearl Osgood cannot be bought. She will tell Voss.,Pearl Osgood no se vende. Se lo contará a Voss.
-ENDGAME_REASON_NO_MATERIAL,You have nothing on her: read her HR file first.,No tienes nada contra ella: lee antes su expediente de RR. HH.
+ENDGAME_REASON_NO_MATERIAL,"You have nothing on her: her HR file is unread, or you already covered her secret.",No tienes nada contra ella: no has leído su expediente o ya tapaste su secreto.
 ENDGAME_REASON_REFUSED,She called your bluff.,No se ha dejado intimidar.
 ENDGAME_REASON_FAVOUR_TOO_SMALL,You have never done her a favour that big.,Nunca le has hecho un favor tan grande.
 ENDGAME_REASON_OBSERVED,Someone saw you. Start again.,Alguien te ha visto. Vuelta a empezar.
 ENDGAME_REASON_IN_PROGRESS,Still working on it.,Sigues en ello.
 ENDGAME_REASON_OCCUPIED,The office is not empty.,El despacho no está vacío.
 ENDGAME_REASON_NO_COMBINATION,You do not know the combination.,No conoces la combinación.
-ENDGAME_REASON_NO_MEANS,You lack the means to force it (security or maintenance).,No tienes medios para forzarla (seguridad o mantenimiento).
+ENDGAME_REASON_NO_MEANS,"You lack the means to force it: security director, maintenance or their uniform.","No tienes medios para forzarla: director de seguridad, mantenimiento o su uniforme."
 ENDGAME_REASON_ALREADY_TAKEN,The safe is already empty.,La caja ya está vacía.
 ENDGAME_REASON_INVENTORY_FULL,Your pockets are full.,Llevas los bolsillos llenos.
 ENDGAME_REASON_NO_STAMP,You need your desk stamp.,Necesitas la estampa de tu escritorio.
@@ -3495,3 +3495,16 @@ NOTE_BUYER_DEMAND,%s (%s) remembers the kickback and wants %d € to keep forget
 NOTE_BUYER_REPORTED,%s (%s) has told the company about the kickback.,%s (%s) le ha contado la mordida a la compañía.
 STRIKE_REASON_DAILY_LIMIT,You have stirred enough people for one day,Por hoy ya has calentado bastantes cabezas
 STRIKE_REASON_NOT_CULPRIT,The shop floor does not blame them for anything,La nave no le culpa de nada
+ENDGAME_NOTE_PEARL_SECRET_COVERED,You covered up %s's secret. She owes you something no bribe could buy.,Has tapado el secreto de %s. Te debe algo que ningún soborno podría comprar.
+ENDGAME_NOTE_DOCUMENTS_LOST,The ownership documents are gone. The company has them back in the CEO's safe.,Los documentos de propiedad se han perdido. La empresa los ha devuelto a la caja fuerte del CEO.
+ENDGAME_NOTE_NOTARY_GONE,"The notary who was verifying your papers is gone. The notary's office handed everything back, unsigned.","El notario que comprobaba tus papeles ya no está. La notaría te lo ha devuelto todo, sin firmar."
+ENDGAME_FAVOUR_BURY_ANNEX,Remove the sealed annex from her HR file (HR office),Retirar el anexo sellado de su expediente (oficina de RR. HH.)
+ENDGAME_FAVOUR_RATIFY_SIGNATURES,"Ratify the signatures she made for Voss (legal archive, as legal director)","Convalidar las firmas que estampó por Voss (archivo legal, como director legal)"
+LEDGER_FAVOUR_COVERED_SECRET,You covered up their secret,Le tapaste un secreto
+ENDGAME_REASON_NO_SECRET,You do not know what she needs covered up: read her HR file first.,No sabes qué necesita que le tapen: lee antes su expediente.
+ENDGAME_REASON_ALREADY_DONE,You already covered her secret.,Ya has tapado su secreto.
+ENDGAME_REASON_WRONG_ROOM,You cannot do that from here.,Eso no se puede hacer desde aquí.
+ENDGAME_REASON_NO_TOOLS,You need forcing tools (cutting tools or an angle grinder).,Necesitas herramientas de forzado (de corte o una radial).
+ENDGAME_REASON_NOTARY_ABSENT,The notary is not at the desk. Come back later.,El notario no está en su mesa. Vuelve más tarde.
+ENDGAME_REASON_BAND_OVER,That part of the day is already over.,Esa parte del día ya ha pasado.
+FACTORY_REASON_NOT_IN_FACTORY,Stolen goods can only be put back on the factory shelves,El producto robado solo puede devolverse a las estanterías de la nave

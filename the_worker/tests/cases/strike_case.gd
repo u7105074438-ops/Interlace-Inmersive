@@ -1,4 +1,4 @@
-# strike_case.gd — Cuerpo de test_strike: las cuatro acciones del jugador en el conflicto laboral (agitar, apaciguar, liderar, traicionar), el umbral de la huelga, sus reputaciones y los efectos de la huelga activa en ambos cerebros (§11.7, §9.12, PASO 41).
+# strike_case.gd — Cuerpo de test_strike: las cuatro acciones del jugador en el conflicto laboral (agitar y sus límites, apaciguar al causante, liderar, traicionar), el umbral de la huelga, sus reputaciones y los efectos de la huelga activa en ambos cerebros (§11.7, §9.12, PASO 41).
 # PROPIETARIO DE: nada.
 # ESCUCHA: strike_started, strike_resolved, news_published, crime_committed, grievance_added (solo para comprobarlas).
 extends TestCase
@@ -23,7 +23,9 @@ func run_case() -> void:
 	_test_agitation_talk()
 	_test_agitation_speeds_up()
 	_test_agitation_rumour()
+	_test_agitation_limits()
 	_test_appeasement()
+	_test_culprit_is_defined()
 	_test_threshold_and_lead()
 	_test_lead_calls_a_new_strike()
 	_test_betrayal()
@@ -122,6 +124,38 @@ func _test_agitation_rumour() -> void:
 			"a rumour pushes harder than a talk")
 	check_eq(Strike.plant_rumour(_holder("cfo"))["reason"], "not_low_tier",
 			"the rumour is planted on the shop floor")
+	check_eq(Strike.plant_rumour(worker)["reason"], "cooldown",
+			"the same worker is not fed a second rumour straight away")
+	check_eq(Company.get_last_agitation_day(worker), GameClock.get_day(),
+			"the rumour counts as working on that worker")
+
+
+## Sin botón de SEDA: tope diario, enfriamiento por personaje y nadie escucha al traidor.
+func _test_agitation_limits() -> void:
+	_fresh()
+	var cap: int = _bi("huelga.agitaciones_max_por_jornada")
+	var workers: Array[String] = _low_tier_workers(cap + 1)
+	var silk: int = PlayerState.get_tracking("silk")
+	var before: int = Company.get_discontent()
+	for i: int in cap:
+		check(bool(Strike.plant_rumour(workers[i])["ok"]), "rumour %d of the day" % (i + 1))
+	check_eq(Company.get_agitations_today(), cap, "the day's agitation is counted")
+	check_eq(Strike.plant_rumour(workers[cap])["reason"], "daily_limit",
+			"one more rumour today is refused")
+	_set_mood(workers[cap], UPSET)
+	check_eq(Strike.agitate(workers[cap])["reason"], "daily_limit", "so is one more talk")
+	check_eq(Company.get_discontent() - before, cap * _bi("huelga.descontento_por_rumor"),
+			"the immediate rise is capped")
+	check_eq(PlayerState.get_tracking("silk") - silk, cap * _bi("seguimiento.seda_por_rumor_plantado"),
+			"and so is the SILK it feeds")
+	GameClock.advance_to_next_day()
+	check(bool(Strike.plant_rumour(workers[cap])["ok"]), "the next day a fresh worker listens")
+	Company.modify_discontent(THRESHOLD + 5 - Company.get_discontent(), "test")
+	Strike.lead()
+	Strike.betray()
+	GameClock.advance_to_next_day()
+	check_eq(Strike.plant_rumour(workers[0])["reason"], "workers_betrayed",
+			"after the betrayal nobody spreads the traitor's rumours")
 
 
 # ─── Apaciguar ────────────────────────────────────────────────
@@ -131,7 +165,7 @@ func _test_appeasement() -> void:
 	Company.modify_discontent(40, "test")
 	check_eq(Strike.appease_with_concession()["reason"], "no_authority",
 			"an email worker cannot grant a pay rise")
-	PlayerState.set_occupation("factory_director", "test")
+	PlayerState.set_occupation("coo", "test")
 	var payroll: float = float(Company.get_fundamentals()["payroll"])
 	var before: int = Company.get_discontent()
 	check(bool(Strike.appease_with_concession()["ok"]), "the factory director grants a concession")
@@ -140,14 +174,37 @@ func _test_appeasement() -> void:
 	check(float(Company.get_fundamentals()["payroll"]) > payroll, "at a direct economic cost")
 	check_eq(Strike.appease_by_firing(_holder("email_worker_3b"))["reason"], "not_management",
 			"firing a worker is no appeasement")
-	check_eq(Strike.appease_by_firing(_holder("cfo"))["reason"], "no_authority",
+	check_eq(Strike.appease_by_firing(_holder("ceo"))["reason"], "no_authority",
 			"nobody fires their own superiors")
-	var foreman: String = _holder("factory_foreman")
+	var director: String = _holder("factory_director")
+	check(Strike.is_culprit(director), "strikes are aimed at the factory director (§23.6)")
 	before = Company.get_discontent()
-	check(bool(Strike.appease_by_firing(foreman)["ok"]), "the director fires the foreman")
-	check(not NPCDirector.is_active(foreman), "the culprit leaves the company")
+	check(bool(Strike.appease_by_firing(director)["ok"]), "the COO fires the factory director")
+	check(not NPCDirector.is_active(director), "the culprit leaves the company")
 	check_eq(Company.get_discontent() - before, _bi("descontento.reduccion_por_despedir_causante"),
 			"firing the culprit: −10")
+
+
+## Solo el causante: despedir a cualquier directivo no apacigua (probe del CEO que despide a
+## media planta 20); un directivo al que la plantilla culpa por un rumor sí lo es.
+func _test_culprit_is_defined() -> void:
+	_fresh()
+	Company.modify_discontent(40, "test")
+	PlayerState.set_occupation("ceo", "test")
+	for occupation: String in ["hr_director", "b10_director", "cfo", "legal_director"]:
+		check_eq(Strike.appease_by_firing(_holder(occupation))["reason"], "not_culprit",
+				"%s is not the cause of the discontent" % occupation)
+	check(NPCDirector.is_active(_holder("cfo")), "and keeps the job")
+	var foreman: String = _holder("factory_foreman")
+	check(not Strike.is_culprit(foreman), "the foreman is not blamed by default")
+	var result: Dictionary = Strike.plant_rumour(_holder("email_worker_3b"), foreman)
+	check(bool(result["ok"]) and Strike.is_culprit(foreman),
+			"a rumour of management abuse makes the floor blame the foreman")
+	var before: int = Company.get_discontent()
+	check(bool(Strike.appease_by_firing(foreman)["ok"]), "so firing the foreman appeases them")
+	check_eq(Company.get_discontent() - before,
+			_bi("descontento.reduccion_por_despedir_causante"), "−10 for the blamed manager")
+	check_eq(Strike.get_reason_label_key("not_culprit"), "STRIKE_REASON_NOT_CULPRIT", "text key")
 
 
 # ─── Liderar y traicionar ─────────────────────────────────────
@@ -206,8 +263,11 @@ func _test_betrayal() -> void:
 	check_eq(_calls("strike_resolved"), [["betrayed"]], "strike_resolved(betrayed)")
 	check(not Company.is_strike_active(), "the strike stops")
 	check_near(PlayerState.get_reputation() - reputation,
-			_bf("huelga.reputacion_direccion_traicionar"), EPS,
-			"management: the player saved the company")
+			_bf("huelga.reputacion_direccion_traicionar") - _bf("huelga.reputacion_direccion_liderar"),
+			EPS, "management: the leading penalty is undone and the player saved the company")
+	check(PlayerState.get_reputation() > BETRAY_REPUTATION
+			+ _bf("huelga.reputacion_direccion_traicionar") - EPS,
+			"net of leading and betraying, management rates the player very high")
 	check_near(Company.get_labour_standing("management"),
 			_bf("huelga.prestigio_traicion_direccion"), EPS, "standing with management: very high")
 	check_near(Company.get_labour_standing("workers"),
@@ -215,7 +275,8 @@ func _test_betrayal() -> void:
 	check(_has_grievance(worker, "strike_betrayed"), "every low-tier worker holds a grievance")
 	check(not _has_grievance(boss, "strike_betrayed"), "management holds none")
 	check_eq(NPCDirector.get_affection(boss) - boss_affection,
-			_bi("huelga.afecto_direccion_traicionar"), "management warms to the player")
+			_bi("huelga.afecto_direccion_traicionar") - _bi("huelga.afecto_direccion_liderar"),
+			"management warms to the player (and forgives the lead)")
 	_check_betrayal_is_permanent(worker)
 
 
@@ -288,7 +349,18 @@ func _fresh() -> void:
 
 
 func _holder(occupation_id: String) -> String:
-	return Company.get_seat_holders(occupation_id)[0]
+	var holders: Array[String] = Company.get_seat_holders(occupation_id)
+	return holders[0] if not holders.is_empty() else ""
+
+
+## `count` personajes distintos de escalones bajos en plantilla.
+func _low_tier_workers(count: int) -> Array[String]:
+	var out: Array[String] = []
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if out.size() < count and npc.tier <= _bi("descontento.escalon_max_afectado") \
+				and NPCDirector.is_active(npc.id):
+			out.append(npc.id)
+	return out
 
 
 func _set_mood(npc_id: String, mood: float) -> void:

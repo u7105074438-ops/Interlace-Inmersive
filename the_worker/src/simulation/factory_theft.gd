@@ -15,6 +15,8 @@ extends RefCounted
 ##    transportista cómplice), room_id ("" = sala actual).
 ##  · product_shelf con data.accepts_stolen_product (store_display de flagship_store, PB): NO es un
 ##    robo: fence(sala) revende el producto robado que lleva el jugador (salas fabrica.salas_reventa).
+##  · product_shelf de la nave con producto robado encima: return_goods(sala) lo devuelve antes
+##    del recuento («inventario compensado», §12.3): el descuadre de la semana mengua.
 ##  · delivery_notes (fabrica.salas_albaranes): forge_delivery_notes(sala).
 ##  · connect_calendar() lo llama Company al arrancar (idempotente): las manos no tienen que hacerlo.
 ## DECISIONES:
@@ -47,7 +49,10 @@ extends RefCounted
 ##    de un día entero en los márgenes y el CFO (ocupacion_cfo, si es un personaje) lo detecta: pieza
 ##    tipo_evidencia_cfo (rastro contable) con el CFO como testigo. subject: el superior de los
 ##    albaranes; si no, el jugador si responde del inventario (capataz); si no, nadie (la
-##    investigación busca con sus procedimientos). Un descuadre solo se entrega en su semana.
+##    investigación busca con sus procedimientos). Un descuadre solo se entrega en su semana. El
+##    incidente lleva el día de la mayor sustracción (las cámaras de ese día): pendiente bajo el
+##    umbral, caduca con seguridad.dias_acumulacion_incidentes; la acumulación entre semanas la
+##    lleva Company (racha). «Inventario compensado» (§12.3): return_goods() antes del recuento.
 ##  · ALBARANES (§11.6 «incriminación», oportunidad exclusiva del capataz: fabrica.ocupaciones_
 ##    albaranes): el recuento de ESTA semana apunta al superior directo. crime_committed("forgery")
 ##    (BeliefNet: documento sin verificar contra él; SEDA) y ("framing"). Los albaranes de una
@@ -89,12 +94,14 @@ const REASON_NOT_FOREMAN := "not_foreman"
 const REASON_NO_SUPERIOR := "no_superior"
 const REASON_NOT_AT_FENCE := "not_at_fence"
 const REASON_NOTHING_TO_FENCE := "nothing_to_fence"
+const REASON_NOT_IN_FACTORY := "not_in_factory"
 const REASON_LABEL_KEYS: Dictionary = {
 	REASON_NOT_AT_NOTES: "FACTORY_REASON_NOT_AT_NOTES",
 	REASON_NOT_FOREMAN: "FACTORY_REASON_NOT_FOREMAN",
 	REASON_NO_SUPERIOR: "FACTORY_REASON_NO_SUPERIOR",
 	REASON_NOT_AT_FENCE: "FACTORY_REASON_NOT_AT_FENCE",
 	REASON_NOTHING_TO_FENCE: "FACTORY_REASON_NOTHING_TO_FENCE",
+	REASON_NOT_IN_FACTORY: "FACTORY_REASON_NOT_IN_FACTORY",
 }
 
 const CRIME_THEFT := "theft_product"
@@ -106,6 +113,7 @@ const INCIDENT_TYPE := "inventory_mismatch"
 const MONEY_REASON_FORMAT := "factory_theft_%s"
 const MONEY_REASON_FENCE := "factory_fence"
 const DISPOSE_SOLD := "sold"
+const DISPOSE_RETURNED := "returned"
 const NOTES_INTERACTABLE := "delivery_notes"
 const TRACEABLE_KEY := "traceable"
 const RNG_SALT := "factory_theft"
@@ -403,6 +411,31 @@ static func fence(room_id: String = "") -> Dictionary:
 	return _fence_result(true, "", income, units)
 
 
+## «Inventario compensado» (§12.3 palanca de fase 1): devolver a la nave el producto robado que
+## se lleva encima; sus pares se restan de los robos sin recontar (el jugador renuncia a su
+## reventa). {ok, reason, units, pairs (compensados)}.
+static func return_goods(room_id: String = "") -> Dictionary:
+	var room: String = room_id if not room_id.is_empty() else PlayerState.get_room()
+	if not is_factory_room(room):
+		return {"ok": false, "reason": REASON_NOT_IN_FACTORY, "units": 0, "pairs": 0}
+	var goods: Dictionary = _fence_goods()
+	var units: int = 0
+	var pairs: int = 0
+	for item_id: String in goods:
+		var count: int = PlayerState.get_item_count(item_id)
+		for i: int in count:
+			PlayerState.dispose_item(item_id, DISPOSE_RETURNED)
+		if count > 0:
+			var taken: Dictionary = Company.take_stolen_goods(item_id, count)
+			var uncovered: int = maxi(count - int(taken.get("units", 0)), 0)
+			pairs += int(taken.get("pairs", 0)) + uncovered * _fallback_unit_pairs(str(goods[item_id]))
+			units += count
+	if units == 0:
+		return {"ok": false, "reason": REASON_NOTHING_TO_FENCE, "units": 0, "pairs": 0}
+	return {"ok": true, "reason": "", "units": units,
+			"pairs": Company.compensate_factory_thefts(pairs)}
+
+
 ## Albaranes falsificados (§11.6 «incriminación»): el recuento de esta semana apunta al superior
 ## directo. Solo el capataz (fabrica.ocupaciones_albaranes). {ok, target, reason, traced}.
 static func forge_delivery_notes(room_id: String = "") -> Dictionary:
@@ -697,6 +730,14 @@ static func _fallback_unit_income(scale: String) -> int:
 	if bool(cfg.get(S_ITEM_PER_PAIR, false)):
 		return roundi(float(income_for(scale, low)) / low)
 	return income_for(scale, (low + int(cfg.get(S_PAIRS_MAX, low))) / 2)
+
+
+## Pares de una unidad sin lote: uno (escalas por par) o una caja de pares medios.
+static func _fallback_unit_pairs(scale: String) -> int:
+	var cfg: Dictionary = get_scale_config(scale)
+	var low: int = maxi(int(cfg.get(S_PAIRS_MIN, 0)), 1)
+	return 1 if bool(cfg.get(S_ITEM_PER_PAIR, false)) \
+			else (low + int(cfg.get(S_PAIRS_MAX, low))) / 2
 
 
 static func _fence_result(ok: bool, reason: String, income: int, units: int) -> Dictionary:

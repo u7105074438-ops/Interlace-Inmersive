@@ -1,4 +1,4 @@
-# buyers_case.gd — Cuerpo de test_buyers: cartera y agenda de compradores de la sala de demostraciones y las cuatro operaciones (venta honesta, sobreprecio, venta fantasma, descuento con mordida) resueltas por los rasgos de cada comprador (§11.5, PASO 41).
+# buyers_case.gd — Cuerpo de test_buyers: cartera y agenda de compradores de la sala de demostraciones (horas de visita, rasgos ocultos hasta conocerlos), las cuatro operaciones (venta honesta, sobreprecio, venta fantasma, descuento con mordida) resueltas por los rasgos de cada comprador, la cuota de ventas, la reclamación retardada y el chantaje del comprador (§11.5, PASO 41).
 # PROPIETARIO DE: nada.
 # ESCUCHA: crime_committed, npc_reported_player, notebook_entry_added, investigation_opened (solo para comprobarlas).
 extends TestCase
@@ -28,12 +28,16 @@ func run_case() -> void:
 	_connect_bus()
 	_test_roster()
 	_test_schedule()
+	_test_visit_hours()
 	_test_requirements()
+	_test_intel()
 	_test_honest_sale()
+	_test_sales_duty()
 	_test_overprice()
 	_test_overprice_claim()
 	_test_phantom_sale()
 	_test_kickback()
+	_test_kickback_blackmail()
 	_test_resolution_matrix()
 	_test_save_load()
 
@@ -69,6 +73,7 @@ func _test_schedule() -> void:
 			visit_days.append(day)
 	check_eq(visit_days, [2, 4, 7, 9], "buyers come on the 2nd and 4th day of each week")
 	check(Company.get_buyers_today().is_empty(), "day 1: nobody in the demo room")
+	PlayerState.set_occupation(SELLER, "test")
 	GameClock.advance_to_next_day()
 	var today: Array[Dictionary] = Company.get_buyers_today()
 	check_eq(today.size(), Database.get_balance_int("compradores.visitas_por_dia"),
@@ -79,10 +84,69 @@ func _test_schedule() -> void:
 		ok = ok and visit["status"] == "waiting" and int(visit["order_value"]) \
 				== roundi(int(visit["pairs"]) * price)
 		ok = ok and int(visit["pairs"]) >= Database.get_balance_int("compradores.pares_pedido_min")
-		ok = ok and not str(visit["name"]).is_empty() and visit.has("traits")
-	check(ok, "each visit: waiting, an order at the average price, with the buyer's card")
-	check(today[0]["buyer_id"] != today[1]["buyer_id"], "two different buyers")
+		ok = ok and not str(visit["name"]).is_empty() and not bool(visit["traits_known"]) \
+				and (visit["traits"] as Dictionary).is_empty()
+	check(ok, "each visit: waiting, an order at the average price, a card with unknown traits")
+	check(today.size() > 1 and today[0]["buyer_id"] != today[1]["buyer_id"], "two different buyers")
 	check(_notes("NOTE_BUYERS_TODAY").has([today.size()]), "the notebook announces the buyers")
+	_clear()
+	PlayerState.set_occupation("email_worker_3b", "test")
+	for i: int in 2:
+		GameClock.advance_to_next_day()
+	check(not Company.get_buyers_today().is_empty() and _notes("NOTE_BUYERS_TODAY").is_empty(),
+			"a non-seller is not told about the buyers")
+
+
+## Las horas de la agenda: el comprador de las 16:00 no está a las 9 ni después de la jornada.
+func _test_visit_hours() -> void:
+	_fresh()
+	PlayerState.set_occupation(SELLER, "test")
+	_enter(DEMO_ROOM)
+	GameClock.advance_to_next_day()
+	var today: Array[Dictionary] = Company.get_buyers_today()
+	var late: Dictionary = today.back() if not today.is_empty() else {}
+	var hour: int = int(late.get("hour", 0))
+	var day: int = GameClock.get_day()
+	check_eq(hour, int(Database.get_balance("compradores.horas_visita").back()), "a 16:00 visit")
+	GameClock.set_time(day, hour - 1, 0)
+	check_eq(Buyers.can_operate(str(late.get("buyer_id", "")))["reason"], "not_arrived",
+			"an hour early the buyer has not arrived")
+	GameClock.set_time(day, hour, 0)
+	check(bool(Buyers.can_operate(str(late.get("buyer_id", "")))["allowed"]),
+			"at the visit hour the buyer is in the room")
+	GameClock.set_time(day, _bi("tiempo.hora_fin_jornada"), 0)
+	check_eq(Buyers.can_operate(str(late.get("buyer_id", "")))["reason"], "gone",
+			"after the working day the buyer has left")
+	check_eq(Buyers.get_reason_label_key("gone"), "BUYER_REASON_GONE", "with a text key")
+
+
+## §22: la sala de espera (antes de la reunión) y el archivo de clientes VIP revelan los rasgos.
+func _test_intel() -> void:
+	_fresh()
+	GameClock.advance_to_next_day()
+	var day: int = GameClock.get_day()
+	var today: Array[Dictionary] = Company.get_buyers_today()
+	GameClock.set_time(day, _bi("tiempo.hora_inicio_jornada"), 0)
+	check_eq(Buyers.overhear_buyers(DEMO_ROOM)["reason"], "not_in_lounge",
+			"buyers are overheard in the visitors' lounge")
+	_enter("visitor_lounge")
+	var heard: Dictionary = Buyers.overhear_buyers()
+	check(bool(heard["ok"]) and (heard["revealed"] as Array).size() == today.size(),
+			"before their meeting, both buyers can be overheard")
+	var view: Dictionary = Company.get_buyer_visit(str(today[0]["buyer_id"])) \
+			if not today.is_empty() else {}
+	check(bool(view.get("traits_known", false)) and (view.get("traits", {}) as Dictionary).size()
+			== Validate.TRAIT_NAMES.size(), "their traits now show on the card")
+	GameClock.set_time(day, _bi("tiempo.hora_fin_jornada") - 1, 0)
+	check_eq(Buyers.overhear_buyers()["reason"], "nobody_waiting",
+			"once the meetings are due, nobody is waiting")
+	_enter("vip_client_archive")
+	var read: Dictionary = Buyers.read_client_archive()
+	var known: int = 0
+	for buyer: Dictionary in Company.get_buyer_roster():
+		known += 1 if Company.is_buyer_known(str(buyer["id"])) else 0
+	check(bool(read["ok"]) and known == Company.get_buyer_roster().size(),
+			"the VIP archive documents every buyer's weaknesses")
 
 
 func _test_requirements() -> void:
@@ -116,6 +180,27 @@ func _test_honest_sale() -> void:
 			"no crime, no complaint: no risk")
 	check_eq(Company.get_buyer_visit(buyer)["status"], "closed", "the visit is closed")
 	check_eq(Buyers.honest_sale(buyer)["reason"], "already_served", "one deal per visit")
+	check(Company.is_buyer_known(buyer), "after the meeting the player knows the buyer")
+
+
+## Una venta en los libros avanza la cuota de ventas del día (DutySystem en el árbol).
+func _test_sales_duty() -> void:
+	_fresh()
+	var duties: DutySystem = DutySystem.new()
+	add_child(duties)
+	duties.set_witness_provider(func() -> Array: return [])
+	var buyer: String = _seller_with({})
+	var duty: String = Buyers.sales_duty_id()
+	check(not duty.is_empty(), "the salesman has a sales quota today")
+	var result: Dictionary = Buyers.honest_sale(buyer)
+	check(result["duty_id"] == duty and int(result["duty_units"]) == 1,
+			"the honest sale counts towards the quota")
+	check_eq(int(duties.get_session(duty).get("done", 0)), 1, "one sale on the quota")
+	var phantom: Dictionary = Buyers.phantom_sale(_next_buyer({"greed": HIGH}))
+	check(phantom["outcome"] == "sold" and int(phantom["duty_units"]) == 0,
+			"an off-the-books sale does not")
+	remove_child(duties)
+	duties.free()
 
 
 func _test_overprice() -> void:
@@ -165,12 +250,14 @@ func _test_overprice_claim() -> void:
 			"a mid-perception buyer will claim weeks later")
 	check_eq(Company.get_pending_buyer_claims().size(), 1, "the claim waits in Company")
 	check(_calls("npc_reported_player").is_empty(), "no complaint on the day of the sale")
-	var soon: String = _next_buyer({})
-	Company.schedule_buyer_claim(soon, 100, today + 1, "overprice")
+	while GameClock.get_day() < due - 1:
+		GameClock.advance_to_next_day()
+	check(_calls("npc_reported_player").is_empty() and _notes("NOTE_BUYER_CLAIM").is_empty(),
+			"the day before, still nothing")
 	GameClock.advance_to_next_day()
-	check(_calls("npc_reported_player").has([soon, "superior", 0.0, DEMO_ROOM]),
+	check(_calls("npc_reported_player").has([buyer, "superior", 0.0, DEMO_ROOM]),
 			"when the claim falls due the buyer complains to the superior")
-	check_eq(Company.get_pending_buyer_claims().size(), 1, "only the due claim is consumed")
+	check(Company.get_pending_buyer_claims().is_empty(), "the claim is consumed")
 	check(_notes("NOTE_BUYER_CLAIM").size() == 1, "the notebook records the claim")
 
 
@@ -216,6 +303,8 @@ func _test_kickback() -> void:
 	check(leverage.size() == 1 and leverage[0]["buyer_id"] == greedy
 			and leverage[0]["material"][0]["type"] == "kickback",
 			"the buyer gains blackmail material")
+	check_eq(leverage[0]["material"][0]["status"] if not leverage.is_empty() else "", "held",
+			"held for now")
 	check(bool(Company.get_buyer_visit(greedy)["holds_material"]), "visible on the buyer's card")
 	var tempted: String = _next_buyer({"greed": 40, "loyalty": LOW})
 	check_eq(Buyers.kickback_discount(tempted, 0.0, {"roll": LOW_ROLL})["outcome"], "sold",
@@ -226,6 +315,64 @@ func _test_kickback() -> void:
 	var upright: String = _next_buyer({"greed": 40, "loyalty": HIGH})
 	check_eq(Buyers.kickback_discount(upright, 0.0, {"roll": MID_ROLL})["outcome"], "reported",
 			"a loyal buyer who refuses complains")
+
+
+## §11.5 «el comprador adquiere material de chantaje»: con el tiempo lo usa.
+func _test_kickback_blackmail() -> void:
+	_fresh()
+	var buyers: Array[String] = []
+	for demand_roll: float in [0.0, 0.0, 0.0, 1.0]:
+		var id: String = _seller_with({"greed": HIGH}) if buyers.is_empty() \
+				else _next_buyer({"greed": HIGH})
+		Buyers.kickback_discount(id, 0.0, {"roll": HIGH_ROLL, "demand_roll": demand_roll})
+		buyers.append(id)
+	check_eq(int(_material(buyers[3]).get("demand_day", 0)), -1, "a buyer who will never use it")
+	var due: int = int(_material(buyers[0]).get("demand_day", 0))
+	check(due >= GameClock.get_day() + _bi("compradores.dias_exigencia_min")
+			and due <= GameClock.get_day() + _bi("compradores.dias_exigencia_max"),
+			"the others will come back days later")
+	check(Company.get_buyer_demands().is_empty(), "no demand yet on the day of the deal")
+	PlayerState.add_money(int(_material(buyers[0])["amount"]) * 10, "test")
+	var answers: Dictionary = _answer_demands(buyers[0], buyers[1])
+	_check_demand_answers(buyers, answers)
+
+
+## Recorre las jornadas: paga la exigencia del primero y rechaza la del segundo en cuanto llegan.
+func _answer_demands(payer: String, refuser: String) -> Dictionary:
+	var out: Dictionary = {}
+	var days: int = _bi("compradores.dias_exigencia_max") + _bi("compradores.plazo_exigencia_dias")
+	for i: int in days + 2:
+		GameClock.advance_to_next_day()
+		for demand: Dictionary in Company.get_buyer_demands():
+			var id: String = str(demand["buyer_id"])
+			if id == payer and not out.has("paid"):
+				var money: int = PlayerState.get_money()
+				out["paid"] = Buyers.pay_buyer_demand(payer)
+				out["spent"] = money - PlayerState.get_money()
+				out["demand"] = int(demand["amount"])
+			elif id == refuser and not out.has("refused"):
+				out["refused"] = Buyers.refuse_buyer_demand(refuser)
+				out["refused_opened"] = _opened("direct_witness_report")
+	return out
+
+
+func _check_demand_answers(buyers: Array[String], answers: Dictionary) -> void:
+	var payer: Dictionary = _material(buyers[0])
+	check_eq(int(answers.get("demand", 0)), roundi(int(payer["amount"])
+			* _bf("compradores.factor_exigencia")), "they want the kickback back")
+	check(bool(answers.get("paid", {}).get("ok", false))
+			and int(answers.get("spent", 0)) == int(answers.get("demand", -1)), "paying keeps them quiet")
+	check_eq(payer["status"], "settled", "for good")
+	check_eq(Buyers.pay_buyer_demand(buyers[0])["reason"], "no_demand", "nothing left to pay")
+	check(bool(answers.get("refused", {}).get("ok", false)), "the player refuses the second one")
+	check(_calls("npc_reported_player").has([buyers[1], "security", 0.0, DEMO_ROOM]),
+			"who tells Security about the kickback")
+	check(bool(answers.get("refused_opened", false)), "and Security opens a case")
+	check_eq(_material(buyers[2])["status"], "used", "the third demand was ignored until it lapsed")
+	check(_calls("npc_reported_player").has([buyers[2], "security", 0.0, DEMO_ROOM])
+			and _notes("NOTE_BUYER_REPORTED").size() == 1, "so that buyer talked too")
+	check(_notes("NOTE_BUYER_DEMAND").size() == 3, "the notebook recorded the three demands")
+	check_eq(_material(buyers[3])["status"], "held", "the fourth never asks")
 
 
 func _test_resolution_matrix() -> void:
@@ -258,6 +405,9 @@ func _test_save_load() -> void:
 	Company.load_state(saved)
 	check_eq(Company.get_buyer_roster(), roster, "the roster (traits, material) survives JSON")
 	check(Company.get_buyer(buyer)["traits"]["perception"] is int, "traits come back as ints")
+	check(Company.is_buyer_known(buyer), "known buyers stay known")
+	check(Company.get_buyer_leverage()[0]["material"][0]["demand_day"] is int,
+			"the blackmail schedule keeps its types")
 	check_eq(Company.get_pending_buyer_claims().size(), 1, "pending claims survive")
 	check_eq(Company.get_pending_sales_frauds().size(), 1, "pending sales frauds survive")
 	check_eq(Company.get_buyer_visit(buyer)["status"], "closed", "today's visits survive")
@@ -290,6 +440,12 @@ func _seller_with(traits: Dictionary) -> String:
 
 func _next_buyer(traits: Dictionary) -> String:
 	return _visit(traits)
+
+
+## Primera entrada de material de chantaje de ese comprador ({} si no tiene).
+func _material(buyer_id: String) -> Dictionary:
+	var material: Array = Company.get_buyer(buyer_id).get("material", [])
+	return material[0] if not material.is_empty() else {}
 
 
 func _value(buyer_id: String) -> int:

@@ -95,7 +95,8 @@ extends Node
 ##    franjas_seguimiento su sala es la del jugador (dentro del edificio; una sustitución de
 ##    override_routine, p. ej. una reunión provocada, manda sobre el seguimiento). Con nodo del
 ##    mundo, el nodo lo hace caminar hacia get_follow_target() ("player"). Dura hasta el cambio de
-##    jornada posterior a hoy + jornadas o end_personal_surveillance(). Se guarda con la partida.
+##    jornada posterior a hoy + jornadas, end_personal_surveillance() o la salida de la plantilla
+##    del vigilante. get_agenda_location_at() da su agenda sin el seguimiento. Se guarda con la partida.
 ##    report_player_to_superior(npc, sala): denuncia deliberada al superior (canal "superior",
 ##    certeza completa: BeliefNet +10 y anotación; Security pondera el canal).
 
@@ -724,6 +725,16 @@ func get_location_at(npc_id: String, hour: int, minute: int) -> String:
 	return str(_location_at(npc, m, true)["room"])
 
 
+## Extra (§11.8 agenda del CEO): como get_location_at, con las sustituciones de override_routine
+## pero SIN el seguimiento de la vigilancia personal: lo que dice su agenda de hoy.
+func get_agenda_location_at(npc_id: String, hour: int, minute: int) -> String:
+	var npc: NPCRuntime = get_npc(npc_id)
+	if npc == null or _planner == null:
+		return ""
+	var m: int = hour * NPCRoutinePlanner.MINUTES_PER_HOUR + minute
+	return str(_location_at(npc, m, true, false)["room"])
+
+
 ## Extra: agenda del día (depuración / mapa): [{start, end, room, activity, kind, priority}].
 func get_day_plan(npc_id: String) -> Array:
 	var npc: NPCRuntime = get_npc(npc_id)
@@ -761,13 +772,15 @@ func is_world_located(npc_id: String) -> bool:
 	return _world_located.has(npc_id)
 
 
-func _location_at(npc: NPCRuntime, minute: int, include_minor: bool) -> Dictionary:
+## `follow` = false: la agenda sin el seguimiento de la vigilancia personal (§11.8 agenda del CEO).
+func _location_at(npc: NPCRuntime, minute: int, include_minor: bool,
+		follow: bool = true) -> Dictionary:
 	if not _is_active(npc):
 		return {"room": "", "activity": STATE_REMOVED}
 	var band: String = _planner.band_of_minute(minute)
 	if npc.schedule_override.has(band):
 		return {"room": str(npc.schedule_override[band]), "activity": "override"}
-	if _follows_player_in(npc.id, band):
+	if follow and _follows_player_in(npc.id, band):
 		return {"room": _player_room, "activity": ACTIVITY_SURVEILLANCE}
 	var iv: Dictionary = NPCRoutinePlanner.pick(_plan_for(npc), minute, include_minor)
 	if iv.is_empty():
@@ -865,7 +878,8 @@ func _allies_of(npc_id: String) -> Array[String]:
 	return out
 
 
-## Deja la plantilla (estado propio): cuerpo si es eliminación; sin sala, sin LOD forzado ni fijado.
+## Deja la plantilla (estado propio): cuerpo si es eliminación; sin sala, sin LOD forzado ni
+## fijado y sin vigilancia personal (un vigilante retirado ya no vigila).
 func _take_off_staff(npc: NPCRuntime, cause: String) -> void:
 	var room: String = _elimination_room(npc)
 	npc.removed_cause = cause
@@ -874,6 +888,7 @@ func _take_off_staff(npc: NPCRuntime, cause: String) -> void:
 	_forced_lod.erase(npc.id)
 	_lod_pins.erase(npc.id)
 	_world_located.erase(npc.id)
+	_surveillance.erase(npc.id)
 	if ELIMINATION_CAUSES.has(cause):
 		npc.alive = false
 		_create_body(npc, room)

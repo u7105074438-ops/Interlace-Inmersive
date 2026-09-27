@@ -1,5 +1,5 @@
 # character_painter.gd — Personajes vectoriales planos con contorno en cenital 3/4 (§14.2, §14.4–§14.7).
-# PROPIETARIO DE: la caché de poses grabadas (CharacterCanvas) y la de combinaciones reservadas (derivadas de datos).
+# PROPIETARIO DE: la caché LRU de poses (mallas CharacterCanvas), la de fotos y fondos de foto, y la de combinaciones reservadas (derivadas de datos).
 # ESCUCHA: nada.
 class_name CharacterPainter
 extends RefCounted
@@ -15,16 +15,40 @@ extends RefCounted
 ##   (bool: cualquier gesto no locomotor —móvil a escondidas, bostezo, charla...— hecho sentado),
 ##   origin (Vector2, píxeles del canvas), scale (float). El origen es el centro de los pies; en
 ##   las poses sentadas, el punto del suelo bajo el asiento (ver seat_origin()).
-## Rendimiento: cada combinación apariencia + escalón + pose clave se graba una vez en un
-## CharacterCanvas (dirección y mirada cuantizadas a 8 rumbos) y los redibujados la reproducen.
+## Rendimiento: cada combinación apariencia + escalón + pose clave se graba una vez
+## (CharacterCanvas; dirección y mirada cuantizadas a 8 rumbos) y se tesela en una malla (rellenos
+## + contornos suavizados con colores por vértice): cada redibujado es UNA llamada de dibujo
+## (draw_mesh), nítida a cualquier zoom. El teselado gasta como mucho
+## arte_personajes.teselado_ms_por_fotograma por fotograma: una pose aún sin malla se dibuja con
+## su lista de órdenes (mismo aspecto, una llamada por trazo) y su lienzo se redibuja al fotograma
+## siguiente, sin tirones al llenarse la planta. Caché LRU acotada por número de poses
+## (arte_personajes.cache_poses) y por memoria (arte_personajes.cache_mallas_kb); al pasarse
+## descarta las poses menos usadas hasta quedar en el 90 %. Un lienzo retiene (metadato) las mallas
+## que dibujó hasta su siguiente redibujo: descartar una pose que sigue en pantalla nunca deja
+## órdenes apuntando a una malla liberada. set_reference_mode(true) (solo QA) no tesela nunca: el
+## dibujo anterior, una orden de CanvasItem por trazo, para comparar llamadas, tiempos y píxeles.
 
 const FPS_PATH := "animacion.fps_base"
 const VOLUME_PATH := "arte_personajes.escala_volumen_perfil"
 const CACHE_PATH := "arte_personajes.cache_poses"
-## Tope provisional de la caché si balance.json aún no está cargado (no se memoriza).
+const CACHE_BYTES_PATH := "arte_personajes.cache_mallas_kb"
+const PORTRAIT_CACHE_PATH := "arte_personajes.cache_retratos"
+const TESSELLATION_PATH := "arte_personajes.teselado_ms_por_fotograma"
+## Topes provisionales de las cachés si balance.json aún no está cargado (no se memorizan).
 const CACHE_FALLBACK := 256
-## Fracción de la caché que se conserva tras un vaciado parcial.
-const CACHE_KEEP := 0.75
+const CACHE_KB_FALLBACK := 8192
+const PORTRAIT_FALLBACK := 64
+const TESSELLATION_MS_FALLBACK := 2.0
+## Presupuesto de teselado: sin leer de balance.json / sin límite.
+const BUDGET_UNREAD := -2
+const BUDGET_UNLIMITED := -1
+const USEC_PER_MS := 1000.0
+## Fracción de la caché que se conserva tras un vaciado parcial (vaciados pequeños: sin tirones).
+const CACHE_KEEP := 0.9
+## Clave reservada de cada cubo de apariencia: la clave con la que está en _poses (para borrarlo).
+const BUCKET_APP := &"app"
+## Metadato del lienzo con las grabaciones de su última pasada de dibujo: [fotograma, grabaciones...].
+const HELD_META := &"_character_recordings"
 const HAIR_AGE_GREY_CHANCE: Array[float] = [0.0, 0.08, 0.4, 0.9]
 const DIRECTION_STEPS := 8
 const NO_LOOK := -1
@@ -92,9 +116,26 @@ static var _named_combos: Dictionary = {}
 static var _named_combos_ready: bool = false
 static var _poses: Dictionary = {}
 static var _pose_count: int = 0
+static var _pose_bytes: int = 0
+## Poses en caché aún sin malla (se dibujan con su lista de órdenes hasta teselarlas).
+static var _pending: int = 0
+## Orden LRU de las poses en caché (grabación → [cubo, clave]; la primera es la usada hace más tiempo).
+static var _lru: Dictionary = {}
+static var _tick: int = 0
 static var _portraits: Dictionary = {}
+static var _portrait_backgrounds: Dictionary = {}
 static var _cache_max: int = 0
+static var _bytes_max: int = 0
+static var _portrait_max: int = 0
 static var _fps_base: float = -1.0
+static var _reference_mode: bool = false
+static var _budget_usec: int = BUDGET_UNREAD
+static var _budget_frame: int = -1
+static var _budget_spent: int = 0
+## Lienzos que dibujaron alguna pose aún sin malla: id de instancia → WeakRef (se redibujan al
+## fotograma siguiente).
+static var _redraw_next: Dictionary = {}
+static var _redraw_hooked: bool = false
 
 
 # ─── Apariencia ────────────────────────────────────────────────
@@ -312,36 +353,175 @@ static func seat_origin(chair_center: Vector2, appearance: Dictionary, tier: int
 
 # ─── Dibujo ────────────────────────────────────────────────────
 
-## Dibuja el personaje en `canvas` (dentro de su _draw). El transform del canvas queda en identidad.
+## Dibuja el personaje en `canvas` (dentro de su _draw): una llamada de dibujo (su malla). El
+## transform del canvas queda en identidad.
 static func draw(canvas: CanvasItem, appearance: Dictionary, tier: int, pose: Dictionary) -> void:
 	var rec: CharacterCanvas = pose_recording(appearance, tier, pose)
 	var s: float = float(pose.get("scale", 1.0))
 	canvas.draw_set_transform(pose.get("origin", Vector2.ZERO), rec.roll, Vector2(s, s))
 	rec.replay(canvas)
 	canvas.draw_set_transform(Vector2.ZERO)
+	_after_replay(canvas, rec)
 
 
-## Foto de PERSONNEL: busto frontal dentro de `rect`.
+## Foto de PERSONNEL: busto frontal dentro de `rect` (fondo de la banda + busto: dos mallas).
 static func draw_portrait(canvas: CanvasItem, appearance: Dictionary, rect: Rect2) -> void:
 	var tier: int = clampi(int(appearance.get("tier", 1)), 1, CharacterStyle.OUTFIT_COUNT)
-	CharacterPortrait.draw_background(canvas, rect, tier)
+	if _reference_mode:
+		CharacterPortrait.draw_background(canvas, rect, tier)
+	else:
+		var bg: CharacterCanvas = _portrait_background(tier)
+		canvas.draw_set_transform_matrix(Transform2D(0.0, rect.size, 0.0, rect.position))
+		bg.replay(canvas)
+		_after_replay(canvas, bg)
+	var rec: CharacterCanvas = portrait_recording(appearance)
+	canvas.draw_set_transform_matrix(CharacterPortrait.design_transform(rect))
+	rec.replay(canvas)
+	canvas.draw_set_transform(Vector2.ZERO)
+	_after_replay(canvas, rec)
+
+
+## Busto grabado (en caché LRU, arte_personajes.cache_retratos) de una apariencia.
+static func portrait_recording(appearance: Dictionary) -> CharacterCanvas:
 	var rec: CharacterCanvas = _portraits.get([appearance])
 	if rec == null:
 		rec = CharacterCanvas.new()
 		CharacterPortrait.record(rec, appearance)
 		rec.finish()
-		if _portraits.size() >= _cache_limit():
-			_portraits.clear()
+		if _portraits.size() >= _portrait_limit():
+			_evict_oldest_portrait()
 		_portraits[[appearance.duplicate(true)]] = rec
-	canvas.draw_set_transform_matrix(CharacterPortrait.design_transform(rect))
-	rec.replay(canvas)
-	canvas.draw_set_transform(Vector2.ZERO)
+	_tick += 1
+	rec.last_used = _tick
+	_try_build(rec, false)
+	return rec
 
 
-## Lista de dibujo (en caché) de una pose: la graba la primera vez que se pide. Caché en dos
-## niveles: apariencia → {clave entera de la pose → CharacterCanvas}. La pose se reduce a lo que
-## cambia el dibujo: fotograma en su ciclo, rumbos cuantizados a 8 direcciones y fotograma de
-## tic solo si la animación lo usa.
+static func _evict_oldest_portrait() -> void:
+	var oldest: Array = []
+	var oldest_tick: int = _tick + 1
+	for key: Array in _portraits:
+		var used: int = (_portraits[key] as CharacterCanvas).last_used
+		if used < oldest_tick:
+			oldest_tick = used
+			oldest = key
+	_portraits.erase(oldest)
+
+
+## Fondo de la foto de un escalón en el cuadrado unidad (se escala al rectángulo al dibujar).
+static func _portrait_background(tier: int) -> CharacterCanvas:
+	var rec: CharacterCanvas = _portrait_backgrounds.get(tier)
+	if rec == null:
+		rec = CharacterCanvas.new()
+		CharacterPortrait.record_background(rec, tier)
+		rec.finish()
+		_try_build(rec, true)
+		_portrait_backgrounds[tier] = rec
+	return rec
+
+
+## Las órdenes del lienzo apuntan a la malla hasta su próximo redibujo: el lienzo guarda las
+## grabaciones de su pasada de dibujo actual para que la caché pueda descartarlas sin liberar
+## una malla que aún se dibuja. Una pasada nueva (otro fotograma) sustituye la lista.
+static func _hold(canvas: CanvasItem, rec: CharacterCanvas) -> void:
+	if rec.get_mesh() == null:
+		return
+	var frame: int = Engine.get_process_frames()
+	var held: Array = canvas.get_meta(HELD_META, []) as Array
+	if held.is_empty() or int(held[0]) != frame:
+		held = [frame]
+		canvas.set_meta(HELD_META, held)
+	held.append(rec)
+
+
+## Tras reproducir una grabación: retener su malla o, si aún no la tiene, pedir que el lienzo se
+## redibuje al fotograma siguiente (entonces se teselará con el presupuesto de ese fotograma).
+static func _after_replay(canvas: CanvasItem, rec: CharacterCanvas) -> void:
+	if rec.is_built():
+		_hold(canvas, rec)
+	elif not _reference_mode:
+		_redraw_later(canvas)
+
+
+static func _redraw_later(canvas: CanvasItem) -> void:
+	_redraw_next[canvas.get_instance_id()] = weakref(canvas)
+	if _redraw_hooked:
+		return
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	_redraw_hooked = true
+	tree.process_frame.connect(func() -> void: CharacterPainter._redraw_waiting(), CONNECT_ONE_SHOT)
+
+
+static func _redraw_waiting() -> void:
+	_redraw_hooked = false
+	var waiting: Dictionary = _redraw_next
+	_redraw_next = {}
+	for id: int in waiting:
+		var canvas: CanvasItem = (waiting[id] as WeakRef).get_ref() as CanvasItem
+		if canvas != null and canvas.is_inside_tree():
+			canvas.queue_redraw()
+
+
+## Tesela `rec` si queda presupuesto en este fotograma (siempre si `force`; al menos una pose por
+## fotograma, así siempre avanza). Nunca en el modo de referencia. Actualiza la memoria de la
+## caché (lista de órdenes → malla).
+static func _try_build(rec: CharacterCanvas, force: bool) -> void:
+	if rec.is_built() or _reference_mode:
+		return
+	var frame: int = Engine.get_process_frames()
+	if frame != _budget_frame:
+		_budget_frame = frame
+		_budget_spent = 0
+	var budget: int = _tessellation_budget()
+	if not force and budget != BUDGET_UNLIMITED and _budget_spent > 0 and _budget_spent >= budget:
+		return
+	var start: int = Time.get_ticks_usec()
+	var before: int = rec.byte_size()
+	rec.build_mesh()
+	_budget_spent += Time.get_ticks_usec() - start
+	if _lru.has(rec):
+		_pose_bytes += rec.byte_size() - before
+		_pending -= 1
+
+
+static func _tessellation_budget() -> int:
+	if _budget_usec == BUDGET_UNREAD:
+		var ms: float = Database.get_balance_float(TESSELLATION_PATH) if Database.has_balance(TESSELLATION_PATH) \
+				else TESSELLATION_MS_FALLBACK
+		_budget_usec = roundi(ms * USEC_PER_MS)
+	return _budget_usec
+
+
+## Tests/QA: tope de teselado por fotograma en ms (< 0 = sin límite; 0 = el de balance.json).
+static func set_tessellation_budget_ms(ms: float) -> void:
+	if ms < 0.0:
+		_budget_usec = BUDGET_UNLIMITED
+	elif ms == 0.0:
+		_budget_usec = BUDGET_UNREAD
+	else:
+		_budget_usec = roundi(ms * USEC_PER_MS)
+
+
+## QA: true = camino de referencia (una orden de CanvasItem por trazo, como antes de las mallas);
+## false = una malla por pose (juego). Cambiar de camino vacía las cachés.
+static func set_reference_mode(enabled: bool) -> void:
+	if enabled == _reference_mode:
+		return
+	_reference_mode = enabled
+	clear_cache()
+
+
+static func is_reference_mode() -> bool:
+	return _reference_mode
+
+
+## Grabación (en caché) de una pose: la graba la primera vez que se pide y la tesela en cuanto hay
+## presupuesto (replay() dibuja la malla o, mientras tanto, la lista de órdenes). Caché en dos
+## niveles: apariencia → {clave entera de la pose → CharacterCanvas} (+ BUCKET_APP). La pose se
+## reduce a lo que cambia el dibujo: fotograma en su ciclo, rumbos cuantizados a 8 direcciones y
+## fotograma de tic solo si la animación lo usa.
 static func pose_recording(appearance: Dictionary, tier: int, pose: Dictionary) -> CharacterCanvas:
 	var anim: String = str(pose.get("anim", CharacterAnim.DEFAULT_ANIM))
 	if not CharacterAnim.has_anim(anim):
@@ -359,6 +539,10 @@ static func pose_recording(appearance: Dictionary, tier: int, pose: Dictionary) 
 	var bucket: Dictionary = _poses.get([appearance], {})
 	var rec: CharacterCanvas = bucket.get(key)
 	if rec != null:
+		var ref: Array = _lru[rec]
+		_lru.erase(rec)
+		_lru[rec] = ref
+		_try_build(rec, false)
 		return rec
 	var clean: Dictionary = {"anim": anim, "frame": frame, "facing": _direction_of(facing_i), "tic": tic,
 			"tic_frame": tic_f, "seated": seated}
@@ -367,12 +551,24 @@ static func pose_recording(appearance: Dictionary, tier: int, pose: Dictionary) 
 	rec = CharacterCanvas.new()
 	_record(rec, appearance, tier, clean)
 	rec.finish()
-	if bucket.is_empty():
-		_poses[[appearance.duplicate(true)]] = bucket
-	bucket[key] = rec
-	_pose_count += 1
-	_evict_if_full()
+	_insert(appearance, bucket, key, rec)
 	return rec
+
+
+## Mete una grabación nueva en la caché (la más recién usada), la tesela si hay presupuesto y
+## vacía lo que sobre.
+static func _insert(appearance: Dictionary, bucket: Dictionary, key: int, rec: CharacterCanvas) -> void:
+	if bucket.is_empty():
+		var app_key: Array = [appearance.duplicate(true)]
+		bucket[BUCKET_APP] = app_key
+		_poses[app_key] = bucket
+	bucket[key] = rec
+	_lru[rec] = [bucket, key]
+	_pose_count += 1
+	_pose_bytes += rec.byte_size()
+	_pending += 1
+	_try_build(rec, false)
+	_evict_if_full()
 
 
 static func _pose_key(anim_i: int, frame: int, facing_i: int, look_i: int, tier: int, tic_i: int,
@@ -395,17 +591,38 @@ static func _direction_of(index: int) -> Vector2:
 	return Vector2.from_angle(float(index) * TAU / float(DIRECTION_STEPS))
 
 
-## Caché acotada (arte_personajes.cache_poses): al llenarse descarta las apariencias más antiguas
-## hasta quedar en tres cuartos. Las fotos de PERSONNEL van en su propia caché, con el mismo tope.
+## Caché acotada (arte_personajes.cache_poses poses y cache_mallas_kb de mallas): al pasarse de
+## cualquiera de los dos topes descarta las poses usadas hace más tiempo (LRU: las primeras de
+## _lru) hasta quedar en el 90 % de ambos (CACHE_KEEP). Coste proporcional a las poses descartadas.
 static func _evict_if_full() -> void:
-	var limit: int = _cache_limit()
-	if _pose_count <= limit:
+	var limit: float = float(_cache_limit())
+	var budget: float = float(_byte_limit())
+	if float(_pose_count) <= limit and float(_pose_bytes) <= budget:
 		return
-	for app_key: Array in _poses.keys():
-		_pose_count -= (_poses[app_key] as Dictionary).size()
-		_poses.erase(app_key)
-		if float(_pose_count) <= float(limit) * CACHE_KEEP:
-			return
+	var victims: Array[CharacterCanvas] = []
+	var count: int = _pose_count
+	var bytes: int = _pose_bytes
+	for rec: CharacterCanvas in _lru:
+		if float(count) <= limit * CACHE_KEEP and float(bytes) <= budget * CACHE_KEEP:
+			break
+		victims.append(rec)
+		count -= 1
+		bytes -= rec.byte_size()
+	for rec: CharacterCanvas in victims:
+		_forget(rec)
+
+
+static func _forget(rec: CharacterCanvas) -> void:
+	var ref: Array = _lru[rec]
+	_lru.erase(rec)
+	var bucket: Dictionary = ref[0]
+	bucket.erase(ref[1])
+	if bucket.size() == 1:
+		_poses.erase(bucket[BUCKET_APP])
+	_pose_count -= 1
+	_pose_bytes -= rec.byte_size()
+	if not rec.is_built():
+		_pending -= 1
 
 
 static func _cache_limit() -> int:
@@ -416,22 +633,63 @@ static func _cache_limit() -> int:
 	return _cache_max
 
 
+static func _byte_limit() -> int:
+	if _bytes_max <= 0:
+		if not Database.has_balance(CACHE_BYTES_PATH):
+			return CACHE_KB_FALLBACK * 1024
+		_bytes_max = maxi(Database.get_balance_int(CACHE_BYTES_PATH), 1) * 1024
+	return _bytes_max
+
+
+static func _portrait_limit() -> int:
+	if _portrait_max <= 0:
+		if not Database.has_balance(PORTRAIT_CACHE_PATH):
+			return PORTRAIT_FALLBACK
+		_portrait_max = maxi(Database.get_balance_int(PORTRAIT_CACHE_PATH), 1)
+	return _portrait_max
+
+
+## Tests/QA: fija los topes de la caché de poses (0 = los de balance.json) y la vacía.
+static func set_cache_limits(max_poses: int, max_kb: int) -> void:
+	_cache_max = maxi(max_poses, 0)
+	_bytes_max = maxi(max_kb, 0) * 1024
+	clear_cache()
+
+
 ## Número de poses grabadas en caché (diagnóstico y tests).
 static func cached_pose_count() -> int:
 	return _pose_count
 
 
+## Memoria (bytes) de las mallas de las poses en caché (diagnóstico y tests).
+static func cached_mesh_bytes() -> int:
+	return _pose_bytes
+
+
+static func cached_portrait_count() -> int:
+	return _portraits.size()
+
+
+## Poses en caché que aún se dibujan con su lista de órdenes (esperan presupuesto de teselado).
+static func pending_pose_count() -> int:
+	return _pending
+
+
 static func clear_cache() -> void:
 	_poses.clear()
+	_lru.clear()
+	_pending = 0
 	_portraits.clear()
+	_portrait_backgrounds.clear()
 	_pose_count = 0
+	_pose_bytes = 0
 
 
-## Graba de antemano los fotogramas de una animación (p. ej. al cargar una planta, con la
-## pausa de carga), para que el primer ciclo no grabe en pleno juego.
+## Graba y tesela de antemano (sin presupuesto) los fotogramas de una animación (p. ej. al cargar
+## una planta, con la pausa de carga), para que el primer ciclo no grabe en pleno juego.
 static func prewarm(appearance: Dictionary, tier: int, anim: String, facing: Vector2, extra: Dictionary = {}) -> void:
 	for frame: int in CharacterAnim.frame_count(anim):
-		pose_recording(appearance, tier, make_pose(anim, frame, facing, extra))
+		_try_build(pose_recording(appearance, tier, make_pose(anim, frame, facing, extra)), true)
 
 
 ## Graba el personaje completo en su espacio local (origen = pies, sin escala).

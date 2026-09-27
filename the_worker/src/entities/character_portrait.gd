@@ -1,12 +1,13 @@
 # character_portrait.gd — Foto de PERSONNEL: busto frontal vectorial de un personaje (§13.4, §14.4).
-# PROPIETARIO DE: nada (funciones puras de dibujo; la caché de fotos grabadas es de CharacterPainter).
+# PROPIETARIO DE: nada (funciones puras de dibujo; la caché de fotos y fondos grabados es de CharacterPainter).
 # ESCUCHA: nada.
 class_name CharacterPortrait
 extends RefCounted
 
 ## El busto se graba (record) en un espacio de diseño de DESIGN × DESIGN unidades y se reproduce
 ## escalado y centrado en `rect` (design_transform). Fondo con la paleta de la banda del escalón
-## (art_bands.json), dibujado aparte en cada foto: el rango se lee hasta en la foto.
+## (art_bands.json), grabado aparte en el cuadrado unidad (record_background) y escalado a cada
+## foto: el rango se lee hasta en la foto.
 ## Las coordenadas de la cara son relativas a HEAD_C (cuello corto: la barbilla casi toca el cuello).
 
 const O := CharacterStyle.OUTLINE
@@ -51,7 +52,20 @@ static func record(canvas: CharacterCanvas, appearance: Dictionary) -> void:
 	_draw_held(canvas, rig)
 
 
-## Fondo de la foto (banda del escalón): se dibuja directamente en cada foto.
+## Fondo de la foto (banda del escalón) grabado en el cuadrado unidad: CharacterPainter lo guarda
+## como malla por escalón y lo escala a cada foto (mismo dibujo que draw_background).
+static func record_background(canvas: CharacterCanvas, tier: int) -> void:
+	var band: String = CharacterStyle.PORTRAIT_BANDS[tier]
+	var wall: Color = CharacterStyle.band_color(band, "wall", BG_FALLBACK)
+	var light: Color = CharacterStyle.band_color(band, "light", wall.lightened(0.3))
+	var accent: Color = CharacterStyle.band_color(band, "accent", wall.darkened(0.3))
+	canvas.draw_rect(Rect2(0, 0, 1, 1), wall)
+	canvas.draw_colored_polygon(CharacterStyle.ellipse(Vector2(0.5, 0.5 - 0.08), Vector2(0.42, 0.42), 28),
+			Color(light, 0.55))
+	canvas.draw_rect(Rect2(0, 0.9, 1, 0.1), Color(accent, 0.35))
+
+
+## Fondo de la foto (banda del escalón) dibujado directamente (camino de referencia de QA).
 static func draw_background(canvas: CanvasItem, rect: Rect2, tier: int) -> void:
 	var band: String = CharacterStyle.PORTRAIT_BANDS[tier]
 	var wall: Color = CharacterStyle.band_color(band, "wall", BG_FALLBACK)
