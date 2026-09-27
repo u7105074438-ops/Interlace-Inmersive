@@ -190,10 +190,12 @@ func _test_manual_chain_by_clock() -> void:
 			- MANUAL_CHAIN_MINUTE)
 	GameClock.advance_minutes(to_end)
 	check_eq(GameClock.get_day(), MANUAL_CHAIN_DAY, "still day 12")
-	check_near(_certainty(GEORGE, PLAYER, PARTIAL_FACT), seen * MANUAL_DEPARTMENT, EPS,
-			"by 14:00 George holds Debbie's sighting × 0.75")
-	check_near(_certainty(GEORGE, PLAYER, PARTIAL_FACT), MANUAL_GEORGE_RECEIVES, MANUAL_ROUNDING,
-			"§7.13: George holds it at 0.26 the same day")
+	check_near(_first_hop(DEBBIE, GEORGE), seen * MANUAL_DEPARTMENT, EPS,
+			"by 14:00 Debbie told George her sighting × 0.75")
+	check_near(_first_hop(DEBBIE, GEORGE), MANUAL_GEORGE_RECEIVES, MANUAL_ROUNDING,
+			"§7.13: George receives it at 0.26 the same day")
+	check(_certainty(GEORGE, PLAYER, PARTIAL_FACT) >= seen * MANUAL_DEPARTMENT - EPS,
+			"George holds it before the day ends (other tellers may only raise it)")
 
 
 ## Una percepción directa de Debbie también se propaga (su amenaza simétrica, §8.3).
