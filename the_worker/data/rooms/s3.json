@@ -116,8 +116,8 @@
         {"id": "hide_maint_store_locker", "type": "locker", "pos": [8, 5], "capacity": 2, "can_hide_body": false}
       ],
       "interactables": [
-        {"id": "maintenance_uniform_locker", "type": "uniform_locker", "pos": [7, 5], "uniform": "maintenance", "owner": "npc_frank_rudd"},
-        {"id": "maintenance_tool_rack", "type": "tool_rack", "pos": [8, 0], "contains": ["lockpick", "crowbar", "bolt_cutter"]},
+        {"id": "maintenance_uniform_locker", "type": "uniform_locker", "pos": [7, 5], "uniform": "uniform_maintenance", "owner": "npc_frank_rudd"},
+        {"id": "maintenance_tool_rack", "type": "tool_rack", "pos": [8, 0], "contains": ["lockpick", "cutting_tools"]},
         {"id": "maint_store_vent", "type": "vent_hatch", "pos": [0, 1], "leads_to": ["vent_network", "boiler_room", "electrical_room", "forgotten_corridor"]}
       ],
       "illegitimate_entries": ["vent"],

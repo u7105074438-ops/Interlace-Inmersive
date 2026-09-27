@@ -23,7 +23,7 @@
       "size": [20, 14],
       "furniture": [
         {"type": "cubicle", "pos": [4, 2], "rotation": 0, "owner": "generated"},
-        {"type": "cubicle", "pos": [4, 5], "rotation": 0, "owner": "generated"},
+        {"type": "cubicle", "pos": [4, 5], "rotation": 0, "owner": "vacant"},
         {"type": "cubicle", "pos": [4, 8], "rotation": 0, "owner": "generated"},
         {"type": "cubicle", "pos": [8, 2], "rotation": 0, "owner": "generated"},
         {"type": "cubicle", "pos": [8, 5], "rotation": 0, "owner": "generated"},
@@ -47,7 +47,8 @@
       ],
       "interactables": [
         {"id": "wing_4a_computer", "type": "npc_computer", "pos": [8, 5], "owner": "generated", "requires_absence": true},
-        {"id": "wing_4a_drawer", "type": "drawer", "pos": [13, 6], "owner": "generated"}
+        {"id": "wing_4a_drawer", "type": "drawer", "pos": [13, 6], "owner": "generated"},
+        {"id": "player_desk_wing_4a", "type": "desk", "pos": [4, 5], "has_computer": true, "player_seat": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["corridors_low"],
@@ -100,7 +101,8 @@
       ],
       "interactables": [
         {"id": "billing_terminal", "type": "accounting_terminal", "pos": [12, 5], "action": "inflate_invoices", "review": "monthly"},
-        {"id": "wing_4b_computer", "type": "npc_computer", "pos": [4, 2], "owner": "generated", "requires_absence": true}
+        {"id": "wing_4b_computer", "type": "npc_computer", "pos": [4, 2], "owner": "generated", "requires_absence": true},
+        {"id": "player_desk_wing_4b", "type": "desk", "pos": [16, 8], "has_computer": true, "player_seat": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["corridors_low"],
@@ -151,7 +153,8 @@
         {"id": "hide_4c_desk", "type": "under_desk", "pos": [15, 8], "capacity": 0, "can_hide_body": false}
       ],
       "interactables": [
-        {"id": "wing_4c_computer", "type": "npc_computer", "pos": [7, 5], "owner": "generated", "requires_absence": true}
+        {"id": "wing_4c_computer", "type": "npc_computer", "pos": [7, 5], "owner": "generated", "requires_absence": true},
+        {"id": "player_desk_wing_4c", "type": "desk", "pos": [15, 5], "has_computer": true, "player_seat": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["corridors_low"],
@@ -194,7 +197,7 @@
       "hiding_spots": [],
       "interactables": [
         {"id": "foosball_huddle", "type": "eavesdrop_point", "pos": [5, 6], "cost": "low"},
-        {"id": "foosball_vending", "type": "vending", "pos": [0, 0], "sells": ["snack"]},
+        {"id": "foosball_vending", "type": "vending", "pos": [0, 0], "sells": ["food_basic"]},
         {"id": "foosball_coffee", "type": "coffee_machine_use", "pos": [11, 0]}
       ],
       "illegitimate_entries": [],

@@ -28,7 +28,7 @@
         {"type": "cubicle", "pos": [4, 11], "rotation": 0, "owner": "generated"},
         {"type": "cubicle", "pos": [4, 16], "rotation": 0, "owner": "generated"},
         {"type": "cubicle", "pos": [6, 2], "rotation": 0, "owner": "generated"},
-        {"type": "cubicle", "pos": [6, 4], "rotation": 0, "owner": "generated"},
+        {"type": "cubicle", "pos": [6, 4], "rotation": 0, "owner": "vacant"},
         {"type": "cubicle", "pos": [6, 9], "rotation": 0, "owner": "generated"},
         {"type": "cubicle", "pos": [6, 11], "rotation": 0, "owner": "generated"},
         {"type": "cubicle", "pos": [6, 16], "rotation": 0, "owner": "generated"},
@@ -81,7 +81,8 @@
         {"id": "hide_callcenter_desk", "type": "under_desk", "pos": [10, 16], "capacity": 0, "can_hide_body": false}
       ],
       "interactables": [
-        {"id": "callcenter_complaints", "type": "computer", "pos": [14, 19], "shows": "complaints_by_department"}
+        {"id": "callcenter_complaints", "type": "computer", "pos": [14, 19], "shows": "complaints_by_department"},
+        {"id": "player_desk_call_center", "type": "desk", "pos": [6, 4], "has_computer": true, "player_seat": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["corridors_low"],
@@ -155,7 +156,7 @@
       "camera_positions": [],
       "size": [14, 12],
       "furniture": [
-        {"type": "desk", "pos": [0, 0], "rotation": 0, "size": [2, 1], "owner": "npc_ray_cudmore"},
+        {"type": "desk", "pos": [0, 0], "rotation": 0, "size": [2, 1], "owner": "generated"},
         {"type": "chair", "pos": [0, 1], "rotation": 180},
         {"type": "desk", "pos": [12, 0], "rotation": 0, "size": [2, 1], "owner": "generated"},
         {"type": "chair", "pos": [13, 1], "rotation": 180},

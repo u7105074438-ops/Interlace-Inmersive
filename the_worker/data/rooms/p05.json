@@ -52,7 +52,7 @@
         {"type": "chair", "pos": [5, 10], "rotation": 0},
         {"type": "desk", "pos": [13, 11], "rotation": 0, "size": [2, 1], "owner": "generated"},
         {"type": "chair", "pos": [13, 10], "rotation": 0},
-        {"type": "desk", "pos": [16, 11], "rotation": 0, "size": [2, 1], "owner": "generated"},
+        {"type": "desk", "pos": [16, 11], "rotation": 0, "size": [2, 1], "owner": "vacant"},
         {"type": "chair", "pos": [16, 10], "rotation": 0},
         {"type": "printer", "pos": [19, 2], "rotation": 270},
         {"type": "plant", "pos": [0, 12], "rotation": 0},
@@ -64,7 +64,8 @@
       ],
       "interactables": [
         {"id": "ledger_terminal", "type": "accounting_terminal", "pos": [2, 3], "action": ["falsify_entries", "detect_fraud"]},
-        {"id": "accountant_computer", "type": "npc_computer", "pos": [13, 7], "owner": "generated", "requires_absence": true}
+        {"id": "accountant_computer", "type": "npc_computer", "pos": [13, 7], "owner": "generated", "requires_absence": true},
+        {"id": "player_desk_accounting", "type": "desk", "pos": [16, 11], "has_computer": true, "player_seat": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["corridors_low"],
@@ -110,6 +111,8 @@
         {"type": "chair", "pos": [11, 2], "rotation": 0},
         {"type": "desk", "pos": [10, 6], "rotation": 0, "size": [3, 1], "owner": "generated"},
         {"type": "chair", "pos": [11, 5], "rotation": 0},
+        {"type": "desk", "pos": [10, 9], "rotation": 0, "size": [3, 1], "owner": "generated"},
+        {"type": "chair", "pos": [11, 8], "rotation": 0},
         {"type": "whiteboard", "pos": [13, 8], "rotation": 270, "size": [1, 2]},
         {"type": "plant", "pos": [13, 4], "rotation": 0}
       ],
@@ -154,7 +157,7 @@
       ],
       "hiding_spots": [],
       "interactables": [
-        {"id": "floor_cash_safe", "type": "floor_safe", "pos": [2, 2], "requires": "combination", "contains": ["cash"], "logs_opening": true}
+        {"id": "floor_cash_safe", "type": "floor_safe", "pos": [2, 2], "requires": "combination", "contains": ["cash_envelope"], "logs_opening": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["accounting"],

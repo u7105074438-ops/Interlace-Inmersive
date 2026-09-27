@@ -84,9 +84,10 @@
       "furniture": [
         {"type": "shelf_rack", "pos": [0, 0], "rotation": 0, "size": [3, 1]},
         {"type": "shelf_rack", "pos": [8, 0], "rotation": 0, "size": [4, 1]},
-        {"type": "table", "pos": [1, 3], "rotation": 0, "size": [2, 2]},
+        {"type": "workbench", "pos": [1, 3], "rotation": 0, "size": [2, 2], "owner": "npc_frank_rudd"},
         {"type": "industrial_machine", "pos": [5, 4], "rotation": 0, "size": [2, 2]},
-        {"type": "table", "pos": [9, 3], "rotation": 0, "size": [2, 2]},
+        {"type": "workbench", "pos": [9, 3], "rotation": 0, "size": [2, 2], "owner": "generated"},
+        {"type": "workbench", "pos": [8, 7], "rotation": 0, "size": [2, 1], "owner": "vacant"},
         {"type": "electrical_panel", "pos": [11, 2], "rotation": 0},
         {"type": "crate", "pos": [0, 7], "rotation": 0},
         {"type": "crate", "pos": [1, 7], "rotation": 0}
@@ -96,7 +97,7 @@
         {"id": "hide_workshop_vent", "type": "vent", "pos": [11, 7], "capacity": 2, "can_hide_body": false}
       ],
       "interactables": [
-        {"id": "workshop_tool_rack", "type": "tool_rack", "pos": [0, 0], "contains": ["lockpick", "bolt_cutter", "crowbar", "angle_grinder"]},
+        {"id": "workshop_tool_rack", "type": "tool_rack", "pos": [0, 0], "contains": ["lockpick", "cutting_tools"]},
         {"id": "workshop_vent", "type": "vent_hatch", "pos": [11, 7], "leads_to": ["vent_network"]}
       ],
       "illegitimate_entries": ["vent"],
@@ -135,8 +136,8 @@
         {"id": "hide_security_locker", "type": "locker", "pos": [2, 0], "capacity": 3, "can_hide_body": false}
       ],
       "interactables": [
-        {"id": "security_uniform_locker_a", "type": "uniform_locker", "pos": [1, 0], "uniform": "security", "owner": "npc_tom_iverson"},
-        {"id": "security_uniform_locker_b", "type": "uniform_locker", "pos": [8, 0], "uniform": "security", "owner": "npc_ludmila_petrova"}
+        {"id": "security_uniform_locker_a", "type": "uniform_locker", "pos": [1, 0], "uniform": "uniform_security", "owner": "npc_tom_iverson"},
+        {"id": "security_uniform_locker_b", "type": "uniform_locker", "pos": [8, 0], "uniform": "uniform_security", "owner": "npc_ludmila_petrova"}
       ],
       "illegitimate_entries": [],
       "connects_to": ["service_stairs"],
@@ -167,7 +168,8 @@
       "furniture": [
         {"type": "lockers", "pos": [0, 0], "rotation": 0, "size": [3, 1]},
         {"type": "lockers", "pos": [7, 0], "rotation": 0, "size": [3, 1]},
-        {"type": "bench", "pos": [3, 3], "rotation": 0, "size": [4, 1]},
+        {"type": "bench", "pos": [3, 3], "rotation": 0, "size": [2, 1], "owner": "npc_connie_marks"},
+        {"type": "bench", "pos": [5, 3], "rotation": 0, "size": [2, 1], "owner": "vacant"},
         {"type": "shelf_rack", "pos": [7, 5], "rotation": 0, "size": [2, 1]},
         {"type": "sink", "pos": [1, 5], "rotation": 0}
       ],
@@ -175,9 +177,9 @@
         {"id": "hide_cleaning_locker", "type": "locker", "pos": [8, 0], "capacity": 3, "can_hide_body": false}
       ],
       "interactables": [
-        {"id": "cleaning_uniform_locker", "type": "uniform_locker", "pos": [1, 0], "uniform": "cleaning", "owner": "npc_connie_marks"},
-        {"id": "cleaning_cart_master", "type": "cleaning_cart", "pos": [5, 5], "master_keys": true, "owner": "npc_connie_marks"},
-        {"id": "cleaning_supplies", "type": "supply_shelf", "pos": [7, 5], "items": ["cleaning_products"], "resale_value": 5}
+        {"id": "cleaning_uniform_locker", "type": "uniform_locker", "pos": [1, 0], "uniform": "uniform_cleaning", "owner": "npc_connie_marks"},
+        {"id": "cleaning_cart_master", "type": "cleaning_cart", "pos": [5, 5], "contains": ["master_keys"], "master_keys": true, "owner": "npc_connie_marks"},
+        {"id": "cleaning_supplies", "type": "cleaning_supplies", "pos": [7, 5]}
       ],
       "illegitimate_entries": [],
       "connects_to": ["service_stairs"],
@@ -224,8 +226,8 @@
         {"id": "hide_warehouse_crates", "type": "crate", "pos": [1, 13], "capacity": 4, "can_hide_body": true}
       ],
       "interactables": [
-        {"id": "warehouse_valuables_a", "type": "supply_shelf", "pos": [3, 5], "items": ["office_equipment"], "resale_value": 40, "inventory": "monthly"},
-        {"id": "warehouse_valuables_b", "type": "supply_shelf", "pos": [15, 8], "items": ["spare_parts"], "resale_value": 60, "inventory": "monthly"},
+        {"id": "warehouse_valuables_a", "type": "supply_shelf", "pos": [3, 5], "items": ["office_supplies"], "resale_value": 40, "inventory": "monthly"},
+        {"id": "warehouse_valuables_b", "type": "supply_shelf", "pos": [15, 8], "items": ["office_supplies"], "resale_value": 60, "inventory": "monthly"},
         {"id": "warehouse_back_door", "type": "lock_old", "pos": [0, 7], "target": "door:trash_dock", "keys_basic_opens": true}
       ],
       "illegitimate_entries": ["old_keys"],

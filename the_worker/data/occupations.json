@@ -5,7 +5,8 @@
     "clearance: nivel N de la tabla; '4+' (escalón 5) se guarda como 4 con clearance_plus=true.",
     "daily_wage: entero. Banderas: wage_in_vouchers (becario, '5 en vales'), commission (senior de ventas, '75 + comisión'), wage_is_dividends (consejero inversor, 'Dividendos ~800'), bonus (CEO, '2.500 + bonus'). Solo aparecen cuando son true.",
     "min_reputation = round(90 × ((R − 1) / 32)^1.4) para R ≥ 2; R0 y R1 = 0. Curva convexa monótona: el escalón 1 es deliberadamente rápido (§15.2) y R33 exige 90.",
-    "office_room/desk_position: sala del catálogo §22 donde se sienta el puesto (celdas dentro de la sala). floor = planta de esa sala (fábrica = 100). El ocupante siempre puede entrar en su office_room aunque su acreditación no alcance (p.ej. senior_sales en P11, copy_operator en la fotocopiadora central N2).",
+    "office_room/desk_position: sala del catálogo §22 donde se sienta el puesto (celdas dentro de la sala). desk_position = ancla de un asiento (furniture cubicle/desk/executive_desk/workbench/counter/bench con 'owner') de office_room: el asiento que ocupa el JUGADOR con ese puesto. Es 'vacant' o 'player_start' (asiento libre), el del titular nominado cuando es el único titular (la silla de Bernard Lasker para wing_3b_chief), o el 'generated' del titular generado único, fijado en su slot de npcs_generation (desk_positions). La sala manda: tools/check_data.py lo verifica. floor = planta de esa sala (fábrica = 100). El ocupante siempre puede entrar en su office_room aunque su acreditación no alcance (p.ej. senior_sales en P11, copy_operator en la fotocopiadora central N2).",
+    "tools: ids del catálogo de objetos de inventario (ITEM_IDS de tools/check_data.py): lo que el puesto entrega al jugador (llaves, estampa, uniforme de su rol, llaves maestras). Las capacidades no materiales (credenciales, cuadrantes, contactos) viven en special_access / opportunities.",
     "computer_tier = escalón (1..8): el terminal mejora con el rango (§13.3). personnel_file_level = columna PF.",
     "duties: todos se asignan cada jornada. type ∈ volume|quota|delivery|round|presentation (tipos literales de duties.json §32.2). Los cierres del vigilante (R10) y del Director de Seguridad (R24) son rondas con is_closing=true, steps [salir el último, cerrar, apagar maquinaria] y waypoint_set 'closing_round'; su plazo (22 h) va tras la limpieza (18-22 h, §24.5) porque hay que 'salir el último'. Las rondas enlazan su conjunto de duties.json en waypoint_set; amount = paradas distintas del conjunto (el correo: 9 plantas, según la tabla). assist_time_cost_minutes se OMITE cuando A.S.S.I.S.T. no aplica (§10.6 'No aplicable', rondas, cuotas, cierres, presentación y los deberes de escalones 7-8, 'inviables en solitario'); los valores sin dato en §10.6 se estiman al ~30 % del coste honesto. honest_viable=false desde R22 ('primer deber estructuralmente incumplible', §23.5/§10.3). fail_penalty: warning (escalones 1-4), demotion_risk (5-8), expulsion (becario y todo cierre). Extras: time_cost_variable (becario, CEO: 'Variable'), assist_high_failure_risk (informe mensual R22). El consejo trimestral del CEO es 'presentation' (§10.2: escena con público, escalones 5-8).",
     "promotes_to = columna 'Promociona a'. can_jump_to = saltos múltiples citados (R1→R4, vigilante→R17 'salto doble natural', R28→R32) más R27→R29, que la tabla deja sin ninguna vía de entrada. demotes_to = un escalón por debajo con afinidad de departamento (R0 para el escalón 1; el becario no desciende: fracasar es expulsión; a10_marketing_director → R15–R16 según su tabla).",
@@ -47,7 +48,7 @@
       "daily_wage": 5,
       "wage_in_vouchers": true,
       "office_room": "p3_pantry",
-      "desk_position": [2, 5],
+      "desk_position": [6, 5],
       "floor": 3,
       "wing": "",
       "department": "base",
@@ -64,7 +65,8 @@
           "deadline_hour": 18,
           "fail_penalty": "expulsion",
           "honest_viable": true,
-          "time_cost_variable": true
+          "time_cost_variable": true,
+          "waypoint_set": "errands"
         }
       ],
       "tools": [],
@@ -147,7 +149,7 @@
       "clearance": 1,
       "daily_wage": 34,
       "office_room": "wing_3b",
-      "desk_position": [4, 2],
+      "desk_position": [4, 5],
       "floor": 3,
       "wing": "B",
       "department": "base",
@@ -166,7 +168,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["keys_basic", "stamp", "filing_trolley"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": ["active_archive"],
       "opportunities": ["misplace_rival_orders", "document_flow_knowledge"],
       "risks": ["monthly_lost_order_audit"],
@@ -196,7 +198,7 @@
       "clearance": 1,
       "daily_wage": 32,
       "office_room": "main_copyroom",
-      "desk_position": [5, 4],
+      "desk_position": [1, 5],
       "floor": 1,
       "wing": "",
       "department": "base",
@@ -215,7 +217,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["keys_basic", "copier_key"],
+      "tools": ["keys_basic"],
       "special_access": ["copy_rooms"],
       "opportunities": ["see_every_copied_document", "free_early_information"],
       "risks": [],
@@ -245,7 +247,7 @@
       "clearance": 1,
       "daily_wage": 38,
       "office_room": "call_center",
-      "desk_position": [6, 6],
+      "desk_position": [6, 4],
       "floor": 2,
       "wing": "",
       "department": "base",
@@ -264,7 +266,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["keys_basic", "headset"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["permanent_acoustic_mask", "complaints_as_ammunition"],
       "risks": ["long_duty"],
@@ -313,7 +315,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["factory_overalls"],
+      "tools": [],
       "special_access": ["factory_floor"],
       "opportunities": ["factory_access_before_n3", "first_product_theft"],
       "risks": ["longest_duty_of_tier"],
@@ -343,7 +345,7 @@
       "clearance": 1,
       "daily_wage": 40,
       "office_room": "mail_office",
-      "desk_position": [4, 4],
+      "desk_position": [1, 6],
       "floor": 0,
       "wing": "",
       "department": "base",
@@ -363,7 +365,7 @@
           "waypoint_set": "mail_round"
         }
       ],
-      "tools": ["keys_basic", "mail_trolley"],
+      "tools": ["keys_basic"],
       "special_access": ["floors_1_9_transit"],
       "opportunities": ["transit_floors_1_9_unsuspected", "intercept_mail"],
       "risks": ["blamed_for_missing_mail"],
@@ -393,7 +395,7 @@
       "clearance": 1,
       "daily_wage": 42,
       "office_room": "wing_4b",
-      "desk_position": [4, 5],
+      "desk_position": [16, 8],
       "floor": 4,
       "wing": "B",
       "department": "base",
@@ -443,7 +445,7 @@
       "clearance": 2,
       "daily_wage": 50,
       "office_room": "payroll_office",
-      "desk_position": [3, 4],
+      "desk_position": [8, 3],
       "floor": 1,
       "wing": "",
       "department": "hr",
@@ -463,7 +465,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["keys_basic", "stamp", "payroll_terminal"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["raise_own_salary"],
       "risks": ["audit_detects_accumulation"],
@@ -493,7 +495,7 @@
       "clearance": 2,
       "daily_wage": 48,
       "office_room": "office_supplies",
-      "desk_position": [3, 3],
+      "desk_position": [9, 6],
       "floor": 4,
       "wing": "",
       "department": "base",
@@ -512,7 +514,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["keys_basic", "supply_room_key", "inventory_scanner"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["steal_resell_supplies"],
       "risks": ["monthly_inventory"],
@@ -561,7 +563,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["keys_basic", "sample_case"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["overcharge_buyers_pocket_margin"],
       "risks": ["delayed_complaints"],
@@ -591,7 +593,7 @@
       "clearance": 2,
       "daily_wage": 52,
       "office_room": "cleaning_locker_room",
-      "desk_position": [3, 5],
+      "desk_position": [5, 3],
       "floor": -1,
       "wing": "",
       "department": "cleaning",
@@ -611,7 +613,7 @@
           "waypoint_set": "cleaning_zone"
         }
       ],
-      "tools": ["cleaning_uniform", "cleaning_cart_master_keys"],
+      "tools": ["uniform_cleaning", "master_keys"],
       "special_access": ["zone_after_hours", "cleaning"],
       "opportunities": ["zone_after_hours_master_keys", "cleaner_social_invisibility"],
       "risks": ["two_name_suspect_list"],
@@ -641,7 +643,7 @@
       "clearance": 2,
       "daily_wage": 58,
       "office_room": "accounting",
-      "desk_position": [4, 5],
+      "desk_position": [16, 11],
       "floor": 5,
       "wing": "",
       "department": "audit_legal",
@@ -661,7 +663,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["keys_basic", "stamp", "petty_cash_key"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["locate_company_cash", "justified_floor_5_access"],
       "risks": ["perceptive_accountants"],
@@ -691,7 +693,7 @@
       "clearance": 2,
       "daily_wage": 56,
       "office_room": "maintenance_workshop",
-      "desk_position": [4, 4],
+      "desk_position": [8, 7],
       "floor": -1,
       "wing": "",
       "department": "maintenance",
@@ -711,7 +713,7 @@
           "waypoint_set": "maintenance_round"
         }
       ],
-      "tools": ["maintenance_uniform", "toolbox", "vent_key"],
+      "tools": ["uniform_maintenance", "keys_basic"],
       "special_access": ["basements", "vents", "maintenance"],
       "opportunities": ["basement_vent_access", "uniform_disguise", "sabotage_then_repair"],
       "risks": ["fake_work_orders_audited"],
@@ -741,7 +743,7 @@
       "clearance": 2,
       "daily_wage": 62,
       "office_room": "hr_office",
-      "desk_position": [4, 5],
+      "desk_position": [11, 8],
       "floor": 1,
       "wing": "",
       "department": "hr",
@@ -761,7 +763,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["keys_basic", "stamp", "hr_file_key"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": ["personnel_files_full", "hr"],
       "opportunities": ["permanent_personnel_files", "early_blackmail", "staff_homes_and_routines"],
       "risks": ["amelia_cole_supervises"],
@@ -792,7 +794,7 @@
       "daily_wage": 75,
       "commission": true,
       "office_room": "senior_sales_offices",
-      "desk_position": [4, 5],
+      "desk_position": [6, 11],
       "floor": 11,
       "wing": "",
       "department": "sales_marketing",
@@ -811,7 +813,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["sample_case", "commission_ledger"],
+      "tools": ["keys_basic"],
       "special_access": ["sales_floor_11"],
       "opportunities": ["legit_commissions", "con_mid_volume_buyers"],
       "risks": ["demanding_targets"],
@@ -841,7 +843,7 @@
       "clearance": 3,
       "daily_wage": 70,
       "office_room": "turnstiles",
-      "desk_position": [7, 2],
+      "desk_position": [7, 5],
       "floor": 0,
       "wing": "",
       "department": "security",
@@ -887,7 +889,7 @@
           "waypoint_set": "closing_round"
         }
       ],
-      "tools": ["guard_uniform", "guard_master_keys", "flashlight", "radio"],
+      "tools": ["uniform_security", "master_keys"],
       "special_access": ["master_keys_no_offices", "guard"],
       "opportunities": ["night_looting_whole_building", "keys_to_almost_everything", "camera_blind_spot_knowledge"],
       "risks": ["closing_failure_expulsion", "auto_max_suspicion_on_loss"],
@@ -924,7 +926,7 @@
       "clearance": 3,
       "daily_wage": 78,
       "office_room": "campaign_room",
-      "desk_position": [4, 5],
+      "desk_position": [12, 10],
       "floor": 6,
       "wing": "",
       "department": "sales_marketing",
@@ -944,7 +946,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["design_tablet"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["self_promotion_campaigns", "passive_reputation"],
       "risks": ["public_campaign_failure"],
@@ -975,7 +977,7 @@
       "clearance": 3,
       "daily_wage": 76,
       "office_room": "shoe_design_studio",
-      "desk_position": [4, 5],
+      "desk_position": [10, 10],
       "floor": 7,
       "wing": "",
       "department": "specialists",
@@ -995,7 +997,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["sketchbook", "design_tablet"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["steal_historic_designs"],
       "risks": ["ray_cudmore_remembers"],
@@ -1026,7 +1028,7 @@
       "clearance": 3,
       "daily_wage": 82,
       "office_room": "systems_office",
-      "desk_position": [4, 5],
+      "desk_position": [10, 9],
       "floor": 8,
       "wing": "",
       "department": "it",
@@ -1046,7 +1048,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["it_toolkit", "admin_usb"],
+      "tools": ["keys_basic"],
       "special_access": ["others_computers", "it"],
       "opportunities": ["legit_access_others_computers", "copy_files", "sabotage_without_intrusion"],
       "risks": ["all_access_logged"],
@@ -1076,7 +1078,7 @@
       "clearance": 3,
       "daily_wage": 80,
       "office_room": "legal_firm",
-      "desk_position": [4, 5],
+      "desk_position": [2, 3],
       "floor": 9,
       "wing": "",
       "department": "audit_legal",
@@ -1096,7 +1098,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["stamp", "legal_forms"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["learn_document_forgery", "compromising_lawsuits"],
       "risks": ["double_review"],
@@ -1126,7 +1128,7 @@
       "clearance": 3,
       "daily_wage": 88,
       "office_room": "chief_accountant_office",
-      "desk_position": [5, 4],
+      "desk_position": [3, 3],
       "floor": 5,
       "wing": "",
       "department": "audit_legal",
@@ -1146,7 +1148,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["stamp", "ledger_access"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["falsify_ledger_entries", "detect_fraud_for_blackmail"],
       "risks": ["monthly_close_audited"],
@@ -1176,7 +1178,7 @@
       "clearance": 3,
       "daily_wage": 85,
       "office_room": "quality_control",
-      "desk_position": [4, 4],
+      "desk_position": [1, 0],
       "floor": 100,
       "wing": "",
       "department": "factory",
@@ -1196,7 +1198,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["quality_forms", "signature_stamp"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["defect_reports_oust_managers"],
       "risks": ["signed_reports_evidence"],
@@ -1226,7 +1228,7 @@
       "clearance": 4,
       "daily_wage": 110,
       "office_room": "wing_3b",
-      "desk_position": [10, 11],
+      "desk_position": [1, 10],
       "floor": 3,
       "wing": "B",
       "department": "base",
@@ -1245,7 +1247,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["wing_roster"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["assign_tasks_and_desks", "move_witnesses", "isolate_targets"],
       "risks": ["monthly_wing_review"],
@@ -1275,7 +1277,7 @@
       "clearance": 4,
       "daily_wage": 115,
       "office_room": "foreman_office",
-      "desk_position": [5, 4],
+      "desk_position": [3, 3],
       "floor": 100,
       "wing": "",
       "department": "factory",
@@ -1294,7 +1296,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["delivery_note_book", "factory_master_key"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["pallet_theft", "forge_delivery_notes", "frame_factory_director"],
       "risks": ["inventory_gap_points_to_foreman"],
@@ -1325,7 +1327,7 @@
       "clearance": 4,
       "daily_wage": 125,
       "office_room": "wing_4c",
-      "desk_position": [14, 10],
+      "desk_position": [15, 5],
       "floor": 4,
       "wing": "C",
       "department": "base",
@@ -1345,7 +1347,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["supplier_contracts"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["supplier_kickbacks", "sabotage_bad_supplier"],
       "risks": ["auditable_contracts"],
@@ -1375,7 +1377,7 @@
       "clearance": 4,
       "daily_wage": 120,
       "office_room": "it_chief_office",
-      "desk_position": [5, 4],
+      "desk_position": [7, 2],
       "floor": 8,
       "wing": "",
       "department": "it",
@@ -1394,7 +1396,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["partial_admin_credentials"],
+      "tools": ["keys_basic"],
       "special_access": ["others_computers", "it"],
       "opportunities": ["read_others_mail", "delete_minor_logs"],
       "risks": ["deletions_leave_metalog"],
@@ -1424,7 +1426,7 @@
       "clearance": 4,
       "daily_wage": 135,
       "office_room": "payroll_office",
-      "desk_position": [9, 7],
+      "desk_position": [1, 6],
       "floor": 1,
       "wing": "",
       "department": "hr",
@@ -1444,7 +1446,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["payroll_terminal", "stamp"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["ghost_employees"],
       "risks": ["audit_detects_long_fraud"],
@@ -1494,7 +1496,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["guard_master_keys", "shift_roster"],
+      "tools": ["keys_basic", "master_keys"],
       "special_access": ["master_keys_no_offices", "guard", "monitor_room_rotation"],
       "opportunities": ["choose_unguarded_zones", "monitor_room_rotation"],
       "risks": ["roster_signed_by_you"],
@@ -1524,7 +1526,7 @@
       "clearance": 4,
       "daily_wage": 128,
       "office_room": "p10_secretariat",
-      "desk_position": [3, 4],
+      "desk_position": [0, 3],
       "floor": 10,
       "wing": "",
       "department": "blocks",
@@ -1544,7 +1546,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["executive_agendas"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["executive_locations", "provoke_long_meetings"],
       "risks": [],
@@ -1575,7 +1577,7 @@
       "daily_wage": 170,
       "clearance_plus": true,
       "office_room": "a10_marketing_office",
-      "desk_position": [6, 5],
+      "desk_position": [9, 2],
       "floor": 10,
       "wing": "A10",
       "department": "blocks",
@@ -1595,7 +1597,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["campaign_budget_access"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["industrial_self_promotion", "daily_passive_reputation", "divert_budget"],
       "risks": ["journalists_follow", "two_bad_months_demotion"],
@@ -1627,7 +1629,7 @@
       "daily_wage": 170,
       "clearance_plus": true,
       "office_room": "a10_coordination_office",
-      "desk_position": [6, 5],
+      "desk_position": [9, 2],
       "floor": 10,
       "wing": "A10",
       "department": "blocks",
@@ -1647,7 +1649,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["block_workflow_board"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["rival_bottlenecks", "quantifiable_favours", "reassign_teams"],
       "risks": ["blamed_for_poor_flow"],
@@ -1678,7 +1680,7 @@
       "daily_wage": 185,
       "clearance_plus": true,
       "office_room": "senior_sales_offices",
-      "desk_position": [14, 10],
+      "desk_position": [2, 11],
       "floor": 11,
       "wing": "B10",
       "department": "blocks",
@@ -1697,7 +1699,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["sales_dashboard"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["inflate_figures_instant_reputation"],
       "risks": ["discrepancy_two_weeks"],
@@ -1729,7 +1731,7 @@
       "daily_wage": 195,
       "clearance_plus": true,
       "office_room": "block_coordination_room",
-      "desk_position": [3, 3],
+      "desk_position": [2, 8],
       "floor": 10,
       "wing": "C10",
       "department": "blocks",
@@ -1749,7 +1751,7 @@
           "honest_viable": true
         }
       ],
-      "tools": ["official_stamp"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["official_stamp_fake_authorisations"],
       "risks": ["forged_document_evidence"],
@@ -1780,7 +1782,7 @@
       "daily_wage": 220,
       "clearance_plus": true,
       "office_room": "a10_general_office",
-      "desk_position": [7, 6],
+      "desk_position": [11, 2],
       "floor": 10,
       "wing": "A10",
       "department": "blocks",
@@ -1801,7 +1803,7 @@
           "assist_high_failure_risk": true
         }
       ],
-      "tools": ["official_stamp", "secretary_line"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["own_secretary", "rehearse_direction_powers"],
       "risks": ["first_unfulfillable_duty"],
@@ -1831,7 +1833,7 @@
       "clearance": 5,
       "daily_wage": 280,
       "office_room": "area_director_offices_a",
-      "desk_position": [4, 5],
+      "desk_position": [2, 3],
       "floor": 17,
       "wing": "A",
       "department": "hr",
@@ -1851,7 +1853,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["dismissal_forms", "hr_file_key"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": ["personnel_files_full", "hr"],
       "opportunities": ["dismiss_tier4_or_below", "widespread_fear"],
       "risks": ["unfair_dismissal_press_enemy"],
@@ -1881,7 +1883,7 @@
       "clearance": 5,
       "daily_wage": 290,
       "office_room": "area_director_offices_b",
-      "desk_position": [4, 5],
+      "desk_position": [2, 3],
       "floor": 17,
       "wing": "B",
       "department": "factory",
@@ -1900,7 +1902,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["factory_master_key", "haulier_contacts"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["divert_full_pallets", "hire_accomplice_hauliers"],
       "risks": ["strikes_target_post"],
@@ -1931,7 +1933,7 @@
       "clearance": 5,
       "daily_wage": 300,
       "office_room": "security_director_office",
-      "desk_position": [6, 5],
+      "desk_position": [9, 2],
       "floor": 15,
       "wing": "",
       "department": "security",
@@ -1953,7 +1955,7 @@
           "waypoint_set": "closing_round"
         }
       ],
-      "tools": ["guard_master_keys", "footage_console"],
+      "tools": ["keys_basic", "master_keys"],
       "special_access": ["all_footage", "guard"],
       "opportunities": ["erase_own_footage", "selective_investigation"],
       "risks": ["closing_failure_expulsion", "last_present_blamed"],
@@ -1983,7 +1985,7 @@
       "clearance": 5,
       "daily_wage": 295,
       "office_room": "systems_office",
-      "desk_position": [12, 10],
+      "desk_position": [13, 3],
       "floor": 8,
       "wing": "",
       "department": "it",
@@ -2002,7 +2004,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["full_admin_credentials"],
+      "tools": ["keys_basic"],
       "special_access": ["digital_records", "others_computers", "it"],
       "opportunities": ["read_all_internal_comms", "fabricate_digital_evidence"],
       "risks": ["honest_subordinate_detects"],
@@ -2032,7 +2034,7 @@
       "clearance": 5,
       "daily_wage": 320,
       "office_room": "comms_director_office",
-      "desk_position": [6, 5],
+      "desk_position": [9, 2],
       "floor": 14,
       "wing": "",
       "department": "top",
@@ -2052,7 +2054,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["press_contacts"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["suppress_own_news", "fabricate_rival_scandals"],
       "risks": ["suppressed_news_resurfaces"],
@@ -2083,7 +2085,7 @@
       "clearance": 5,
       "daily_wage": 340,
       "office_room": "legal_director_office",
-      "desk_position": [6, 5],
+      "desk_position": [9, 2],
       "floor": 9,
       "wing": "",
       "department": "audit_legal",
@@ -2103,7 +2105,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["ownership_procedure_dossier"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["reveal_ownership_documents"],
       "risks": ["queries_logged"],
@@ -2133,7 +2135,7 @@
       "clearance": 5,
       "daily_wage": 360,
       "office_room": "treasury",
-      "desk_position": [6, 5],
+      "desk_position": [10, 3],
       "floor": 13,
       "wing": "",
       "department": "top",
@@ -2153,7 +2155,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["treasury_access"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["move_large_capital", "market_introduction"],
       "risks": ["weekly_treasury_reconciliation"],
@@ -2183,7 +2185,7 @@
       "clearance": 6,
       "daily_wage": 550,
       "office_room": "cfo_office",
-      "desk_position": [7, 6],
+      "desk_position": [11, 2],
       "floor": 13,
       "wing": "",
       "department": "top",
@@ -2202,7 +2204,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["reported_figures_access", "market_terminal"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["insider_information", "cook_reported_accounts"],
       "risks": ["two_bad_quarters_demotion", "accounting_scandal_terminal_investigation"],
@@ -2233,7 +2235,7 @@
       "clearance": 6,
       "daily_wage": 540,
       "office_room": "area_director_offices_c",
-      "desk_position": [8, 6],
+      "desk_position": [13, 3],
       "floor": 17,
       "wing": "C",
       "department": "top",
@@ -2252,7 +2254,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["operations_dashboard"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["industrial_idea_theft"],
       "risks": ["triple_responsibility"],
@@ -2282,7 +2284,7 @@
       "clearance": 6,
       "daily_wage": 500,
       "office_room": "investor_lounge",
-      "desk_position": [5, 5],
+      "desk_position": [4, 13],
       "floor": 16,
       "wing": "",
       "department": "top",
@@ -2301,7 +2303,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["investor_contacts"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["investors_decide_promotions"],
       "risks": ["public_confidence_drop"],
@@ -2332,7 +2334,7 @@
       "clearance": 6,
       "daily_wage": 520,
       "office_room": "internal_audit",
-      "desk_position": [10, 8],
+      "desk_position": [10, 9],
       "floor": 5,
       "wing": "",
       "department": "audit_legal",
@@ -2351,7 +2353,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["case_files_access"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["close_own_investigations", "open_rival_investigations"],
       "risks": ["cover_up_double_scandal"],
@@ -2383,7 +2385,7 @@
       "daily_wage": 800,
       "wage_is_dividends": true,
       "office_room": "investor_offices",
-      "desk_position": [9, 7],
+      "desk_position": [7, 10],
       "floor": 16,
       "wing": "",
       "department": "top",
@@ -2402,7 +2404,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["board_vote"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["buy_board_stake", "board_voting_rights"],
       "risks": ["wealth_exposed_to_company"],
@@ -2433,7 +2435,7 @@
       "clearance": 6,
       "daily_wage": 480,
       "office_room": "board_secretary_office",
-      "desk_position": [5, 4],
+      "desk_position": [1, 1],
       "floor": 18,
       "wing": "",
       "department": "top",
@@ -2452,7 +2454,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["minutes_book", "board_seal"],
+      "tools": ["keys_basic", "stamp"],
       "special_access": [],
       "opportunities": ["advance_knowledge_decisions", "forge_board_minutes"],
       "risks": ["forged_minutes_terminal_evidence"],
@@ -2482,7 +2484,7 @@
       "clearance": 7,
       "daily_wage": 1200,
       "office_room": "vice_ceo_office",
-      "desk_position": [8, 7],
+      "desk_position": [11, 3],
       "floor": 19,
       "wing": "",
       "department": "top",
@@ -2501,7 +2503,7 @@
           "honest_viable": false
         }
       ],
-      "tools": ["executive_agendas"],
+      "tools": ["keys_basic"],
       "special_access": [],
       "opportunities": ["floors_19_20_access", "prepare_voss_fall"],
       "risks": ["unfulfillable_duty", "personal_surveillance"],
@@ -2532,7 +2534,7 @@
       "daily_wage": 2500,
       "bonus": true,
       "office_room": "ceo_office",
-      "desk_position": [10, 8],
+      "desk_position": [13, 3],
       "floor": 20,
       "wing": "",
       "department": "top",
@@ -2576,7 +2578,7 @@
           "time_cost_variable": true
         }
       ],
-      "tools": ["ceo_office_key"],
+      "tools": ["keys_basic"],
       "special_access": ["ceo_safe"],
       "opportunities": ["ownership_documents_safe"],
       "risks": ["vice_ceo_ambition", "board_can_remove", "nobody_tells_truth"],

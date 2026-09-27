@@ -4,7 +4,7 @@
     "Reglas de generación de la plantilla (§24.3) con el esquema §30.",
     "Población objetivo 150 = 23 nominados + 127 generados. 'population' de cada departamento INCLUYE a sus nominados (named_npcs); el generador crea population − nominados = 'generated' personajes, uno por plaza de 'slots'.",
     "Subconjuntos: 'Auditoría y Legal' (8) y 'Ventas y Marketing' (12) se extraen DENTRO de 'Especializadas 6–9' (30): specialists.own_population = 30 − 8 − 12 = 10 usan la bolsa de specialists; cada subconjunto usa su propia bolsa. Los departamentos de nivel superior (sin 'parent') suman 25+45+30+20+20+10 = 150.",
-    "slots: plazas concretas. occupation = id de §23 (una silla de Company por plaza; first_seat_index continúa la numeración de sillas cuando la ocupación ya la usan nominados); occupation \"\" (vacía, equivale a null; se evita null por el tipado de GDScript) + role = puesto no jugable descrito en 'roles'. Campos opcionales: routine_template (si no, tier_to_routine_template), shift, desk_positions, cleaning_zone_floors, archetype.",
+    "slots: plazas concretas. occupation = id de §23 (una silla de Company por plaza; first_seat_index continúa la numeración de sillas cuando la ocupación ya la usan nominados); occupation \"\" (vacía, equivale a null; se evita null por el tipado de GDScript) + role = puesto no jugable descrito en 'roles'. Campos opcionales: routine_template (si no, tier_to_routine_template), shift, desk_positions, cleaning_zone_floors, archetype. desk_positions: asientos 'generated' de la sala fijados para esa plaza (el generador los asigna antes que el resto); el titular único de un puesto con asiento propio se fija aquí para que el jugador herede ese asiento (occupations.desk_position). Dos plazas de distinto turno pueden compartir asiento.",
     "archetype en una plaza: arquetipo forzado (agentes de policía = hardliner, §24.3). Las plazas forzadas consumen la cuota de ese arquetipo; el resto del departamento sortea con la bolsa sin los arquetipos forzados, renormalizada, de modo que la distribución esperada se mantiene.",
     "tier_range: escalones de los personajes GENERADOS del departamento (los nominados pueden salirse: Ernie Vaughn es escalón 4 en fábrica).",
     "base cubre también sótanos y planta baja (seguridad, limpieza, mantenimiento, cocina, recepción). La cobertura de sillas garantiza que las 50 ocupaciones tienen titular al empezar (salvo la silla del jugador).",
@@ -60,7 +60,7 @@
         { "occupation": "line_operator", "count": 14, "room": "assembly_line" },
         { "occupation": "line_operator", "count": 2, "room": "mold_room" },
         { "occupation": "line_operator", "count": 1, "room": "factory_dye_lab" },
-        { "occupation": "quality_analyst", "count": 1, "room": "quality_control" },
+        { "occupation": "quality_analyst", "count": 1, "room": "quality_control", "desk_positions": [[1, 0]] },
         { "occupation": "", "role": "quality_inspector", "count": 1, "room": "quality_control" },
         { "occupation": "", "role": "stock_keeper", "count": 2, "room": "finished_goods" },
         { "occupation": "", "role": "stock_keeper", "count": 1, "room": "materials_store" },
@@ -116,15 +116,15 @@
           ]
         },
         { "occupation": "eternal_intern", "count": 1, "room": "p3_pantry" },
-        { "occupation": "order_filer", "count": 1, "room": "orders_archive", "first_seat_index": 2 },
+        { "occupation": "order_filer", "count": 1, "room": "orders_archive", "first_seat_index": 2, "desk_positions": [[0, 0]] },
         { "occupation": "order_filer", "count": 1, "room": "wing_3a", "first_seat_index": 3 },
         { "occupation": "copy_operator", "count": 1, "room": "main_copyroom" },
         { "occupation": "copy_operator", "count": 1, "room": "p3_copyroom" },
         { "occupation": "call_operator", "count": 3, "room": "call_center" },
-        { "occupation": "mail_courier", "count": 1, "room": "mail_office" },
+        { "occupation": "mail_courier", "count": 1, "room": "mail_office", "desk_positions": [[1, 6]] },
         { "occupation": "billing_clerk", "count": 2, "room": "wing_4b" },
-        { "occupation": "payroll_clerk", "count": 1, "room": "payroll_office" },
-        { "occupation": "warehouse_assistant", "count": 1, "room": "office_supplies" },
+        { "occupation": "payroll_clerk", "count": 1, "room": "payroll_office", "desk_positions": [[8, 3]] },
+        { "occupation": "warehouse_assistant", "count": 1, "room": "office_supplies", "desk_positions": [[9, 6]] },
         {
           "occupation": "cleaner",
           "count": 1,
@@ -142,15 +142,16 @@
           "cleaning_zone_floors": [-3, -2, -1, 0, 100]
         },
         { "occupation": "junior_accountant", "count": 3, "room": "accounting" },
-        { "occupation": "maintenance_aide", "count": 1, "room": "maintenance_workshop", "first_seat_index": 1 },
-        { "occupation": "hr_assistant", "count": 1, "room": "hr_office", "first_seat_index": 1 },
+        { "occupation": "maintenance_aide", "count": 1, "room": "maintenance_workshop", "first_seat_index": 1, "desk_positions": [[9, 3]] },
+        { "occupation": "hr_assistant", "count": 1, "room": "hr_office", "first_seat_index": 1, "desk_positions": [[11, 4]] },
         {
           "occupation": "security_guard",
           "count": 1,
           "room": "monitor_room",
           "shift": "day",
           "routine_template": "guard_day",
-          "first_seat_index": 2
+          "first_seat_index": 2,
+          "desk_positions": [[1, 2]]
         },
         {
           "occupation": "security_guard",
@@ -158,11 +159,12 @@
           "room": "monitor_room",
           "shift": "night",
           "routine_template": "guard_night",
-          "first_seat_index": 3
+          "first_seat_index": 3,
+          "desk_positions": [[1, 2]]
         },
-        { "occupation": "senior_accountant", "count": 1, "room": "chief_accountant_office" },
+        { "occupation": "senior_accountant", "count": 1, "room": "chief_accountant_office", "desk_positions": [[3, 3]] },
         { "occupation": "purchasing_chief", "count": 1, "room": "wing_4c" },
-        { "occupation": "payroll_manager", "count": 1, "room": "payroll_office" },
+        { "occupation": "payroll_manager", "count": 1, "room": "payroll_office", "desk_positions": [[1, 6]] },
         { "occupation": "", "role": "receptionist", "count": 1, "room": "main_reception" },
         { "occupation": "", "role": "cook", "count": 1, "room": "cafeteria_kitchen" },
         { "occupation": "", "role": "store_clerk", "count": 1, "room": "flagship_store" }
@@ -199,7 +201,7 @@
         { "occupation": "", "role": "materials_keeper", "count": 1, "room": "exotic_materials" },
         { "occupation": "it_technician", "count": 2, "room": "systems_office" },
         { "occupation": "it_technician", "count": 1, "room": "repair_workshop" },
-        { "occupation": "it_team_lead", "count": 1, "room": "it_chief_office" }
+        { "occupation": "it_team_lead", "count": 1, "room": "it_chief_office", "desk_positions": [[7, 2]] }
       ]
     },
     {
@@ -216,7 +218,7 @@
       "roles": ["auditor", "lawyer", "legal_clerk", "notary"],
       "slots": [
         { "occupation": "", "role": "auditor", "count": 3, "room": "internal_audit" },
-        { "occupation": "paralegal", "count": 1, "room": "legal_firm" },
+        { "occupation": "paralegal", "count": 1, "room": "legal_firm", "desk_positions": [[2, 3]] },
         { "occupation": "", "role": "lawyer", "count": 1, "room": "legal_firm" },
         { "occupation": "", "role": "legal_clerk", "count": 1, "room": "legal_archive" },
         { "occupation": "", "role": "notary", "count": 1, "room": "notary" }
@@ -264,10 +266,10 @@
         "vip_archivist"
       ],
       "slots": [
-        { "occupation": "floor10_general_director", "count": 1, "room": "a10_general_office" },
-        { "occupation": "b10_director", "count": 1, "room": "senior_sales_offices" },
-        { "occupation": "c10_director", "count": 1, "room": "block_coordination_room" },
-        { "occupation": "meeting_coordinator", "count": 1, "room": "p10_secretariat" },
+        { "occupation": "floor10_general_director", "count": 1, "room": "a10_general_office", "desk_positions": [[11, 2]] },
+        { "occupation": "b10_director", "count": 1, "room": "senior_sales_offices", "desk_positions": [[2, 11]] },
+        { "occupation": "c10_director", "count": 1, "room": "block_coordination_room", "desk_positions": [[2, 8]] },
+        { "occupation": "meeting_coordinator", "count": 1, "room": "p10_secretariat", "desk_positions": [[0, 3]] },
         { "occupation": "", "role": "floor_secretary", "count": 2, "room": "p10_secretariat" },
         { "occupation": "", "role": "executive_assistant", "count": 1, "room": "a10_general_office" },
         { "occupation": "", "role": "account_manager", "count": 5, "room": "senior_sales_offices" },
@@ -298,16 +300,16 @@
       ],
       "roles": ["journalist", "exec_secretary"],
       "slots": [
-        { "occupation": "hr_director", "count": 1, "room": "area_director_offices_a" },
-        { "occupation": "factory_director", "count": 1, "room": "area_director_offices_b" },
-        { "occupation": "security_director", "count": 1, "room": "security_director_office" },
-        { "occupation": "legal_director", "count": 1, "room": "legal_director_office" },
-        { "occupation": "deputy_cfo", "count": 1, "room": "treasury" },
+        { "occupation": "hr_director", "count": 1, "room": "area_director_offices_a", "desk_positions": [[2, 3]] },
+        { "occupation": "factory_director", "count": 1, "room": "area_director_offices_b", "desk_positions": [[2, 3]] },
+        { "occupation": "security_director", "count": 1, "room": "security_director_office", "desk_positions": [[9, 2]] },
+        { "occupation": "legal_director", "count": 1, "room": "legal_director_office", "desk_positions": [[9, 2]] },
+        { "occupation": "deputy_cfo", "count": 1, "room": "treasury", "desk_positions": [[10, 3]] },
         { "occupation": "coo", "count": 1, "room": "area_director_offices_c" },
-        { "occupation": "chief_auditor", "count": 1, "room": "internal_audit" },
+        { "occupation": "chief_auditor", "count": 1, "room": "internal_audit", "desk_positions": [[10, 9]] },
         { "occupation": "board_investor", "count": 2, "room": "investor_offices" },
-        { "occupation": "board_secretary", "count": 1, "room": "board_secretary_office" },
-        { "occupation": "guard_chief", "count": 1, "room": "guard_lockers" },
+        { "occupation": "board_secretary", "count": 1, "room": "board_secretary_office", "desk_positions": [[1, 1]] },
+        { "occupation": "guard_chief", "count": 1, "room": "guard_lockers", "desk_positions": [[8, 6]] },
         { "occupation": "", "role": "journalist", "count": 2, "room": "press_room" },
         { "occupation": "", "role": "exec_secretary", "count": 1, "room": "exec_secretariat" }
       ]

@@ -247,7 +247,7 @@
         {"id": "hide_closet_low", "type": "supply_closet", "pos": [1, 1], "capacity": 6, "can_hide_body": true}
       ],
       "interactables": [
-        {"id": "closet_low_supplies", "type": "supply_shelf", "pos": [0, 1], "items": ["cleaning_products"], "resale_value": 5}
+        {"id": "closet_low_supplies", "type": "cleaning_supplies", "pos": [0, 1]}
       ],
       "illegitimate_entries": [],
       "connects_to": [],
@@ -286,7 +286,7 @@
         {"id": "hide_closet_mid", "type": "supply_closet", "pos": [1, 1], "capacity": 6, "can_hide_body": true}
       ],
       "interactables": [
-        {"id": "closet_mid_supplies", "type": "supply_shelf", "pos": [0, 1], "items": ["cleaning_products"], "resale_value": 5}
+        {"id": "closet_mid_supplies", "type": "cleaning_supplies", "pos": [0, 1]}
       ],
       "illegitimate_entries": [],
       "connects_to": [],
@@ -325,7 +325,7 @@
         {"id": "hide_closet_high", "type": "supply_closet", "pos": [1, 1], "capacity": 6, "can_hide_body": true}
       ],
       "interactables": [
-        {"id": "closet_high_supplies", "type": "supply_shelf", "pos": [0, 1], "items": ["cleaning_products"], "resale_value": 5}
+        {"id": "closet_high_supplies", "type": "cleaning_supplies", "pos": [0, 1]}
       ],
       "illegitimate_entries": [],
       "connects_to": [],
@@ -364,7 +364,7 @@
         {"id": "hide_closet_top", "type": "supply_closet", "pos": [1, 1], "capacity": 6, "can_hide_body": true}
       ],
       "interactables": [
-        {"id": "closet_top_supplies", "type": "supply_shelf", "pos": [0, 1], "items": ["cleaning_products"], "resale_value": 5}
+        {"id": "closet_top_supplies", "type": "cleaning_supplies", "pos": [0, 1]}
       ],
       "illegitimate_entries": [],
       "connects_to": [],

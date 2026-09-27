@@ -1196,3 +1196,274 @@ ROOM_TRANSPORT_STOP_OPP,Discreet tailing,Seguimiento discreto
 ROOM_POLICE_STATION,Police Station,Comisaría
 ROOM_POLICE_STATION_OPP,Where the police response comes from,Origen de la respuesta policial
 ROOM_POLICE_STATION_RISK,Response time is computed,Tiempo de respuesta computado
+ITEM_KEYS_BASIC,Basic office keys,Llaves básicas de oficina
+ITEM_STAMP,Rubber stamp,Sello de caucho
+ITEM_PHONE,Mobile phone,Teléfono móvil
+ITEM_OWN_CARD,Your access card,Tu tarjeta de acceso
+ITEM_FOOD_BASIC,Basic food,Comida básica
+ITEM_FOOD_PREMIUM,Premium food,Comida selecta
+ITEM_FOOD_BREAKFAST,Breakfast,Desayuno
+ITEM_FOOD_DINNER,Dinner,Cena
+ITEM_SNACK,Vending machine snack,Tentempié de máquina
+ITEM_OFFICE_SUPPLIES,Office supplies,Material de oficina
+ITEM_PAPER,Printer paper,Papel de impresora
+ITEM_TONER,Toner cartridge,Cartucho de tóner
+ITEM_CLEANING_PRODUCTS,Cleaning products,Productos de limpieza
+ITEM_MEDICAL_SUPPLIES,Medical supplies,Material médico
+ITEM_EXECUTIVE_SUIT,Executive suit,Traje ejecutivo
+ITEM_STELLAR_SHOES,Stellar Sell shoes (paid for),Zapatos Stellar Sell (pagados)
+ITEM_CASH,Cash,Dinero en efectivo
+ITEM_CASH_SMALL,A little cash,Algo de dinero en efectivo
+ITEM_CASH_MEDIUM,A wad of cash,Un fajo de billetes
+ITEM_CASH_LARGE,A stack of cash,Un montón de billetes
+ITEM_CASH_SAVINGS,Someone's savings,Ahorros ajenos
+ITEM_PRODUCT_PAIR,Pair of stolen shoes,Par de zapatos robados
+ITEM_PRODUCT_BOX,Box of stolen shoes,Caja de zapatos robados
+ITEM_PRODUCT_PALLET_NOTE,Pallet release note,Albarán de salida de palé
+ITEM_FOREIGN_DOCUMENT,Someone else's document,Documento ajeno
+ITEM_STOLEN_CARD,Stolen access card,Tarjeta de acceso robada
+ITEM_CLONED_CARD,Cloned access card,Tarjeta de acceso clonada
+ITEM_EXEC_KEYCARD,Executive keycard,Tarjeta de acceso ejecutiva
+ITEM_UNIFORM_SECURITY,Security uniform,Uniforme de seguridad
+ITEM_UNIFORM_CLEANING,Cleaning uniform,Uniforme de limpieza
+ITEM_UNIFORM_MAINTENANCE,Maintenance uniform,Uniforme de mantenimiento
+ITEM_BALACLAVA,Balaclava,Pasamontañas
+ITEM_OWNERSHIP_DOCUMENTS,Stellar Sell ownership documents,Documentos de propiedad de Stellar Sell
+ITEM_FORGED_AUTHORIZATION,Forged authorisation,Autorización falsificada
+ITEM_FORGED_OFFICIAL_DOCUMENT,Forged official document,Documento oficial falsificado
+ITEM_DELIVERY_NOTE_FORGED,Forged delivery note,Albarán falsificado
+ITEM_LOCKPICK,Lockpick set,Juego de ganzúas
+ITEM_CUTTING_TOOLS,Cutting tools,Herramientas de corte
+ITEM_BOLT_CUTTER,Bolt cutter,Cizalla
+ITEM_ANGLE_GRINDER,Angle grinder,Radial
+ITEM_CROWBAR,Crowbar,Palanca
+ITEM_PRY_BAR,Pry bar,Pata de cabra
+ITEM_MASTER_KEYS,Master keys,Llaves maestras
+ITEM_GUARD_KEYS,Security guard keys,Llaves de vigilancia
+ITEM_SECURITY_MASTER_KEY,Security master key,Llave maestra de seguridad
+ITEM_NOTARY_SEAL,Notary seal,Sello notarial
+ITEM_IDEA_COPY,Copy of someone else's idea,Copia de una idea ajena
+ITEM_CASH_ENVELOPE,Envelope of cash,Sobre con dinero
+ITEM_COMPANY_CASH,Banded company cash,Efectivo precintado de la empresa
+ITEM_SAFE_COMBINATION_NOTE,Note with a safe combination,Nota con la combinación de una caja fuerte
+ITEM_BLACKMAIL_FILE,Blackmail file,Dosier de chantaje
+ITEM_FOOTAGE_COPY,Copy of camera footage,Copia de grabaciones de cámara
+ITEM_SABOTAGE_CHEMICALS,Sabotage chemicals,Productos químicos para sabotaje
+ITEM_LEATHER_ROLL,Roll of leather,Rollo de piel
+ITEM_SOLES,Shoe soles,Suelas de zapato
+ITEM_SOLVENT,Solvent,Disolvente
+ITEM_DYE,Leather dye,Tinte para piel
+ITEM_GLUE,Industrial glue,Pegamento industrial
+ITEM_EXOTIC_LEATHER,Exotic leather,Piel exótica
+ITEM_RARE_MATERIAL,Rare material,Material poco común
+ITEM_SHOE_PROTOTYPE,Shoe prototype,Prototipo de zapato
+ITEM_CAMPAIGN_MATERIAL,Campaign props,Material de campaña
+ITEM_LAPTOP_HIGHEND,High-end laptop,Portátil de gama alta
+ITEM_PHONE_HIGHEND,High-end phone,Teléfono de gama alta
+ITEM_OFFICE_EQUIPMENT,Office equipment,Equipo de oficina
+ITEM_SPARE_PARTS,Spare parts,Piezas de repuesto
+ITEM_WALLET,Someone else's wallet,Cartera ajena
+ITEM_WATCH_LUXURY,Luxury watch,Reloj de lujo
+ITEM_JEWELLERY,Jewellery,Joyas
+ITEM_JEWELLERY_CHEAP,Cheap jewellery,Bisutería
+ITEM_JEWELLERY_LUXURY,Luxury jewellery,Joyas de lujo
+ITEM_BONDS,Bearer bonds,Bonos al portador
+ITEM_PEARL_PERSONAL_ITEMS,Pearl Osgood's personal items,Objetos personales de Pearl Osgood
+ITEM_AGENDA_PRINTOUTS,Agenda printouts,Agendas impresas
+ITEM_AREA_REPORT_DRAFTS,Area report drafts,Borradores del informe de área
+ITEM_BLANK_DISMISSAL_FORM,Blank dismissal form,Formulario de despido en blanco
+ITEM_BOARD_BLACKMAIL_DOSSIERS,Board blackmail dossiers,Dosieres de chantaje del consejo
+ITEM_BOARD_MINUTES,Board minutes,Actas del consejo
+ITEM_BOARD_TOP_SECRETS,Board top-secret files,Archivos secretos del consejo
+ITEM_BRIBE_RECEIPTS,Bribe receipts,Recibos de sobornos
+ITEM_BUYER_CONTACTS,Buyer contact list,Lista de contactos de compradores
+ITEM_CAMPAIGN_BUDGET,Campaign budget,Presupuesto de campaña
+ITEM_COLD_CASE_FILES,Cold case files,Expedientes de casos archivados
+ITEM_COMPROMISING_CONTRACTS,Compromising contracts,Contratos comprometedores
+ITEM_FAVOUR_LEDGER,Favour ledger,Libro de favores
+ITEM_GUARD_SHIFT_ROSTER,Guard shift roster,Cuadrante de turnos de vigilancia
+ITEM_HISTORIC_CONTRACTS,Historic contracts,Contratos históricos
+ITEM_INCIDENT_HISTORY,Incident history,Historial de incidentes
+ITEM_INSIDER_TRADING_NOTES,Insider trading notes,Notas sobre uso de información privilegiada
+ITEM_INVESTOR_STRATEGY_NOTES,Investor strategy notes,Notas de estrategia de un inversor
+ITEM_LAWSUIT_FILES,Lawsuit files,Expedientes de demandas
+ITEM_LEGAL_PRECEDENTS,Legal precedents,Precedentes legales
+ITEM_OWNERSHIP_TRANSFER_MEMO,Ownership transfer memo,Memorando de transmisión de la propiedad
+ITEM_QUARTERLY_REAL_FIGURES,Real quarterly figures,Cifras trimestrales reales
+ITEM_SALES_CONTRACTS,Sales contracts,Contratos de venta
+ITEM_VAILE_PRIVATE_NOTES,Preston Vaile's private notes,Notas privadas de Preston Vaile
+ITEM_VAILE_SECRETS,Preston Vaile's secrets,Secretos de Preston Vaile
+ITEM_VIP_BUYER_DOSSIERS,VIP buyer dossiers,Dosieres de compradores VIP
+ITEM_VOSS_AGENDA_PRINTOUT,Printout of Harlan Voss's agenda,Agenda impresa de Harlan Voss
+ITEM_VOSS_PERSONAL_SECRETS,Harlan Voss's personal secrets,Secretos personales de Harlan Voss
+ITEM_FILING_TROLLEY,Filing trolley,Carro de archivo
+ITEM_COPIER_KEY,Copier key,Llave de la fotocopiadora
+ITEM_HEADSET,Headset,Auriculares con micrófono
+ITEM_FACTORY_OVERALLS,Factory overalls,Mono de fábrica
+ITEM_MAIL_TROLLEY,Mail trolley,Carro del correo
+ITEM_PAYROLL_TERMINAL,Payroll terminal,Terminal de nóminas
+ITEM_SUPPLY_ROOM_KEY,Supply room key,Llave del almacén de material
+ITEM_INVENTORY_SCANNER,Inventory scanner,Escáner de inventario
+ITEM_SAMPLE_CASE,Sample case,Maletín de muestras
+ITEM_CLEANING_UNIFORM,Cleaning uniform (issued),Uniforme de limpieza (asignado)
+ITEM_CLEANING_CART_MASTER_KEYS,Cleaning cart master keys,Llaves maestras del carrito de limpieza
+ITEM_PETTY_CASH_KEY,Petty cash key,Llave de la caja chica
+ITEM_MAINTENANCE_UNIFORM,Maintenance uniform (issued),Uniforme de mantenimiento (asignado)
+ITEM_TOOLBOX,Toolbox,Caja de herramientas
+ITEM_VENT_KEY,Vent hatch key,Llave de las trampillas de ventilación
+ITEM_HR_FILE_KEY,HR filing cabinet key,Llave del archivo de RR. HH.
+ITEM_COMMISSION_LEDGER,Commission ledger,Libro de comisiones
+ITEM_GUARD_UNIFORM,Guard uniform (issued),Uniforme de vigilante (asignado)
+ITEM_GUARD_MASTER_KEYS,Guard master keys,Llaves maestras de vigilancia
+ITEM_FLASHLIGHT,Flashlight,Linterna
+ITEM_RADIO,Two-way radio,Walkie-talkie
+ITEM_DESIGN_TABLET,Design tablet,Tableta de diseño
+ITEM_SKETCHBOOK,Sketchbook,Cuaderno de bocetos
+ITEM_IT_TOOLKIT,IT toolkit,Maletín de herramientas de IT
+ITEM_ADMIN_USB,Admin USB stick,Memoria USB de administración
+ITEM_LEGAL_FORMS,Legal forms,Formularios legales
+ITEM_LEDGER_ACCESS,Ledger access,Acceso al libro mayor
+ITEM_QUALITY_FORMS,Quality forms,Formularios de calidad
+ITEM_SIGNATURE_STAMP,Signature stamp,Sello de firma
+ITEM_WING_ROSTER,Wing roster,Cuadrante del ala
+ITEM_DELIVERY_NOTE_BOOK,Delivery note book,Talonario de albaranes
+ITEM_FACTORY_MASTER_KEY,Factory master key,Llave maestra de la nave
+ITEM_SUPPLIER_CONTRACTS,Supplier contracts,Contratos de proveedores
+ITEM_PARTIAL_ADMIN_CREDENTIALS,Partial admin credentials,Credenciales de administración parciales
+ITEM_SHIFT_ROSTER,Shift roster,Cuadrante de turnos
+ITEM_EXECUTIVE_AGENDAS,Executive agendas,Agendas ejecutivas
+ITEM_CAMPAIGN_BUDGET_ACCESS,Campaign budget access,Acceso al presupuesto de campaña
+ITEM_BLOCK_WORKFLOW_BOARD,Block workflow board,Tablero de flujo del bloque
+ITEM_SALES_DASHBOARD,Sales dashboard,Panel de ventas
+ITEM_OFFICIAL_STAMP,Official stamp,Sello oficial
+ITEM_SECRETARY_LINE,Secretary line,Línea de secretaría
+ITEM_DISMISSAL_FORMS,Dismissal forms,Formularios de despido
+ITEM_HAULIER_CONTACTS,Haulier contacts,Contactos de transportistas
+ITEM_FOOTAGE_CONSOLE,Footage console,Consola de grabaciones
+ITEM_FULL_ADMIN_CREDENTIALS,Full admin credentials,Credenciales de administración completas
+ITEM_PRESS_CONTACTS,Press contacts,Contactos de prensa
+ITEM_OWNERSHIP_PROCEDURE_DOSSIER,Ownership procedure dossier,Dosier del procedimiento de propiedad
+ITEM_TREASURY_ACCESS,Treasury access,Acceso a tesorería
+ITEM_REPORTED_FIGURES_ACCESS,Reported figures access,Acceso a las cifras declaradas
+ITEM_MARKET_TERMINAL,Market terminal,Terminal bursátil
+ITEM_OPERATIONS_DASHBOARD,Operations dashboard,Panel de operaciones
+ITEM_INVESTOR_CONTACTS,Investor contacts,Contactos de inversores
+ITEM_CASE_FILES_ACCESS,Case files access,Acceso a expedientes de casos
+ITEM_BOARD_VOTE,Board vote,Voto en el consejo
+ITEM_MINUTES_BOOK,Minutes book,Libro de actas
+ITEM_BOARD_SEAL,Board seal,Sello del consejo
+ITEM_CEO_OFFICE_KEY,CEO office key,Llave del despacho del consejero delegado
+ROUND_ERRANDS,Errands,Recados
+UI_DATA_LOAD_FAILED,The game data could not be loaded (%d errors). The game cannot start.,No se han podido cargar los datos del juego (%d errores). El juego no puede arrancar.
+BELIEF_FACT_SEEN_PARTIALLY,Seen somewhere they shouldn't be,Visto donde no debía
+BELIEF_FACT_CAUGHT_REDHANDED,Caught red-handed,Pillado con las manos en la masa
+BELIEF_FACT_REPORTED,Reported to the higher-ups,Denunciado ante los superiores
+BELIEF_FACT_STEALS_IDEAS,Steals other people's ideas,Roba las ideas de los demás
+BELIEF_FACT_HARD_WORKER,A hard worker,Muy trabajador
+BELIEF_FACT_COMPETENT,Competent,Competente
+BELIEF_FACT_BODY_FOUND,Body found,Cuerpo hallado
+BELIEF_FACT_SIGNED_EXPULSION,Signed dismissal,Expulsión firmada
+BELIEF_FACT_FOOTAGE,Archived camera footage,Grabación de cámara archivada
+BELIEF_FACT_BOARD_MINUTES,Board minutes,Acta del consejo
+BELIEF_FACT_ACCOUNTING_ENTRY,Accounting entry,Asiento contable
+BELIEF_FACT_CARD_LOG,Card access log,Registro de acceso por tarjeta
+BELIEF_FACT_STAMPED_DOCUMENT,Stamped document,Documento con sello
+BELIEF_FACT_UNKNOWN,Unverified rumour,Rumor sin confirmar
+BELIEF_SOURCE_DIRECT,Saw it first-hand,Lo vio con sus propios ojos
+BELIEF_SOURCE_RUMOR,Heard it through the grapevine,Lo oyó en un corrillo
+BELIEF_SOURCE_RECORD,Permanent record,Registro permanente
+UI_CAUGHT_TITLE,Caught red-handed,Pillado con las manos en la masa
+UI_CAUGHT_BODY,%s saw everything. Decide before they do.,%s lo ha visto todo. Decide antes de que lo haga por ti.
+UI_CAUGHT_BRIBE,Buy their silence (%d €),Comprar su silencio (%d €)
+UI_CAUGHT_BRIBE_COUNTEROFFER,They want more: %d €,Quiere más: %d €
+UI_CAUGHT_BRIBE_NO_FUNDS,You cannot afford their silence.,No te llega para comprar su silencio.
+UI_CAUGHT_ELIMINATE,Make the problem disappear,Hacer desaparecer el problema
+UI_CAUGHT_ELIMINATE_WITNESSES,There are witnesses. Not here. Not now.,Hay testigos. Aquí no. Ahora no.
+UI_CAUGHT_TIMER,%d s to decide,%d s para decidir
+BRIBE_OUTCOME_ACCEPTED,"They pocket the money. They will not talk. They will not forget, either.",Se guarda el dinero. No hablará. Tampoco lo olvidará.
+BRIBE_OUTCOME_DENOUNCED,They walk straight to Security with your envelope.,Se va directo a Seguridad con tu sobre en la mano.
+BRIBE_OUTCOME_SILENCE,"They refuse, look away and remember every detail.","Lo rechaza, aparta la mirada y recuerda cada detalle."
+BRIBE_OUTCOME_COUNTEROFFER,They smile. That is not the price.,Sonríe. Ese no es el precio.
+BRIBE_OUTCOME_NEUTRAL,"A polite no, and a longer look at you than usual.","Un no educado, y una mirada más larga de lo habitual."
+BRIBE_OUTCOME_INSUFFICIENT_FUNDS,You do not have that much money.,No tienes tanto dinero.
+BRIBE_OUTCOME_INSULTED,The amount offends them. They will remember it.,La cantidad le ofende. Lo recordará.
+BRIBE_OUTCOME_INVALID,That offer makes no sense.,Esa oferta no tiene sentido.
+PHONE_BLACKMAIL_MONEY,"About what I saw the other day. My silence has a price, and it just went up.","Sobre lo que vi el otro día. Mi silencio tiene un precio, y acaba de subir."
+PHONE_BLACKMAIL_PROMOTION,There is a vacancy coming up. I expect your support. You know why.,Va a quedar una vacante. Cuento con tu apoyo. Ya sabes por qué.
+PHONE_BLACKMAIL_FAVOUR,I need a small favour. I am sure you will not say no to me.,Necesito un pequeño favor. Seguro que no me dices que no.
+BLACKMAIL_PAID,They take it and go quiet. For now.,Lo acepta y se calla. De momento.
+BLACKMAIL_REFUSED,They stop asking. Someone else will hear about it instead.,Deja de pedir. Otra persona se enterará en su lugar.
+BLACKMAIL_SETTLED,They seem satisfied at last.,Por fin parece satisfecho.
+PLAYER_DEFAULT_NAME,New Hire,Nuevo empleado
+HIDE_LOC_DESK,Your own desk,Escritorio propio
+HIDE_LOC_DESK_RISK,The first place any investigation searches.,Primera ubicación que registra cualquier investigación.
+HIDE_LOC_LOCKER,Changing-room locker,Taquilla de vestuario
+HIDE_LOC_LOCKER_RISK,Requires access to the matching changing room.,Requiere acceso al vestuario correspondiente.
+HIDE_LOC_DEAD_ARCHIVE,Dead archive (B2),Archivo muerto (S2)
+HIDE_LOC_DEAD_ARCHIVE_RISK,An investigation that searches the basements finds it in phase 2.,Una investigación que registre sótanos lo localiza en fase 2.
+HIDE_LOC_VENTS,Ventilation ducts,Conductos de ventilación
+HIDE_LOC_VENTS_RISK,Getting it back is slow and awkward.,Recuperación lenta e incómoda.
+HIDE_LOC_CLEANING_CLOSET,Cleaning closet,Cuarto de limpieza
+HIDE_LOC_CLEANING_CLOSET_RISK,Connie Marks goes in there every day.,Connie Marks accede a ellos diariamente.
+HIDE_LOC_TRASH_DOCK,Trash dock (B1),Muelle de basuras (S1)
+HIDE_LOC_TRASH_DOCK_RISK,Irreversible: the object leaves the game.,Irreversible: el objeto sale del juego.
+HIDE_LOC_FORGOTTEN_CORRIDOR,The corridor nobody cleans,El pasillo que nadie limpia
+HIDE_LOC_FORGOTTEN_CORRIDOR_RISK,No investigation ever searches it. Finding it is the hard part.,Ninguna investigación lo registra. Lo difícil es encontrarlo.
+HIDE_LOC_HOME,Your flat,Tu domicilio
+HIDE_LOC_HOME_RISK,Only the most serious cases get as far as your front door.,Solo los casos más graves llegan hasta tu puerta.
+HIDE_LOC_OTHER,Improvised hiding place,Escondite improvisado
+HIDE_LOC_OTHER_RISK,A thorough search will turn it up.,Un registro minucioso lo encontrará.
+HIDE_SECURITY_VERY_LOW,Very low security,Seguridad muy baja
+HIDE_SECURITY_MEDIUM,Medium security,Seguridad media
+HIDE_SECURITY_HIGH,High security,Seguridad alta
+HIDE_SECURITY_VERY_HIGH,Very high security,Seguridad muy alta
+HIDE_SECURITY_ABSOLUTE,Absolute security,Seguridad absoluta
+SEARCH_OUTCOME_CLEAN,Search complete. Nothing to report. For now.,Registro concluido. Nada que reseñar. Por ahora.
+SEARCH_OUTCOME_CONVICTION_MINOR,Compromising material found: the case is closed against you.,Material comprometedor hallado: el caso se cierra en tu contra.
+SEARCH_OUTCOME_CONVICTION_MAJOR,Compromising material found with suspicion running high: the case is closed against you. Gravely.,Material comprometedor hallado con la sospecha disparada: el caso se cierra en tu contra. Con gravedad.
+DUTY_CONSEQUENCE_NONE,Noted in your file.,Anotado en tu expediente.
+DUTY_CONSEQUENCE_WARNING,Formal warning.,Amonestación formal.
+DUTY_CONSEQUENCE_DEMOTION,Demotion.,Descenso de rango.
+DUTY_CONSEQUENCE_EXPULSION,Dismissal.,Expulsión.
+TIME_BAND_ARRIVAL,Arrival,Llegada
+TIME_BAND_WORK_MORNING,Morning shift,Trabajo mañana
+TIME_BAND_LUNCH,Lunch,Comida
+TIME_BAND_WORK_AFTERNOON,Afternoon shift,Trabajo tarde
+TIME_BAND_EXIT,Clocking out,Salida
+TIME_BAND_NIGHT,Night,Nocturno
+NEWS_BODY_FOUND,Body found inside Stellar Sell headquarters; management calls it an isolated productivity incident,Hallan un cadáver en la sede de Stellar Sell; la dirección lo califica de incidente aislado de productividad
+NEWS_INVESTIGATION_OPENED,Internal investigation opened at Stellar Sell; spokesperson insists everything is fine,Stellar Sell abre una investigación interna; su portavoz insiste en que todo va bien
+NEWS_FRAUD_UNCOVERED,Auditors find the Stellar Sell accounts were more creative than its shoes,Los auditores descubren que las cuentas de Stellar Sell eran más creativas que sus zapatos
+NEWS_RESULTS_BEAT,Stellar Sell quarterly results will beat expectations,Los resultados trimestrales de Stellar Sell superarán las expectativas
+NEWS_RESULTS_MISS,Stellar Sell quarterly results will miss expectations,Los resultados trimestrales de Stellar Sell no alcanzarán las expectativas
+NEWS_RESULTS_INLINE,Stellar Sell quarterly results will be in line with expectations,Los resultados trimestrales de Stellar Sell estarán en línea con lo esperado
+NEWS_FABRICATED_PRAISE,Analysts hail Stellar Sell as the most visionary shoe company of the decade,Los analistas aclaman a Stellar Sell como la zapatera más visionaria de la década
+NEWS_FABRICATED_SCANDAL,Anonymous sources question the conduct of a Stellar Sell executive,Fuentes anónimas cuestionan la conducta de un directivo de Stellar Sell
+PRES_PHASE_PREPARATION,Preparation,Preparación
+PRES_PHASE_PRESENTATION,The presentation,La presentación
+PRES_PHASE_REACTION,Reaction,Reacción
+PRES_PHASE_FINISHED,Presentation closed,Presentación cerrada
+PRES_LEVEL_NONE,Unprepared,Sin preparar
+PRES_LEVEL_ASSIST,Generated with A.S.S.I.S.T.,Generada con A.S.S.I.S.T.
+PRES_LEVEL_STOLEN_COO_REPORT,With the report stolen from the COO,Con el informe robado al COO
+PRES_LEVEL_REAL_WORK,Real work (complete),Trabajo real completo
+PRES_FIGURES_REAL,Report the real figures,Comunicar las cifras reales
+PRES_FIGURES_INFLATED,Report adjusted figures,Comunicar cifras ajustadas
+CONF_REASON_RESULTS_ABOVE_EXPECTED,Results above expectations,Resultados por encima de lo esperado
+CONF_REASON_RESULTS_BELOW_EXPECTED,Results below expectations,Resultados por debajo de lo esperado
+CONF_REASON_FAVOURABLE_PRESS,Favourable press,Prensa favorable
+CONF_REASON_LOUNGE_PERSONAL_CONTACT,Personal contact in the lounge,Contacto personal en el lounge
+CONF_REASON_INSIDER_TIP_TO_HUNTER,Privileged tip,Soplo privilegiado
+CONF_REASON_PUBLIC_SCANDAL,Public scandal,Escándalo público
+CONF_REASON_FALSIFICATION_DISCOVERED,Falsification discovered,Falsificación descubierta
+CONF_REASON_PRICE_TREND,Share price trend,Tendencia de la cotización
+INV_BEHAVIOUR_PUBLIC_STATEMENT,Issues a public statement questioning management,Emite un comunicado público que cuestiona a la dirección
+INV_BEHAVIOUR_SELL_FAST,Sells fast,Vende deprisa
+INV_BEHAVIOUR_SELL_QUIETLY,Sells quietly,Vende sin hacer ruido
+INV_BEHAVIOUR_CAMPAIGN_AGAINST_MANAGEMENT,Launches a campaign against management,Lanza una campaña contra la dirección
+INV_BEHAVIOUR_SELL_BLOCK,Dumps its entire block: the market reads collapse,Vende todo su paquete: el mercado lee colapso
+INV_BEHAVIOUR_VIRAL_RANT,Posts a viral rant,Publica una diatriba viral
+MONEY_REASON_SHARES_BOUGHT,Shares bought,Compra de acciones
+MONEY_REASON_SHARES_SOLD,Shares sold,Venta de acciones
+MONEY_REASON_BOARD_STAKE_BOUGHT,Board stake acquired,Adquisición del paquete accionarial
+MONEY_REASON_DIVIDENDS,Dividends,Dividendos

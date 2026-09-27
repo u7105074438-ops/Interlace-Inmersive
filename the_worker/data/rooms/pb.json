@@ -73,8 +73,10 @@
         {"type": "turnstile", "pos": [4, 3], "rotation": 0},
         {"type": "turnstile", "pos": [5, 3], "rotation": 0},
         {"type": "turnstile", "pos": [6, 3], "rotation": 0},
-        {"type": "counter", "pos": [7, 2], "rotation": 0, "size": [2, 2]},
+        {"type": "counter", "pos": [7, 2], "rotation": 0, "size": [2, 2], "owner": "npc_tom_iverson"},
         {"type": "chair", "pos": [8, 1], "rotation": 0},
+        {"type": "desk", "pos": [7, 5], "rotation": 0, "size": [2, 1], "owner": "vacant"},
+        {"type": "chair", "pos": [7, 6], "rotation": 180},
         {"type": "motivational_poster", "pos": [1, 0], "rotation": 0},
         {"type": "plant", "pos": [9, 0], "rotation": 0}
       ],
@@ -83,7 +85,8 @@
         {"id": "turnstile_gate_1", "type": "turnstile", "pos": [3, 3], "logs": "clock_in"},
         {"id": "turnstile_gate_2", "type": "turnstile", "pos": [4, 3], "logs": "clock_in"},
         {"id": "turnstile_gate_3", "type": "turnstile", "pos": [5, 3], "logs": "clock_in"},
-        {"id": "turnstile_gate_4", "type": "turnstile", "pos": [6, 3], "logs": "clock_in"}
+        {"id": "turnstile_gate_4", "type": "turnstile", "pos": [6, 3], "logs": "clock_in"},
+        {"id": "player_desk_turnstiles", "type": "desk", "pos": [7, 5], "has_computer": true, "player_seat": true}
       ],
       "illegitimate_entries": ["tailgating"],
       "connects_to": ["main_reception", "main_elevator_1", "main_elevator_2", "main_stairs"],
@@ -114,8 +117,8 @@
       "furniture": [
         {"type": "monitor_wall", "pos": [0, 0], "rotation": 180, "size": [3, 1]},
         {"type": "monitor_wall", "pos": [7, 0], "rotation": 180, "size": [3, 1]},
-        {"type": "desk", "pos": [1, 2], "rotation": 180, "size": [3, 1]},
-        {"type": "desk", "pos": [6, 2], "rotation": 180, "size": [3, 1]},
+        {"type": "desk", "pos": [1, 2], "rotation": 180, "size": [3, 1], "owner": "generated"},
+        {"type": "desk", "pos": [6, 2], "rotation": 180, "size": [3, 1], "owner": "npc_ludmila_petrova"},
         {"type": "chair", "pos": [2, 3], "rotation": 180},
         {"type": "chair", "pos": [7, 3], "rotation": 180},
         {"type": "coffee_machine", "pos": [8, 5], "rotation": 0},
@@ -260,8 +263,8 @@
       ],
       "hiding_spots": [],
       "interactables": [
-        {"id": "cafeteria_lunch_counter", "type": "lunch_counter", "pos": [22, 1], "paid": true, "food": "meal"},
-        {"id": "cafeteria_vending", "type": "vending", "pos": [1, 0], "sells": ["snack"]},
+        {"id": "cafeteria_lunch_counter", "type": "lunch_counter", "pos": [22, 1], "sells": ["food_basic"], "paid": true},
+        {"id": "cafeteria_vending", "type": "vending", "pos": [1, 0], "sells": ["food_basic"]},
         {"id": "cafeteria_coffee", "type": "coffee_machine_use", "pos": [5, 0]},
         {"id": "cafeteria_gossip", "type": "eavesdrop_point", "pos": [14, 9], "targets": "rumor_hub"}
       ],
@@ -304,7 +307,7 @@
       ],
       "hiding_spots": [],
       "interactables": [
-        {"id": "kitchen_food_store", "type": "kitchen_food", "pos": [1, 3], "food": "meal", "paid": false}
+        {"id": "kitchen_food_store", "type": "kitchen_food", "pos": [1, 3], "contains": ["food_basic"], "paid": false}
       ],
       "illegitimate_entries": [],
       "connects_to": ["cafeteria", "trash_dock"],
@@ -347,7 +350,7 @@
       ],
       "hiding_spots": [],
       "interactables": [
-        {"id": "store_till", "type": "shop_counter", "pos": [8, 9], "sells": ["stellar_shoes"], "price_reference": true},
+        {"id": "store_till", "type": "shop_counter", "pos": [8, 9], "sells": ["product_pair"], "price_reference": true},
         {"id": "store_display", "type": "product_shelf", "pos": [2, 8], "scale": ["pocket"], "accepts_stolen_product": true, "shows_real_prices": true}
       ],
       "illegitimate_entries": [],
@@ -419,7 +422,7 @@
         {"type": "shelf_rack", "pos": [0, 0], "rotation": 0, "size": [4, 1]},
         {"type": "shelf_rack", "pos": [8, 0], "rotation": 0, "size": [4, 1]},
         {"type": "table", "pos": [3, 3], "rotation": 0, "size": [6, 2]},
-        {"type": "desk", "pos": [1, 6], "rotation": 0, "size": [2, 1]},
+        {"type": "desk", "pos": [1, 6], "rotation": 0, "size": [2, 1], "owner": "generated"},
         {"type": "chair", "pos": [1, 7], "rotation": 180},
         {"type": "crate", "pos": [9, 6], "rotation": 0},
         {"type": "crate", "pos": [10, 6], "rotation": 0}
@@ -469,7 +472,7 @@
       ],
       "interactables": [
         {"id": "infirmary_bed", "type": "bed", "pos": [1, 1], "saves_game": false, "recovery": true, "leaves_record": false},
-        {"id": "medical_supplies", "type": "supply_shelf", "pos": [8, 4], "items": ["medical_supplies"], "resale_value": 10}
+        {"id": "medical_supplies", "type": "medical_cabinet", "pos": [8, 4], "recovery": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["main_reception"],

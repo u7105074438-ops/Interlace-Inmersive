@@ -83,7 +83,7 @@
         {"type": "cubicle", "pos": [8, 2], "rotation": 0, "owner": "npc_nate_brackley"},
         {"type": "cubicle", "pos": [8, 5], "rotation": 0, "owner": "npc_claudia_reeves"},
         {"type": "cubicle", "pos": [8, 8], "rotation": 0, "owner": "npc_sonia_vail"},
-        {"type": "cubicle", "pos": [12, 2], "rotation": 0, "owner": "generated"},
+        {"type": "cubicle", "pos": [12, 2], "rotation": 0, "owner": "npc_ray_cudmore"},
         {"type": "cubicle", "pos": [12, 5], "rotation": 0, "owner": "generated"},
         {"type": "cubicle", "pos": [12, 8], "rotation": 0, "owner": "generated"},
         {"type": "cubicle", "pos": [16, 2], "rotation": 0, "owner": "generated"},
@@ -111,11 +111,13 @@
         {"id": "nate_computer", "type": "npc_computer", "pos": [8, 2], "owner": "npc_nate_brackley", "requires_absence": true},
         {"id": "george_computer", "type": "npc_computer", "pos": [4, 8], "owner": "npc_george_penn", "requires_absence": true},
         {"id": "sonia_computer", "type": "npc_computer", "pos": [8, 8], "owner": "npc_sonia_vail", "requires_absence": true},
+        {"id": "ray_computer", "type": "npc_computer", "pos": [12, 2], "owner": "npc_ray_cudmore", "requires_absence": true},
         {"id": "debbie_drawer", "type": "drawer", "pos": [5, 3], "owner": "npc_debbie_foyle"},
         {"id": "nate_drawer", "type": "drawer", "pos": [9, 3], "owner": "npc_nate_brackley"},
         {"id": "claudia_drawer", "type": "drawer", "pos": [9, 6], "owner": "npc_claudia_reeves"},
         {"id": "george_drawer", "type": "drawer", "pos": [5, 9], "owner": "npc_george_penn"},
         {"id": "sonia_drawer", "type": "drawer", "pos": [9, 9], "owner": "npc_sonia_vail"},
+        {"id": "ray_drawer", "type": "drawer", "pos": [13, 3], "owner": "npc_ray_cudmore"},
         {"id": "lasker_computer", "type": "npc_computer", "pos": [1, 10], "owner": "npc_bernard_lasker", "requires_absence": true},
         {"id": "lasker_drawer", "type": "drawer", "pos": [2, 10], "owner": "npc_bernard_lasker"}
       ],
@@ -250,13 +252,16 @@
         {"type": "table", "pos": [3, 3], "rotation": 0, "size": [2, 2]},
         {"type": "chair", "pos": [2, 3], "rotation": 270},
         {"type": "chair", "pos": [5, 4], "rotation": 90},
+        {"type": "desk", "pos": [6, 5], "rotation": 0, "size": [2, 1], "owner": "vacant"},
+        {"type": "chair", "pos": [6, 6], "rotation": 180},
         {"type": "trash_bin", "pos": [1, 5], "rotation": 0}
       ],
       "hiding_spots": [],
       "interactables": [
-        {"id": "pantry_fridge", "type": "food_fridge", "pos": [7, 1], "communal": true},
+        {"id": "pantry_fridge", "type": "food_fridge", "pos": [7, 1], "contains": ["food_basic"], "communal": true},
         {"id": "pantry_coffee", "type": "coffee_machine_use", "pos": [0, 1]},
-        {"id": "pantry_cupboard_lock", "type": "lock_old", "pos": [6, 0], "target": "snack_cupboard", "keys_basic_opens": true, "contains": ["food_basic"]}
+        {"id": "pantry_cupboard_lock", "type": "lock_old", "pos": [6, 0], "target": "snack_cupboard", "keys_basic_opens": true, "contains": ["food_basic"]},
+        {"id": "player_desk_p3_pantry", "type": "desk", "pos": [6, 5], "has_computer": true, "player_seat": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["wing_3b"],
@@ -292,7 +297,7 @@
       "hiding_spots": [],
       "interactables": [
         {"id": "p3_copier_tray", "type": "copier_memory", "pos": [0, 2], "leftover_copies": true},
-        {"id": "p3_copy_paper", "type": "supply_shelf", "pos": [4, 2], "items": ["paper", "toner"], "resale_value": 5}
+        {"id": "p3_copy_paper", "type": "supply_shelf", "pos": [4, 2], "items": ["office_supplies"], "resale_value": 5}
       ],
       "illegitimate_entries": [],
       "connects_to": ["corridors_low"],

@@ -33,6 +33,7 @@
         {"type": "conveyor", "pos": [2, 14], "rotation": 270, "size": [14, 1]},
         {"type": "industrial_machine", "pos": [16, 13], "rotation": 0, "size": [2, 3]},
         {"type": "industrial_machine", "pos": [22, 13], "rotation": 0, "size": [2, 3]},
+        {"type": "workbench", "pos": [10, 10], "rotation": 180, "size": [2, 1], "owner": "vacant"},
         {"type": "conveyor", "pos": [24, 14], "rotation": 270, "size": [14, 1]},
         {"type": "pallet_stack", "pos": [1, 0], "rotation": 0, "size": [2, 2]},
         {"type": "pallet_stack", "pos": [36, 0], "rotation": 0, "size": [2, 2]},
@@ -127,8 +128,8 @@
         {"id": "hide_materials_pallets", "type": "crate", "pos": [9, 9], "capacity": 6, "can_hide_body": true}
       ],
       "interactables": [
-        {"id": "leather_shelf", "type": "supply_shelf", "pos": [3, 2], "items": ["leather_roll"], "resale_value": 50, "inventory": "weekly"},
-        {"id": "soles_shelf", "type": "supply_shelf", "pos": [15, 5], "items": ["soles"], "resale_value": 30, "inventory": "weekly"}
+        {"id": "leather_shelf", "type": "supply_shelf", "pos": [3, 2], "items": ["product_box"], "material": "leather", "resale_value": 50, "inventory": "weekly"},
+        {"id": "soles_shelf", "type": "supply_shelf", "pos": [15, 5], "items": ["product_box"], "material": "soles", "resale_value": 30, "inventory": "weekly"}
       ],
       "illegitimate_entries": [],
       "connects_to": ["mold_room", "loading_dock"],
@@ -156,11 +157,11 @@
       "camera_positions": [],
       "size": [14, 10],
       "furniture": [
-        {"type": "desk", "pos": [1, 0], "rotation": 0, "size": [2, 1]},
+        {"type": "desk", "pos": [1, 0], "rotation": 0, "size": [2, 1], "owner": "generated"},
         {"type": "chair", "pos": [2, 1], "rotation": 180},
         {"type": "shelf_rack", "pos": [10, 0], "rotation": 0, "size": [3, 1]},
         {"type": "table", "pos": [2, 3], "rotation": 0, "size": [4, 2]},
-        {"type": "table", "pos": [8, 3], "rotation": 0, "size": [4, 2]},
+        {"type": "workbench", "pos": [8, 3], "rotation": 0, "size": [4, 2], "owner": "generated"},
         {"type": "chair", "pos": [2, 5], "rotation": 180},
         {"type": "chair", "pos": [4, 5], "rotation": 180},
         {"type": "chair", "pos": [9, 5], "rotation": 180},
@@ -216,9 +217,9 @@
         {"id": "hide_goods_pallets", "type": "crate", "pos": [20, 14], "capacity": 8, "can_hide_body": true}
       ],
       "interactables": [
-        {"id": "goods_shelf_west", "type": "product_shelf", "pos": [2, 2], "scale": ["pocket", "box"], "inventory": "weekly"},
-        {"id": "goods_shelf_east", "type": "product_shelf", "pos": [16, 5], "scale": ["pocket", "box"], "inventory": "weekly"},
-        {"id": "goods_pallets", "type": "product_shelf", "pos": [2, 14], "scale": ["pallet"], "inventory": "weekly"}
+        {"id": "goods_shelf_west", "type": "product_shelf", "pos": [2, 2], "contains": ["product_pair", "product_box"], "scale": ["pocket", "box"], "inventory": "weekly"},
+        {"id": "goods_shelf_east", "type": "product_shelf", "pos": [16, 5], "contains": ["product_pair", "product_box"], "scale": ["pocket", "box"], "inventory": "weekly"},
+        {"id": "goods_pallets", "type": "product_shelf", "pos": [2, 14], "contains": ["product_pallet_note"], "scale": ["pallet"], "inventory": "weekly"}
       ],
       "illegitimate_entries": [],
       "connects_to": ["quality_control", "loading_dock", "freight_elevator"],
@@ -263,7 +264,7 @@
         {"id": "hide_dock_crates", "type": "crate", "pos": [4, 10], "capacity": 6, "can_hide_body": true}
       ],
       "interactables": [
-        {"id": "dock_delivery_notes", "type": "delivery_notes", "pos": [15, 9], "forgeable": true, "traceable": true},
+        {"id": "dock_delivery_notes", "type": "delivery_notes", "pos": [15, 9], "produces": ["delivery_note_forged"], "forgeable": true, "traceable": true},
         {"id": "dock_carrier_bay", "type": "carrier_bay", "pos": [10, 12], "requires": "accomplice_carrier", "scale": "pallet"}
       ],
       "illegitimate_entries": [],
@@ -306,7 +307,7 @@
       "interactables": [
         {"id": "ernie_computer", "type": "npc_computer", "pos": [4, 3], "owner": "npc_ernie_vaughn", "requires_absence": true},
         {"id": "ernie_drawer", "type": "drawer", "pos": [3, 3], "owner": "npc_ernie_vaughn"},
-        {"id": "foreman_delivery_notes", "type": "delivery_notes", "pos": [0, 0], "forgeable": true}
+        {"id": "foreman_delivery_notes", "type": "delivery_notes", "pos": [0, 0], "produces": ["delivery_note_forged"], "forgeable": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["assembly_line"],
@@ -359,9 +360,9 @@
         {"id": "hide_break_locker", "type": "locker", "pos": [2, 7], "capacity": 2, "can_hide_body": false}
       ],
       "interactables": [
-        {"id": "break_vending", "type": "vending", "pos": [0, 0], "sells": ["snack"]},
+        {"id": "break_vending", "type": "vending", "pos": [0, 0], "sells": ["food_basic"]},
         {"id": "break_coffee", "type": "coffee_machine_use", "pos": [9, 0]},
-        {"id": "break_fridge", "type": "food_fridge", "pos": [10, 0], "communal": true},
+        {"id": "break_fridge", "type": "food_fridge", "pos": [10, 0], "contains": ["food_basic"], "communal": true},
         {"id": "break_huddle", "type": "eavesdrop_point", "pos": [5, 4], "measures": "discontent"}
       ],
       "illegitimate_entries": [],
@@ -401,7 +402,7 @@
       "hiding_spots": [],
       "interactables": [
         {"id": "dye_lab_chemicals", "type": "chemical_station", "pos": [2, 0], "sabotage": "accident", "evidence_on_error": true},
-        {"id": "dye_lab_shelf", "type": "supply_shelf", "pos": [9, 8], "items": ["solvent", "dye", "glue"], "resale_value": 15, "hazard": true}
+        {"id": "dye_lab_shelf", "type": "supply_shelf", "pos": [9, 8], "items": ["sabotage_chemicals"], "resale_value": 15, "hazard": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["mold_room", "service_tunnel"],

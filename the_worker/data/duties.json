@@ -1,6 +1,6 @@
 {
   "_version": 1,
-  "_nota": "§32.2 duty_types literal (+ name_key/description_key). 'content' alimenta los minijuegos de deber (§10, §13.3). Todo texto es clave de strings.csv. Los waypoints usan ids de §22; 'floor' desambigua los espacios transversales (id@planta en ejecución).",
+  "_nota": "§32.2 duty_types literal (+ name_key/description_key). 'content' alimenta los minijuegos de deber (§10, §13.3). Todo texto es clave de strings.csv. Los waypoints usan ids de §22; 'floor' desambigua los espacios transversales (id@planta en ejecución). amount de una ronda = paradas distintas (room+floor) del conjunto; con 'amount_unit': 'floors' cuenta las plantas distintas visitadas sin la del primer waypoint (correo: 9 plantas); con 'random_subset': n se sortean n paradas por jornada y amount = n.",
   "duty_types": [
     {
       "id": "volume",
@@ -551,6 +551,7 @@
         ],
         "_nota": "Reparto de correo interno: plantas 1 a 9 (§23.1 n.º7, §5.2). Justificación para transitar sin sospecha.",
         "loop": true,
+        "amount_unit": "floors",
         "waypoints": [
           {
             "room": "mail_office",
@@ -829,6 +830,37 @@
           {
             "room": "turnstiles",
             "floor": 0
+          }
+        ]
+      },
+      "errands": {
+        "name_key": "ROUND_ERRANDS",
+        "occupations": [
+          "eternal_intern"
+        ],
+        "_nota": "Recados sin especificar del becario eterno (§23.1 n.º1, coste 'Variable'): cada jornada se sortean random_subset paradas distintas del conjunto, en orden aleatorio, saliendo del office de planta 3. Te envían a por café (§6.4).",
+        "loop": false,
+        "random_subset": 4,
+        "waypoints": [
+          {
+            "room": "p3_pantry",
+            "floor": 3
+          },
+          {
+            "room": "cafeteria",
+            "floor": 0
+          },
+          {
+            "room": "mail_office",
+            "floor": 0
+          },
+          {
+            "room": "main_copyroom",
+            "floor": 1
+          },
+          {
+            "room": "wing_3a",
+            "floor": 3
           }
         ]
       }

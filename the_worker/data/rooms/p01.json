@@ -40,7 +40,7 @@
         {"type": "chair", "pos": [12, 3], "rotation": 0},
         {"type": "desk", "pos": [2, 8], "rotation": 0, "size": [3, 1], "owner": "generated"},
         {"type": "chair", "pos": [3, 7], "rotation": 0},
-        {"type": "desk", "pos": [11, 8], "rotation": 0, "size": [3, 1], "owner": "generated"},
+        {"type": "desk", "pos": [11, 8], "rotation": 0, "size": [3, 1], "owner": "vacant"},
         {"type": "chair", "pos": [12, 7], "rotation": 0},
         {"type": "plant", "pos": [15, 3], "rotation": 0},
         {"type": "water_cooler", "pos": [0, 9], "rotation": 0},
@@ -51,9 +51,10 @@
         {"id": "hide_hr_vent", "type": "vent", "pos": [15, 1], "capacity": 2, "can_hide_body": false}
       ],
       "interactables": [
-        {"id": "hr_personnel_files", "type": "personnel_files", "pos": [0, 0], "scope": "all_staff", "contains": ["routines", "secrets", "home_addresses"]},
+        {"id": "hr_personnel_files", "type": "personnel_files", "pos": [0, 0], "reveals": ["routines", "secrets", "home_addresses"], "contains": ["blackmail_file"], "scope": "all_staff"},
         {"id": "amelia_computer", "type": "npc_computer", "pos": [3, 4], "owner": "npc_amelia_cole", "requires_absence": true},
-        {"id": "amelia_drawer", "type": "drawer", "pos": [2, 4], "owner": "npc_amelia_cole", "contains": ["blank_dismissal_form"]},
+        {"id": "amelia_drawer", "type": "drawer", "pos": [2, 4], "contains": ["foreign_document"], "document_kind": "blank_dismissal_form", "owner": "npc_amelia_cole"},
+        {"id": "player_desk_hr_office", "type": "desk", "pos": [11, 8], "has_computer": true, "player_seat": true},
         {"id": "hr_vent", "type": "vent_hatch", "pos": [15, 1], "leads_to": ["p1_toilets", "vent_network"]}
       ],
       "illegitimate_entries": ["vent"],
@@ -193,6 +194,8 @@
         {"type": "photocopier", "pos": [8, 0], "rotation": 0, "size": [2, 1]},
         {"type": "printer", "pos": [0, 3], "rotation": 0},
         {"type": "table", "pos": [4, 3], "rotation": 0, "size": [2, 2]},
+        {"type": "desk", "pos": [1, 5], "rotation": 0, "size": [2, 1], "owner": "vacant"},
+        {"type": "chair", "pos": [1, 6], "rotation": 180},
         {"type": "shelf_rack", "pos": [8, 4], "rotation": 0, "size": [2, 1]},
         {"type": "trash_bin", "pos": [9, 2], "rotation": 0}
       ],
@@ -200,7 +203,8 @@
       "interactables": [
         {"id": "copier_log_a", "type": "copier_memory", "pos": [0, 0], "shows": "copied_documents"},
         {"id": "copier_log_b", "type": "copier_memory", "pos": [8, 0], "shows": "copied_documents"},
-        {"id": "copyroom_paper", "type": "supply_shelf", "pos": [8, 4], "items": ["paper", "toner"], "resale_value": 5}
+        {"id": "copyroom_paper", "type": "supply_shelf", "pos": [8, 4], "items": ["office_supplies"], "resale_value": 5},
+        {"id": "player_desk_main_copyroom", "type": "desk", "pos": [1, 5], "has_computer": true, "player_seat": true}
       ],
       "illegitimate_entries": [],
       "connects_to": ["corridors_low"],
