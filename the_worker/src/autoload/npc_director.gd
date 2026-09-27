@@ -1,6 +1,6 @@
 # npc_director.gd — Estado completo de los personajes: población, rutinas, ánimo, registro, LOD y cuerpos.
 # PROPIETARIO DE: personajes (NPCRuntime) y perfiles de puesto, ubicación estadística y rutinas, ánimo, mérito, registro de relaciones (§7.9), material de chantaje, cuerpos y nivel de detalle (§19.5, §20).
-# ESCUCHA: day_advanced, time_band_changed, hour_passed, room_entered, floor_changed, belief_created, bribe_offered, bribe_result, npc_reported_player, seat_vacated, seat_filled, investigation_resolved, suspect_list_formed, case_went_cold, idea_acquired, idea_presented, blackmail_initiated, body_hidden.
+# ESCUCHA: day_advanced, time_band_changed, hour_passed, room_entered, floor_changed, belief_created, belief_decayed, bribe_offered, bribe_result, npc_reported_player, seat_vacated, seat_filled, investigation_resolved, suspect_list_formed, case_went_cold, idea_acquired, idea_presented, blackmail_initiated, body_hidden, notebook_entry_added.
 class_name NPCDirectorSystem
 extends Node
 
@@ -25,7 +25,10 @@ extends Node
 ##    creencias suma la certeza de la creencia disparadora y de las demás creencias NEGATIVAS del
 ##    portador sobre el jugador (las positivas, p. ej. hard_worker, no cuentan). Las creencias
 ##    "reported:*" (eco de la denuncia), "caught_redhanded:*" (CaughtHandler, §12.2) y
-##    "bribe_attempt:*" (Bribery) ni disparan ni suman.
+##    "bribe_attempt:*" (Bribery) ni disparan ni suman. Una creencia que CRUZA hacia arriba
+##    creencias.certeza_directa_completa por refuerzo (percepción parcial acumulable §7.2;
+##    belief_decayed = «certeza cambiada») hace reevaluar a su portador una sola vez, como si
+##    naciera con esa certeza (sin señal EXT nueva).
 ##  · Denuncias: npc_decided(npc, acción, resumen {channel, evidence_type, ...}) y
 ##    npc_reported_player(npc, tipo, peso, sala). A Seguridad: tipo = pieza "direct_witness"
 ##    (certeza ≥ creencias.certeza_directa_completa; peso investigaciones.pesos_evidencia.
@@ -72,7 +75,12 @@ extends Node
 ##    del jugador parte de PlayerState.get_room()/get_floor(). Siempre LOD 0 (sin contar ubicación
 ##    ni tope): force_full_lod(), lista corta (suspect_list_formed) y deuda con el jugador (registro
 ##    o arista de deuda de SocialGraph). set_lod() fija un nivel manual hasta clear_lod() (lo
-##    forzado sigue mandando).
+##    forzado sigue mandando). Objetivos marcados (§13.4): el dueño de la lista es PlayerState; al
+##    oír notebook_entry_added de la categoría "targets" (mark_target/unmark_target) se sincroniza
+##    el motivo "marked_target" con PlayerState.get_marked_targets() (sync_marked_targets).
+##  · Reputación del personaje: además resta la prensa viva que lo señala
+##    (NewsFeed.get_suspicion_about(id) × npc.reputacion_por_peso_prensa: escándalo fabricado o
+##    campaña activista contra un rival, §9.8/§7.11), lo que también rebaja su credibilidad.
 
 const PLAYER_ID := "player"
 const FLOOR_NONE := NPCRoutinePlanner.NO_FLOOR
@@ -134,6 +142,8 @@ const EVIDENCE_DIRECT := "direct_witness"
 const EVIDENCE_PARTIAL := "partial_witness"
 const REASON_DEBT := "debt"
 const REASON_SHORTLIST := "shortlist"
+const REASON_MARKED_TARGET := "marked_target"
+const NOTE_CATEGORY_TARGETS := PlayerStateSystem.NOTE_CATEGORY_TARGETS
 
 const STATE_ABSENT := "absent"
 const STATE_SLACKING := "slacking"
@@ -177,6 +187,7 @@ const B_REP_BASE := "npc.reputacion_base"
 const B_REP_PER_TIER := "npc.reputacion_por_escalon"
 const B_REP_PER_MERIT := "npc.reputacion_por_merito"
 const B_REP_PER_SEVERITY := "npc.reputacion_por_gravedad_agravio"
+const B_REP_PER_PRESS := "npc.reputacion_por_peso_prensa"
 const B_SUPERIOR_FACTOR := "npc.factor_denuncia_superior"
 const B_REPORT_COOLDOWN := "npc.dias_entre_denuncias"
 const B_SCORE_MERIT := "npc.puntuacion_ascenso_merito"
@@ -215,6 +226,8 @@ var _last_report: Dictionary = {}
 var _last_decision: Dictionary = {}
 ## npc_id → nivel fijado con set_lod() hasta clear_lod().
 var _lod_pins: Dictionary = {}
+## belief_id → true: creencias que ya provocaron la reacción de certeza completa.
+var _escalated: Dictionary = {}
 var _player_room: String = ""
 var _player_floor: int = 0
 var _day: int = 0
@@ -265,6 +278,10 @@ func _connect_signals() -> void:
 	EventBus.idea_presented.connect(_on_idea_presented)
 	EventBus.blackmail_initiated.connect(_on_blackmail_initiated)
 	EventBus.body_hidden.connect(_on_body_hidden)
+	EventBus.belief_decayed.connect(_on_belief_decayed)
+	EventBus.notebook_entry_added.connect(func(category: String, _k: String, _a: Array) -> void:
+		if category == NOTE_CATEGORY_TARGETS:
+			sync_marked_targets())
 
 
 ## Vacía la población. generate_population() la (re)crea.
@@ -292,6 +309,7 @@ func _clear_population() -> void:
 	_last_report.clear()
 	_last_decision.clear()
 	_lod_pins.clear()
+	_escalated.clear()
 	_world_located.clear()
 	_plans.clear()
 	_planner = null
@@ -951,6 +969,17 @@ func get_full_lod_reasons(npc_id: String) -> Array[String]:
 	return out
 
 
+## Extra: el motivo "marked_target" sigue la lista de PlayerState (dueña de los objetivos, §13.4).
+func sync_marked_targets() -> void:
+	var marked: Array[String] = PlayerState.get_marked_targets()
+	for npc_id: String in marked:
+		force_full_lod(npc_id, REASON_MARKED_TARGET)
+	for npc_id: Variant in _forced_lod.keys():
+		if not marked.has(str(npc_id)) \
+				and (_forced_lod[npc_id] as Array).has(REASON_MARKED_TARGET):
+			release_full_lod(str(npc_id), REASON_MARKED_TARGET)
+
+
 ## Extra: presupuesto de agentes (perfil "max_agents" o lod.max_agentes_total).
 func get_max_agents() -> int:
 	var setting: Variant = SaveSystem.get_setting(SETTING_MAX_AGENTS)
@@ -1114,6 +1143,7 @@ func get_npc_reputation(npc_id: String) -> float:
 			+ npc.tier * Database.get_balance_float(B_REP_PER_TIER) \
 			+ npc.merit * Database.get_balance_float(B_REP_PER_MERIT) \
 			- get_grievance_total(npc_id) * Database.get_balance_float(B_REP_PER_SEVERITY) \
+			- NewsFeed.get_suspicion_about(npc_id) * Database.get_balance_float(B_REP_PER_PRESS) \
 			+ float(_profiles.get(npc_id, {}).get(PROFILE_REPUTATION_DELTA, 0.0))
 	return clampf(value, 0.0, REPUTATION_MAX)
 
@@ -1387,6 +1417,8 @@ func _on_belief_created(belief_id: String, holder: String, subject: String,
 	var belief: Belief = BeliefNet.get_belief(belief_id)
 	if belief != null and not _should_react_to(belief.fact):
 		return
+	if certainty >= Database.get_balance_float(B_DIRECT_CERTAINTY):
+		_escalated[belief_id] = true
 	var location: String = belief.location if belief != null and not belief.location.is_empty() \
 			else npc.current_room
 	var extra: Dictionary = {"belief_id": belief_id, "certainty": certainty, "location": location,
@@ -1394,6 +1426,17 @@ func _on_belief_created(belief_id: String, holder: String, subject: String,
 	var decision: Dictionary = decide(holder, TRIGGER_BELIEF, extra)
 	_consume_debt_if_silenced(npc, extra)
 	_apply_decision(npc, decision, TRIGGER_BELIEF, extra)
+
+
+## Refuerzo que cruza la certeza completa (§7.2 acumulable): el portador reevalúa una vez.
+func _on_belief_decayed(belief_id: String, new_certainty: float) -> void:
+	if _emitting_report or _escalated.has(belief_id) \
+			or new_certainty < Database.get_balance_float(B_DIRECT_CERTAINTY):
+		return
+	var belief: Belief = BeliefNet.get_belief(belief_id)
+	if belief == null or belief.is_record or belief.subject != PLAYER_ID:
+		return
+	_on_belief_created(belief_id, belief.holder, belief.subject, new_certainty)
 
 
 ## Cualquier denuncia (CaughtHandler, Blackmail...) cuenta para el plazo entre denuncias; las
@@ -1661,6 +1704,14 @@ func _on_day_advanced(day_number: int) -> void:
 	_plans.clear()
 	_update_locations(_clock_minute(), NPCRuntime.LOD_FULL, NPCRuntime.LOD_STATISTICAL)
 	refresh_lod()
+	_prune_escalated()
+
+
+## Olvida las marcas de reacción de creencias que BeliefNet ya no conserva.
+func _prune_escalated() -> void:
+	for belief_id: Variant in _escalated.keys():
+		if BeliefNet.get_belief(str(belief_id)) == null:
+			_escalated.erase(belief_id)
 
 
 func _on_time_band_changed(_old_band: String, new_band: String) -> void:
@@ -1713,6 +1764,7 @@ func save_state() -> Dictionary:
 		"player_vacancies": _player_vacancies.duplicate(true),
 		"last_report": _last_report.duplicate(true), "player_room": _player_room,
 		"last_decision": _last_decision.duplicate(true), "lod_pins": _lod_pins.duplicate(),
+		"escalated_beliefs": _escalated.keys(),
 		"player_floor": _player_floor, "day": _day,
 		"rng_seed": str(_rng.seed), "rng_state": str(_rng.state),
 	}
@@ -1731,6 +1783,8 @@ func load_state(data: Dictionary) -> void:
 	_player_vacancies = (data.get("player_vacancies", {}) as Dictionary).duplicate(true)
 	_last_report = _int_map(data.get("last_report", {}))
 	_lod_pins = _int_map(data.get("lod_pins", {}))
+	for belief_id: Variant in data.get("escalated_beliefs", []):
+		_escalated[str(belief_id)] = true
 	var decisions: Variant = data.get("last_decision", {})
 	_last_decision = NPCPopulationGenerator.json_ints(decisions) if decisions is Dictionary else {}
 	_player_room = str(data.get("player_room", ""))

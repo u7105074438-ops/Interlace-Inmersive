@@ -104,7 +104,9 @@ func _listen() -> void:
 
 
 ## Red vacía y reputación del jugador fijada por señal (como la emitiría PlayerState).
+## La prensa (NewsFeed, capa compartida §7.11) también pesa en la sospecha: se vacía con la red.
 func _fresh(reputation: float = 0.0) -> void:
+	NewsFeed.reset_for_new_run()
 	BeliefNet.reset_for_new_run()
 	EventBus.reputation_changed.emit(reputation, reputation)
 	GameClock.set_time(DAY, WORK_HOUR, 0)
@@ -689,7 +691,12 @@ func _test_witness_removed_and_body() -> void:
 	EventBus.body_discovered.emit("body_1", ROOM)
 	var body: Belief = _only(BeliefNet.get_records_about("unknown"), "body found → record")
 	check_eq(body.record_type, "body_found", "body record type")
-	check_near(_suspicion(), before, EPS, "a body names nobody: no player suspicion")
+	var press: float = _bal("noticias.sospecha_escandalo_general") \
+			* _bal("creencias.factor_peso_social_noticias")
+	check_near(BeliefNet.get_news_contribution(), press, EPS,
+			"§7.11: the body is also a company scandal (general vigilance +%.1f)" % press)
+	check_near(_suspicion() - press, before, EPS,
+			"a body names nobody: the record adds no suspicion (only the press does)")
 
 
 ## Un tipo de hecho sin peso_tipo es neutro (revisión: "is_friendly" daba sospecha 4,5).

@@ -181,7 +181,9 @@
       "fired",
       "framed"
     ],
-    "_nota_registros": "Registros neutros (BeliefNet): una lectura de cámara o de lector de tarjeta del jugador es rutinaria (no pesa en la sospecha, sí en las investigaciones) salvo que sea incriminatoria: sala fuera de su acreditación (clearance_required y special_access), franja de franjas_registro_incriminatorio, o un delito (salvo delitos_sin_rastro_visual) en la misma sala a ±horas_ventana_delito_registro horas el mismo día. Cada sensor (cámara/lector) cuenta una vez por jornada en la sospecha. Denuncias: report_type de tipos_denuncia_con_peso_evidencia (NPCDirector: el weight es el peso de evidencia §12.4 × factor del superior) → puntos = weight × puntos_por_peso_evidencia_denuncia (4,0 → +20; ante el superior 2,0 → +10); resto → puntos_denuncia. denuncias_con_anotacion crean además una anotación en expediente (stamped_document neutro, peso peso_anotacion_expediente). registros_por_delito.*.sin_verificar: el documento no pesa en la sospecha hasta que una investigación lo usa como pieza (§5.3 «definitivo si se verifica»)."
+    "_nota_registros": "Registros neutros (BeliefNet): una lectura de cámara o de lector de tarjeta del jugador es rutinaria (no pesa en la sospecha, sí en las investigaciones) salvo que sea incriminatoria: sala fuera de su acreditación (clearance_required y special_access), franja de franjas_registro_incriminatorio, o un delito (salvo delitos_sin_rastro_visual) en la misma sala a ±horas_ventana_delito_registro horas el mismo día. Cada sensor (cámara/lector) cuenta una vez por jornada en la sospecha. Denuncias: report_type de tipos_denuncia_con_peso_evidencia (NPCDirector: el weight es el peso de evidencia §12.4 × factor del superior) → puntos = weight × puntos_por_peso_evidencia_denuncia (4,0 → +20; ante el superior 2,0 → +10); resto → puntos_denuncia. denuncias_con_anotacion crean además una anotación en expediente (stamped_document neutro, peso peso_anotacion_expediente). registros_por_delito.*.sin_verificar: el documento no pesa en la sospecha hasta que una investigación lo usa como pieza (§5.3 «definitivo si se verifica»).",
+    "factor_peso_social_noticias": 1.0,
+    "_nota_noticias": "§7.11 capa compartida: la sospecha del jugador suma NewsFeed.get_suspicion_contribution() (peso social vivo de la prensa sobre el jugador y la compañía, 0-100) × factor_peso_social_noticias puntos. Enterrar la noticia la retira."
   },
   "sobornos": {
     "base": 0.1,
@@ -640,7 +642,8 @@
       "gravedad": 260.0
     },
     "cara_muro": 0.4,
-    "grosor_muro_dibujo": 0.42
+    "grosor_muro_dibujo": 0.42,
+    "alto_minimo_fila_muro": 3
   },
   "objetos": {
     "_nota": "Catálogo de objetos (§11.3), clave = id. category: ordinary | compromising (un objeto comprometedor hallado en un registro corporal es evidencia de peso definitivo, §12.4). value = valor nominal/reventa en €; stackable = varias unidades comparten posición del inventario (8 posiciones). kind: key, tool, card, food, supplies, clothing, uniform, cash, product, material, valuable, document, personal, post_tool. post_tool = herramienta de puesto (occupations.tools): la concede la silla, no ocupa inventario. El contenido de ordenadores y expedientes (npc_computer, computer, personnel_files) es información, no objeto. Los precios de tienda de balaclava/executive_suit mandan en economia.* (price_keys de clothes_shop).",
@@ -2070,7 +2073,10 @@
     "radio_interaccion": 1.5,
     "radio_colision": 0.3,
     "duracion_congelacion": 1.2,
-    "semilla_apariencia": 2719
+    "semilla_apariencia": 2719,
+    "notas_max": 200,
+    "cuaderno_entradas_guardadas": 500,
+    "_nota_memoria": "§13.3-§13.5 memoria externa (PlayerState): notas_max = notas guardadas como mucho (se descarta la más antigua); cuaderno_entradas_guardadas = entradas del registro automático del cuaderno que se conservan. movil.horas_proximidad_contacto: horas laborales en la misma sala que dan el número de un compañero."
   },
   "inventario": {
     "_nota": "Inventario y contrabando (§11.3, PASO 37). capacidad = posiciones; los objetos apilables (objetos.*.stackable) comparten posición; los post_tool no ocupan posición; el efectivo ordinario (kind cash) pasa al capital al recogerse. categoria_por_defecto/prefijos_ordinarios = reglas de respaldo para ids ausentes del catálogo objetos. objetos_voluminosos = ids que no caben en escondites con admite_voluminosos=false. ubicacion_por_* = de qué ubicación es cada escondite. escondites: seguridad 0-1 y nivel (§11.3); registrable/gravedad_minima_registro/solo_si_registra_sotanos = cuándo lo encuentra el registro físico de la fase 2 (§12.3; gravedad 1-5 de investigations.json); orden_registro = orden de visita; minutos_recuperacion = minutos de juego que cuesta recuperar (InventoryRules.retrieve_from_stash los avanza); prob_hallazgo_diaria = hallazgo casual tirado por PlayerState al cambiar de jornada, solo si descubridor (npc) sigue activo (Connie Marks en cuartos de limpieza); irreversible = el objeto sale del juego.",
@@ -2869,7 +2875,8 @@
       "security_guard",
       "guard_chief"
     ],
-    "_nota_vigilancia": "Ocupaciones de vigilancia: get_effective_perception les suma Security.get_guard_perception_bonus() (nivel de alerta, §7.10)."
+    "_nota_vigilancia": "Ocupaciones de vigilancia: get_effective_perception les suma Security.get_guard_perception_bonus() (nivel de alerta, §7.10).",
+    "reputacion_por_peso_prensa": 1.0
   },
   "rutinas": {
     "_nota": "Posición estadística (§24.5, §20.1). hora_representativa_franja: momento del día que get_scheduled_location(npc, franja) consulta. minutos_paso: estancia en la sala de paso (via) al llegar/salir. minutos_por_sala_zona: la limpieza y las rondas cambian de sala cada N minutos. patrones_sala: ficha de rutina (floor_*) → fragmento del id de sala que la resuelve en la planta del personaje; sala_fotocopias_por_defecto: si la planta no tiene fotocopiadora. corrillo_fumadores: corrillo cuyas salidas cada 2 h añade la rutina. escaqueo_escalon_max: escalón máximo de los slackers (§24.3 paso 6).",
@@ -3065,7 +3072,14 @@
     "cuaderno_max_caracteres": 6000,
     "cuaderno_max_entradas": 40,
     "intrusion_inicio_sesion_segundos": 1.2,
-    "objeto_copia_documento": "foreign_document"
+    "objeto_copia_documento": "foreign_document",
+    "factor_espera_por_accion": {
+      "_nota": "Multiplicador de ordenador.retardo_ventana_segundos_por_nivel para cada acción lenta del equipo (reloj de arena).",
+      "abrir": 1.0,
+      "enviar": 0.5,
+      "generar": 1.5,
+      "copiar": 1.0
+    }
   },
   "expedientes": {
     "_nota": "PERSONNEL (§13.4, PASO 20): nivel mínimo de expediente (N1–N7) de cada sección de la ficha — tabla exacta del manual; el acceso completo anticipado equivale a nivel_maximo. Estudio: minutos de juego consumidos (15–30) y conversión de probabilidad a palabra difusa (umbrales ascendentes: muy improbable, improbable, incierto, probable, muy probable). temperatura_estudio = softmax sobre las utilidades de UtilityAI para confrontar/denunciar ante una flagrancia hipotética de certeza certeza_estudio. Categorías: sobornable = no insobornable y codicia ≥ sobornable_codicia_min; peligroso = perspicacia ≥ peligro_perspicacia_min o denunciaría un soborno (umbrales de sobornos).",
@@ -3110,7 +3124,8 @@
     "afecto_umbral": 25,
     "temor_umbral": 40,
     "max_comunicaciones": 8,
-    "max_disciplinario": 6
+    "max_disciplinario": 6,
+    "tramos_valor_aproximado": 5
   },
   "portal": {
     "_nota": "PORTAL (§13.3, PASO 25): agendas visibles en el organigrama para titulares de escalón ≥ escalon_agenda_min (la de Voss, §11.8).",
@@ -3144,7 +3159,8 @@
     "metodos_informe_robado": [
       "stolen_material"
     ],
-    "escalon_inversor": 7
+    "escalon_inversor": 7,
+    "segundos_por_pregunta": 2.0
   },
   "escenas": {
     "_nota": "Escenas guionizadas de la sala Aurora (P12, §11.2) y del interrogatorio (P15, §12.5): src/ui/aurora_scene.gd, interrogation_scene.gd y scene_stage.gd. Tiempos en segundos reales; escalas de personaje sobre el lienzo de diseño 1920×1080.",
@@ -3182,7 +3198,8 @@
     "vibracion_segundos": 0.7,
     "vibracion_amplitud": 5.0,
     "vibracion_hz": 26.0,
-    "animacion_apertura_segundos": 0.18
+    "animacion_apertura_segundos": 0.18,
+    "horas_proximidad_contacto": 4
   },
   "mapa": {
     "_nota": "Mapa de evacuación (Tab, §13.6, PASO 36). Acceso por sala: verde = la tarjeta/ocupación la abre (regla de puertas de FloorStreamer: nivel y special_access según special_access_mode, más despacho propio y acceso_por_etiqueta); ámbar = método alternativo disponible ahora (uniformes: etiquetas de rol que imita el disfraz puesto o llevado; llaves_maestras hasta llaves_maestras_nivel_max; tarjetas ajenas con su nivel; llaves_antiguas para entradas old_keys; herramientas_forzar para forced_lock; conductos: trampilla hacia una sala autorizada o red de conductos utilizable; cornisas desde una sala autorizada); rojo = nada. Puntos de personajes conocidos si el nivel de expediente alcanza nivel_expediente_rutina (rutina N2).",

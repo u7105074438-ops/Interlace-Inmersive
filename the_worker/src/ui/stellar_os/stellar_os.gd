@@ -61,6 +61,11 @@ const B_AD_INTERVAL := "ordenador.anuncio_emergente_segundos_por_nivel"
 const B_AD_MAX := "ordenador.anuncio_emergente_max_simultaneos"
 const B_GUEST_LOGIN := "ordenador.intrusion_inicio_sesion_segundos"
 const B_CLOCK_SPEED := "tiempo.velocidad_en_ordenador"
+const B_ACTION_FACTORS := "ordenador.factor_espera_por_accion"
+const ACTION_OPEN := "abrir"
+const ACTION_SEND := "enviar"
+const ACTION_GENERATE := "generar"
+const ACTION_COPY := "copiar"
 const B_BALLOON := "interfaz.toast_segundos"
 ## Contenido (no ajustes): anuncios OS_AD_<n>_* y consejos de arranque OS_BOOT_TIP_<n>.
 const AD_ICONS: Array[String] = ["drop", "star", "user", "shoe", "portal", "idea", "warning", "hourglass"]
@@ -487,10 +492,14 @@ class OSBusyOverlay extends Control:
 				var r: Rect2 = Rect2(_from.position.lerp(_to.position, k), _from.size.lerp(_to.size, k))
 				draw_rect(r, Color(OSTheme.col(pal, "dark"), 0.8 - i * 0.15), false, 2.0)
 		var target: Rect2 = _to if _to.has_area() else Rect2(Vector2.ZERO, size)
-		var side: float = base * 3.2
-		var hg: Rect2 = Rect2(target.get_center() - Vector2(side, side) * 0.5, Vector2(side, side))
-		OSTheme.draw_panel(self, hg.grow(base * 0.6), pal, Color(OSTheme.col(pal, "face"), 0.92))
+		var box: Rect2 = Rect2(target.get_center() - Vector2(base * 8.0, base * 2.2), Vector2(base * 16.0, base * 4.4))
+		draw_rect(Rect2(box.position + Vector2(6, 6), box.size), Color(0, 0, 0, 0.25))
+		OSTheme.draw_bevel(self, box, pal, false, base)
+		var hg: Rect2 = Rect2(box.position + Vector2(base * 0.6, base * 0.5), Vector2(base * 3.4, base * 3.4))
 		OSTheme.draw_hourglass(self, hg, OSTheme.col(pal, "dark"), fmod(_elapsed * 0.9, 1.0))
+		var f: Font = UITheme.font(UITheme.FONT_SEMIBOLD)
+		draw_multiline_string(f, Vector2(hg.end.x + base * 0.6, box.position.y + base * 1.6), OSApp.t("OS_PLEASE_WAIT"),
+				HORIZONTAL_ALIGNMENT_LEFT, box.end.x - hg.end.x - base * 1.2, roundi(base * 0.85), 3, OSTheme.col(pal, "text"))
 
 
 ## Pantalla de arranque: BIOS (aspectos biselados), presentación con anuncios internos, o inicio de
@@ -818,6 +827,14 @@ static func window_lag_for_tier(tier: int) -> float:
 	return maxf(OSTheme.per_tier(B_LAG, tier), 0.0)
 
 
+## Factor de espera de una acción (ordenador.factor_espera_por_accion; 1 si falta).
+static func action_factor(action: String) -> float:
+	var factors: Variant = UITheme.tune_value(B_ACTION_FACTORS)
+	if factors is Dictionary and ((factors as Dictionary).get(action) is float or (factors as Dictionary).get(action) is int):
+		return float(factors[action])
+	return 1.0
+
+
 func get_tier() -> int:
 	return _tier
 
@@ -954,7 +971,7 @@ func open_app(app_id: String) -> Control:
 	close_app()
 	_opening = true
 	_busy.set_zoom(_icon_rect(app_id), _window_rect())
-	await wait_lag(1.0)
+	await wait_lag(action_factor(ACTION_OPEN))
 	_opening = false
 	return _mount_app(app_id)
 

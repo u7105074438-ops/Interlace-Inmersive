@@ -23,10 +23,14 @@ const PROMOTION_TARGET := "copy_operator"
 const SAMPLE_REPUTATION := 58.0
 const SAMPLE_MERIT := 12
 const SAMPLE_MONEY := 60000
+const APP_WAIT_FRAMES := 120
 const SYSTEMS: Array[String] = [
 	"GameClock", "PlayerState", "NPCDirector", "SocialGraph", "BeliefNet", "Security",
 	"Company", "Market", "NewsFeed", "IdeaPool", "Tracking", "SaveSystem",
 ]
+
+
+var _os: StellarOS
 
 
 func run(pilot: Autopilot) -> void:
@@ -36,6 +40,8 @@ func run(pilot: Autopilot) -> void:
 	await _shot_portal(pilot)
 	await _shot_market(pilot)
 	await _shot_results(pilot)
+	await _shot_contrast(pilot)
+	await _shot_spanish(pilot)
 	await _shot_phone(pilot)
 
 
@@ -62,12 +68,26 @@ func _close(node: Node, pilot: Autopilot) -> void:
 	await pilot.frames(2)
 
 
+## Abre el ordenador (StellarOS, modo QA instantáneo) con una aplicación y la devuelve cuando está montada.
+func _open_os(pilot: Autopilot, app_id: String, extra: Dictionary = {}) -> Control:
+	_os = StellarOS.new()
+	var ctx: Dictionary = {"app": app_id, "instant": true}
+	ctx.merge(extra, true)
+	_os.setup(ctx)
+	add_child(_os)
+	for i: int in APP_WAIT_FRAMES:
+		await pilot.frames(1)
+		if _os.get_open_app_id() == app_id and _os.get_open_app() != null:
+			break
+	await pilot.frames(6)
+	return _os.get_open_app()
+
+
 func _shot_personnel(pilot: Autopilot) -> void:
 	PlayerState.set_occupation(N1_POST, "qa")
-	var app: PersonnelApp = PersonnelApp.open(self, {"npc_id": SUBJECT})
-	await pilot.frames(8)
+	await _open_os(pilot, PersonnelApp.APP_ID, {"file_npc_id": SUBJECT})
 	await pilot.shot("personnel_n1")
-	await _close(app, pilot)
+	await _close(_os, pilot)
 	PlayerState.set_occupation(N7_POST, "qa")
 	NPCDirector.add_favour(SUBJECT, "bribe_paid", 2)
 	NPCDirector.add_grievance(SUBJECT, "idea_stolen", 3)
@@ -75,17 +95,16 @@ func _shot_personnel(pilot: Autopilot) -> void:
 	PersonnelApp.set_marked(SUBJECT, true)
 	PersonnelApp.add_note(SUBJECT, "Writes the Pantry Post. Feed her the Vaile rumour on Thursday.")
 	PersonnelApp.study(SUBJECT, PersonnelApp.STUDY_BRIBE)
-	app = PersonnelApp.open(self, {"npc_id": SUBJECT})
-	await pilot.frames(8)
+	var app: PersonnelApp = await _open_os(pilot, PersonnelApp.APP_ID, {"file_npc_id": SUBJECT}) as PersonnelApp
 	await pilot.shot("personnel_n7")
 	app.compare(SUBJECT, OTHER)
 	await pilot.frames(6)
 	await pilot.shot("personnel_compare")
-	await _close(app, pilot)
+	await _close(_os, pilot)
 	PlayerState.set_occupation(N1_POST, "qa")
 	app = PersonnelApp.open(self, {"npc_id": SUBJECT, "compare_with": OTHER})
 	await pilot.frames(8)
-	await pilot.shot("personnel_compare_n1")
+	await pilot.shot("personnel_compare_n1_standalone")
 	await _close(app, pilot)
 
 
@@ -95,15 +114,14 @@ func _shot_portal(pilot: Autopilot) -> void:
 		var holder: NPCRuntime = NPCDirector.get_npc_by_occupation(occupation_id)
 		if holder != null:
 			NPCDirector.remove_npc(holder.id, "expelled")
-	var app: PortalApp = PortalApp.open(self, {"occupation_id": "wing_3b_chief"})
-	await pilot.frames(8)
+	var app: PortalApp = await _open_os(pilot, PortalApp.APP_ID, {"occupation_id": "wing_3b_chief"}) as PortalApp
 	await pilot.shot("portal_org_chart")
 	app.select_occupation("ceo")
 	await pilot.frames(4)
 	await pilot.shot("portal_ceo_agenda")
-	var holder: NPCRuntime = NPCDirector.get_npc_by_occupation(PROMOTION_TARGET)
-	if holder != null:
-		NPCDirector.remove_npc(holder.id, "expelled")
+	var target: NPCRuntime = NPCDirector.get_npc_by_occupation(PROMOTION_TARGET)
+	if target != null:
+		NPCDirector.remove_npc(target.id, "expelled")
 	PlayerState.modify_reputation(SAMPLE_REPUTATION, "qa")
 	Company.register_merit("qa", SAMPLE_MERIT)
 	app.refresh()
@@ -113,7 +131,7 @@ func _shot_portal(pilot: Autopilot) -> void:
 	app.request_promotion(PROMOTION_TARGET)
 	await pilot.frames(4)
 	await pilot.shot("portal_confirm")
-	await _close(app, pilot)
+	await _close(_os, pilot)
 
 
 func _shot_market(pilot: Autopilot) -> void:
@@ -126,11 +144,11 @@ func _shot_market(pilot: Autopilot) -> void:
 	MarketTrading.buy(120)
 	for i: int in NEWS_EVENTS.size():
 		NewsFeed.schedule_market_event(NEWS_EVENTS[i], GameClock.get_day() + i + 1)
-	var app: MarketApp = MarketApp.open(self)
+	var app: MarketApp = await _open_os(pilot, MarketApp.APP_ID) as MarketApp
 	app.set_quantity(250)
-	await pilot.frames(8)
+	await pilot.frames(4)
 	await pilot.shot("market_r28")
-	await _close(app, pilot)
+	await _close(_os, pilot)
 	GameClock.set_time(results_day, SAMPLE_HOUR, SAMPLE_MINUTE)
 	EventBus.day_advanced.emit(results_day)
 
@@ -153,16 +171,39 @@ func _shot_results(pilot: Autopilot) -> void:
 	await _close(screen, pilot)
 
 
+## Localización española (textos más largos).
+func _shot_spanish(pilot: Autopilot) -> void:
+	TranslationServer.set_locale("es")
+	PlayerState.set_occupation(N7_POST, "qa")
+	await _open_os(pilot, PersonnelApp.APP_ID, {"file_npc_id": SUBJECT})
+	await pilot.shot("personnel_es")
+	await _close(_os, pilot)
+	PlayerState.set_occupation(N1_POST, "qa")
+	await _open_os(pilot, PortalApp.APP_ID, {"occupation_id": PROMOTION_TARGET})
+	await pilot.shot("portal_es")
+	await _close(_os, pilot)
+	TranslationServer.set_locale("en")
+
+
+## Alto contraste (§13.10): el aspecto contrast se impone a cualquier nivel de equipo.
+func _shot_contrast(pilot: Autopilot) -> void:
+	UITheme.current_high_contrast = true
+	PlayerState.set_occupation(N7_POST, "qa")
+	await _open_os(pilot, PersonnelApp.APP_ID, {"file_npc_id": SUBJECT})
+	await pilot.shot("personnel_contrast")
+	await _close(_os, pilot)
+	UITheme.current_high_contrast = false
+
+
 func _shot_phone(pilot: Autopilot) -> void:
 	get_window().size = PHONE_WINDOW
 	UITheme.current_text_size = UITheme.TEXT_LARGE
 	UITheme.touch_scale_active = true
 	PlayerState.set_occupation(N7_POST, "qa")
-	var app: PersonnelApp = PersonnelApp.open(self, {"npc_id": SUBJECT})
-	await pilot.frames(10)
+	await _open_os(pilot, PersonnelApp.APP_ID, {"file_npc_id": SUBJECT})
 	await pilot.shot("personnel_phone")
-	await _close(app, pilot)
-	var portal: PortalApp = PortalApp.open(self)
-	await pilot.frames(8)
+	await _close(_os, pilot)
+	PlayerState.set_occupation(N1_POST, "qa")
+	await _open_os(pilot, PortalApp.APP_ID)
 	await pilot.shot("portal_phone")
-	await _close(portal, pilot)
+	await _close(_os, pilot)

@@ -1,6 +1,6 @@
 # belief_net.gd — Almacena y gestiona todas las creencias del mundo, los registros y la sospecha.
 # PROPIETARIO DE: creencias y registros (§7.2, §7.6), su decaimiento, registros diferidos, la clasificación de registros neutros/incriminatorios, las marcas de delito por sala y la sospecha.
-# ESCUCHA: player_seen_partially, player_caught_redhanded, camera_recorded_player, card_reader_logged, npc_reported_player, crime_committed, body_discovered, npc_removed, rumor_spread, evidence_added, reputation_changed, grievance_added, merit_gained, seat_filled, seat_vacated, occupation_changed, day_advanced, run_loaded.
+# ESCUCHA: player_seen_partially, player_caught_redhanded, camera_recorded_player, card_reader_logged, npc_reported_player, crime_committed, body_discovered, npc_removed, rumor_spread, evidence_added, reputation_changed, grievance_added, merit_gained, seat_filled, seat_vacated, occupation_changed, news_published, news_buried, day_advanced, run_loaded.
 class_name BeliefNetSystem
 extends Node
 
@@ -40,6 +40,13 @@ extends Node
 ##   ("decaimiento_sospecha"); las que pesan en la sospecha del jugador × (1 + mod × reputación).
 ## - Cuerpo hallado: registro con sujeto "unknown" (no nombra a nadie; la «sospecha máxima» de
 ##   §7.11/§12.3 es la alerta de Security y su marca del veredicto leve, no esta suma).
+## - CAPA COMPARTIDA DE NOTICIAS (§7.11, PASO 35): la sospecha suma además el peso social vivo de
+##   la prensa sobre el jugador y la compañía (NewsFeed.get_suspicion_contribution(), 0-100 ×
+##   creencias.factor_peso_social_noticias puntos). No es una creencia: en get_suspicion_breakdown()
+##   figura como una entrada sintética (belief_id NEWS_ENTRY_ID, holder NEWS_HOLDER). Así el mismo
+##   news_published sube la sospecha y hunde la cotización, y news_buried baja las dos. Se recalcula
+##   al oír news_published / news_buried y, por el decaimiento de NewsFeed (que escucha day_advanced
+##   después de BeliefNet), también en diferido tras day_advanced.
 ## - Sin aleatoriedad: el sistema es determinista y no necesita RandomNumberGenerator.
 
 const PLAYER_ID := "player"
@@ -62,6 +69,11 @@ const PATH_SEPARATOR := "."
 const NEUTRAL_MULTIPLIER := 1.0
 const DIFFICULTY_DECAY_KEY := "decaimiento_sospecha"
 const NO_HOUR := -1
+# Entrada sintética de la prensa en el desglose (capa compartida §7.11).
+const NEWS_ENTRY_ID := "news_coverage"
+const NEWS_HOLDER := "press"
+const NEWS_FACT := "news_coverage"
+const NEWS_SOURCE := "news"
 
 # Motivos de un registro neutro (get_neutral_reason).
 const NEUTRAL_ROUTINE := "routine"
@@ -95,7 +107,7 @@ const KNOWN_FACT_TYPES: Array[String] = [
 	FACT_SEEN_PARTIALLY, FACT_CAUGHT_REDHANDED, FACT_REPORTED, FACT_STEALS_IDEAS,
 	FACT_HARD_WORKER, FACT_COMPETENT, FACT_BRIBE_ATTEMPT, RECORD_BODY_FOUND,
 	RECORD_SIGNED_EXPULSION, RECORD_FOOTAGE, RECORD_BOARD_MINUTES, RECORD_ACCOUNTING_ENTRY,
-	RECORD_CARD_LOG, RECORD_STAMPED_DOCUMENT, RECORD_CHAT_LOG,
+	RECORD_CARD_LOG, RECORD_STAMPED_DOCUMENT, RECORD_CHAT_LOG, NEWS_FACT,
 ]
 # crime_committed que destruyen registros (sala de monitores; servidores: registros digitales).
 const CRIME_FOOTAGE_DELETED := "footage_deleted"
@@ -189,6 +201,7 @@ const B_PUNTOS_POR_PESO := "creencias.puntos_por_peso_evidencia_denuncia"
 const B_DENUNCIAS_ANOTACION := "creencias.denuncias_con_anotacion"
 const B_PESO_ANOTACION := "creencias.peso_anotacion_expediente"
 const B_CAUSAS_EXPULSION := "creencias.causas_expulsion_firmada"
+const B_FACTOR_NOTICIAS := "creencias.factor_peso_social_noticias"
 const B_PESOS_EVIDENCIA := "investigaciones.pesos_evidencia"
 const W_GRABACION := "grabacion_camara"
 const W_TARJETA := "registro_tarjeta"
@@ -236,6 +249,9 @@ func _ready() -> void:
 	EventBus.rumor_spread.connect(_on_rumor_spread)
 	EventBus.evidence_added.connect(_on_evidence_added)
 	EventBus.reputation_changed.connect(_on_reputation_changed)
+	EventBus.news_published.connect(func(_id: String, _s: float, _sc: bool) -> void:
+		_refresh_suspicion())
+	EventBus.news_buried.connect(func(_id: String, _by: String) -> void: _refresh_suspicion())
 	EventBus.day_advanced.connect(_on_day_advanced)
 	EventBus.run_loaded.connect(_on_run_loaded)
 	_connect_credibility_signals()
@@ -419,8 +435,14 @@ func calculate_player_suspicion() -> float:
 	return clampf(total, 0.0, SUSPICION_MAX)
 
 
+## EXTRA (§7.11): puntos de sospecha que aporta la prensa viva sobre el jugador y la compañía.
+func get_news_contribution() -> float:
+	return maxf(NewsFeed.get_suspicion_contribution(), 0.0) * _bal_f(B_FACTOR_NOTICIAS)
+
+
 ## Para el panel de depuración: [{belief_id, holder, fact, certainty, credibility, weight,
 ## contribution, source, is_record}] ordenado por contribución (en puntos de sospecha) descendente.
+## La prensa (si pesa) es la entrada sintética NEWS_ENTRY_ID.
 func get_suspicion_breakdown() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = _contribution_entries()
 	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -565,7 +587,7 @@ static func fact_label_key(fact: String) -> String:
 	return LABEL_KEY_PREFIX + fact_type.to_upper()
 
 
-## Clave de texto del origen para la interfaz (BELIEF_SOURCE_DIRECT | _RUMOR | _RECORD).
+## Clave de texto del origen para la interfaz (BELIEF_SOURCE_DIRECT | _RUMOR | _RECORD | _NEWS).
 static func source_label_key(source: String) -> String:
 	return SOURCE_LABEL_KEY_PREFIX + source.to_upper()
 
@@ -715,10 +737,12 @@ func _on_reputation_changed(_old_value: float, new_value: float) -> void:
 	_player_reputation = new_value
 
 
+## El decaimiento de la prensa (NewsFeed oye day_advanced después) entra con el recálculo diferido.
 func _on_day_advanced(day_number: int) -> void:
 	_release_pending_records(day_number)
 	_prune_crime_marks(day_number)
 	apply_daily_decay()
+	_queue_refresh()
 
 
 func _on_run_loaded(_day_number: int) -> void:
@@ -1095,7 +1119,20 @@ func _contribution_entries() -> Array[Dictionary]:
 			credibility[b.holder] = get_credibility(b.holder)
 		var entry: Dictionary = _make_entry(b, weight, credibility[b.holder], divisor)
 		_append_entry(out, entry, _sensor_key(b), by_sensor)
+	_append_news_entry(out)
 	return out
+
+
+## Capa compartida (§7.11): la prensa viva como una entrada más (certeza y credibilidad neutras).
+func _append_news_entry(out: Array[Dictionary]) -> void:
+	var points: float = get_news_contribution()
+	if points <= 0.0:
+		return
+	out.append({
+		BK_ID: NEWS_ENTRY_ID, BK_HOLDER: NEWS_HOLDER, BK_FACT: NEWS_FACT,
+		BK_CERTAINTY: Belief.MAX_CERTAINTY, BK_CREDIBILITY: NEUTRAL_MULTIPLIER, BK_WEIGHT: points,
+		BK_SOURCE: NEWS_SOURCE, BK_IS_RECORD: false, BK_CONTRIBUTION: points,
+	})
 
 
 ## Registros neutros primero (miles de lecturas rutinarias en una partida larga: salida rápida).

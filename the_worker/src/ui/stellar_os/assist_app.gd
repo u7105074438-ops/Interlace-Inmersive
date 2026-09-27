@@ -302,7 +302,7 @@ func generate(forced_outcome: String = "") -> Dictionary:
 	_summary.text = t("ASSIST_THINKING")
 	_output.text = t("ASSIST_THINKING_BODY")
 	_mascot.say(t("ASSIST_QUIP_THINKING"))
-	await wait_lag(1.5)
+	await wait_action(StellarOS.ACTION_GENERATE)
 	var ds: DutySystem = duty_system()
 	var result: Dictionary = ds.use_assist(_selected_duty) if forced_outcome.is_empty() \
 			else ds.apply_assist_outcome(_selected_duty, forced_outcome)

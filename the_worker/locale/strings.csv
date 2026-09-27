@@ -2157,9 +2157,9 @@ MAP_FLOOR_FACTORY,Factory annex,Nave anexa
 MAP_ACCESS_ALLOWED,Authorised,Autorizado
 MAP_ACCESS_ALTERNATIVE,Alternative method,Método alternativo
 MAP_ACCESS_FORBIDDEN,Forbidden,Vetado
-MAP_ACCESS_ALLOWED_DESC,Your card or post opens it,Tu tarjeta o tu puesto lo abren
-MAP_ACCESS_ALTERNATIVE_DESC,"Uniform, keys, ducts, someone else's card…","Uniforme, llaves, conductos, tarjeta ajena…"
-MAP_ACCESS_FORBIDDEN_DESC,No way in with what you have,Sin forma de entrar con lo que tienes
+MAP_ACCESS_ALLOWED_DESC,your card or post opens it,tu tarjeta o tu puesto lo abren
+MAP_ACCESS_ALTERNATIVE_DESC,"uniform, keys, ducts, borrowed card…","uniforme, llaves, conductos, tarjeta ajena…"
+MAP_ACCESS_FORBIDDEN_DESC,no way in with what you have,sin forma de entrar con lo que tienes
 MAP_METHOD_UNIFORM,Uniform,Uniforme
 MAP_METHOD_MASTER_KEYS,Master keys,Llaves maestras
 MAP_METHOD_CARD,Someone else's card,Tarjeta ajena
@@ -2185,7 +2185,7 @@ MAP_CLEARANCE_FMT,N%d,N%d
 MAP_DISGUISE_FMT,Disguised as: %s,Disfrazado de: %s
 MAP_NO_DISGUISE,No disguise,Sin disfraz
 MAP_FILE_LEVEL_FMT,Personnel files: level %d,Expedientes: nivel %d
-MAP_ROUTINES_LOCKED_FMT,Colleagues' routines need file level %d,Las rutinas de los compañeros requieren expediente de nivel %d
+MAP_ROUTINES_LOCKED_FMT,Colleagues' routines need personnel file level %d,Las rutinas de los compañeros requieren expediente de nivel %d
 MAP_FLOOR_PROMPT,Point at a floor to inspect it,Señala una planta para inspeccionarla
 MAP_FLOOR_ZOOM_HINT,Click to open the floor plan,Clic para abrir el plano de planta
 MAP_BACK,Back to section,Volver al corte
@@ -2199,8 +2199,8 @@ MAP_SCALE_FMT,%d m,%d m
 MAP_NORTH,N,N
 MAP_TARGET_APPROX_FMT,%s · usual post,%s · puesto habitual
 MAP_ROOMS_TITLE,Rooms,Salas
-MAP_DOTS_COUNT_FMT,%d known colleagues on the plan,%d conocidos en el plano
-MAP_TARGETS_COUNT_FMT,%d marked targets,%d objetivos marcados
+MAP_DOTS_COUNT_FMT,Known colleagues on the plan: %d,Conocidos en el plano: %d
+MAP_TARGETS_COUNT_FMT,marked targets: %d,objetivos marcados: %d
 AURORA_HEADER,Aurora Room · Floor 12,Sala Aurora · Planta 12
 AURORA_HEADER_SUB,Weekly ideas meeting · %s,Reunión semanal de ideas · %s
 AURORA_NO_MEETING,No meeting right now. The room smells of whiteboard marker.,Ahora no hay reunión. La sala huele a rotulador de pizarra.
@@ -2296,7 +2296,7 @@ AURORA_WRAP_YOURS,You: %s,Tú: %s
 AURORA_WRAP_OTHERS,Colleagues presented %d ideas,Tus colegas presentaron %d ideas
 AURORA_WRAP_SILENT,You said nothing. Nobody noticed.,No dijiste nada. Nadie se dio cuenta.
 INTERROGATION_HEADER,Interrogation Room · Floor 15,Sala de interrogatorios · Planta 15
-INTERROGATION_HEADER_CASE,Case %s · %s,Caso %s · %s
+INTERROGATION_HEADER_CASE,Case no. %s · %s,Caso n.º %s · %s
 INTERROGATION_EXHIBIT,EXHIBIT %d OF %d,PRUEBA %d DE %d
 INTERROGATION_CARD_WEIGHT,Weight,Peso
 INTERROGATION_CARD_CERTAINTY,Certainty,Certeza
@@ -2553,7 +2553,7 @@ PHONE_BACK,Back,Volver
 PHONE_CHAT_TITLE,Chats,Conversaciones
 PHONE_CHAT_EMPTY,No messages. Enjoy it while it lasts.,Sin mensajes. Disfrútalo mientras dure.
 PHONE_CHAT_RECORD_WARNING,Stored on the company server. IT reads it.,Queda en el servidor de la empresa. IT lo lee.
-PHONE_CHAT_RECORD_COUNT,On file: %d messages,En el archivo: %d mensajes
+PHONE_CHAT_RECORD_COUNT,Messages on file: %d,Mensajes archivados: %d
 PHONE_CHAT_IGNORED,Seen. No reply.,Visto. Sin respuesta.
 PHONE_CHAT_ANSWER_DEMAND,Answer their demand,Responder a su exigencia
 PHONE_CHAT_OFFER_DEAL,Propose a deal,Proponer un trato
@@ -3128,3 +3128,19 @@ RPRES_COST_LEGAL,Legal,Legales
 RPRES_COST_THEFT_LOSSES,Theft losses,Pérdidas por robo
 RPRES_COST_SCANDAL_COSTS,Scandals,Escándalos
 RPRES_PAPER,THE FINANCIAL COURIER · TOMORROW,EL CORREO FINANCIERO · MAÑANA
+OS_PLEASE_WAIT,Please wait… StellarOS is thinking about it.,"Espera, por favor… StellarOS se lo está pensando."
+PERS_RANK_CHIP,R%d,R%d
+PERS_LEVEL_CHIP,N%d,N%d
+PERS_BADGE_FMT,ID %s,Nº %s
+PERS_CMP_VS,VS,VS
+MARKET_BROKER_CASH,Broker account,Cuenta de valores
+MARKET_WITHDRAW,Withdraw,Retirar
+PORTAL_IDEAS_FMT,You hold %d idea(s),Tienes %d idea(s)
+BELIEF_FACT_NEWS_COVERAGE,Press coverage,Cobertura de prensa
+BELIEF_SOURCE_NEWS,In the papers,Salió en la prensa
+NOTE_CONTACT_ADDED,New contact: %s (%s).,Nuevo contacto: %s (%s).
+CONTACT_SOURCE_PROXIMITY,Worked together,Trabajamos juntos
+CONTACT_SOURCE_FAVOUR,Owes a favour,Me debe un favor
+CONTACT_SOURCE_HR,HR file,Ficha de RR. HH.
+CONTACT_SOURCE_PURCHASE,Bought the number,Número comprado
+CONTACT_SOURCE_MESSAGED,Wrote to you first,Te escribió primero

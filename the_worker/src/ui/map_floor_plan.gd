@@ -34,6 +34,7 @@ const SHAFT_KINDS: Array[String] = ["elevator", "freight"]
 const STEP_KINDS: Array[String] = ["stairs", "service_stairs"]
 const ENTRY_ROOF_LEDGE := "roof_ledge"
 const LEDGE_TYPE := "roof_ledge"
+const FINISH_KEYS: Array[String] = ["floor", "carpet", "wall", "accent", "furniture"]
 const KEY_FULL_WIDTH := "full_floor_width"
 const NO_CELL := Vector2i(-1, -1)
 ## Maquetación del dibujo (proporciones en celdas o fracciones; diseño, no balance).
@@ -52,6 +53,10 @@ const SCALE_BAR_CELLS := 10
 const HATCH_PLAN_CELLS := 0.9
 const DASH_CELLS := 0.6
 const ARC_SEGMENTS := 10
+const FIT_MARGIN_CELLS := 1.5
+const INK_MAX_LUMINANCE := 0.42
+const FURNITURE_MIN_CELLS := 2
+const LABEL_HIGH_RATIO := 0.36
 
 const PAL_NORMAL: Dictionary = {
 	"paper": Color("#f8f5ed"), "paper_shade": Color("#ece6d8"), "white": Color("#ffffff"),
@@ -194,8 +199,8 @@ static func draw_status_block(ci: CanvasItem, rect: Rect2, status: int, pal: Dic
 	if status == ACCESS_ALTERNATIVE:
 		draw_hatch(ci, rect, Color(ink, 0.55), spacing, line_w, HATCH_SLASH)
 	elif status == ACCESS_FORBIDDEN:
-		draw_hatch(ci, rect, Color(ink, 0.34), spacing, line_w, HATCH_SLASH)
-		draw_hatch(ci, rect, Color(ink, 0.34), spacing, line_w, HATCH_BACKSLASH)
+		draw_hatch(ci, rect, Color(ink, 0.3), spacing * 1.2, line_w, HATCH_SLASH)
+		draw_hatch(ci, rect, Color(ink, 0.3), spacing * 1.2, line_w, HATCH_BACKSLASH)
 
 
 ## Trama de líneas a 45° recortadas al rectángulo (una sola llamada de dibujo).
@@ -393,11 +398,22 @@ static func _u(r: Rect2, x: float, y: float) -> Vector2:
 
 # ─── Geometría ─────────────────────────────────────────────────────
 
+## Encaja el contorno de las salas (más un margen) en el área útil, dejando sitio a norte y escala.
 func _fit() -> void:
-	var plan_size: Vector2 = Vector2(_plan.get("size", Vector2i.ONE))
-	var avail: Rect2 = Rect2(Vector2.ZERO, size).grow(-PAD)
-	_scale = maxf(0.01, minf(avail.size.x / maxf(plan_size.x, 1.0), avail.size.y / maxf(plan_size.y, 1.0)))
-	_origin = avail.position + (avail.size - plan_size * _scale) * 0.5
+	var bounds: Rect2 = _room_bounds().grow(FIT_MARGIN_CELLS)
+	var reserve: float = float(_base_size()) * 1.6
+	var avail: Rect2 = Rect2(Vector2(PAD, PAD), size - Vector2(PAD * 2.0, PAD * 2.0 + reserve))
+	_scale = maxf(0.01, minf(avail.size.x / maxf(bounds.size.x, 1.0), avail.size.y / maxf(bounds.size.y, 1.0)))
+	_origin = avail.position + (avail.size - bounds.size * _scale) * 0.5 - bounds.position * _scale
+
+
+func _room_bounds() -> Rect2:
+	var out: Rect2 = Rect2()
+	var first: bool = true
+	for r: Variant in (_plan.get("rooms", {}) as Dictionary).values():
+		out = Rect2(r as Rect2i) if first else out.merge(Rect2(r as Rect2i))
+		first = false
+	return out if not first else Rect2(Vector2.ZERO, Vector2(_plan.get("size", Vector2i.ONE)))
 
 
 func _cell_rect(r: Rect2i) -> Rect2:
@@ -442,6 +458,7 @@ func _draw() -> void:
 	_fit()
 	var pal: Dictionary = palette()
 	_draw_rooms(pal)
+	_draw_furniture(pal)
 	_draw_walls(pal)
 	_draw_doors(pal)
 	_draw_transit(pal)
@@ -471,6 +488,27 @@ func _draw_rooms(pal: Dictionary) -> void:
 			draw_rect(r, pal["white"])
 		else:
 			draw_status_block(self, r, _status(id), pal, _scale * HATCH_PLAN_CELLS, line_w)
+
+
+## Mobiliario en planta, en trazo fino (los planos de evacuación muestran puestos y mesas; los
+## objetos de una celda —papeleras, plantas, carteles— se omiten).
+func _draw_furniture(pal: Dictionary) -> void:
+	var rooms: Dictionary = _plan["rooms"]
+	var fill: Color = Color(pal["white"], 0.55)
+	var line: Color = Color(pal["ink_soft"], 0.55)
+	var w: float = maxf(1.0, _scale * 0.06)
+	for id: String in get_room_ids():
+		var room: RoomData = Database.get_room(id)
+		if room == null or is_circulation(room):
+			continue
+		var origin: Vector2i = (rooms[id] as Rect2i).position
+		for entry: Dictionary in FloorLayout.furniture_of(_plan, room):
+			var fp: Rect2i = FurniturePainter.footprint(entry)
+			if fp.get_area() < FURNITURE_MIN_CELLS:
+				continue
+			var r: Rect2 = _cell_rect(Rect2i(origin + fp.position, fp.size)).grow(-_scale * 0.08)
+			draw_rect(r, fill)
+			draw_rect(r, line, false, w)
 
 
 func _draw_walls(pal: Dictionary) -> void:
@@ -732,11 +770,9 @@ func _draw_names(pal: Dictionary) -> void:
 	var fs: int = clampi(roundi(_scale * NAME_CELL_RATIO), roundi(base * NAME_MIN_RATIO), roundi(base * NAME_MAX_RATIO))
 	for id: String in get_room_ids():
 		var room: RoomData = Database.get_room(id)
-		if room == null or (is_circulation(room) and id != str(_plan.get("corridor_id", ""))):
+		if room == null or is_circulation(room):
 			continue
 		var r: Rect2 = _cell_rect(rooms[id]).grow(-_wall_w() * 2.0)
-		if id == str(_plan.get("corridor_id", "")) and is_circulation(room):
-			continue
 		_draw_room_label(r, tr(room.name_key).to_upper(), room.clearance_required, _status(id), font, fs, pal)
 
 
@@ -745,7 +781,9 @@ func _draw_room_label(r: Rect2, text: String, clearance: int, status: int, font:
 	var line_h: float = font.get_height(fs)
 	if lines.is_empty() or line_h * float(lines.size()) > r.size.y * 0.8:
 		return
-	var y0: float = r.get_center().y - line_h * float(lines.size()) * 0.5
+	var block_h: float = line_h * float(lines.size())
+	var center_y: float = r.position.y + r.size.y * LABEL_HIGH_RATIO if r.size.y > block_h * 4.0 else r.get_center().y
+	var y0: float = center_y - block_h * 0.5
 	for i: int in lines.size():
 		var ts: float = font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var pos: Vector2 = Vector2(r.get_center().x - ts * 0.5, y0 + line_h * float(i) + font.get_ascent(fs))
@@ -826,27 +864,57 @@ func _draw_player(pal: Dictionary) -> void:
 	var fs: int = roundi(_base_size() * 0.78)
 	var font: Font = UITheme.font(UITheme.FONT_BOLD)
 	var text: String = tr("MAP_YOU_ARE_HERE")
-	var box_w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 1.1
-	var box_x: float = at.x + radius * 2.0 if at.x + radius * 2.0 + box_w < size.x - PAD else at.x - radius * 2.0 - box_w
-	draw_callout(self, at, Vector2(box_x, at.y - radius * 3.2), text, font, fs, pal)
+	var box: Vector2 = Vector2(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 1.1, fs * 1.6)
+	var pos: Vector2 = at + Vector2(radius * 1.6, radius * 1.4)
+	if pos.x + box.x > size.x - PAD:
+		pos.x = at.x - radius * 1.6 - box.x
+	if pos.y + box.y > size.y - PAD:
+		pos.y = at.y - radius * 1.4 - box.y
+	draw_callout(self, at, pos, text, font, fs, pal)
 	draw_pin(self, at, radius, pal)
 
 
-## Norte y escala gráfica (1 celda = 1 m) en la esquina inferior derecha.
+## Norte y escala gráfica (1 celda = 1 m) abajo a la derecha; cartela de banda abajo a la izquierda.
 func _draw_compass(pal: Dictionary) -> void:
 	var font: Font = UITheme.font(UITheme.FONT_BOLD)
 	var fs: int = roundi(_base_size() * 0.7)
 	var bar: float = float(SCALE_BAR_CELLS) * _scale
-	var base: Vector2 = Vector2(size.x - PAD - bar, size.y - PAD * 0.6)
-	var tick: float = fs * 0.4
-	draw_rect(Rect2(base - Vector2(0.0, tick * 0.5), Vector2(bar * 0.5, tick * 0.5)), pal["ink"])
-	draw_rect(Rect2(base - Vector2(0.0, tick * 0.5), Vector2(bar, tick * 0.5)), pal["ink"], false, 1.5)
-	var label: String = tr("MAP_SCALE_FMT") % SCALE_BAR_CELLS
-	draw_string(font, base + Vector2(bar + fs * 0.3 - bar, -tick), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, pal["ink"])
-	var n_at: Vector2 = Vector2(size.x - PAD - bar - fs * 1.6, size.y - PAD * 0.6 - fs * 0.9)
-	var tri: PackedVector2Array = PackedVector2Array([n_at + Vector2(0, -fs * 0.8), n_at + Vector2(fs * 0.4, fs * 0.4), n_at + Vector2(-fs * 0.4, fs * 0.4)])
+	var base: Vector2 = Vector2(size.x - PAD - bar, size.y - PAD)
+	var tick: float = fs * 0.35
+	draw_rect(Rect2(base - Vector2(0.0, tick), Vector2(bar * 0.5, tick)), pal["ink"])
+	draw_rect(Rect2(base - Vector2(0.0, tick), Vector2(bar, tick)), pal["ink"], false, 1.5)
+	draw_string(font, base + Vector2(0.0, -tick - fs * 0.3), tr("MAP_SCALE_FMT") % SCALE_BAR_CELLS, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, pal["ink"])
+	var n_at: Vector2 = Vector2(base.x - fs * 1.4, size.y - PAD - fs * 1.2)
+	var tri: PackedVector2Array = PackedVector2Array([n_at + Vector2(0, -fs * 0.7), n_at + Vector2(fs * 0.38, fs * 0.35), n_at + Vector2(-fs * 0.38, fs * 0.35)])
 	draw_colored_polygon(tri, pal["ink"])
 	draw_centered(self, font, n_at + Vector2(0.0, fs * 0.95), tr("MAP_NORTH"), fs, pal["ink"])
+	_draw_finishes(pal, font, fs)
+
+
+## Cartela de banda: nombre y muestras de su paleta (suelo, moqueta, pared, acento, mobiliario).
+func _draw_finishes(pal: Dictionary, font: Font, fs: int) -> void:
+	var band: Dictionary = Database.get_art_band_for_floor(_floor)
+	var colors: Dictionary = band.get("palette", {})
+	if colors.is_empty():
+		return
+	var name_text: String = tr(str(band.get("name_key", ""))).to_upper()
+	var at: Vector2 = Vector2(PAD, size.y - PAD)
+	var chip: float = fs * 1.1
+	var x: float = at.x
+	for key: String in FINISH_KEYS:
+		var r: Rect2 = Rect2(Vector2(x, at.y - chip), Vector2(chip, chip))
+		draw_rect(r, Color(str(colors.get(key, "#888888"))))
+		draw_rect(r, pal["ink"], false, 1.5)
+		x += chip + fs * 0.2
+	draw_string(font, Vector2(x + fs * 0.3, at.y - chip * 0.5 + font.get_ascent(fs) * 0.36), name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, band_ink(colors))
+
+
+## Acento de una paleta de banda oscurecido hasta leerse sobre el papel del plano.
+static func band_ink(colors: Dictionary) -> Color:
+	var c: Color = Color(str(colors.get("accent", "#555555")))
+	while c.get_luminance() > INK_MAX_LUMINANCE:
+		c = c.darkened(0.12)
+	return c
 
 
 # ─── Entrada ───────────────────────────────────────────────────────

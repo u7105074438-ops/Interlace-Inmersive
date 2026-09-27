@@ -37,6 +37,8 @@ func run(pilot: Autopilot) -> void:
 	await _shot_files(pilot)
 	await _shot_phone(pilot)
 	await _shot_spanish(pilot)
+	await _shot_contrast(pilot)
+	await _shot_embedded(pilot)
 
 
 func _new_run() -> void:
@@ -289,3 +291,24 @@ func _shot_spanish(pilot: Autopilot) -> void:
 		await _shot(pilot, "os_es_" + app_id)
 		await _close()
 	TranslationServer.set_locale("en")
+
+
+## Alto contraste (§13.10): el aspecto contrast se impone a cualquier nivel del equipo.
+func _shot_contrast(pilot: Autopilot) -> void:
+	_new_run()
+	_ui.set_text_options(UITheme.TEXT_MEDIUM, true)
+	_ui.open_computer({"tier": 1, "instant": true, "app": StellarOS.APP_MAIL})
+	await pilot.frames(6)
+	await _shot(pilot, "os_high_contrast_mail")
+	await _close()
+	_ui.set_text_options(UITheme.TEXT_MEDIUM, false)
+
+
+## Aplicaciones de otro constructor montadas en la ventana del escritorio (o la ventana 404).
+func _shot_embedded(pilot: Autopilot) -> void:
+	_new_run()
+	for app_id: String in [StellarOS.APP_PERSONNEL, StellarOS.APP_PORTAL]:
+		_ui.open_computer({"tier": 1, "instant": true, "app": app_id})
+		await pilot.frames(8)
+		await _shot(pilot, "os_embedded_" + app_id)
+		await _close()

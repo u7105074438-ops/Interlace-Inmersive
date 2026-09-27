@@ -2,7 +2,7 @@
 # PROPIETARIO DE: el estado de la ventana (cantidad de la orden y operación pendiente de confirmar).
 # ESCUCHA: stock_price_updated, investor_confidence_changed, money_changed (solo mientras está abierta, para refrescar).
 class_name MarketApp
-extends Control
+extends OSApp
 
 ## API pública: is_available() (rango ≥ shares.player_trading_min_rank de market.json),
 ## snapshot() -> Dictionary con todo lo que pinta la ventana, open(host, context).
@@ -14,11 +14,9 @@ extends Control
 ## Por debajo del rango mínimo la ventana muestra «acceso denegado» (la carcasa debe ocultar el
 ## icono con is_available()).
 
-signal close_requested
-
 const APP_ID := "market"
 const TITLE_KEY := "MARKET_APP_TITLE"
-const ICON := "coin"
+const ICON := "market"
 const Kit := PersonnelApp.OsKit
 const B_CHART_DAYS := "mercado_ui.dias_grafico"
 const B_CALENDAR_DAYS := "mercado_ui.dias_calendario"
@@ -31,7 +29,6 @@ const ACTION_STAKE := "stake"
 const DAILY_EVENT := "daily"
 const SIDE_EM := 25.0
 
-var _context: Dictionary = {}
 var _standalone: bool = false
 var _in_ui_root: bool = false
 var _embedded: bool = false
@@ -41,6 +38,7 @@ var _quantity: int = 0
 var _pending: String = ""
 var _last_result: bool = false
 var _window: PersonnelApp.OsWindow
+var _frame_root: Control
 var _ticker: Ticker
 var _chart: PriceChart
 var _investors: VBoxContainer
@@ -97,7 +95,8 @@ static func investor_rows() -> Array[Dictionary]:
 		out.append({"id": inv.id, "name": inv.name, "strategy": inv.strategy,
 				"strategy_name": UITheme.trf("INV_STRATEGY_" + inv.strategy.to_upper()),
 				"confidence": Market.get_investor_confidence(inv.id), "capital": inv.capital,
-				"ally": allies.has(inv.id), "coerced": Market.is_investor_coerced(inv.id)})
+				"ally": allies.has(inv.id), "coerced": Market.is_investor_coerced(inv.id),
+				"target": Market.get_quarterly_target()})
 	return out
 
 
@@ -149,8 +148,8 @@ static func open(host: Node, context: Dictionary = {}) -> MarketApp:
 	return app
 
 
-func setup(context: Dictionary) -> void:
-	_context = context.duplicate()
+func get_title_key() -> String:
+	return TITLE_KEY
 
 
 func set_standalone(on: bool) -> void:
@@ -159,8 +158,6 @@ func set_standalone(on: bool) -> void:
 
 func set_embedded(on: bool) -> void:
 	_embedded = on
-	if _window != null:
-		_window.set_title_visible(not on)
 
 
 func request_close() -> void:
@@ -175,13 +172,12 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	theme = Kit.build_theme()
-	_build()
-	_built = true
+	if not _built:
+		setup(context)
+	refresh.call_deferred()
 	EventBus.stock_price_updated.connect(_on_price_updated)
 	EventBus.investor_confidence_changed.connect(_on_confidence_changed)
 	EventBus.money_changed.connect(_on_money_changed)
-	refresh()
 
 
 func _draw() -> void:
@@ -207,19 +203,23 @@ func _on_money_changed(_old_value: int, _new_value: int, _reason: String) -> voi
 	_dirty = true
 
 
-func _build() -> void:
-	_window = PersonnelApp.OsWindow.new(tr(TITLE_KEY), ICON)
-	_window.close_pressed.connect(request_close)
-	var margin: int = Kit.px(Kit.DESKTOP_MARGIN) if _standalone and not _embedded else 0
-	_window.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, margin)
-	_window.set_title_visible(not _embedded)
-	add_child(_window)
+## OSApp: construye la interfaz (o el aviso de acceso denegado por debajo del rango mínimo).
+func build() -> void:
+	Kit.use(pal, int(context.get("base", 0)))
+	theme = Kit.build_theme()
+	_build_content()
+	_built = true
+	refresh()
+
+
+func _build_content() -> void:
+	var body: Control = _frame()
 	if not is_available():
-		_window.body.add_child(_denied())
+		body.add_child(_denied())
 		return
 	var col: VBoxContainer = VBoxContainer.new()
 	col.add_theme_constant_override("separation", Kit.px(0.4))
-	_window.body.add_child(col)
+	body.add_child(col)
 	_ticker = Ticker.new()
 	col.add_child(_ticker)
 	var middle: HBoxContainer = HBoxContainer.new()
@@ -239,11 +239,23 @@ func _build() -> void:
 	col.add_child(bottom)
 
 
-func _rebuild_window() -> void:
-	_window.queue_free()
-	remove_child(_window)
+func _frame() -> Control:
+	if _standalone and not _embedded:
+		_window = Kit.make_window(self, tr(TITLE_KEY), ICON)
+		_window.close_pressed.connect(request_close)
+		_frame_root = _window
+		return _window.body
+	_frame_root = Kit.make_holder(self)
+	return _frame_root
+
+
+func _rebuild_content() -> void:
+	if _frame_root != null:
+		remove_child(_frame_root)
+		_frame_root.queue_free()
+	_window = null
 	_ticker = null
-	_build()
+	_build_content()
 
 
 func _panel(parent: HBoxContainer, title_key: String, width: int) -> VBoxContainer:
@@ -282,7 +294,7 @@ func refresh() -> void:
 	if not _built:
 		return
 	if (_ticker != null) != is_available():
-		_rebuild_window()
+		_rebuild_content()
 	if not is_available():
 		return
 	var snap: Dictionary = snapshot()
@@ -295,7 +307,7 @@ func refresh() -> void:
 	_fill_calendar(snap["calendar"])
 	_fill_portfolio(snap["portfolio"])
 	_fill_news(snap["news"], snap["portfolio"])
-	_window.set_status([tr("MARKET_STATUS_WALLET") % UITheme.format_money(PlayerState.get_money()),
+	Kit.show_status(self, _window, [tr("MARKET_STATUS_WALLET") % UITheme.format_money(PlayerState.get_money()),
 			tr("MARKET_STATUS_SHARES") % Market.get_player_shares(),
 			tr("PERS_STATUS_CLOCK") % [GameClock.get_day(), GameClock.get_time_string()]])
 
@@ -328,7 +340,7 @@ func _fill_calendar(rows: Array) -> void:
 		var line: HBoxContainer = Kit.field_row(tr("PORTAL_DAY_FMT") % int(row["day"]), str(row["name"]),
 				Kit.V_STRONG if bool(row["results"]) else Kit.V_BODY)
 		if bool(row["results"]):
-			(line.get_child(1) as Label).add_theme_color_override("font_color", Kit.GREEN)
+			(line.get_child(1) as Label).add_theme_color_override("font_color", Kit.green())
 		_calendar.add_child(line)
 
 
@@ -343,6 +355,8 @@ func _fill_portfolio(p: Dictionary) -> void:
 	]
 	for row: Array in rows:
 		_portfolio.add_child(Kit.field_row(tr(row[0]), str(row[1]), Kit.V_MONO))
+	if int(p["cash"]) > 0:
+		_portfolio.add_child(_cash_row(int(p["cash"])))
 	_portfolio.add_child(_order_row())
 	_portfolio.add_child(_stake_row(p))
 
@@ -375,6 +389,22 @@ func _order_row() -> Control:
 	actions.add_child(sell_btn)
 	box.add_child(actions)
 	return box
+
+
+## Cuenta de valores (ventas y dividendos de la junta anual): retirar al bolsillo.
+func _cash_row(cash: int) -> Control:
+	var row: HBoxContainer = Kit.field_row(tr("MARKET_BROKER_CASH"), UITheme.format_money(cash), Kit.V_MONO)
+	var withdraw: Button = Kit.button(tr("MARKET_WITHDRAW"), "cash")
+	withdraw.pressed.connect(collect_cash)
+	row.add_child(withdraw)
+	return row
+
+
+## Retira todo el efectivo de la cuenta de valores (MarketTrading). Devuelve el importe.
+func collect_cash() -> int:
+	var amount: int = MarketTrading.collect_broker_cash()
+	refresh()
+	return amount
 
 
 func _stake_row(p: Dictionary) -> Control:
@@ -608,24 +638,25 @@ class InvestorRow extends Control:
 	func _draw() -> void:
 		var photo: Rect2 = Rect2(0, Kit.px(0.2), size.y - Kit.px(0.4), size.y - Kit.px(0.4))
 		CharacterPainter.draw_portrait(self, appearance, photo)
-		draw_rect(photo, Kit.INK, false, 1.5)
+		draw_rect(photo, Kit.ink(), false, 1.5)
 		var x: float = photo.end.x + Kit.px(0.4)
 		var w: float = size.x - x
 		Kit.text(self, Vector2(x, Kit.px(1.1)), str(data.get("name", "")),
-				Kit.font_bold(), Kit.px(0.9), Kit.INK, w * 0.62)
+				Kit.font_bold(), Kit.px(0.9), Kit.ink(), w * 0.62)
 		Kit.text(self, Vector2(x + w * 0.62, Kit.px(1.1)), str(data.get("strategy_name", "")),
 				Kit.font_regular(), Kit.px(0.72), Kit.soft(), w * 0.38,
 				HORIZONTAL_ALIGNMENT_RIGHT)
 		var bar: Rect2 = Rect2(x, Kit.px(1.5), w - Kit.px(2.4), Kit.px(0.85))
-		Kit.draw_bevel(self, bar, Kit.FIELD, true)
+		Kit.draw_bevel(self, bar, Kit.field(), true)
 		var confidence: int = int(data.get("confidence", 0))
-		var fill: Color = Kit.probability_color(confidence / 100.0)
+		var target: float = float(data.get("target", 0.0))
+		var fill: Color = Kit.green() if confidence >= target else Kit.red()
 		draw_rect(Rect2(bar.position + Vector2(2, 2), Vector2((bar.size.x - 4) * confidence / 100.0, bar.size.y - 4)), fill)
 		Kit.text(self, Vector2(bar.end.x + Kit.px(0.3), bar.end.y - 2), str(confidence),
-				Kit.font_mono(), Kit.px(0.85), Kit.INK, Kit.px(2.0))
+				Kit.font_mono(), Kit.px(0.85), Kit.ink(), Kit.px(2.0))
 		if bool(data.get("ally", false)):
 			UITheme.draw_icon(self, "check", Rect2(photo.end.x - Kit.px(0.9), photo.end.y - Kit.px(0.9),
-					Kit.px(0.9), Kit.px(0.9)), Kit.GREEN, 2.5)
+					Kit.px(0.9), Kit.px(0.9)), Kit.green(), 2.5)
 
 
 ## Titular anticipado con flecha de sentido.
@@ -637,14 +668,14 @@ class NewsRow extends Control:
 		custom_minimum_size.y = Kit.px(1.6)
 
 	func _draw() -> void:
-		var color: Color = Kit.GREEN if direction > 0 else (Kit.RED if direction < 0
-				else Kit.INK_SOFT)
+		var color: Color = Kit.green() if direction > 0 else (Kit.red() if direction < 0
+				else Kit.ink_soft())
 		var glyph: String = "▲" if direction > 0 else ("▼" if direction < 0 else "■")
 		var fsize: int = Kit.px(0.82)
 		Kit.text(self, Vector2(0, size.y * 0.5 + fsize * 0.36), glyph, Kit.font_black(),
 				fsize, color, -1.0)
 		Kit.text(self, Vector2(Kit.px(1.1), size.y * 0.5 + fsize * 0.36), headline,
-				Kit.font_regular(), fsize, Kit.INK, size.x - Kit.px(1.1))
+				Kit.font_regular(), fsize, Kit.ink(), size.x - Kit.px(1.1))
 
 
 ## Medidor del patrón de operaciones privilegiadas frente al umbral de investigación (§9.8).
@@ -658,11 +689,11 @@ class PatternMeter extends Control:
 	func _draw() -> void:
 		var fsize: int = Kit.px(0.7)
 		Kit.text(self, Vector2(0, fsize), TranslationServer.translate("MARKET_PATTERN"),
-				Kit.font_black(), fsize, Kit.RED, size.x)
+				Kit.font_black(), fsize, Kit.red(), size.x)
 		var bar: Rect2 = Rect2(0, fsize * 1.5, size.x, size.y - fsize * 1.7)
-		Kit.draw_bevel(self, bar, Kit.FIELD, true)
+		Kit.draw_bevel(self, bar, Kit.field(), true)
 		var ratio: float = clampf(value / maxf(limit, 0.001), 0.0, 1.0)
 		draw_rect(Rect2(bar.position + Vector2(2, 2), Vector2((bar.size.x - 4) * ratio, bar.size.y - 4)),
-				Kit.RED.lerp(Kit.AMBER, 1.0 - ratio))
+				Kit.red().lerp(Kit.amber(), 1.0 - ratio))
 		Kit.draw_hatch(self, Rect2(bar.end.x - Kit.px(1.0), bar.position.y, Kit.px(1.0) - 2,
-				bar.size.y), Kit.RED, 6.0, 2.0)
+				bar.size.y), Kit.red(), 6.0, 2.0)

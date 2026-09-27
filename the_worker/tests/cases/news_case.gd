@@ -51,6 +51,7 @@ func run_case() -> void:
 			func(t: String, _r: String, d: Dictionary) -> void: _crimes.append([t, d]))
 	EventBus.insider_pattern_detected.connect(func(n: int) -> void: _detections.append(n))
 	_test_shared_layer_and_bury()
+	await _check_suspicion_decays_with_press()
 	_test_decay_and_consolidation()
 	_test_resurfacing()
 	_test_fabricate()
@@ -107,24 +108,55 @@ func _test_shared_layer_and_bury() -> void:
 			"the company scandal is active news")
 
 
-## PASO 35 "Verificación": la sospecha del jugador (BeliefNet → PlayerState) sube con el escándalo
-## y baja al enterrarlo. Depende de que BeliefNet sume NewsFeed.get_suspicion_contribution() (petición
-## a BeliefNet); mientras no lo haga se imprime OPEN y NO se cuenta como comprobación superada.
+## PASO 35 "Verificación": el MISMO escándalo sube la sospecha del jugador (BeliefNet → caché de
+## PlayerState, suspicion_changed) y hunde la cotización; enterrarlo baja las dos (§7.11).
 func _check_suspicion_end_to_end() -> void:
+	var factor: float = Database.get_balance_float("creencias.factor_peso_social_noticias")
+	var weight: float = Database.get_balance_float("noticias.sospecha_escandalo_jugador")
 	var before: float = BeliefNet.calculate_player_suspicion()
+	var market_before: float = Market.get_sentiment()
+	var changes: Array = []
+	var on_change: Callable = func(o: float, n: float) -> void: changes.append([o, n])
+	EventBus.suspicion_changed.connect(on_change)
 	var id: String = NewsFeed.publish_about(INSIDER_HEADLINE, -0.2, true, NewsFeedSystem.SUBJECT_PLAYER)
 	var with_scandal: float = BeliefNet.calculate_player_suspicion()
-	if with_scandal <= before:
-		print("OPEN: BeliefNet ignores NewsFeed.get_suspicion_contribution(): a scandal about the "
-				+ "player leaves PlayerState.get_suspicion() at %.1f (end-to-end §7.11 not verified)"
-				% PlayerState.get_suspicion())
-		NewsFeed.bury(id, COMMS)
-		return
-	check(PlayerState.get_suspicion() >= with_scandal - EPS,
-			"end to end: the scandal raises the player's suspicion (%.1f → %.1f)" % [before, with_scandal])
+	check_near(with_scandal, before + weight * factor, EPS,
+			"end to end: the scandal adds its social weight to the player's suspicion (%.1f → %.1f)"
+			% [before, with_scandal])
+	check_near(PlayerState.get_suspicion(), with_scandal, EPS,
+			"end to end: PlayerState's cached suspicion follows at once (news_published)")
+	check(changes.size() == 1 and is_equal_approx(float(changes[0][1]), with_scandal),
+			"end to end: suspicion_changed announces the rise")
+	check(Market.get_sentiment() <= market_before - 0.2 + EPS,
+			"end to end: the same event depresses the market sentiment")
+	var news_rows: Array = BeliefNet.get_suspicion_breakdown().filter(func(e: Dictionary) -> bool:
+		return e["belief_id"] == BeliefNetSystem.NEWS_ENTRY_ID)
+	check(news_rows.size() == 1 and is_equal_approx(float(news_rows[0]["contribution"]), weight * factor),
+			"the press is one synthetic entry of the suspicion breakdown")
 	NewsFeed.bury(id, COMMS)
-	check(BeliefNet.calculate_player_suspicion() < with_scandal,
-			"end to end: burying the scandal lowers the player's suspicion")
+	check_near(BeliefNet.calculate_player_suspicion(), before, EPS,
+			"end to end: burying the scandal gives the suspicion back")
+	check_near(PlayerState.get_suspicion(), before, EPS, "…and the cache follows (news_buried)")
+	check(Market.get_sentiment() >= market_before - EPS, "…while the market sentiment recovers too")
+	EventBus.suspicion_changed.disconnect(on_change)
+
+
+## El peso social decae con la prensa: tras day_advanced la caché lo recoge (recálculo diferido,
+## porque NewsFeed decae al oír day_advanced DESPUÉS que BeliefNet). La jornada nueva puede traer
+## más prensa (p. ej. la campaña activista que el escándalo provoca): la caché la suma también.
+func _check_suspicion_decays_with_press() -> void:
+	new_run(DEFAULT_SEED, false)
+	var social_decay: float = Database.get_balance_float("noticias.decaimiento_sospecha_diario")
+	var factor: float = Database.get_balance_float("creencias.factor_peso_social_noticias")
+	var weight: float = Database.get_balance_float("noticias.sospecha_escandalo_jugador")
+	var id: String = NewsFeed.publish_about(INSIDER_HEADLINE, -0.2, true, NewsFeedSystem.SUBJECT_PLAYER)
+	EventBus.day_advanced.emit(GameClock.get_day() + 1)
+	await get_tree().process_frame
+	check_near(float(NewsFeed.get_news(id)["suspicion"]), weight * social_decay, EPS,
+			"the scandal's social weight decays overnight")
+	var expected: float = NewsFeed.get_suspicion_contribution() * factor
+	check_near(PlayerState.get_suspicion(), expected, EPS,
+			"after the day change the cached suspicion equals the live press weight (%.2f)" % expected)
 
 
 func _test_decay_and_consolidation() -> void:

@@ -4,6 +4,8 @@
 extends Node
 
 ## tools/screenshot.sh /tmp/shots_map map
+## Capturas: map_cut_n1, map_cut_n1_layers, map_zoom_p3_layers, map_zoom_p3, map_cut_n7, map_zoom_p20,
+## map_cut_n1_disguised, map_cut_es, map_zoom_p3_es, map_cut_contrast, map_phone_cut, map_phone_zoom.
 ## Partida nueva con semilla fija (orden de ciclo de vida de BUILD_NOTES §2), planta 3 cargada detrás
 ## con el jugador en el ala 3B y dos objetivos marcados; después el jugador asciende a N7 (CEO).
 
@@ -12,6 +14,9 @@ const START_FLOOR := 3
 const START_ROOM := "wing_3b"
 const TOP_OCCUPATION := "ceo"
 const PHONE_WINDOW := Vector2i(1170, 540)
+## Media mañana: la plantilla ya está en sus puestos (NPCDirector la coloca al pasar las horas).
+const SHOT_HOUR := 10
+const SHOT_MINUTE := 30
 const SETTLE_FRAMES := 8
 const LIFECYCLE: Array[String] = [
 	"GameClock", "PlayerState", "NPCDirector", "SocialGraph", "BeliefNet", "Security",
@@ -40,6 +45,7 @@ func run(pilot: Autopilot) -> void:
 	await _shots_n1_layers(pilot, map)
 	await _shots_n7(pilot, map)
 	await _shot_spanish(pilot, map)
+	await _shot_contrast(pilot, map)
 	await _shots_phone(pilot, map)
 
 
@@ -58,7 +64,8 @@ func _new_run() -> void:
 			node.call("generate_population")
 		elif system_name == "SocialGraph" and node.has_method("build_initial_graph"):
 			node.call("build_initial_graph")
-	GameClock.set_time(GameClock.get_day(), 10, 30)
+	var target: float = float(SHOT_HOUR * 60 + SHOT_MINUTE)
+	GameClock.advance_minutes(maxf(0.0, target - GameClock.get_day_minutes()))
 
 
 func _build_world() -> void:
@@ -154,10 +161,20 @@ func _shot_spanish(pilot: Autopilot, map: MapView) -> void:
 	map.refresh()
 
 
+func _shot_contrast(pilot: Autopilot, map: MapView) -> void:
+	_ui.set_text_options(UITheme.TEXT_MEDIUM, true)
+	map.select_floor(START_FLOOR)
+	await _shot(pilot, "map_cut_contrast")
+	_ui.set_text_options(UITheme.TEXT_MEDIUM, false)
+
+
 func _shots_phone(pilot: Autopilot, map: MapView) -> void:
 	get_window().size = PHONE_WINDOW
+	await pilot.frames(2)
 	_ui.set_text_options(UITheme.TEXT_LARGE, false)
+	await pilot.frames(2)
 	_ui.set_touch_mode(true)
+	await pilot.frames(2)
 	map.refresh()
 	await _shot(pilot, "map_phone_cut")
 	map.zoom_to_floor(START_FLOOR)

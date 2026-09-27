@@ -20,7 +20,8 @@ extends Control
 ##  · Chat: todo trato escrito pasa por Bribery.offer(…, "mobile_chat") → registro chat_log permanente.
 ##  · Silencio: AudioDirector.set_phone_silenced() (o el ajuste phone_silenced de SaveSystem). La
 ##    vibración sonora y su ruido los emite AudioDirector; aquí solo la sacudida visual.
-##  · No hay campos de texto: el móvil no bloquea el movimiento por sí mismo (ver REQUESTS: UIRoot).
+##  · No hay campos de texto: el móvil no bloquea el movimiento por sí mismo; lleva la meta
+##    "ui_overlay" = true para que UIRoot/Player no lo traten como ventana bloqueante (ver REQUESTS).
 ##  · Si pillan al jugador (player_caught_redhanded) o acaba la partida, el móvil se cierra.
 
 signal close_requested
@@ -42,6 +43,8 @@ const CTX_NPC := "npc_id"
 const CTX_ACTION := "action"
 const SETTING_SILENCED := "phone_silenced"
 const ROOM_SAFE_KEY := "safe_for_calls"
+## Marca para UIRoot/Player: ventana superpuesta que no debe bloquear el movimiento (ver REQUESTS).
+const META_OVERLAY := "ui_overlay"
 const EXPO_SUPERIORS := "superiors"
 const EXPO_LISTENERS := "listeners"
 const EXPO_SAFE := "safe"
@@ -425,6 +428,7 @@ func _init() -> void:
 	name = "Phone"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	set_meta(META_OVERLAY, true)
 	_device = Device.new()
 	add_child(_device)
 	_build_screen()
@@ -464,10 +468,12 @@ func _process(delta: float) -> void:
 		_watch_left = tune(B_WATCH)
 		refresh_exposure()
 	_time_label.text = GameClock.get_time_string()
-	_device.buzz = clampf(_shake_left / maxf(tune(B_SHAKE_S), EPS), 0.0, 1.0)
+	var buzz: float = clampf(_shake_left / maxf(tune(B_SHAKE_S), EPS), 0.0, 1.0)
+	if buzz > 0.0 or _device.buzz > 0.0:
+		_device.buzz = buzz
+		_device.queue_redraw()
 	_device.position = _rest + _offset()
 	modulate.a = clampf(_open_t / maxf(tune(B_OPEN_S), EPS), 0.0, 1.0)
-	_device.queue_redraw()
 
 
 # ─── Construcción ──────────────────────────────────────────────────
@@ -705,12 +711,14 @@ func offer_context(channel: String) -> Dictionary:
 func refresh_exposure() -> Dictionary:
 	var tree: SceneTree = get_tree()
 	var superiors: Array[String] = superiors_in_sight(tree)
-	_exposure = {EXPO_SUPERIORS: superiors, EXPO_LISTENERS: listeners_in_range(tree),
+	var fresh: Dictionary = {EXPO_SUPERIORS: superiors, EXPO_LISTENERS: listeners_in_range(tree),
 			EXPO_SAFE: is_call_safe_room(PlayerState.get_room())}
 	_report_superiors(superiors)
-	_show_exposure()
-	_call.set_exposure(_exposure)
-	_bribe.set_exposure(_exposure)
+	if fresh != _exposure or _expo_label.text.is_empty():
+		_exposure = fresh
+		_show_exposure()
+		_call.set_exposure(_exposure)
+		_bribe.set_exposure(_exposure)
 	return get_exposure()
 
 

@@ -2,7 +2,7 @@
 # PROPIETARIO DE: el estado de la ventana (búsqueda, filtros, orden, selección, comparación) y, mientras PlayerState no los guarde, los expedientes completos anticipados, los objetivos marcados, las notas y los estudios de la sesión.
 # ESCUCHA: nada (lee los autoloads al refrescar; emite notebook_entry_added).
 class_name PersonnelApp
-extends Control
+extends OSApp
 
 ## API pública (mapa, HUD, móvil, mundo y tests):
 ##   effective_level(npc_id) -> int · build_file(npc_id, level) -> {npc_id, level, exact,
@@ -10,6 +10,9 @@ extends Control
 ##   set_marked(npc_id, on) / is_marked / get_marked_targets · add_note / get_notes
 ##   predict(npc_id, action) -> float · study(npc_id, action) -> {minutes, probability, word_key}
 ##   list_npcs(filters) -> Array[NPCRuntime] · open(host, context) -> PersonnelApp (ventana suelta)
+## Ventana: aplicación de StellarOS (extiende OSApp). Desde la carcasa, context.extra puede traer
+## {file_npc_id, compare_with} (p. ej. el mapa abre el expediente de alguien); suelta (open()), el
+## context es {npc_id?, compare_with?} y dibuja su propia ventana con el aspecto del equipo.
 ## DECISIONES:
 ##  · La tabla N1–N7 vive en balance expedientes.nivel_seccion. N1 = identity {name, photo, post,
 ##    floor, wing}. Con N3–N4 los rasgos y vínculos van CUANTIZADOS (barra aproximada); las cifras
@@ -19,10 +22,11 @@ extends Control
 ##    personnel_files_full (RR. HH., permanente), agravio "blackmailed" en su registro (chantaje del
 ##    jugador) u open_full_file(id, "hr_intrusion") (intrusión en RR. HH.). Director de IT
 ##    (digital_records): sección extra de comunicaciones privadas (registro de chat de SocialGraph).
-##  · Objetivos marcados: NPCDirector.force_full_lod(id, "marked_target") + lista; la lista, los
-##    expedientes concedidos, las notas y los estudios se delegan en PlayerState si expone
-##    mark_target/unmark_target/get_marked_targets/grant_full_file/has_full_file; si no, se guardan
-##    en esta clase durante la sesión (se vacían al cambiar la semilla de partida).
+##  · Objetivos marcados: NPCDirector.force_full_lod(id, "marked_target") + lista. La lista y los
+##    expedientes concedidos se delegan en PlayerState si expone mark_target/unmark_target/
+##    get_marked_targets/grant_full_file/has_full_file; si no, y siempre para notas y estudios,
+##    viven en esta clase durante la sesión (se vacían al cambiar la semilla de partida); las
+##    notas y los estudios también van al cuaderno (notebook_entry_added), que los conserva.
 ##  · Filtros visibles solo con la información: arquetipo (N de «character»), sobornables y
 ##    peligrosos y orden por rasgos (N de «traits»); deudores (te deben) y objetivos siempre.
 ##  · Estudio: GameClock.advance_minutes(15–30, determinista por partida, jornada, personaje y
@@ -30,12 +34,9 @@ extends Control
 ##    expedientes.estudio_favor_soborno; confrontar/denunciar = softmax (temperatura_estudio) de
 ##    las utilidades de UtilityAI ante una flagrancia hipotética (NPCDirector.build_context).
 
-signal close_requested
-
 const APP_ID := "personnel"
 const TITLE_KEY := "PERS_APP_TITLE"
-const ICON := "clipboard"
-const PLAYER_ID := "player"
+const ICON := "personnel"
 
 const S_IDENTITY := "identity"
 const S_ROUTINE := "routine"
@@ -117,9 +118,10 @@ const B_DENOUNCE_COURAGE := "sobornos.umbral_denuncia_valentia"
 const B_DENOUNCE_LOYALTY := "sobornos.umbral_denuncia_lealtad"
 const B_FACTORY_FLOOR := "mundo.planta_fabrica"
 const B_EXTERIOR_FLOOR := "mundo.planta_exterior"
-## Cuantización de rasgos y fuerzas antes de N5: cinco tramos (escala 0–100 del manual §7.4).
-const TRAIT_BUCKETS := 5
+const B_TRAIT_BUCKETS := "expedientes.tramos_valor_aproximado"
+## Contenido: claves PERS_STREET_1..8 y números de portal del domicilio inventado.
 const STREET_KEYS := 8
+const HOUSE_NUMBER_MAX := 120
 
 static var _store_seed: int = -1
 static var _full_files: Dictionary = {}
@@ -127,7 +129,6 @@ static var _targets: Array[String] = []
 static var _notes: Dictionary = {}
 static var _studies: Dictionary = {}
 
-var _context: Dictionary = {}
 var _standalone: bool = false
 var _in_ui_root: bool = false
 var _embedded: bool = false
@@ -442,8 +443,9 @@ static func describe_traits(traits: Dictionary) -> Array[String]:
 static func shown_value(value: int, exact: bool) -> int:
 	if exact:
 		return value
-	var width: float = float(Validate.TRAIT_MAX) / TRAIT_BUCKETS
-	var bucket: int = clampi(floori(float(value) / width), 0, TRAIT_BUCKETS - 1)
+	var buckets: int = maxi(Database.get_balance_int(B_TRAIT_BUCKETS), 1)
+	var width: float = float(Validate.TRAIT_MAX) / buckets
+	var bucket: int = clampi(floori(float(value) / width), 0, buckets - 1)
 	return roundi(width * (bucket + 0.5))
 
 
@@ -620,7 +622,7 @@ static func home_of(npc: NPCRuntime) -> Dictionary:
 	var seed_value: int = absi(hash(npc.id))
 	var street: String = UITheme.trf("PERS_STREET_%d" % (seed_value % STREET_KEYS + 1))
 	return {"room_id": npc.home_address,
-			"address": UITheme.trf("PERS_ADDRESS_FMT", [seed_value % Validate.TRAIT_MAX + 1, street]),
+			"address": UITheme.trf("PERS_ADDRESS_FMT", [seed_value % HOUSE_NUMBER_MAX + 1, street]),
 			"kind": UITheme.trf(house.name_key) if house != null else ""}
 
 
@@ -635,9 +637,9 @@ static func politics_of(npc: NPCRuntime) -> Array[Dictionary]:
 ## Director de IT (digital_records): registro de chat legible donde aparece el personaje.
 static func comms_of(npc: NPCRuntime) -> Array[String]:
 	var out: Array[String] = []
-	var log: Array[Dictionary] = SocialGraph.get_chat_log()
-	log.reverse()
-	for entry: Dictionary in log:
+	var chat_log: Array[Dictionary] = SocialGraph.get_chat_log()
+	chat_log.reverse()
+	for entry: Dictionary in chat_log:
 		var from: String = str(entry.get("from", ""))
 		var to: String = str(entry.get("to", ""))
 		if from != npc.id and to != npc.id:
@@ -820,11 +822,8 @@ static func is_available() -> bool:
 	return true
 
 
-## context: {npc_id?: expediente a abrir, compare_with?: segundo personaje}.
-func setup(context: Dictionary) -> void:
-	_context = context.duplicate()
-	if _built:
-		_apply_context()
+func get_title_key() -> String:
+	return TITLE_KEY
 
 
 func set_standalone(on: bool) -> void:
@@ -834,8 +833,6 @@ func set_standalone(on: bool) -> void:
 ## La carcasa StellarOS aporta su propio marco: sin barra de título ni escritorio.
 func set_embedded(on: bool) -> void:
 	_embedded = on
-	if _window != null:
-		_window.set_title_visible(not on)
 
 
 func request_close() -> void:
@@ -850,12 +847,9 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	theme = OsKit.build_theme()
-	_build()
-	_built = true
-	_refresh_filters()
-	_refresh_list()
-	_apply_context()
+	if not _built:
+		setup(context)
+	_refresh_status.call_deferred()
 
 
 func _draw() -> void:
@@ -863,33 +857,56 @@ func _draw() -> void:
 		OsKit.draw_desktop(self, Rect2(Vector2.ZERO, size))
 
 
+## OSApp: construye la interfaz con la paleta y el tamaño base de la carcasa (o del equipo propio).
+func build() -> void:
+	OsKit.use(pal, int(context.get("base", 0)))
+	theme = OsKit.build_theme()
+	var split: HBoxContainer = HBoxContainer.new()
+	split.add_theme_constant_override("separation", OsKit.px(0.6))
+	_frame().add_child(split)
+	split.add_child(_build_sidebar())
+	split.add_child(_build_detail())
+	_built = true
+	_refresh_filters()
+	_refresh_list()
+	_apply_context()
+
+
+## OSApp: la carcasa la llama al traer la ventana al frente.
+func refresh() -> void:
+	if not _built:
+		return
+	_refresh_filters()
+	_refresh_list()
+	if is_comparing():
+		compare(_selected, _compare_with)
+	elif not _selected.is_empty():
+		_render_file()
+
+
+## Contenedor del contenido: la ventana propia (suelta) o un margen dentro de la de la carcasa.
+func _frame() -> Control:
+	if _standalone and not _embedded:
+		_window = OsKit.make_window(self, tr(TITLE_KEY), ICON)
+		_window.close_pressed.connect(request_close)
+		return _window.body
+	return OsKit.make_holder(self)
+
+
+func _set_status(parts: Array) -> void:
+	OsKit.show_status(self, _window, parts)
+
+
 func _apply_context() -> void:
-	var wanted: String = str(_context.get("npc_id", ""))
+	var wanted: String = OsKit.requested(context, "npc_id", "file_npc_id")
 	if wanted.is_empty() and _selected.is_empty():
 		var list: Array[NPCRuntime] = list_npcs(_filters)
 		wanted = list[0].id if not list.is_empty() else ""
 	if not wanted.is_empty():
 		select(wanted)
-	var other: String = str(_context.get("compare_with", ""))
+	var other: String = OsKit.requested(context, "compare_with", "compare_with")
 	if not other.is_empty():
 		compare(_selected, other)
-
-
-func _build() -> void:
-	_window = OsWindow.new(tr(TITLE_KEY), ICON)
-	_window.close_pressed.connect(request_close)
-	if _standalone and not _embedded:
-		_window.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE,
-				OsKit.px(OsKit.DESKTOP_MARGIN))
-	else:
-		_window.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_window.set_title_visible(not _embedded)
-	add_child(_window)
-	var split: HBoxContainer = HBoxContainer.new()
-	split.add_theme_constant_override("separation", OsKit.px(0.6))
-	_window.body.add_child(split)
-	split.add_child(_build_sidebar())
-	split.add_child(_build_detail())
 
 
 func _build_sidebar() -> Control:
@@ -961,9 +978,11 @@ func _build_detail() -> Control:
 	return col
 
 
+## Barra de acciones (fluida: en pantallas estrechas los botones pasan a otra línea).
 func _build_toolbar() -> Control:
-	var bar: HBoxContainer = HBoxContainer.new()
-	bar.add_theme_constant_override("separation", OsKit.px(0.35))
+	var bar: HFlowContainer = HFlowContainer.new()
+	bar.add_theme_constant_override("h_separation", OsKit.px(0.35))
+	bar.add_theme_constant_override("v_separation", OsKit.px(0.25))
 	_mark_btn = OsKit.button(tr("PERS_ACT_MARK"), "target")
 	_mark_btn.toggle_mode = true
 	_mark_btn.toggled.connect(_on_mark_toggled)
@@ -975,7 +994,9 @@ func _build_toolbar() -> Control:
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(spacer)
-	bar.add_child(OsKit.label(tr("PERS_STUDY_LABEL"), OsKit.V_HEADING))
+	var study: Label = OsKit.label(tr("PERS_STUDY_LABEL"), OsKit.V_HEADING)
+	study.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.add_child(study)
 	for action: String in STUDY_ACTIONS:
 		var btn: Button = OsKit.button(tr("PERS_STUDY_BTN_" + action.to_upper()), "clock")
 		btn.tooltip_text = tr("PERS_STUDY_TIP")
@@ -1101,7 +1122,7 @@ func _make_row(npc: NPCRuntime, index: int, targets: Array[String]) -> NpcRow:
 	row.title = npc.name
 	row.subtitle = post_text(npc)
 	var rank: int = npc_rank(npc)
-	row.chip = ("R%d" % rank) if rank >= 0 else "—"
+	row.chip = tr("PERS_RANK_CHIP") % rank if rank >= 0 else "—"
 	row.floor_label = floor_text(npc_floor(npc))
 	row.chip_color = UITheme.band_accent_for_floor(npc_floor(npc))
 	row.marked = targets.has(npc.id)
@@ -1370,7 +1391,7 @@ func _add_bribe(box: VBoxContainer, data: Dictionary) -> void:
 	if bool(data["unbribable"]):
 		var chip: Chip = Chip.new()
 		chip.text = tr("PERS_BRIBE_UNBRIBABLE")
-		chip.color = OsKit.RED
+		chip.color = OsKit.red()
 		box.add_child(chip)
 	for row: Dictionary in data["prices"]:
 		box.add_child(OsKit.field_row(str(row["name"]), UITheme.format_money(int(row["price"])),
@@ -1447,76 +1468,150 @@ func _on_note_submitted(text: String) -> void:
 
 
 func _refresh_status() -> void:
-	if _window == null:
+	if not _built:
 		return
 	var level: int = player_level()
-	_window.set_status([
+	_set_status([
 		tr("PERS_STATUS_LEVEL") % [level, tr("PERS_LEVEL_NAME_%d" % level)],
 		tr("PERS_STATUS_TARGETS") % get_marked_targets().size(),
 		tr("PERS_STATUS_CLOCK") % [GameClock.get_day(), GameClock.get_time_string()],
 	])
 
 
-# ═══ Kit visual «intranet corporativa de los 90» (compartido por PORTAL y MARKET) ══════
+# ═══ Kit visual de las aplicaciones (sobre OSTheme; compartido por PORTAL y MARKET) ═════
 
-## Tema, colores, texturas biseladas y ayudantes de maquetación de StellarOS.
+## Adaptador sobre OSTheme: la paleta es la del equipo del jugador (el ordenador MEJORA CON EL RANGO:
+## retro → classic → luna → sovereign; contrast con alto contraste) y el tamaño base el de la carcasa.
+## Las aplicaciones llaman a use(paleta, base) al construirse; los dibujos propios leen los colores
+## con face(), ink(), teal()… en el momento de pintar.
 class OsKit extends RefCounted:
-	const FACE := Color("#d9d1bc")
-	const FACE_HI := Color("#fcf8ec")
-	const FACE_MID := Color("#a0977f")
-	const FACE_DARK := Color("#3b372d")
-	const FIELD := Color("#fffdf6")
-	const PAPER := Color("#fbf7ea")
-	const ZEBRA := Color("#f2ecdc")
-	const INK := Color("#1f1d18")
-	const INK_SOFT := Color("#665f50")
-	const TEAL := Color("#15636a")
-	const TEAL_LIGHT := Color("#3b9b93")
-	const TITLE_INK := Color("#fff8e2")
-	const SELECT := Color("#233f7a")
-	const SELECT_INK := Color("#ffffff")
-	const RED := Color("#b23a2c")
-	const AMBER := Color("#d4912a")
-	const GREEN := Color("#3a7a3e")
-	const BLUE := Color("#2b5b98")
+	const V_TITLE := "PnTitle"
+	const V_BIG := "PnBig"
+	const V_HEADING := "PnHeading"
+	const V_SMALL := "PnSmall"
+	const V_BODY := "PnBody"
+	const V_STRONG := "PnStrong"
+	const V_MONO := "PnMono"
+	const V_NOTE := "PnNote"
+	const V_QUOTE := "PnQuote"
+	const V_FIELD := "PnField"
+	const V_PAPER := "PnPaper"
+	const V_INSET := "PnInset"
+	const V_WINDOW := "PnWindow"
+	const V_PRIMARY := OSTheme.V_PRIMARY
+	const V_DANGER := OSTheme.V_DANGER
 	const HAZARD := Color("#f2c230")
-	const DESKTOP := Color("#2a6e6c")
-	const DESKTOP_DOT := Color("#337b78")
-	const V_TITLE := "OsTitle"
-	const V_BIG := "OsBig"
-	const V_HEADING := "OsHeading"
-	const V_SMALL := "OsSmall"
-	const V_BODY := "OsBody"
-	const V_STRONG := "OsStrong"
-	const V_MONO := "OsMono"
-	const V_NOTE := "OsNote"
-	const V_QUOTE := "OsQuote"
-	const V_FIELD := "OsField"
-	const V_PAPER := "OsPaper"
-	const V_INSET := "OsInset"
-	const V_WINDOW := "OsWindow"
-	const V_PRIMARY := "OsPrimary"
-	const V_DANGER := "OsDanger"
-	## Proporciones de diseño respecto al cuerpo de texto (maquetación, no balance).
+	## Proporciones de diseño respecto al tamaño base de la carcasa (maquetación, no balance).
 	const RATIO_BODY := 0.78
 	const SIDEBAR_EM := 21.0
 	const DESKTOP_MARGIN := 1.4
 	const BAND := 2
-	## Textura 9-patch grande: el centro liso evita el degradado del filtrado lineal al estirarla.
-	const BEVEL := 96
 
+	static var pal: Dictionary = {}
+	static var base: int = 0
 	static var _themes: Dictionary = {}
 	static var _textures: Dictionary = {}
 
+	## Fija la paleta y el tamaño base (vacíos → equipo del jugador y tamaño de texto vigente).
+	static func use(palette: Dictionary, base_px: int) -> void:
+		pal = palette if not palette.is_empty() else player_palette()
+		base = base_px if base_px > 0 else UITheme.base_font_size(UITheme.current_text_size)
+
+	static func player_palette() -> Dictionary:
+		var occupation: OccupationData = PlayerState.get_occupation()
+		return OSTheme.palette_for_tier(occupation.computer_tier if occupation != null else 1)
+
+	static func ensure() -> void:
+		if pal.is_empty() or base <= 0:
+			use(pal, base)
+
+	static func c(key: String) -> Color:
+		ensure()
+		return OSTheme.col(pal, key)
+
+	static func face() -> Color:
+		return c("face")
+
+	static func face_hi() -> Color:
+		return c("light")
+
+	static func face_mid() -> Color:
+		return c("shadow")
+
+	static func face_dark() -> Color:
+		return c("dark")
+
+	static func field() -> Color:
+		return c("field")
+
+	static func paper() -> Color:
+		return c("field").lerp(c("face"), 0.18)
+
+	static func zebra() -> Color:
+		return c("field").lerp(c("face"), 0.4)
+
+	static func ink() -> Color:
+		return c("text")
+
+	static func ink_soft() -> Color:
+		return c("muted")
+
+	static func soft() -> Color:
+		return c("muted")
+
+	static func is_contrast() -> bool:
+		ensure()
+		return pal.get("skin", "") == OSTheme.SKIN_CONTRAST
+
+	## Color de marca de las aplicaciones (títulos, barras): el de la barra de título; en alto
+	## contraste, el acento (amarillo sobre negro).
+	static func teal() -> Color:
+		return c("accent") if is_contrast() else c("title_a")
+
+	static func teal_light() -> Color:
+		return c("accent") if is_contrast() else c("title_b")
+
+	static func title_ink() -> Color:
+		return Color.BLACK if is_contrast() else c("title_text")
+
+	static func select() -> Color:
+		return c("select")
+
+	static func select_ink() -> Color:
+		return c("select_text")
+
+	static func red() -> Color:
+		return c("bad")
+
+	static func amber() -> Color:
+		return c("warn")
+
+	static func green() -> Color:
+		return c("good")
+
+	static func blue() -> Color:
+		return c("select")
+
+	## Tinta de las notas del jugador: el color de selección, oscurecido si es claro (oro, amarillo).
+	static func note_ink() -> Color:
+		var sel: Color = select()
+		if is_contrast():
+			return sel
+		return sel.darkened(0.35) if sel.get_luminance() > 0.35 else sel
+
+	static func accent() -> Color:
+		return c("accent")
+
+	static func hazard() -> Color:
+		return HAZARD
+
 	## Tamaño de letra base de las aplicaciones (sigue el ajuste de tamaño de texto §13.10).
 	static func base_size() -> int:
-		return roundi(UITheme.base_font_size(UITheme.current_text_size) * RATIO_BODY)
+		ensure()
+		return roundi(base * RATIO_BODY)
 
 	static func px(em: float) -> int:
 		return roundi(base_size() * em)
-
-	static func soft() -> Color:
-		return INK if UITheme.current_high_contrast else INK_SOFT
 
 	static func font_regular() -> Font:
 		return UITheme.font(UITheme.FONT_REGULAR)
@@ -1530,37 +1625,34 @@ class OsKit extends RefCounted:
 	static func font_mono() -> Font:
 		return UITheme.font(UITheme.FONT_MONO)
 
+	## Color de una probabilidad según su palabra difusa (umbrales de expedientes.umbrales_probabilidad).
 	static func probability_color(p: float) -> Color:
-		if p >= 0.65:
-			return GREEN
-		if p >= 0.35:
-			return AMBER
-		return RED
+		var index: int = PersonnelApp.PROB_WORD_KEYS.find(PersonnelApp.probability_word_key(p))
+		var middle: int = floori(PersonnelApp.PROB_WORD_KEYS.size() / 2.0)
+		if index > middle:
+			return green()
+		return amber() if index == middle else red()
 
+	## Tema de OSTheme para la paleta vigente más las variantes propias de las aplicaciones.
 	static func build_theme() -> Theme:
-		var key: String = "%d_%s" % [base_size(), UITheme.current_high_contrast]
+		ensure()
+		var key: String = "%s_%s_%d" % [pal.get("skin", ""), pal.get("band", ""), base]
 		if _themes.has(key):
 			return _themes[key]
-		var t: Theme = Theme.new()
-		t.default_font = font_regular()
-		t.default_font_size = base_size()
+		var t: Theme = OSTheme.build(pal, base)
 		_theme_labels(t)
-		_theme_buttons(t)
-		_theme_fields(t)
 		_theme_panels(t)
-		_theme_scroll(t)
-		_theme_popup(t)
+		_theme_extras(t)
 		_themes[key] = t
 		return t
 
 	static func _theme_labels(t: Theme) -> void:
-		t.set_color("font_color", "Label", INK)
 		var specs: Array[Array] = [
-			[V_TITLE, font_black(), 1.5, INK], [V_BIG, font_black(), 1.9, INK],
-			[V_HEADING, font_black(), 0.78, TEAL], [V_SMALL, font_regular(), 0.84, soft()],
-			[V_BODY, font_regular(), 1.0, INK], [V_STRONG, font_bold(), 1.05, INK],
-			[V_MONO, font_mono(), 0.95, INK], [V_NOTE, font_regular(), 0.92, BLUE],
-			[V_QUOTE, UITheme.italic(font_regular()), 1.05, INK],
+			[V_TITLE, font_black(), 1.5, ink()], [V_BIG, font_black(), 1.9, ink()],
+			[V_HEADING, font_black(), 0.78, teal()], [V_SMALL, font_regular(), 0.84, soft()],
+			[V_BODY, font_regular(), 1.0, ink()], [V_STRONG, font_bold(), 1.05, ink()],
+			[V_MONO, font_mono(), 0.95, ink()], [V_NOTE, font_regular(), 0.92, note_ink()],
+			[V_QUOTE, UITheme.italic(font_regular()), 1.05, ink()],
 		]
 		for spec: Array in specs:
 			t.set_type_variation(spec[0], "Label")
@@ -1568,122 +1660,38 @@ class OsKit extends RefCounted:
 			t.set_font_size("font_size", spec[0], px(float(spec[2])))
 			t.set_color("font_color", spec[0], spec[3])
 
-	static func _theme_buttons(t: Theme) -> void:
-		_button_type(t, "Button", FACE, INK)
-		t.set_type_variation(V_PRIMARY, "Button")
-		_button_type(t, V_PRIMARY, TEAL, TITLE_INK)
-		t.set_type_variation(V_DANGER, "Button")
-		_button_type(t, V_DANGER, RED, TITLE_INK)
-		t.set_icon("arrow", "OptionButton", arrow_texture())
-		t.set_constant("h_separation", "Button", px(0.4))
-
-	static func _button_type(t: Theme, type_name: String, face: Color, ink: Color) -> void:
-		t.set_stylebox("normal", type_name, bevel_box(face, false, 0.7, 0.3))
-		t.set_stylebox("hover", type_name, bevel_box(face.lightened(0.12), false, 0.7, 0.3))
-		t.set_stylebox("pressed", type_name, bevel_box(face.darkened(0.12), true, 0.7, 0.3))
-		t.set_stylebox("hover_pressed", type_name, bevel_box(face.darkened(0.08), true, 0.7, 0.3))
-		t.set_stylebox("disabled", type_name, bevel_box(face.lerp(FACE, 0.5), false, 0.7, 0.3))
-		t.set_stylebox("focus", type_name, StyleBoxEmpty.new())
-		t.set_font("font", type_name, font_bold())
-		t.set_font_size("font_size", type_name, px(0.95))
-		for color_name: String in ["font_color", "font_hover_color", "font_pressed_color",
-				"font_hover_pressed_color", "font_focus_color", "icon_normal_color",
-				"icon_hover_color", "icon_pressed_color", "icon_focus_color"]:
-			t.set_color(color_name, type_name, ink)
-		t.set_color("font_disabled_color", type_name, Color(ink, 0.45))
-		t.set_color("icon_disabled_color", type_name, Color(ink, 0.45))
-
-	static func _theme_fields(t: Theme) -> void:
-		for state: String in ["normal", "focus", "read_only"]:
-			t.set_stylebox(state, "LineEdit", bevel_box(FIELD, true, 0.5, 0.3))
-		t.set_color("font_color", "LineEdit", INK)
-		t.set_color("font_placeholder_color", "LineEdit", Color(INK_SOFT, 0.8))
-		t.set_color("caret_color", "LineEdit", INK)
-		t.set_color("selection_color", "LineEdit", Color(SELECT, 0.35))
-		t.set_color("clear_button_color", "LineEdit", INK_SOFT)
-		t.set_color("clear_button_color_pressed", "LineEdit", INK)
-		t.set_stylebox("slider", "HSlider", bevel_box(FIELD, true, 0.2, 0.2))
-		t.set_stylebox("grabber_area", "HSlider", flat_box(TEAL_LIGHT, 0))
-		t.set_stylebox("grabber_area_highlight", "HSlider", flat_box(TEAL_LIGHT, 0))
-		t.set_icon("grabber", "HSlider", knob_texture())
-		t.set_icon("grabber_highlight", "HSlider", knob_texture())
-
 	static func _theme_panels(t: Theme) -> void:
-		t.set_stylebox("panel", "PanelContainer", bevel_box(FACE, false, 0.4, 0.4))
 		var variations: Array[Array] = [
-			[V_FIELD, bevel_box(FIELD, true, 0.15, 0.15)], [V_INSET, bevel_box(FACE, true, 0.5, 0.35)],
-			[V_PAPER, bevel_box(PAPER, true, 1.0, 0.8)], [V_WINDOW, bevel_box(FACE, false, 0.2, 0.2)],
+			[V_FIELD, OSTheme.box(pal, "field", base, Vector2(px(0.15), px(0.15)))],
+			[V_INSET, OSTheme.box(pal, "pressed", base, Vector2(px(0.5), px(0.3)))],
+			[V_PAPER, OSTheme.box(pal, "field", base, Vector2(px(1.0), px(0.8)))],
+			[V_WINDOW, OSTheme.box(pal, "window", base, Vector2(px(0.25), px(0.25)))],
 		]
 		for spec: Array in variations:
 			t.set_type_variation(spec[0], "PanelContainer")
 			t.set_stylebox("panel", spec[0], spec[1])
-		t.set_stylebox("panel", "TooltipPanel", flat_box(PAPER, 2, INK, 0.5))
-		t.set_color("font_color", "TooltipLabel", INK)
-		t.set_font_size("font_size", "TooltipLabel", px(0.85))
 
-	static func _theme_scroll(t: Theme) -> void:
-		for type_name: String in ["VScrollBar", "HScrollBar"]:
-			t.set_stylebox("scroll", type_name, bevel_box(FACE.darkened(0.06), true, 0.1, 0.1))
-			t.set_stylebox("scroll_focus", type_name, bevel_box(FACE.darkened(0.06), true, 0.1, 0.1))
-			t.set_stylebox("grabber", type_name, bevel_box(FACE, false, 0.35, 0.35))
-			t.set_stylebox("grabber_highlight", type_name, bevel_box(FACE_HI, false, 0.35, 0.35))
-			t.set_stylebox("grabber_pressed", type_name, bevel_box(FACE_MID, true, 0.35, 0.35))
-
-	static func _theme_popup(t: Theme) -> void:
-		t.set_stylebox("panel", "PopupMenu", bevel_box(FACE_HI, false, 0.3, 0.3))
-		t.set_stylebox("hover", "PopupMenu", flat_box(SELECT, 0))
-		t.set_color("font_color", "PopupMenu", INK)
-		t.set_color("font_hover_color", "PopupMenu", SELECT_INK)
-		t.set_color("font_disabled_color", "PopupMenu", Color(INK, 0.4))
+	static func _theme_extras(t: Theme) -> void:
+		t.set_icon("arrow", "OptionButton", arrow_texture())
+		t.set_constant("h_separation", "Button", px(0.4))
+		t.set_stylebox("panel", "PopupMenu", OSTheme.box(pal, "window", base, Vector2(px(0.3), px(0.3))))
+		t.set_stylebox("hover", "PopupMenu", flat_box(select(), 0))
+		t.set_color("font_color", "PopupMenu", ink())
+		t.set_color("font_hover_color", "PopupMenu", select_ink())
 		t.set_font_size("font_size", "PopupMenu", px(0.95))
-		t.set_icon("radio_unchecked", "PopupMenu", PlaceholderTexture2D.new())
-		t.set_icon("radio_checked", "PopupMenu", PlaceholderTexture2D.new())
+		t.set_icon("radio_unchecked", "PopupMenu", blank_texture(1))
+		t.set_icon("radio_checked", "PopupMenu", blank_texture(1))
+		t.set_stylebox("slider", "HSlider", OSTheme.box(pal, "field", base, Vector2(px(0.2), px(0.2))))
+		t.set_stylebox("grabber_area", "HSlider", flat_box(teal_light(), 0))
+		t.set_stylebox("grabber_area_highlight", "HSlider", flat_box(teal_light(), 0))
 
-	## Caja biselada al estilo de 1995 (textura 9-patch generada). Rellenos en em.
-	static func bevel_box(face: Color, sunken: bool, pad_h: float, pad_v: float) -> StyleBoxTexture:
-		var sb: StyleBoxTexture = StyleBoxTexture.new()
-		sb.texture = bevel_texture(face, sunken)
-		sb.set_texture_margin_all(BAND * 2)
-		sb.content_margin_left = BAND * 2 + px(pad_h)
-		sb.content_margin_right = BAND * 2 + px(pad_h)
-		sb.content_margin_top = BAND * 2 + px(pad_v)
-		sb.content_margin_bottom = BAND * 2 + px(pad_v)
-		return sb
-
-	static func flat_box(face: Color, border: int, border_color: Color = INK, pad: float = 0.0) -> StyleBoxFlat:
+	static func flat_box(fill: Color, border: int, border_color: Color = Color.BLACK, pad: float = 0.0) -> StyleBoxFlat:
 		var sb: StyleBoxFlat = StyleBoxFlat.new()
-		sb.bg_color = face
+		sb.bg_color = fill
 		sb.set_border_width_all(border)
 		sb.border_color = border_color
 		sb.set_content_margin_all(px(pad))
 		return sb
-
-	static func bevel_texture(face: Color, sunken: bool) -> ImageTexture:
-		var key: String = "%s_%s" % [face.to_html(), sunken]
-		if _textures.has(key):
-			return _textures[key]
-		var img: Image = Image.create(BEVEL, BEVEL, false, Image.FORMAT_RGBA8)
-		img.fill(face)
-		if sunken:
-			_band(img, 0, FACE_MID, FACE_HI)
-			_band(img, BAND, FACE_DARK, face.lerp(FACE_HI, 0.4))
-		else:
-			_band(img, 0, FACE_HI.lerp(face, 0.25), FACE_DARK)
-			_band(img, BAND, face.lightened(0.18), face.darkened(0.28))
-		var tex: ImageTexture = ImageTexture.create_from_image(img)
-		_textures[key] = tex
-		return tex
-
-	static func _band(img: Image, offset: int, top_left: Color, bottom_right: Color) -> void:
-		var n: int = img.get_width()
-		for i: int in range(offset, n - offset):
-			for w: int in BAND:
-				img.set_pixel(i, offset + w, top_left)
-				img.set_pixel(offset + w, i, top_left)
-		for i: int in range(offset, n - offset):
-			for w: int in BAND:
-				img.set_pixel(i, n - 1 - offset - w, bottom_right)
-				img.set_pixel(n - 1 - offset - w, i, bottom_right)
 
 	## Textura transparente de `side` px (reserva el hueco del glifo en los botones).
 	static func blank_texture(side: int) -> ImageTexture:
@@ -1694,9 +1702,11 @@ class OsKit extends RefCounted:
 			_textures[key] = ImageTexture.create_from_image(img)
 		return _textures[key]
 
+	## Flecha de los desplegables en el color del texto de la paleta.
 	static func arrow_texture() -> ImageTexture:
-		if _textures.has("arrow"):
-			return _textures["arrow"]
+		var key: String = "arrow_%s_%d" % [ink().to_html(), base]
+		if _textures.has(key):
+			return _textures[key]
 		var s: int = px(0.7)
 		var img: Image = Image.create(s, s, false, Image.FORMAT_RGBA8)
 		img.fill(Color(0, 0, 0, 0))
@@ -1706,19 +1716,9 @@ class OsKit extends RefCounted:
 		for y: int in range(top, bottom):
 			var half: int = roundi((bottom - y) * 0.66)
 			for x: int in range(mid - half, mid + half + 1):
-				img.set_pixel(clampi(x, 0, s - 1), y, INK)
-		var tex: ImageTexture = ImageTexture.create_from_image(img)
-		_textures["arrow"] = tex
-		return tex
-
-	static func knob_texture() -> ImageTexture:
-		if _textures.has("knob"):
-			return _textures["knob"]
-		var img: Image = bevel_texture(FACE, false).get_image()
-		img.resize(px(0.9), px(1.3), Image.INTERPOLATE_NEAREST)
-		var tex: ImageTexture = ImageTexture.create_from_image(img)
-		_textures["knob"] = tex
-		return tex
+				img.set_pixel(clampi(x, 0, s - 1), y, ink())
+		_textures[key] = ImageTexture.create_from_image(img)
+		return _textures[key]
 
 	static func label(text: String, variation: String) -> Label:
 		var l: Label = Label.new()
@@ -1750,51 +1750,77 @@ class OsKit extends RefCounted:
 		var b: GlyphButton = GlyphButton.new()
 		b.text = text
 		b.theme_type_variation = variation
-		b.set_glyph(icon_name, INK if variation.is_empty() else TITLE_INK)
+		var glyph_color: Color = ink()
+		if variation == V_PRIMARY:
+			glyph_color = select_ink()
+		elif variation == V_DANGER:
+			glyph_color = Color.WHITE
+		b.set_glyph(icon_name, glyph_color)
 		return b
 
 	## Color de la banda de arte de una planta (art_bands.json → accent).
 	static func band_color(floor_number: int) -> Color:
 		return Color(str(UITheme.band_palette_for_floor(floor_number).get("accent", "#6d7a5c")))
 
-	static func text(c: CanvasItem, pos: Vector2, value: String, font: Font, font_size: int,
+	static func text(ci: CanvasItem, pos: Vector2, value: String, font: Font, font_size: int,
 			color: Color, width: float = -1.0, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> void:
 		var shown: String = fit(font, value, font_size, width) if width > 0.0 else value
-		c.draw_string(font, pos, shown, align, width, font_size, color)
+		ci.draw_string(font, pos, shown, align, width, font_size, color)
 
 	## Trunca con «…» para que quepa en `width`.
-	static func fit(font: Font, text: String, font_size: int, width: float) -> String:
-		if width <= 0.0 or font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= width:
-			return text
-		var out: String = text
+	static func fit(font: Font, value: String, font_size: int, width: float) -> String:
+		if width <= 0.0 or font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= width:
+			return value
+		var out: String = value
 		while out.length() > 1 and font.get_string_size(out + "…", HORIZONTAL_ALIGNMENT_LEFT, -1,
 				font_size).x > width:
 			out = out.substr(0, out.length() - 1)
 		return out + "…"
 
-	## Escritorio verde azulado con trama de puntos y marca de agua (modo suelto).
-	static func draw_desktop(c: CanvasItem, rect: Rect2) -> void:
-		c.draw_rect(rect, DESKTOP)
-		var step: float = float(px(1.2))
-		var y: float = rect.position.y
-		var odd: bool = false
-		while y < rect.end.y:
-			var x: float = rect.position.x + (step * 0.5 if odd else 0.0)
-			while x < rect.end.x:
-				c.draw_rect(Rect2(x, y, 2, 2), DESKTOP_DOT)
-				x += step
-			y += step
-			odd = not odd
+	## Ventana propia (modo suelto, sin carcasa) dentro de `app`, con el margen del escritorio.
+	static func make_window(app: Control, title: String, icon: String) -> OsWindow:
+		var window: OsWindow = OsWindow.new(title, icon)
+		window.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE,
+				px(DESKTOP_MARGIN))
+		app.add_child(window)
+		return window
+
+	## Margen interior dentro de la ventana de la carcasa (modo integrado).
+	static func make_holder(app: Control) -> MarginContainer:
+		var holder: MarginContainer = MarginContainer.new()
+		holder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		for side: String in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+			holder.add_theme_constant_override(side, px(0.35))
+		app.add_child(holder)
+		return holder
+
+	## Barra de estado: la de la ventana propia o la de la carcasa (OSApp.status_posted).
+	static func show_status(app: OSApp, window: OsWindow, parts: Array) -> void:
+		if window != null:
+			window.set_status(parts)
+		else:
+			app.post_status("   ·   ".join(PackedStringArray(parts)))
+
+	## Valor pedido al abrir: de la carcasa en context.extra[extra_key]; suelta, en context[key].
+	static func requested(ctx: Dictionary, key: String, extra_key: String) -> String:
+		var extra: Variant = ctx.get("extra", {})
+		if ctx.has("shell"):
+			return str((extra as Dictionary).get(extra_key, "")) if extra is Dictionary else ""
+		return str(ctx.get(key, ""))
+
+	## Papel pintado del escritorio del aspecto vigente (modo suelto, sin carcasa).
+	static func draw_desktop(ci: CanvasItem, rect: Rect2) -> void:
+		ensure()
+		OSTheme.draw_wallpaper(ci, rect, pal)
 
 	## Rayas diagonales (vacantes, zonas vetadas).
-	static func draw_hatch(c: CanvasItem, rect: Rect2, color: Color, spacing: float, width: float) -> void:
+	static func draw_hatch(ci: CanvasItem, rect: Rect2, color: Color, spacing: float, width: float) -> void:
 		var x: float = rect.position.x - rect.size.y
 		while x < rect.end.x:
-			var a: Vector2 = Vector2(x, rect.end.y)
-			var b: Vector2 = Vector2(x + rect.size.y, rect.position.y)
-			var clipped: PackedVector2Array = _clip_segment(a, b, rect)
+			var clipped: PackedVector2Array = _clip_segment(Vector2(x, rect.end.y),
+					Vector2(x + rect.size.y, rect.position.y), rect)
 			if clipped.size() == 2:
-				c.draw_line(clipped[0], clipped[1], color, width)
+				ci.draw_line(clipped[0], clipped[1], color, width)
 			x += spacing
 
 	static func _clip_segment(a: Vector2, b: Vector2, r: Rect2) -> PackedVector2Array:
@@ -1808,21 +1834,27 @@ class OsKit extends RefCounted:
 			return PackedVector2Array()
 		return PackedVector2Array([p0, p1])
 
-	## Marco biselado dibujado a mano (tarjetas y paneles personalizados).
-	static func draw_bevel(c: CanvasItem, rect: Rect2, face: Color, sunken: bool) -> void:
-		c.draw_rect(rect, face)
-		var hi: Color = FACE_MID if sunken else FACE_HI
-		var lo: Color = FACE_HI if sunken else FACE_DARK
-		c.draw_rect(Rect2(rect.position, Vector2(rect.size.x, BAND)), hi)
-		c.draw_rect(Rect2(rect.position, Vector2(BAND, rect.size.y)), hi)
-		c.draw_rect(Rect2(rect.position.x, rect.end.y - BAND, rect.size.x, BAND), lo)
-		c.draw_rect(Rect2(rect.end.x - BAND, rect.position.y, BAND, rect.size.y), lo)
+	## Marco con el estilo del aspecto (bisel en retro/classic; panel plano redondeado si no).
+	static func draw_bevel(ci: CanvasItem, rect: Rect2, fill: Color, sunken: bool) -> void:
+		ensure()
+		if not bool(pal.get("bevel", false)):
+			OSTheme.draw_panel(ci, rect, pal, fill)
+			return
+		var b: OSTheme.BevelBox = OSTheme.BevelBox.new()
+		b.width = OSTheme.bevel_width(base)
+		b.face = fill
+		b.light = face().lerp(face_hi(), 0.55)
+		b.hilite = face_hi()
+		b.shadow = face_mid()
+		b.dark = face_dark()
+		b.sunken = sunken
+		b.draw(ci.get_canvas_item(), rect)
 
 
 ## Botón con glifo vectorial de UITheme a la izquierda del texto (el hueco lo reserva un icono vacío).
 class GlyphButton extends Button:
 	var glyph: String = ""
-	var glyph_color: Color = OsKit.INK
+	var glyph_color: Color = OsKit.ink()
 
 	func set_glyph(icon_name: String, color: Color) -> void:
 		glyph = icon_name
@@ -1867,9 +1899,6 @@ class OsWindow extends PanelContainer:
 		_status_row.add_theme_constant_override("separation", OsKit.px(0.2))
 		col.add_child(_status_row)
 
-	func set_title_visible(on: bool) -> void:
-		_title_bar.visible = on
-
 	func set_title(title: String) -> void:
 		_title_bar.title = title
 		_title_bar.queue_redraw()
@@ -1900,8 +1929,9 @@ class OsTitleBar extends Control:
 		custom_minimum_size.y = OsKit.px(1.9)
 		_close = OsKit.button("", "cross")
 		for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
-			_close.add_theme_stylebox_override(state, OsKit.bevel_box(OsKit.FACE if state != "pressed"
-					else OsKit.FACE_MID, state == "pressed", 0.18, 0.12))
+			var kind: String = "pressed" if state.ends_with("pressed") else ("hover" if state == "hover" else "raised")
+			_close.add_theme_stylebox_override(state, OSTheme.box(OsKit.pal, kind, OsKit.base,
+					Vector2(OsKit.px(0.18), OsKit.px(0.12))))
 		_close.tooltip_text = TranslationServer.translate("OS_CLOSE")
 		_close.pressed.connect(func() -> void: close_pressed.emit())
 		add_child(_close)
@@ -1914,31 +1944,32 @@ class OsTitleBar extends Control:
 
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
-		draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, 0), r.end, Vector2(0, r.end.y)]),
-				PackedColorArray([OsKit.TEAL, OsKit.TEAL_LIGHT, OsKit.TEAL_LIGHT, OsKit.TEAL]))
+		OSTheme.draw_title_bar(self, r, OsKit.pal, true)
 		var pad: float = float(OsKit.px(0.3))
 		var box: Rect2 = Rect2(pad, pad, size.y - pad * 2.0, size.y - pad * 2.0)
-		OsKit.draw_bevel(self, box, OsKit.FACE_HI, false)
-		UITheme.draw_icon(self, icon_name, box.grow(-box.size.x * 0.18), OsKit.TEAL, box.size.x * 0.09)
+		OSTheme.draw_icon(self, icon_name, box, OsKit.pal)
 		var fsize: int = OsKit.px(1.0)
 		var baseline: float = size.y * 0.5 + fsize * 0.36
 		OsKit.text(self, Vector2(box.end.x + pad * 2.0, baseline), title, OsKit.font_black(), fsize,
-				OsKit.TITLE_INK, size.x - box.end.x - OsKit.px(8.0))
+				OsKit.title_ink(), size.x - box.end.x - OsKit.px(8.0))
 		var deco: float = size.y - pad * 2.0
 		var close_w: float = _close.get_combined_minimum_size().x + OsKit.px(0.5)
 		for i: int in 2:
 			var x: float = size.x - close_w - (deco * 1.2 + pad) * float(2 - i)
 			var btn: Rect2 = Rect2(x, pad, deco * 1.2, deco)
-			OsKit.draw_bevel(self, btn, OsKit.FACE, false)
+			OsKit.draw_bevel(self, btn, OsKit.face(), false)
 			var glyph: Rect2 = btn.grow(-deco * 0.3)
 			if i == 0:
-				draw_line(Vector2(glyph.position.x, glyph.end.y), glyph.end, OsKit.INK, 2.0)
+				draw_line(Vector2(glyph.position.x, glyph.end.y), glyph.end, OsKit.ink(), 2.0)
 			else:
-				draw_rect(glyph, OsKit.INK, false, 2.0)
+				draw_rect(glyph, OsKit.ink(), false, 2.0)
 
 
 ## Foto de expediente: polaroid con clip, número de ficha y sello opcional.
 class Photo extends Control:
+	## La foto es siempre una polaroid blanca: tinta fija, independiente del aspecto.
+	const BADGE_INK := Color("#55524a")
+
 	var appearance: Dictionary = {}
 	var badge: String = ""
 	var stamp: String = ""
@@ -1947,15 +1978,15 @@ class Photo extends Control:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
 		draw_rect(Rect2(r.position + Vector2(5, 6), r.size), Color(0, 0, 0, 0.2))
 		draw_rect(r, Color.WHITE)
-		draw_rect(r, OsKit.INK, false, 2.0)
+		draw_rect(r, OsKit.ink(), false, 2.0)
 		var pad: float = size.x * 0.07
 		var photo: Rect2 = Rect2(pad, pad, size.x - pad * 2.0, minf(size.x - pad * 2.0, size.y - pad * 4.0))
 		if not appearance.is_empty():
 			CharacterPainter.draw_portrait(self, appearance, photo)
-		draw_rect(photo, OsKit.INK, false, 1.5)
+		draw_rect(photo, OsKit.ink(), false, 1.5)
 		var fsize: int = OsKit.px(0.8)
 		OsKit.text(self, Vector2(pad, photo.end.y + (size.y - photo.end.y) * 0.5 + fsize * 0.35),
-				"ID " + badge, OsKit.font_mono(), fsize, OsKit.INK_SOFT, photo.size.x)
+				TranslationServer.translate("PERS_BADGE_FMT") % badge, OsKit.font_mono(), fsize, BADGE_INK, photo.size.x)
 		_draw_clip(Vector2(size.x * 0.7, -OsKit.px(0.45)))
 		if not stamp.is_empty():
 			_draw_stamp(photo)
@@ -1965,7 +1996,7 @@ class Photo extends Control:
 		var w: float = float(OsKit.px(0.55))
 		var pts: PackedVector2Array = PackedVector2Array([at + Vector2(0, h), at, at + Vector2(w, 0),
 				at + Vector2(w, h * 0.8), at + Vector2(w * 0.25, h * 0.8), at + Vector2(w * 0.25, h * 0.2)])
-		draw_polyline(pts, OsKit.INK, 4.0)
+		draw_polyline(pts, OsKit.ink(), 4.0)
 		draw_polyline(pts, Color("#b9bcc2"), 2.0)
 
 	func _draw_stamp(photo: Rect2) -> void:
@@ -1974,9 +2005,9 @@ class Photo extends Control:
 		var w: float = font.get_string_size(stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + OsKit.px(0.8)
 		draw_set_transform(photo.get_center() + Vector2(0, photo.size.y * 0.28), -0.22, Vector2.ONE)
 		var box: Rect2 = Rect2(-w * 0.5, -fsize * 0.8, w, fsize * 1.4)
-		draw_rect(box, Color(OsKit.RED, 0.12))
-		draw_rect(box, OsKit.RED, false, 3.0)
-		draw_string(font, Vector2(-w * 0.5, fsize * 0.35), stamp, HORIZONTAL_ALIGNMENT_CENTER, w, fsize, OsKit.RED)
+		draw_rect(box, Color(OsKit.red(), 0.12))
+		draw_rect(box, OsKit.red(), false, 3.0)
+		draw_string(font, Vector2(-w * 0.5, fsize * 0.35), stamp, HORIZONTAL_ALIGNMENT_CENTER, w, fsize, OsKit.red())
 		draw_set_transform(Vector2.ZERO)
 
 
@@ -1988,7 +2019,7 @@ class NpcRow extends Control:
 	var title: String = ""
 	var subtitle: String = ""
 	var chip: String = ""
-	var chip_color: Color = OsKit.TEAL
+	var chip_color: Color = OsKit.teal()
 	var floor_label: String = ""
 	var marked: bool = false
 	var full_file: bool = false
@@ -2012,16 +2043,16 @@ class NpcRow extends Control:
 			accept_event()
 
 	func _draw() -> void:
-		var bg: Color = OsKit.SELECT if selected else (OsKit.FACE_HI if _hover
-				else (OsKit.ZEBRA if zebra else OsKit.FIELD))
+		var bg: Color = OsKit.select() if selected else (OsKit.face_hi() if _hover
+				else (OsKit.zebra() if zebra else OsKit.field()))
 		draw_rect(Rect2(Vector2.ZERO, size), bg)
-		var ink: Color = OsKit.SELECT_INK if selected else OsKit.INK
-		var soft: Color = Color(OsKit.SELECT_INK, 0.75) if selected else OsKit.soft()
+		var ink: Color = OsKit.select_ink() if selected else OsKit.ink()
+		var soft: Color = Color(OsKit.select_ink(), 0.75) if selected else OsKit.soft()
 		var pad: float = float(OsKit.px(0.4))
 		var chip_w: float = float(OsKit.px(2.3))
 		var chip_r: Rect2 = Rect2(pad, size.y * 0.5 - OsKit.px(0.62), chip_w, OsKit.px(1.24))
 		draw_rect(chip_r, chip_color)
-		draw_rect(chip_r, OsKit.INK, false, 1.5)
+		draw_rect(chip_r, OsKit.ink(), false, 1.5)
 		OsKit.text(self, Vector2(chip_r.position.x, chip_r.get_center().y + OsKit.px(0.28)), chip,
 				OsKit.font_black(), OsKit.px(0.75), UITheme.readable_on(chip_color), chip_w,
 				HORIZONTAL_ALIGNMENT_CENTER)
@@ -2033,13 +2064,13 @@ class NpcRow extends Control:
 		OsKit.text(self, Vector2(size.x - right_w - pad, size.y * 0.84), floor_label, OsKit.font_regular(),
 				OsKit.px(0.72), soft, right_w, HORIZONTAL_ALIGNMENT_RIGHT)
 		_draw_marks(ink)
-		draw_line(Vector2(0, size.y - 1), Vector2(size.x, size.y - 1), Color(OsKit.FACE_MID, 0.35), 1.0)
+		draw_line(Vector2(0, size.y - 1), Vector2(size.x, size.y - 1), Color(OsKit.face_mid(), 0.35), 1.0)
 
 	func _draw_marks(ink: Color) -> void:
 		var s: float = float(OsKit.px(0.95))
 		var x: float = size.x - OsKit.px(0.4) - s
 		if marked:
-			UITheme.draw_icon(self, "target", Rect2(x, size.y * 0.1, s, s), OsKit.RED, s * 0.12)
+			UITheme.draw_icon(self, "target", Rect2(x, size.y * 0.1, s, s), OsKit.red(), s * 0.12)
 			x -= s * 1.2
 		if full_file:
 			UITheme.draw_icon(self, "eye", Rect2(x, size.y * 0.1, s, s), ink, s * 0.1)
@@ -2056,11 +2087,11 @@ class SectionHead extends Control:
 	func _draw() -> void:
 		var fsize: int = OsKit.px(0.8)
 		OsKit.text(self, Vector2(0, size.y - OsKit.px(0.45)), text.to_upper(), OsKit.font_black(), fsize,
-				OsKit.TEAL, size.x - OsKit.px(2.5))
-		draw_line(Vector2(0, size.y - 2), Vector2(size.x, size.y - 2), OsKit.TEAL, 2.0)
+				OsKit.teal(), size.x - OsKit.px(2.5))
+		draw_line(Vector2(0, size.y - 2), Vector2(size.x, size.y - 2), OsKit.teal(), 2.0)
 		if level > 0:
-			OsKit.text(self, Vector2(size.x - OsKit.px(2.2), size.y - OsKit.px(0.45)), "N%d" % level,
-					OsKit.font_mono(), OsKit.px(0.72), OsKit.INK_SOFT, OsKit.px(2.2), HORIZONTAL_ALIGNMENT_RIGHT)
+			OsKit.text(self, Vector2(size.x - OsKit.px(2.2), size.y - OsKit.px(0.45)), TranslationServer.translate("PERS_LEVEL_CHIP") % level,
+					OsKit.font_mono(), OsKit.px(0.72), OsKit.ink_soft(), OsKit.px(2.2), HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 ## Barra de rasgo: aproximada (tramo) hasta N5; exacta con cifra a partir de N5.
@@ -2078,22 +2109,22 @@ class TraitBar extends Control:
 		var tail_w: float = float(OsKit.px(3.6))
 		var fsize: int = OsKit.px(0.85)
 		var mid: float = size.y * 0.5 + fsize * 0.35
-		OsKit.text(self, Vector2(0, mid), caption, OsKit.font_regular(), fsize, OsKit.INK, cap_w)
+		OsKit.text(self, Vector2(0, mid), caption, OsKit.font_regular(), fsize, OsKit.ink(), cap_w)
 		var track: Rect2 = Rect2(cap_w, size.y * 0.22, size.x - cap_w - tail_w, size.y * 0.56)
-		OsKit.draw_bevel(self, track, OsKit.FIELD, true)
+		OsKit.draw_bevel(self, track, OsKit.field(), true)
 		var inner: Rect2 = track.grow(-OsKit.BAND)
 		var fill: Rect2 = Rect2(inner.position, Vector2(inner.size.x * clampf(value / 100.0, 0.0, 1.0), inner.size.y))
-		var color: Color = OsKit.TEAL.lerp(OsKit.TEAL_LIGHT, 0.4) if exact else Color(OsKit.TEAL_LIGHT, 0.75)
+		var color: Color = OsKit.teal().lerp(OsKit.teal_light(), 0.4) if exact else Color(OsKit.teal_light(), 0.75)
 		draw_rect(fill, color)
 		if not exact:
 			OsKit.draw_hatch(self, Rect2(fill.end.x - inner.size.x * 0.1, fill.position.y,
-					inner.size.x * 0.1, fill.size.y), Color(OsKit.PAPER, 0.7), 5.0, 2.0)
+					inner.size.x * 0.1, fill.size.y), Color(OsKit.paper(), 0.7), 5.0, 2.0)
 		for tick: int in [1, 2, 3]:
 			var tx: float = inner.position.x + inner.size.x * tick * 0.25
-			draw_line(Vector2(tx, inner.position.y), Vector2(tx, inner.end.y), Color(OsKit.INK, 0.18), 1.0)
+			draw_line(Vector2(tx, inner.position.y), Vector2(tx, inner.end.y), Color(OsKit.ink(), 0.18), 1.0)
 		var tail: String = str(value) if exact else "~ " + word
 		OsKit.text(self, Vector2(track.end.x + OsKit.px(0.4), mid), tail,
-				OsKit.font_mono() if exact else OsKit.font_regular(), fsize, OsKit.INK, tail_w - OsKit.px(0.4))
+				OsKit.font_mono() if exact else OsKit.font_regular(), fsize, OsKit.ink(), tail_w - OsKit.px(0.4))
 
 
 ## Vínculo social: tipo (color), persona, fuerza.
@@ -2118,29 +2149,29 @@ class LinkRow extends Control:
 	func _draw() -> void:
 		var fsize: int = OsKit.px(0.88)
 		var mid: float = size.y * 0.5 + fsize * 0.35
-		var color: Color = TYPE_COLORS.get(link_type, OsKit.INK_SOFT)
+		var color: Color = TYPE_COLORS.get(link_type, OsKit.ink_soft())
 		draw_circle(Vector2(OsKit.px(0.4), size.y * 0.5), OsKit.px(0.3), color)
-		draw_arc(Vector2(OsKit.px(0.4), size.y * 0.5), OsKit.px(0.3), 0, TAU, 16, OsKit.INK, 1.5)
+		draw_arc(Vector2(OsKit.px(0.4), size.y * 0.5), OsKit.px(0.3), 0, TAU, 16, OsKit.ink(), 1.5)
 		var x: float = float(OsKit.px(1.0))
 		var bar_w: float = float(OsKit.px(4.6))
 		var name_w: float = (size.x - x - bar_w - OsKit.px(0.6)) * 0.55
 		var label: String = (arrow + " " if show_arrow else "") + who
-		OsKit.text(self, Vector2(x, mid), label, OsKit.font_bold(), fsize, OsKit.INK, name_w)
+		OsKit.text(self, Vector2(x, mid), label, OsKit.font_bold(), fsize, OsKit.ink(), name_w)
 		var kind_text: String = kind + ("  · " + TranslationServer.translate("PERS_SECRET_TAG") if secret else "")
 		OsKit.text(self, Vector2(x + name_w + OsKit.px(0.3), mid), kind_text, OsKit.font_regular(),
-				OsKit.px(0.8), OsKit.RED if secret else OsKit.soft(), size.x - x - name_w - bar_w - OsKit.px(0.6))
+				OsKit.px(0.8), OsKit.red() if secret else OsKit.soft(), size.x - x - name_w - bar_w - OsKit.px(0.6))
 		var bar: Rect2 = Rect2(size.x - bar_w, size.y * 0.3, bar_w - (OsKit.px(2.1) if exact else 0.0), size.y * 0.4)
-		OsKit.draw_bevel(self, bar, OsKit.FIELD, true)
+		OsKit.draw_bevel(self, bar, OsKit.field(), true)
 		draw_rect(Rect2(bar.position + Vector2(2, 2), Vector2((bar.size.x - 4) * strength, bar.size.y - 4)), color)
 		if exact:
 			OsKit.text(self, Vector2(bar.end.x + OsKit.px(0.25), mid), "%.2f" % strength, OsKit.font_mono(),
-					OsKit.px(0.78), OsKit.INK, OsKit.px(1.9))
+					OsKit.px(0.78), OsKit.ink(), OsKit.px(1.9))
 
 
 ## Etiqueta de color («PROBABLE», «INSOBORNABLE»).
 class Chip extends Control:
 	var text: String = ""
-	var color: Color = OsKit.TEAL
+	var color: Color = OsKit.teal()
 
 	func _ready() -> void:
 		var fsize: int = OsKit.px(0.78)
@@ -2167,19 +2198,19 @@ class Redacted extends Control:
 
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
-		draw_rect(r, Color(OsKit.FACE, 0.35))
-		draw_dashed_line(r.position, Vector2(r.end.x, 0), OsKit.FACE_MID, 1.5, 6.0)
-		draw_dashed_line(Vector2(0, r.end.y - 1), r.end - Vector2(0, 1), OsKit.FACE_MID, 1.5, 6.0)
+		draw_rect(r, Color(OsKit.face(), 0.35))
+		draw_dashed_line(r.position, Vector2(r.end.x, 0), OsKit.face_mid(), 1.5, 6.0)
+		draw_dashed_line(Vector2(0, r.end.y - 1), r.end - Vector2(0, 1), OsKit.face_mid(), 1.5, 6.0)
 		var fsize: int = OsKit.px(0.8)
 		var pad: float = float(OsKit.px(0.4))
 		OsKit.text(self, Vector2(pad, pad + fsize), caption.to_upper(), OsKit.font_black(), fsize,
-				OsKit.INK_SOFT, size.x - OsKit.px(4.0))
+				OsKit.ink_soft(), size.x - OsKit.px(4.0))
 		var chip: Rect2 = Rect2(size.x - OsKit.px(3.3), pad * 0.6, OsKit.px(3.0), OsKit.px(1.15))
-		draw_rect(chip, OsKit.FACE_DARK)
+		draw_rect(chip, OsKit.face_dark())
 		UITheme.draw_icon(self, "lock", Rect2(chip.position + Vector2(3, 2), Vector2(chip.size.y - 4, chip.size.y - 4)),
-				OsKit.HAZARD, 1.8)
-		OsKit.text(self, Vector2(chip.position.x + chip.size.y, chip.get_center().y + fsize * 0.36), "N%d" % level,
-				OsKit.font_black(), fsize, OsKit.HAZARD, chip.size.x - chip.size.y, HORIZONTAL_ALIGNMENT_CENTER)
+				OsKit.hazard(), 1.8)
+		OsKit.text(self, Vector2(chip.position.x + chip.size.y, chip.get_center().y + fsize * 0.36), TranslationServer.translate("PERS_LEVEL_CHIP") % level,
+				OsKit.font_black(), fsize, OsKit.hazard(), chip.size.x - chip.size.y, HORIZONTAL_ALIGNMENT_CENTER)
 		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 		rng.seed = seed_value
 		var y: float = pad * 1.6 + fsize
@@ -2188,7 +2219,7 @@ class Redacted extends Control:
 			var x: float = pad
 			while x < size.x - pad * 2.0:
 				var w: float = minf(rng.randf_range(0.12, 0.38) * size.x, size.x - pad - x)
-				draw_rect(Rect2(x, y, w, line_h), OsKit.INK)
+				draw_rect(Rect2(x, y, w, line_h), OsKit.ink())
 				x += w + rng.randf_range(0.02, 0.05) * size.x
 			y += line_h * 1.7
 
@@ -2203,28 +2234,28 @@ class LevelCard extends Control:
 
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
-		OsKit.draw_bevel(self, r, OsKit.FACE, false)
+		OsKit.draw_bevel(self, r, OsKit.face(), false)
 		var inner: Rect2 = r.grow(-OsKit.px(0.35))
-		draw_rect(inner, OsKit.TEAL, false, 2.0)
+		draw_rect(inner, OsKit.teal(), false, 2.0)
 		var pad: float = float(OsKit.px(0.5))
 		var small: int = OsKit.px(0.72)
 		OsKit.text(self, inner.position + Vector2(pad, pad + small), TranslationServer.translate("PERS_CLEARANCE").to_upper(),
-				OsKit.font_black(), small, OsKit.TEAL, inner.size.x - pad * 2.0)
+				OsKit.font_black(), small, OsKit.teal(), inner.size.x - pad * 2.0)
 		var big: int = OsKit.px(2.4)
-		OsKit.text(self, inner.position + Vector2(pad, pad + small + big * 0.95), "N%d" % level, OsKit.font_black(),
-				big, OsKit.INK, inner.size.x * 0.45)
+		OsKit.text(self, inner.position + Vector2(pad, pad + small + big * 0.95), TranslationServer.translate("PERS_LEVEL_CHIP") % level, OsKit.font_black(),
+				big, OsKit.ink(), inner.size.x * 0.45)
 		var pip: float = (inner.size.x * 0.5 - pad) / float(max_level)
 		for i: int in max_level:
 			var p: Rect2 = Rect2(inner.position.x + inner.size.x * 0.5 + i * pip, inner.position.y + pad + small * 1.6,
 					pip * 0.7, big * 0.6)
-			draw_rect(p, OsKit.TEAL if i < level else OsKit.FIELD)
-			draw_rect(p, OsKit.INK, false, 1.0)
+			draw_rect(p, OsKit.teal() if i < level else OsKit.field())
+			draw_rect(p, OsKit.ink(), false, 1.0)
 		var y: float = inner.position.y + pad + small + big * 1.35
 		OsKit.text(self, Vector2(inner.position.x + pad, y), level_name, OsKit.font_bold(), OsKit.px(0.85),
-				OsKit.INK, inner.size.x - pad * 2.0)
+				OsKit.ink(), inner.size.x - pad * 2.0)
 		y += OsKit.px(1.1)
 		if not note.is_empty():
-			OsKit.text(self, Vector2(inner.position.x + pad, y), note, OsKit.font_bold(), small, OsKit.RED,
+			OsKit.text(self, Vector2(inner.position.x + pad, y), note, OsKit.font_bold(), small, OsKit.red(),
 					inner.size.x - pad * 2.0)
 			y += OsKit.px(1.0)
 		draw_multiline_string(OsKit.font_regular(), Vector2(inner.position.x + pad, y), hint,
@@ -2316,7 +2347,7 @@ class CompareView extends Control:
 		draw_rect(Rect2(photo.position + Vector2(4, 5), photo.size), Color(0, 0, 0, 0.18))
 		draw_rect(photo, Color.WHITE)
 		CharacterPainter.draw_portrait(self, identity["photo"], photo.grow(-photo_w * 0.06))
-		draw_rect(photo, OsKit.INK, false, 2.0)
+		draw_rect(photo, OsKit.ink(), false, 2.0)
 		var pad: float = float(OsKit.px(0.8))
 		var text_w: float = rect.size.x - photo_w - pad
 		var x: float = rect.position.x if mirrored else photo.end.x + pad
@@ -2324,7 +2355,7 @@ class CompareView extends Control:
 		if mirrored:
 			text_w = photo.position.x - pad - rect.position.x
 		var y: float = rect.position.y + OsKit.px(1.6)
-		OsKit.text(self, Vector2(x, y), str(identity["name"]), OsKit.font_black(), OsKit.px(1.3), OsKit.INK,
+		OsKit.text(self, Vector2(x, y), str(identity["name"]), OsKit.font_black(), OsKit.px(1.3), OsKit.ink(),
 				text_w, align)
 		y += OsKit.px(1.5)
 		for field: String in ["post", "floor", "wing"]:
@@ -2333,16 +2364,16 @@ class CompareView extends Control:
 			y += OsKit.px(1.2)
 		var level_text: String = TranslationServer.translate("PERS_CMP_LEVEL") % int(file["level"])
 		OsKit.text(self, Vector2(x, y + OsKit.px(0.4)), level_text, OsKit.font_black(), OsKit.px(0.8),
-				OsKit.TEAL, text_w, align)
+				OsKit.teal(), text_w, align)
 
 	func _draw_vs(center: Vector2) -> void:
 		var r: float = float(OsKit.px(1.7))
 		draw_circle(center + Vector2(3, 4), r, Color(0, 0, 0, 0.2))
-		draw_circle(center, r, OsKit.TEAL)
-		draw_arc(center, r, 0, TAU, 32, OsKit.INK, 2.5)
+		draw_circle(center, r, OsKit.teal())
+		draw_arc(center, r, 0, TAU, 32, OsKit.ink(), 2.5)
 		var fsize: int = OsKit.px(1.1)
-		OsKit.text(self, Vector2(center.x - r, center.y + fsize * 0.36), "VS", OsKit.font_black(), fsize,
-				OsKit.TITLE_INK, r * 2.0, HORIZONTAL_ALIGNMENT_CENTER)
+		OsKit.text(self, Vector2(center.x - r, center.y + fsize * 0.36), TranslationServer.translate("PERS_CMP_VS"), OsKit.font_black(), fsize,
+				OsKit.title_ink(), r * 2.0, HORIZONTAL_ALIGNMENT_CENTER)
 		var link: String = TranslationServer.translate("PERS_CMP_NO_LINK")
 		if not _link_type.is_empty() and (_a["sections"].has(S_LINKS_KEY) or _b["sections"].has(S_LINKS_KEY)):
 			link = TranslationServer.translate("LINK_" + _link_type.to_upper())
@@ -2350,20 +2381,20 @@ class CompareView extends Control:
 			link = TranslationServer.translate("PERS_CLASSIFIED")
 		var w: float = float(OsKit.px(9.0))
 		OsKit.text(self, Vector2(center.x - w * 0.5, center.y + r + OsKit.px(1.1)), link, OsKit.font_bold(),
-				OsKit.px(0.8), OsKit.INK, w, HORIZONTAL_ALIGNMENT_CENTER)
+				OsKit.px(0.8), OsKit.ink(), w, HORIZONTAL_ALIGNMENT_CENTER)
 
 	func _draw_caption(text: String, y: float) -> void:
 		OsKit.text(self, Vector2(0, y + OsKit.px(1.1)), text.to_upper(), OsKit.font_black(), OsKit.px(0.8),
-				OsKit.TEAL, size.x, HORIZONTAL_ALIGNMENT_CENTER)
-		draw_line(Vector2(0, y + OsKit.px(1.5)), Vector2(size.x, y + OsKit.px(1.5)), Color(OsKit.TEAL, 0.5), 1.5)
+				OsKit.teal(), size.x, HORIZONTAL_ALIGNMENT_CENTER)
+		draw_line(Vector2(0, y + OsKit.px(1.5)), Vector2(size.x, y + OsKit.px(1.5)), Color(OsKit.teal(), 0.5), 1.5)
 
 	func _draw_trait_row(i: int, y: float) -> void:
 		var label_w: float = float(OsKit.px(LABEL_EM))
 		var mid: float = size.x * 0.5
-		var name: String = TranslationServer.translate("PERS_TRAIT_" + Validate.TRAIT_NAMES[i].to_upper())
+		var trait_label: String = TranslationServer.translate("PERS_TRAIT_" + Validate.TRAIT_NAMES[i].to_upper())
 		var fsize: int = OsKit.px(0.88)
 		var base: float = y + OsKit.px(ROW_EM) * 0.5 + fsize * 0.36
-		OsKit.text(self, Vector2(mid - label_w * 0.5, base), name, OsKit.font_bold(), fsize, OsKit.INK, label_w,
+		OsKit.text(self, Vector2(mid - label_w * 0.5, base), trait_label, OsKit.font_bold(), fsize, OsKit.ink(), label_w,
 				HORIZONTAL_ALIGNMENT_CENTER)
 		var bar_w: float = mid - label_w * 0.5 - OsKit.px(3.2)
 		var h: float = OsKit.px(ROW_EM) * 0.5
@@ -2372,22 +2403,22 @@ class CompareView extends Control:
 		_draw_side_bar(_b, i, Rect2(mid + label_w * 0.5, top, bar_w, h), false)
 
 	func _draw_side_bar(file: Dictionary, i: int, track: Rect2, grows_left: bool) -> void:
-		OsKit.draw_bevel(self, track, OsKit.FIELD, true)
+		OsKit.draw_bevel(self, track, OsKit.field(), true)
 		var traits: Variant = file["sections"].get(S_TRAITS_KEY)
 		var inner: Rect2 = track.grow(-OsKit.BAND)
 		if not traits is Array:
-			OsKit.draw_hatch(self, inner, Color(OsKit.INK, 0.55), 7.0, 2.0)
+			OsKit.draw_hatch(self, inner, Color(OsKit.ink(), 0.55), 7.0, 2.0)
 			return
 		var row: Dictionary = traits[i]
 		var fill_w: float = inner.size.x * clampf(int(row["value"]) / 100.0, 0.0, 1.0)
 		var fill_x: float = inner.end.x - fill_w if grows_left else inner.position.x
 		draw_rect(Rect2(fill_x, inner.position.y, fill_w, inner.size.y),
-				OsKit.RED.lerp(OsKit.AMBER, 0.2) if grows_left else OsKit.BLUE)
+				OsKit.red().lerp(OsKit.amber(), 0.2) if grows_left else OsKit.blue())
 		var tail: String = str(row["value"]) if bool(row["exact"]) else "~"
 		var fsize: int = OsKit.px(0.82)
 		var tx: float = track.position.x - OsKit.px(2.6) if grows_left else track.end.x + OsKit.px(0.3)
 		OsKit.text(self, Vector2(tx, track.get_center().y + fsize * 0.36), tail, OsKit.font_mono(), fsize,
-				OsKit.INK, OsKit.px(2.3), HORIZONTAL_ALIGNMENT_RIGHT if grows_left else HORIZONTAL_ALIGNMENT_LEFT)
+				OsKit.ink(), OsKit.px(2.3), HORIZONTAL_ALIGNMENT_RIGHT if grows_left else HORIZONTAL_ALIGNMENT_LEFT)
 
 	func _draw_text_row(row: Array, y: float) -> void:
 		var label_w: float = float(OsKit.px(LABEL_EM))
@@ -2395,19 +2426,19 @@ class CompareView extends Control:
 		var fsize: int = OsKit.px(0.88)
 		var base: float = y + OsKit.px(ROW_EM) * 0.5 + fsize * 0.36
 		OsKit.text(self, Vector2(mid - label_w * 0.5, base), TranslationServer.translate(str(row[0])),
-				OsKit.font_bold(), fsize, OsKit.INK, label_w, HORIZONTAL_ALIGNMENT_CENTER)
+				OsKit.font_bold(), fsize, OsKit.ink(), label_w, HORIZONTAL_ALIGNMENT_CENTER)
 		var side_w: float = mid - label_w * 0.5 - OsKit.px(GAP_EM)
 		_draw_side_text(str(row[1]), Rect2(0, y, side_w, OsKit.px(ROW_EM)), true, base)
 		_draw_side_text(str(row[2]), Rect2(mid + label_w * 0.5 + OsKit.px(GAP_EM), y, side_w, OsKit.px(ROW_EM)),
 				false, base)
 		draw_line(Vector2(0, y + OsKit.px(ROW_EM) - 1), Vector2(size.x, y + OsKit.px(ROW_EM) - 1),
-				Color(OsKit.FACE_MID, 0.3), 1.0)
+				Color(OsKit.face_mid(), 0.3), 1.0)
 
 	func _draw_side_text(value: String, rect: Rect2, right_align: bool, base: float) -> void:
 		if value.is_empty():
 			var w: float = rect.size.x * 0.45
 			var x: float = rect.end.x - w if right_align else rect.position.x
-			draw_rect(Rect2(x, rect.position.y + rect.size.y * 0.3, w, rect.size.y * 0.4), OsKit.INK)
+			draw_rect(Rect2(x, rect.position.y + rect.size.y * 0.3, w, rect.size.y * 0.4), OsKit.ink())
 			return
-		OsKit.text(self, Vector2(rect.position.x, base), value, OsKit.font_regular(), OsKit.px(0.88), OsKit.INK,
+		OsKit.text(self, Vector2(rect.position.x, base), value, OsKit.font_regular(), OsKit.px(0.88), OsKit.ink(),
 				rect.size.x, HORIZONTAL_ALIGNMENT_RIGHT if right_align else HORIZONTAL_ALIGNMENT_LEFT)

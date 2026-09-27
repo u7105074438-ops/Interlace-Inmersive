@@ -426,7 +426,8 @@ func _summary_side() -> Control:
 		box.add_child(Look.pair(tr(pair[0]), str(pair[1])))
 	var assist: String = str(summary.get("assist_outcome", ""))
 	if not assist.is_empty():
-		box.add_child(Look.wrap(tr("RPRES_ASSIST_" + assist.to_upper()), Look.V_WARN))
+		box.add_child(Look.wrap(tr("RPRES_ASSIST_" + assist.to_upper()),
+				Look.V_WARN if assist == ResultsPresentation.ASSIST_FAILURE else Look.V_STRONG))
 	var spacer: Control = Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(spacer)
@@ -691,7 +692,7 @@ class ReactionRow extends Control:
 	var quip: String = ""
 
 	func _init() -> void:
-		custom_minimum_size.y = Look.px(3.2)
+		custom_minimum_size.y = Look.px(3.8)
 
 	func _draw() -> void:
 		var ink: Color = Look.pal("outline")
@@ -727,7 +728,7 @@ class HallView extends Control:
 	const FIGURE_CELLS := 1.55
 	const CELL_PATH := "mundo.px_por_unidad"
 	const PLAYER_SEED_PATH := "jugador.semilla_apariencia"
-	const ASK_SECONDS := 2.0
+	const B_ASK_SECONDS := "presentacion_ui.segundos_por_pregunta"
 
 	var seats: Array[Dictionary] = []
 	var figures: Dictionary = {}
@@ -749,7 +750,7 @@ class HallView extends Control:
 		return Database.get_balance_float(CELL_PATH) * FIGURE_CELLS * _scale()
 
 	func _asking() -> int:
-		return int(_time / ASK_SECONDS) % maxi(seats.size(), 1)
+		return int(_time / maxf(Database.get_balance_float(B_ASK_SECONDS), 0.1)) % maxi(seats.size(), 1)
 
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)

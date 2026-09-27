@@ -353,9 +353,26 @@ func _mark_room(room_id: String, owner: int) -> void:
 			_walkable[i] = 0 if blocked.has(Vector2i(x, y)) else 1
 	if room == null:
 		return
+	_block_face_row(room_id, rect)
 	for entry: Dictionary in FloorLayout.room_furniture(room):
 		if FurniturePainter.is_enclosure(str(entry["type"])):
 			_block_enclosure_sides(entry, rect.position)
+
+
+## La fila superior queda bajo la cara 3/4 del muro norte (su colisión la cubre): no transitable,
+## salvo las celdas de los huecos de puerta de ese muro.
+func _block_face_row(room_id: String, rect: Rect2i) -> void:
+	if rect.size.y < Database.get_balance_int("mundo.alto_minimo_fila_muro"):
+		return
+	var open_x: Dictionary = {}
+	for door: Dictionary in _plan["doors"]:
+		var c: Vector2i = door["cell"]
+		if door["walkable"] and not door["vertical"] and c.y == rect.position.y and (door["a"] == room_id or door["b"] == room_id):
+			for k: int in int(door["width"]):
+				open_x[c.x + k] = true
+	for x: int in range(rect.position.x, rect.end.x):
+		if not open_x.has(x):
+			_walkable[_cell_index(Vector2i(x, rect.position.y))] = 0
 
 
 ## Las mamparas laterales de un recinto (cubículo, cabina) impiden entrar por los costados de su

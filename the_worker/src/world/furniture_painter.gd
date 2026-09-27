@@ -66,7 +66,7 @@ const SPECS: Dictionary = {
 	"weight_bench": [BLOCK_LOW, 6, "flat"], "whiteboard": [BLOCK_LOW, 24, "prop"],
 	"window_wall": [BLOCK_LOW, 0, "flat"], "workbench": [BLOCK_LOW, 10, "prop"],
 	"barrier": [BLOCK_LOW, 16, "prop"], "wall_clock": [BLOCK_NONE, 0, "flat"],
-	"fire_extinguisher": [BLOCK_NONE, 0, "flat"],
+	"fire_extinguisher": [BLOCK_NONE, 0, "flat"], "wall_art": [BLOCK_NONE, 0, "flat"],
 }
 const UNKNOWN_SPEC: Array = [BLOCK_LOW, 12, "prop"]
 ## Silueta normalizada de un piano de cola (teclado arriba, cola curva abajo).
@@ -1264,6 +1264,18 @@ func _draw_wall_clock(ci: CanvasItem, r: Rect2) -> void:
 	_dot(ci, c, _px(1.4), C_RED_LED)
 
 
+## Cuadro colgado (cara norte): marco (dorado en las bandas altas) y composición abstracta.
+func _draw_wall_art(ci: CanvasItem, r: Rect2) -> void:
+	var frame: Rect2 = Rect2(r.get_center().x - _px(15), r.position.y - _px(18), _px(30), _px(15))
+	var gold: bool = str(style.get("band", "")) in ["the_power", "the_throne"]
+	_rect(ci, frame, C_GOLD if gold else _c("furniture"))
+	var canvas: Rect2 = _inset(frame, 2.5)
+	ci.draw_rect(canvas, _c("window").lerp(_c("wall"), 0.3))
+	ci.draw_rect(Rect2(canvas.position, Vector2(canvas.size.x * 0.45, canvas.size.y)), _c("accent").lerp(_c("floor"), 0.3))
+	ci.draw_rect(Rect2(canvas.position + Vector2(canvas.size.x * 0.55, canvas.size.y * 0.35), canvas.size * Vector2(0.3, 0.45)),
+			_pick(C_BOOKS))
+
+
 ## Extintor colgado (cara norte): cuerpo rojo, válvula negra y soporte.
 func _draw_fire_extinguisher(ci: CanvasItem, r: Rect2) -> void:
 	var ext: Rect2 = Rect2(r.get_center().x - _px(5), r.position.y - _px(17), _px(10), _px(15))
@@ -1340,7 +1352,8 @@ func _draw_piano(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 3.0)
 	var h: float = height_of("piano")
 	var body: PackedVector2Array = _piano_outline(Rect2(d.position.x, d.position.y + _px(8) - h, d.size.x, d.size.y - _px(8)))
-	_shadow(ci, d)
+	var shadow: PackedVector2Array = _piano_outline(Rect2(d.position.x + _px(3), d.position.y + _px(12), d.size.x, d.size.y - _px(8)))
+	ci.draw_colored_polygon(shadow, SHADOW)
 	_poly(ci, body, Color("#18181b"))
 	var lid: PackedVector2Array = _piano_outline(Rect2(d.position.x + _px(5), d.position.y + _px(14) - h,
 			d.size.x - _px(10), d.size.y - _px(22)))

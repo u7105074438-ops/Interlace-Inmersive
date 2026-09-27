@@ -14,7 +14,7 @@ extends Node2D
 const LAYER_FLOOR := 0
 const LAYER_WALLS := 1
 const LAYER_LIGHT := 2
-const WALL_MOUNTED: Array[String] = ["motivational_poster", "mirror", "wall_clock", "fire_extinguisher"]
+const WALL_MOUNTED: Array[String] = ["motivational_poster", "mirror", "wall_clock", "fire_extinguisher", "wall_art"]
 const FLAT_FIRST: Array[String] = ["rug", "runway", "helipad", "window_wall"]
 const LIGHT_ALPHA := 0.13
 const AO_DEPTH := 0.45
@@ -299,7 +299,8 @@ func _floor_wood(size: Vector2) -> void:
 	if is_spine:
 		var runner: Rect2 = Rect2(0, size.y * 0.22, size.x, size.y * 0.56)
 		draw_rect(runner, _c("carpet"))
-		FurniturePainter.frame_rect(self, Rect2(runner.position + Vector2(0, 4), Vector2(runner.size.x, runner.size.y - 8)), C_BRASS, 1.5)
+		FurniturePainter.frame_rect(self, Rect2(runner.position + Vector2(0, 4), Vector2(runner.size.x, runner.size.y - 8)),
+				_c("accent"), 1.5)
 
 
 func _floor_marble(size: Vector2) -> void:
@@ -393,6 +394,8 @@ func _draw_fixtures() -> void:
 				FurniturePainter.frame_rect(self, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.35)), _c("outline"), OUTLINE_W)
 
 
+## Mobiliario plano (alfombras primero; sillas, sofás, camas…) y la pieza de suelo de los recintos
+## (moqueta del cubículo, ala lateral y silla; suelo de la cabina): quedan bajo los actores.
 func _draw_flat_furniture() -> void:
 	var ordered: Array[Dictionary] = []
 	for entry: Dictionary in _furniture:
@@ -400,7 +403,9 @@ func _draw_flat_furniture() -> void:
 			ordered.append(entry)
 	for entry: Dictionary in _furniture:
 		var type: String = str(entry["type"])
-		if not FLAT_FIRST.has(type) and not FurniturePainter.is_prop(type) and not WALL_MOUNTED.has(type):
+		if FurniturePainter.is_enclosure(type):
+			ordered.append(entry.merged({"part": FurniturePainter.PART_FLOOR}, true))
+		elif not FLAT_FIRST.has(type) and not FurniturePainter.is_prop(type) and not WALL_MOUNTED.has(type):
 			ordered.append(entry)
 	for entry: Dictionary in ordered:
 		_painter.draw_item(self, entry, _footprint_px(entry))
@@ -450,6 +455,20 @@ func segment_rect(side: int, seg: Vector2, drawn: bool = false) -> Rect2:
 		FloorLayout.SIDE_LEFT:
 			return Rect2(-t * 0.5, seg.x * cell - t * 0.5, t, (seg.y - seg.x) * cell + t)
 	return Rect2(rect.size.x * cell - t * 0.5, seg.x * cell - t * 0.5, t, (seg.y - seg.x) * cell + t)
+
+
+## Colisión de un tramo de muro: el norte cubre además su cara 3/4 (nadie pisa la pared dibujada;
+## FloorStreamer marca esa fila como no transitable salvo en los huecos de puerta).
+func collision_rect(side: int, seg: Vector2) -> Rect2:
+	var r: Rect2 = segment_rect(side, seg)
+	if side == FloorLayout.SIDE_TOP and rect.size.y >= Database.get_balance_int("mundo.alto_minimo_fila_muro"):
+		r.size.y = face_bottom(cell) - r.position.y
+	return r
+
+
+## Pie de la cara 3/4 del muro norte, en px desde el borde superior de la sala.
+static func face_bottom(cell_px: float) -> float:
+	return (Database.get_balance_float("mundo.grosor_muro_dibujo") * 0.5 + Database.get_balance_float("mundo.cara_muro")) * cell_px
 
 
 func _draw_walls_layer() -> void:
@@ -763,6 +782,10 @@ func _draw_elevator_car(holes: Array) -> void:
 	var x: float = rect.size.x * cell * 0.5 - w * 0.5
 	var y: float = rect.size.y * cell - _t_draw() * 0.5 - cell * 1.1 if entry_on_top else _t_draw() * 0.5
 	var shaft: Rect2 = Rect2(x, y, w, cell * 1.1 if entry_on_top else _face() + cell * 0.7)
+	var mat: Rect2 = Rect2(x, shaft.position.y - cell * 0.9, w, cell * 0.8) if entry_on_top \
+			else Rect2(x, shaft.end.y + 5.0, w, cell * 0.8)
+	draw_rect(mat, _c("shadow").darkened(0.2))
+	FurniturePainter.frame_rect(self, mat.grow(-3.0), _c("accent"), 2.0)
 	draw_rect(shaft.grow(5.0), _cap())
 	FurniturePainter.frame_rect(self, shaft.grow(5.0), _c("outline"), 2.0)
 	for k: int in 2:

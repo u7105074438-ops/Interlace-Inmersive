@@ -59,8 +59,21 @@ const B_SHAKE_S := "escenas.temblor_segundos"
 const B_MAX_ACCUSE := "escenas.max_acusables"
 const PERCENT := 100.0
 const CARD_SIZE := Vector2(400, 268)
+## Los ids de caso son "case_<n>" (Security.CASE_ID_FORMAT): la cabecera muestra el número.
+const CASE_ID_SEPARATOR := "_"
 ## Rapidez con que la tarjeta en reposo sigue su sitio si el panel cambia de alto (1/s).
 const CARD_FOLLOW := 12.0
+## Presentación (no ajustes de juego): la tarjeta nace pequeña sobre la mesa y queda algo inclinada;
+## el medidor deja margen sobre el peso inicial; el rechazo sacude la tarjeta a pasos cortos.
+const CARD_START_SCALE := 0.3
+const CARD_TILT := -0.05
+const CARD_SHAKE_STEP := 0.05
+const METER_HEADROOM := 1.18
+const SLAM_POP_FROM := 0.2
+## Saltar animaciones: un paso de tween mayor que cualquier animación de la escena; las que nacen al
+## terminar otra (el portazo lanza la onomatopeya) se completan en pasadas sucesivas.
+const FORWARD_STEP := 1000.0
+const MAX_FORWARD_PASSES := 4
 
 var instant: bool = false
 var case_id: String = ""
@@ -476,10 +489,14 @@ func advance(seconds: float) -> void:
 func fast_forward() -> void:
 	_timeline.flush()
 	_stage.finish_moves()
-	for t: Tween in _tweens:
-		if t != null and t.is_valid() and t.is_running():
-			t.custom_step(1000.0)
-	_tweens.clear()
+	for _pass: int in MAX_FORWARD_PASSES:
+		if _tweens.is_empty():
+			break
+		var running: Array[Tween] = _tweens.duplicate()
+		_tweens.clear()
+		for t: Tween in running:
+			if t != null and t.is_valid() and t.is_running():
+				t.custom_step(FORWARD_STEP)
 	if _meter != null:
 		_meter.snap()
 
@@ -603,7 +620,7 @@ func _dress() -> void:
 	var incident: String = ""
 	if inv != null:
 		incident = tr(InvestigationEngine.evidence_name_key(Database.get_investigation_params(), inv.incident_type))
-	_header_sub.text = tr("INTERROGATION_HEADER_CASE") % [case_id, incident]
+	_header_sub.text = tr("INTERROGATION_HEADER_CASE") % [case_id.get_slice(CASE_ID_SEPARATOR, 1), incident]
 	var rules: Dictionary = _session.get_rules()
 	_meter.threshold = float(rules.get("success_below", 0.0))
 	_meter.title = tr("INTERROGATION_METER_TITLE")
@@ -677,7 +694,7 @@ func _on_door_shut() -> void:
 	_stage.shake(Database.get_balance_float(B_SHAKE_PX), Database.get_balance_float(B_SHAKE_S))
 	SceneStage.play_sfx(self, SFX_SLAM)
 	_stage.set_anim(PLAYER, "startle", Vector2.UP, "sit")
-	var t: Tween = _tween_prop("slam", 0.2, 1.0, Database.get_balance_float(B_SLAM))
+	var t: Tween = _tween_prop("slam", SLAM_POP_FROM, 1.0, Database.get_balance_float(B_SLAM))
 	if t != null:
 		t.tween_interval(Database.get_balance_float(B_SHAKE_S))
 		t.tween_method(func(v: float) -> void: _stage.set_prop("slam", v), 1.0, 0.0, _pause())
@@ -732,9 +749,9 @@ func _show_card(piece: Dictionary) -> void:
 	_card_layer.add_child(_card)
 	var k: float = SceneStage.ui_scale()
 	_card.position = _stage.to_screen(SceneStage.interrogation_spots()["card"]) - CARD_SIZE * 0.5
-	_card.scale = Vector2(0.3, 0.3) * k
+	_card.scale = Vector2.ONE * CARD_START_SCALE * k
 	_card.rotation = 0.0
-	_animate_card(_card_target(), Vector2(k, k), -0.05, 1.0)
+	_animate_card(_card_target(), Vector2(k, k), CARD_TILT, 1.0)
 
 
 ## Posición (sin escalar, pivote en el centro) que deja la tarjeta a la izquierda de la mesa, por
@@ -793,7 +810,7 @@ func _refresh_meter(first: bool) -> void:
 	var extra: float = maxf(get_case_weight() - sum, 0.0)
 	_meter.extra_text = tr("INTERROGATION_METER_EXTRA") % SceneStage.decimal(extra) if extra > 0.0 else ""
 	if first:
-		_meter.span = maxf(get_case_weight(), _meter.threshold) * 1.18
+		_meter.span = maxf(get_case_weight(), _meter.threshold) * METER_HEADROOM
 		_meter.rate = _meter.span / maxf(Database.get_balance_float(B_METER), 0.001)
 	_meter.set_targets(pieces, extra)
 	if first or instant:
@@ -852,7 +869,7 @@ func _requirement_missing(result: Dictionary) -> void:
 	if _card != null and not instant:
 		var t: Tween = create_tween()
 		for dx: float in [12.0, -12.0, 8.0, -8.0, 0.0]:
-			t.tween_property(_card, "position:x", _card_target().x + dx, 0.05)
+			t.tween_property(_card, "position:x", _card_target().x + dx, CARD_SHAKE_STEP)
 		_tweens.append(t)
 
 

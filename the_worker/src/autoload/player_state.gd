@@ -1,6 +1,6 @@
 # player_state.gd — Estado del jugador: ocupación, capital, medidores, inventario, alijos, deberes y posición.
-# PROPIETARIO DE: ocupación, capital, reputación, caché de sospecha, inventario, alijos (objetos ocultos), deberes de la jornada, rachas de fallos, sala/planta/disfraz/nombre, RNG de hallazgos casuales en alijos (§19.3, BUILD_NOTES §13).
-# ESCUCHA: day_advanced, hour_passed, occupation_changed, room_entered, room_exited, floor_changed, player_searched, evidence_added.
+# PROPIETARIO DE: ocupación, capital, reputación, caché de sospecha, inventario, alijos (objetos ocultos), deberes de la jornada, rachas de fallos, sala/planta/disfraz/nombre, RNG de hallazgos casuales en alijos, memoria externa (notas, registro del cuaderno, contactos, objetivos marcados, expedientes concedidos, estudios, banderas de misión) (§19.3, §13.3-§13.5, BUILD_NOTES §13).
+# ESCUCHA: day_advanced, hour_passed, occupation_changed, room_entered, room_exited, floor_changed, player_searched, evidence_added, notebook_entry_added, favour_added, blackmail_demanded, phone_message_received.
 class_name PlayerStateSystem
 extends Node
 
@@ -69,6 +69,24 @@ extends Node
 ##    get_tracking()/get_dominant_axis() leen Tracking.
 ##  · get_name() de BUILD_NOTES §13 no puede existir en un Node (choca con Node.get_name()):
 ##    se llama get_player_name().
+##  · MEMORIA EXTERNA (§13.3-§13.5; datos en PlayerRecords, guardados aquí): la UI no guarda estado
+##    propio. Notas {id, day, hour, minute, text, npc_id} (add_note/remove_note; con npc_id son las
+##    anotaciones de PERSONNEL y dejan PERS_NOTE_ENTRY en el cuaderno); bloc libre (get_notepad /
+##    set_notepad); registro del cuaderno = cada notebook_entry_added de la partida
+##    {category, text_key, args, day, hour, minute} (get_notebook_entries; dos idénticas seguidas en
+##    el mismo minuto cuentan una; tope jugador.cuaderno_entradas_guardadas).
+##  · CONTACTOS (§13.5) {npc_id, source, day}, source ∈ proximity | favour | hr | purchase |
+##    messaged. Automáticos: proximity = movil.horas_proximidad_contacto horas de trabajo (tick
+##    hour_passed en horario laboral) en la misma sala; favour = favour_added; messaged =
+##    blackmail_demanded / phone_message_received de un personaje; hr = grant_full_file(id,
+##    "hr_intrusion"). purchase: add_contact de las manos. Trabajar en el departamento
+##    movil.departamento_rrhh da TODOS los números (get_contacts/has_contact los incluyen con source
+##    hr sin guardarlos). Contacto nuevo → cuaderno NOTE_CONTACT_ADDED.
+##  · OBJETIVOS MARCADOS (§13.4, §13.6): mark_target/unmark_target emiten notebook_entry_added
+##    ("targets", PERS_NOTE_TARGET_MARKED | _CLEARED, [nombre]); NPCDirector lo oye y sincroniza su
+##    LOD 0 forzado ("marked_target") con get_marked_targets(). Expedientes anticipados
+##    (grant_full_file/has_full_file) y estudios (record_study/get_studies) de PERSONNEL.
+##  · BANDERAS (get_flag/set_flag): estado genérico de misiones y del final, guardado.
 
 const AXES: Array[String] = ["blood", "gold", "silk", "sweat", "ruin"]
 const TRACKING_SOURCE := "player_state"
@@ -106,6 +124,17 @@ const RNG_SALT := "player_state"
 const COMMENT_PREFIX := "_"
 const MINUTES_PER_HOUR := 60
 const MINUTES_PER_DAY := 1440
+const NPC_PLAYER := "player"
+const NOTE_CATEGORY_TARGETS := "targets"
+const NOTE_TARGET_MARKED := "PERS_NOTE_TARGET_MARKED"
+const NOTE_TARGET_CLEARED := "PERS_NOTE_TARGET_CLEARED"
+const NOTE_CATEGORY_PERSONNEL := "personnel"
+const NOTE_PERSONNEL_ENTRY := "PERS_NOTE_ENTRY"
+const NOTE_CATEGORY_CONTACTS := "contacts"
+const NOTE_CONTACT_ADDED := "NOTE_CONTACT_ADDED"
+const CONTACT_SOURCE_KEY_FORMAT := "CONTACT_SOURCE_%s"
+const REASON_HR_INTRUSION := "hr_intrusion"
+const DEPARTMENT_KEY := "department"
 
 # Campos de cada deber de la jornada (además de los de occupations.json).
 const D_ID := "id"
@@ -158,6 +187,11 @@ const P_ROLLOVER := "tiempo.hora_cambio_jornada"
 const P_DAYS_WEEK := "tiempo.jornadas_por_semana"
 const P_DAYS_MONTH := "tiempo.jornadas_por_mes"
 const P_DAYS_QUARTER := "tiempo.jornadas_por_trimestre"
+const P_PROXIMITY_HOURS := "movil.horas_proximidad_contacto"
+const P_HR_DEPARTMENT := "movil.departamento_rrhh"
+const P_NOTE_MAX_CHARS := "ordenador.cuaderno_max_caracteres"
+const P_MAX_NOTES := "jugador.notas_max"
+const P_LOG_CAP := "jugador.cuaderno_entradas_guardadas"
 
 const S_OCCUPATION := "occupation_id"
 const S_MONEY := "money"
@@ -178,6 +212,7 @@ const S_ROOM := "room"
 const S_FLOOR := "floor"
 const S_DISGUISE := "disguise"
 const S_NAME := "player_name"
+const S_RECORDS := "records"
 
 var _active: bool = false
 var _occupation: OccupationData = null
@@ -205,6 +240,8 @@ var _room: String = ""
 var _floor: int = 0
 var _disguise: String = ""
 var _player_name: String = ""
+## Notas, cuaderno, contactos, objetivos, expedientes, estudios y banderas (§13.3-§13.5).
+var _records: PlayerRecords = PlayerRecords.new()
 
 
 func _ready() -> void:
@@ -216,6 +253,13 @@ func _ready() -> void:
 	EventBus.floor_changed.connect(_on_floor_changed)
 	EventBus.player_searched.connect(_on_player_searched)
 	EventBus.evidence_added.connect(_on_evidence_added)
+	EventBus.notebook_entry_added.connect(_on_notebook_entry_added)
+	EventBus.favour_added.connect(func(npc_id: String, _t: String, _m: int) -> void:
+		_auto_contact(npc_id, PlayerRecords.SOURCE_FAVOUR))
+	EventBus.blackmail_demanded.connect(func(npc_id: String, _t: String, _a: int) -> void:
+		_auto_contact(npc_id, PlayerRecords.SOURCE_MESSAGED))
+	EventBus.phone_message_received.connect(func(from_id: String, _k: String, _c: bool) -> void:
+		_auto_contact(from_id, PlayerRecords.SOURCE_MESSAGED))
 
 
 func reset_for_new_run() -> void:
@@ -235,6 +279,7 @@ func reset_for_new_run() -> void:
 	_rng.seed = GameClock.get_run_seed() ^ RNG_SALT.hash()
 	_disguise = ""
 	_player_name = ""
+	_records.clear()
 	_place_at_office()
 	_build_duties(false)
 
@@ -666,6 +711,178 @@ func set_player_name(player_name: String) -> void:
 	_player_name = player_name.strip_edges()
 
 
+# ─── Memoria externa: notas y cuaderno (§13.3) ─────────────────
+
+## EXTRA: notas del jugador {id, day, hour, minute, text, npc_id}, de la más antigua a la última.
+func get_notes() -> Array[Dictionary]:
+	return _records.get_notes()
+
+
+## EXTRA: anotaciones vinculadas a un personaje (PERSONNEL, §13.4).
+func get_notes_about(npc_id: String) -> Array[Dictionary]:
+	return _records.get_notes(npc_id, true)
+
+
+## EXTRA: guarda una nota (texto recortado a ordenador.cuaderno_max_caracteres). Con npc_id es una
+## anotación de expediente y deja PERS_NOTE_ENTRY en el cuaderno. Devuelve el id (-1 si vacía).
+func add_note(text: String, npc_id: String = "") -> int:
+	var note_id: int = _records.add_note(text, npc_id, _stamp(),
+			Database.get_balance_int(P_NOTE_MAX_CHARS), Database.get_balance_int(P_MAX_NOTES))
+	if note_id != PlayerRecords.NO_NOTE and not npc_id.is_empty():
+		var notes: Array[Dictionary] = _records.get_notes()
+		EventBus.notebook_entry_added.emit(NOTE_CATEGORY_PERSONNEL, NOTE_PERSONNEL_ENTRY,
+				[_npc_name(npc_id), str(notes.back()[PlayerRecords.K_TEXT])])
+	return note_id
+
+
+## EXTRA: false si no existe.
+func remove_note(note_id: int) -> bool:
+	return _records.remove_note(note_id)
+
+
+## EXTRA: bloc de notas libre del NOTEBOOK (un único texto).
+func get_notepad() -> String:
+	return _records.notepad
+
+
+func set_notepad(text: String) -> void:
+	_records.notepad = text.left(Database.get_balance_int(P_NOTE_MAX_CHARS))
+
+
+## EXTRA: registro automático (§13.7): cada notebook_entry_added de la partida
+## {category, text_key, args, day, hour, minute}, de la más antigua a la última.
+func get_notebook_entries() -> Array[Dictionary]:
+	return _records.get_log()
+
+
+# ─── Memoria externa: contactos (§13.5) ────────────────────────
+
+## EXTRA: [{npc_id, source, day}] en orden de adquisición; en RR. HH., además todos los personajes
+## en plantilla (source "hr", day = hoy).
+func get_contacts() -> Array[Dictionary]:
+	var out: Array[Dictionary] = _records.get_contacts()
+	if not _works_in_hr():
+		return out
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if not _records.has_contact(npc.id):
+			out.append({PlayerRecords.K_NPC: npc.id, PlayerRecords.K_SOURCE: PlayerRecords.SOURCE_HR,
+					PlayerRecords.K_DAY: GameClock.get_day()})
+	return out
+
+
+func has_contact(npc_id: String) -> bool:
+	if _records.has_contact(npc_id):
+		return true
+	return _works_in_hr() and NPCDirector.is_active(npc_id)
+
+
+## EXTRA: source ∈ proximity | favour | hr | purchase | messaged (también "colleague"/"bought").
+## false si ya lo era, si la fuente no vale o si no es un personaje. Nota en el cuaderno.
+func add_contact(npc_id: String, source: String) -> bool:
+	if npc_id == NPC_PLAYER or NPCDirector.get_npc(npc_id) == null:
+		return false
+	if not _records.add_contact(npc_id, source, GameClock.get_day()):
+		return false
+	var canonical: String = PlayerRecords.canonical_source(source)
+	EventBus.notebook_entry_added.emit(NOTE_CATEGORY_CONTACTS, NOTE_CONTACT_ADDED,
+			[_npc_name(npc_id), contact_source_key(canonical)])
+	return true
+
+
+## EXTRA: fuente del contacto ("" si no lo es; "hr" si lo es por trabajar en RR. HH.).
+func get_contact_source(npc_id: String) -> String:
+	for entry: Dictionary in _records.get_contacts():
+		if str(entry[PlayerRecords.K_NPC]) == npc_id:
+			return str(entry[PlayerRecords.K_SOURCE])
+	return PlayerRecords.SOURCE_HR if has_contact(npc_id) else ""
+
+
+## EXTRA: horas de trabajo compartidas con el personaje (vía proximidad).
+func get_proximity_hours(npc_id: String) -> int:
+	return int(_records.proximity_hours.get(npc_id, 0))
+
+
+static func contact_source_key(source: String) -> String:
+	return CONTACT_SOURCE_KEY_FORMAT % source.to_upper()
+
+
+# ─── Memoria externa: objetivos, expedientes, estudios (§13.4) ──
+
+## EXTRA: marca un objetivo (mapa, HUD, cuaderno; NPCDirector lo pone en LOD 0). false si no es
+## un personaje o ya estaba marcado.
+func mark_target(npc_id: String) -> bool:
+	if NPCDirector.get_npc(npc_id) == null or not _records.mark(npc_id):
+		return false
+	EventBus.notebook_entry_added.emit(NOTE_CATEGORY_TARGETS, NOTE_TARGET_MARKED, [_npc_name(npc_id)])
+	return true
+
+
+func unmark_target(npc_id: String) -> bool:
+	if not _records.unmark(npc_id):
+		return false
+	EventBus.notebook_entry_added.emit(NOTE_CATEGORY_TARGETS, NOTE_TARGET_CLEARED,
+			[_npc_name(npc_id)])
+	return true
+
+
+func get_marked_targets() -> Array[String]:
+	return _records.targets.duplicate()
+
+
+func is_marked(npc_id: String) -> bool:
+	return _records.targets.has(npc_id)
+
+
+## EXTRA (§13.4 vías de acceso anticipado): expediente completo de un personaje concreto
+## ("hr_intrusion", "blackmail"...). La intrusión en RR. HH. da además su número (contacto hr).
+func grant_full_file(npc_id: String, reason: String) -> bool:
+	if NPCDirector.get_npc(npc_id) == null or not _records.grant_full_file(npc_id, reason):
+		return false
+	if reason == REASON_HR_INTRUSION:
+		add_contact(npc_id, PlayerRecords.SOURCE_HR)
+	return true
+
+
+func has_full_file(npc_id: String) -> bool:
+	return _records.full_files.has(npc_id)
+
+
+## EXTRA: motivo del expediente concedido ("" si no hay).
+func get_full_file_reason(npc_id: String) -> String:
+	return str(_records.full_files.get(npc_id, ""))
+
+
+## EXTRA: guarda el resultado de un estudio (§13.4) de `action` sobre el personaje.
+func record_study(npc_id: String, action: String, result: Dictionary) -> void:
+	_records.record_study(npc_id, action, result)
+
+
+## EXTRA: {acción: resultado} de los estudios hechos sobre el personaje (copia).
+func get_studies(npc_id: String) -> Dictionary:
+	return (_records.studies.get(npc_id, {}) as Dictionary).duplicate(true)
+
+
+# ─── Banderas de misión (fase de final) ────────────────────────
+
+## EXTRA: bandera guardada de misiones y del final (documentos notariados, fases...).
+func get_flag(key: String, default_value: Variant = null) -> Variant:
+	return _records.flags.get(key, default_value)
+
+
+## EXTRA: `value` debe ser serializable (escalares, Array, Dictionary). null la borra.
+func set_flag(key: String, value: Variant) -> void:
+	if key.is_empty():
+		return
+	if value == null:
+		_records.flags.erase(key)
+	else:
+		_records.flags[key] = value
+
+
+func has_flag(key: String) -> bool:
+	return _records.flags.has(key)
+
+
 # ─── Persistencia ──────────────────────────────────────────────
 
 func save_state() -> Dictionary:
@@ -680,7 +897,7 @@ func save_state() -> Dictionary:
 		S_SEVERE_DAY: _severe_day, S_DUTY_STREAKS: _duty_streaks.duplicate(),
 		S_PROCESSED_FINDS: _processed_finds.duplicate(), S_RNG_SEED: str(_rng.seed),
 		S_RNG_STATE: str(_rng.state), S_ROOM: _room, S_FLOOR: _floor,
-		S_DISGUISE: _disguise, S_NAME: _player_name,
+		S_DISGUISE: _disguise, S_NAME: _player_name, S_RECORDS: _records.to_dict(),
 	}
 
 
@@ -708,6 +925,8 @@ func load_state(data: Dictionary) -> void:
 	_floor = int(data.get(S_FLOOR, 0))
 	_disguise = str(data.get(S_DISGUISE, ""))
 	_player_name = str(data.get(S_NAME, ""))
+	var records: Variant = data.get(S_RECORDS, {})
+	_records = PlayerRecords.from_dict(records if records is Dictionary else {})
 
 
 # ─── Oyentes ───────────────────────────────────────────────────
@@ -726,6 +945,13 @@ func _on_day_advanced(_day_number: int) -> void:
 func _on_hour_passed(_hour: int, _day_number: int) -> void:
 	if _active:
 		_check_deadlines()
+		_tick_proximity()
+
+
+## Registro del cuaderno: toda entrada de la partida (también las propias).
+func _on_notebook_entry_added(category: String, text_key: String, args: Array) -> void:
+	if _active:
+		_records.log_entry(category, text_key, args, _stamp(), Database.get_balance_int(P_LOG_CAP))
 
 
 ## Otro sistema (Company al promover/degradar) cambió la ocupación del jugador: se adopta.
@@ -769,6 +995,55 @@ func _on_evidence_added(_case_id: String, evidence_type: String, _weight: float,
 		_processed_finds.append(key)
 		if _take_from_stash(spot_id, item_id, METHOD_CONFISCATED) > 0:
 			EventBus.notebook_entry_added.emit(NOTE_CATEGORY, NOTE_STASH_SEIZED, [])
+
+
+# ─── Interno: memoria externa ──────────────────────────────────
+
+func _stamp() -> Dictionary:
+	return {PlayerRecords.K_DAY: GameClock.get_day(), PlayerRecords.K_HOUR: GameClock.get_hour(),
+			PlayerRecords.K_MINUTE: GameClock.get_minute()}
+
+
+func _npc_name(npc_id: String) -> String:
+	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
+	return npc.name if npc != null and not npc.name.is_empty() else npc_id
+
+
+## Contacto automático (favores, mensajes): solo personajes conocidos por NPCDirector.
+func _auto_contact(npc_id: String, source: String) -> void:
+	if _active and not npc_id.is_empty():
+		add_contact(npc_id, source)
+
+
+func _works_in_hr() -> bool:
+	if _occupation == null:
+		return false
+	var hr: String = str(Database.get_balance(P_HR_DEPARTMENT))
+	return not hr.is_empty() and str(_occupation.extra.get(DEPARTMENT_KEY, "")) == hr
+
+
+## §13.5 «trabajando en proximidad»: cada hora laboral compartida en la misma sala suma; al llegar a
+## movil.horas_proximidad_contacto el personaje pasa a ser contacto.
+func _tick_proximity() -> void:
+	if _room.is_empty() or not GameClock.is_working_hours():
+		return
+	var needed: int = Database.get_balance_int(P_PROXIMITY_HOURS)
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if _records.has_contact(npc.id) or not _same_room(npc.current_room, _room):
+			continue
+		if _records.add_proximity_hour(npc.id) >= needed:
+			add_contact(npc.id, PlayerRecords.SOURCE_PROXIMITY)
+
+
+## Misma sala; una copia transversal ("corridors_low@3") coincide con su id base sin planta.
+static func _same_room(a: String, b: String) -> bool:
+	if a.is_empty() or b.is_empty():
+		return false
+	if a == b:
+		return true
+	var separator: String = DatabaseSystem.INSTANCE_SEPARATOR
+	return (not a.contains(separator) or not b.contains(separator)) \
+			and DatabaseSystem.get_room_base_id(a) == DatabaseSystem.get_room_base_id(b)
 
 
 # ─── Interno: ocupación y posición ─────────────────────────────

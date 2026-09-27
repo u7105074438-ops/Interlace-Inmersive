@@ -1,5 +1,5 @@
 # game_clock.gd — Reloj de juego: hora, jornada, semana, mes, trimestre y franja horaria.
-# PROPIETARIO DE: hora, jornada, semana, mes, trimestre, franja activa, semilla de partida, pausa y velocidad.
+# PROPIETARIO DE: hora, jornada, semana, mes, trimestre, franja activa, semilla de partida, pausa (general y por dueño) y velocidad.
 # ESCUCHA: run_started, run_loaded.
 class_name GameClockSystem
 extends Node
@@ -32,6 +32,13 @@ extends Node
 ##    tests, que no emiten esas señales, no dependen del reloj real.
 ##  · advance_minutes(m) avanza m minutos de juego con la lógica de _process e ignora la pausa (tests,
 ##    coste temporal de deberes §10.6, depuración). advance_real_seconds(s) es lo que hace _process.
+##  · PAUSA. Dos capas independientes: la GENERAL (pause()/resume(), un interruptor: la usa el ciclo
+##    de partida) y las pausas POR DUEÑO (pause_by(owner)/resume_by(owner), conjunto de dueños: un
+##    modal, el menú, una cinemática). is_paused() = general o algún dueño. resume() NO libera las
+##    pausas por dueño y resume_by(x) solo quita la de x: nadie despausa por encima de otro.
+##    Pedir dos veces con el mismo dueño cuenta una. reset_for_new_run()/load_state() dejan la
+##    general en pausa y conservan los dueños (estado de presentación, no de partida; no se
+##    guardan); clear_pause_owners() los vacía.
 
 const BANDS: Array[String] = [
 	"arrival", "work_morning", "lunch", "work_afternoon", "exit", "night",
@@ -74,6 +81,8 @@ var _day: int = 0
 var _minutes: float = 0.0
 var _band: String = ""
 var _paused: bool = true
+## Pausas por dueño (pause_by): dueño → true. No se guardan.
+var _pause_owners: Dictionary[String, bool] = {}
 var _speed: float = NEUTRAL_SPEED
 ## Ajuste de accesibilidad (§13.10): pertenece al perfil, no a la partida; sobrevive a los resets.
 var _access_speed: float = NEUTRAL_SPEED
@@ -102,7 +111,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _paused or _day <= 0:
+	if is_paused() or _day <= 0:
 		return
 	advance_real_seconds(delta)
 
@@ -203,8 +212,9 @@ func get_band_name_key(band: String) -> String:
 	return BAND_NAME_KEY_FORMAT % band.to_upper()
 
 
+## General (pause()) o por algún dueño (pause_by()).
 func is_paused() -> bool:
-	return _paused
+	return _paused or not _pause_owners.is_empty()
 
 
 func get_speed_multiplier() -> float:
@@ -230,12 +240,43 @@ func get_effective_speed() -> float:
 
 # ─── Control ───────────────────────────────────────────────────
 
+## Pausa general (interruptor). No toca las pausas por dueño.
 func pause() -> void:
 	_paused = true
 
 
+## Quita la pausa general; si algún dueño mantiene la suya, el reloj sigue parado.
 func resume() -> void:
 	_paused = false
+
+
+## EXTRA: pausa a nombre de `owner` (id estable del que la pide: "ui_modal", "pause_menu"...).
+## Idempotente por dueño. owner vacío no hace nada.
+func pause_by(owner: String) -> void:
+	if not owner.is_empty():
+		_pause_owners[owner] = true
+
+
+## EXTRA: retira la pausa de `owner` (las de otros dueños y la general siguen). false si no la tenía.
+func resume_by(owner: String) -> bool:
+	return _pause_owners.erase(owner)
+
+
+## EXTRA: dueños que mantienen una pausa, en orden de petición.
+func get_pause_owners() -> Array[String]:
+	var out: Array[String] = []
+	out.assign(_pause_owners.keys())
+	return out
+
+
+## EXTRA: true si `owner` mantiene una pausa.
+func is_paused_by(owner: String) -> bool:
+	return _pause_owners.has(owner)
+
+
+## EXTRA: libera todas las pausas por dueño (p. ej. al volver al menú principal).
+func clear_pause_owners() -> void:
+	_pause_owners.clear()
 
 
 ## 0.4 dentro del ordenador (balance tiempo.velocidad_en_ordenador). Nunca detiene el reloj:

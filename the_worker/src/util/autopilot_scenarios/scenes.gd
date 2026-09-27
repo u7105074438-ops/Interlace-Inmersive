@@ -6,7 +6,8 @@ extends Node
 ## tools/screenshot.sh /tmp/shots_scenes scenes
 ## Capturas: aurora_pick, aurora_prepare, aurora_accusation, aurora_win, aurora_tie, aurora_loss,
 ## aurora_others, interrogation_apology, interrogation_door_slam, interrogation_mid,
-## interrogation_stamp, interrogation_accuse, interrogation_end, aurora_phone, interrogation_phone.
+## interrogation_stamp, interrogation_accuse, interrogation_end, aurora_phone, interrogation_phone,
+## aurora_tie_es, interrogation_es (textos más largos en español).
 ## Los choques usan claves forzadas (clash_overrides) para fijar cada resultado; los
 ## interrogatorios, contexto forzado (reputación, sospecha) para cada tono.
 
@@ -15,6 +16,8 @@ const LIFECYCLE: Array[String] = ["GameClock", "PlayerState", "NPCDirector", "So
 	"BeliefNet", "Security", "Company", "Market", "NewsFeed", "IdeaPool", "Tracking", "SaveSystem"]
 const OWNER := "npc_claudia_reeves"
 const CONFIDANT := "npc_nate_brackley"
+## Vende una idea al jugador (cesión consentida: no acusa).
+const SELLER := "npc_bernard_lasker"
 const ROOM_EXTRAS: Array[String] = ["npc_debbie_foyle", "npc_george_penn", "npc_sonia_vail",
 	"npc_ray_cudmore", "npc_tom_iverson", "npc_ludmila_petrova", "npc_amelia_cole",
 	"npc_bernard_lasker", "npc_connie_marks"]
@@ -48,6 +51,7 @@ func run(pilot: Autopilot) -> void:
 	await _interrogation_tone({"reputation": 48.0, "suspicion": 82.0}, "interrogation_door_slam", 1.75)
 	await _interrogation_flow()
 	await _phone_shots()
+	await _spanish_shots()
 
 
 func _new_run() -> void:
@@ -99,6 +103,9 @@ func _open_meeting(believers: int) -> String:
 
 func _aurora_run(overrides: Dictionary, shot_name: String, full: bool) -> void:
 	var idea_id: String = _open_meeting(2 if overrides == LOSS else 0)
+	if full:
+		var bought: String = IdeaPool.generate_idea(SELLER, "sales")
+		IdeaPool.acquire(bought, IdeaPool.METHOD_PURCHASE)
 	var scene: AuroraScene = AuroraScene.new()
 	scene.clash_overrides = overrides
 	scene.closed.connect(func() -> void: pass)
@@ -214,4 +221,20 @@ func _phone_shots() -> void:
 	UITheme.touch_scale_active = false
 	UITheme.current_text_size = UITheme.TEXT_MEDIUM
 	get_window().size = DESKTOP
+	await _pilot.frames(2)
+
+
+# ─── Español ──────────────────────────────────────────────────
+
+func _spanish_shots() -> void:
+	TranslationServer.set_locale("es")
+	await _aurora_run(TIE, "aurora_tie_es", false)
+	var scene: InterrogationScene = InterrogationScene.new(_open_case(), {"reputation": 66.0,
+			"suspicion": 30.0, "has_legal_contact": true})
+	scene.closed.connect(func() -> void: pass)
+	add_child(scene)
+	await _pilot.seconds(5.0)
+	await _pilot.shot("interrogation_es")
+	scene.queue_free()
+	TranslationServer.set_locale("en")
 	await _pilot.frames(2)

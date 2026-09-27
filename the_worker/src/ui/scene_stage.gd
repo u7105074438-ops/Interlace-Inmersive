@@ -54,6 +54,9 @@ const C_SHOUT := Color("#ffe25a")
 const C_WHISPER := Color("#e3e6ea")
 const C_NARRATE := Color("#12151a")
 const C_SHADOW := Color(0.02, 0.02, 0.05, 0.28)
+## El lema del cartel encoge hasta caber (los textos en español son más largos).
+const POSTER_FONT_MAX := 15
+const POSTER_FONT_MIN := 10
 
 ## Mesa de juntas y sillas de Aurora (maquetación de diseño; 14 sillas como rooms/p12.json).
 const AURORA_WALL_Y := 300.0
@@ -427,6 +430,7 @@ func walk_to(actor_id: String, target: Vector2, seconds: float, end_facing: Vect
 	points.append(target)
 	a["seated"] = false
 	a["pos"] = points[0]
+	a["look"] = Vector2.ZERO
 	set_anim(actor_id, "walk", points[1] - points[0])
 	_moves[actor_id] = {"points": points, "t": 0.0, "dur": maxf(seconds, 0.001),
 			"facing": end_facing, "anim": end_anim, "leg": 0}
@@ -1037,8 +1041,13 @@ func _paint_poster(ci: CanvasItem, r: Rect2) -> void:
 			Vector2(art.get_center().x - 10, art.position.y + 22), Vector2(art.end.x, art.end.y)]),
 			band_color("window").lightened(0.3))
 	ci.draw_circle(art.position + Vector2(art.size.x * 0.75, 20), 9.0, Color("#ffd85a"))
-	_text(ci, str(_props.get("poster", "")), Vector2(r.position.x + 6, art.end.y + 24), r.size.x - 12,
-			15, C_INK, true)
+	var text: String = str(_props.get("poster", ""))
+	var room: Vector2 = Vector2(r.size.x - 12.0, r.end.y - art.end.y - 8.0)
+	var font_size: int = POSTER_FONT_MAX
+	while font_size > POSTER_FONT_MIN and _font(true).get_multiline_string_size(text,
+			HORIZONTAL_ALIGNMENT_CENTER, room.x, font_size).y > room.y:
+		font_size -= 1
+	_text(ci, text, Vector2(r.position.x + 6, art.end.y + 6 + font_size), room.x, font_size, C_INK, true)
 
 
 func _paint_clock(ci: CanvasItem, c: Vector2, radius: float) -> void:

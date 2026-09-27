@@ -397,6 +397,9 @@ static func _flat_box(pal: Dictionary, kind: String, base: int) -> StyleBoxFlat:
 	sb.border_color = col(pal, "shadow").darkened(0.15)
 	sb.bg_color = col(pal, "face").lerp(col(pal, "light"), 0.6)
 	sb.anti_aliasing = radius > 0
+	if contrast:
+		sb.bg_color = col(pal, "face")
+		sb.border_color = col(pal, "light")
 	_flat_kind(sb, pal, kind, contrast)
 	return sb
 
@@ -404,7 +407,8 @@ static func _flat_box(pal: Dictionary, kind: String, base: int) -> StyleBoxFlat:
 static func _flat_kind(sb: StyleBoxFlat, pal: Dictionary, kind: String, contrast: bool) -> void:
 	match kind:
 		"hover":
-			sb.bg_color = col(pal, "face").lerp(col(pal, "light"), 0.6).lightened(0.08)
+			sb.bg_color = col(pal, "face").lerp(col(pal, "light"), 0.6).lightened(0.08) if not contrast \
+					else col(pal, "face").lerp(col(pal, "light"), 0.15)
 			sb.border_color = col(pal, "accent")
 		"pressed":
 			sb.bg_color = col(pal, "face").darkened(0.08)
@@ -423,7 +427,7 @@ static func _flat_kind(sb: StyleBoxFlat, pal: Dictionary, kind: String, contrast
 			sb.bg_color = Color(0, 0, 0, 0)
 			sb.border_color = Color(0, 0, 0, 0)
 		"row_selected":
-			sb.bg_color = col(pal, "select").lerp(col(pal, "field"), 0.72 if not contrast else 0.0)
+			sb.bg_color = col(pal, "select").lerp(col(pal, "field"), 0.72 if not contrast else 0.8)
 			sb.border_color = col(pal, "select")
 		"tab_off":
 			sb.bg_color = col(pal, "face").darkened(0.05)

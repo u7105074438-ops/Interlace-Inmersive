@@ -32,6 +32,8 @@ const SPARKS_TYPE := "industrial_machine"
 const SPARKS_BAND := "factory"
 ## Grosor de la compuerta de torno (fracción de celda).
 const GATE_THICKNESS := 0.3
+## Holgura (fracción de celda) entre el pie de la cara del muro norte y un punto de uso.
+const FACE_CLEARANCE := 0.08
 
 
 class Prop extends Node2D:
@@ -191,7 +193,7 @@ static func _add_shape(body: StaticBody2D, r: Rect2) -> void:
 static func _add_wall_collisions(walls: RoomPainter, node: Node2D) -> void:
 	var body: StaticBody2D = _body(LAYER_WALLS, "Walls")
 	for pair: Array in walls.wall_segments():
-		_add_shape(body, walls.segment_rect(int(pair[0]), pair[1]))
+		_add_shape(body, walls.collision_rect(int(pair[0]), pair[1]))
 	node.add_child(body)
 
 
@@ -226,6 +228,7 @@ static func _collision_rects(entry: Dictionary, cell: float) -> Array[Rect2]:
 
 static func _add_interactables(room: RoomData, room_id: String, plan: Dictionary, cell: float, node: Node2D,
 		index: Dictionary) -> void:
+	var blocked: Dictionary = _unwalkable(room, plan)
 	var list: Array[Interactable] = []
 	for entry: Dictionary in room.interactables:
 		var item: Interactable = Interactable.new()
@@ -234,14 +237,14 @@ static func _add_interactables(room: RoomData, room_id: String, plan: Dictionary
 		if not transit.is_empty() and transit["id"] == entry["id"]:
 			data["transit"] = transit
 		_link_door(data, room_id, plan)
-		item.setup(str(entry["id"]), str(entry["type"]), room_id, data, cell, _cell_center(entry["pos"], cell))
+		item.setup(str(entry["id"]), str(entry["type"]), room_id, data, cell, _use_point(entry["pos"], room.size, blocked, cell))
 		node.add_child(item)
 		list.append(item)
 	index["interactables"][room_id] = list
 	var spots: Array[HidingSpot] = []
 	for entry: Dictionary in room.hiding_spots:
 		var spot: HidingSpot = HidingSpot.new()
-		spot.setup_spot(entry, room_id, cell, _cell_center(entry["pos"], cell))
+		spot.setup_spot(entry, room_id, cell, _use_point(entry["pos"], room.size, blocked, cell))
 		node.add_child(spot)
 		spots.append(spot)
 		list.append(spot)
@@ -268,6 +271,56 @@ static func _link_door(data: Dictionary, room_id: String, plan: Dictionary) -> v
 			return
 
 
+## Celdas locales de la sala donde no se puede estar: muebles que bloquean y la fila de la cara
+## del muro norte (ver RoomPainter.collision_rect).
+static func _unwalkable(room: RoomData, plan: Dictionary) -> Dictionary:
+	var out: Dictionary = FloorLayout.blocked_cells(room, Rect2i(Vector2i.ZERO, room.size),
+			plan.get("decor", {}).get(room.id, []))
+	if room.size.y >= Database.get_balance_int("mundo.alto_minimo_fila_muro"):
+		for x: int in room.size.x:
+			out[Vector2i(x, 0)] = true
+	return out
+
+
+## Punto de uso (px locales): el centro de su celda o, si esa celda no se puede pisar y la libre
+## más cercana queda lejos, desplazado hacia ella hasta una celda de distancia (se alcanza siempre).
+static func _use_point(cell_v: Variant, size: Vector2i, blocked: Dictionary, cell: float) -> Vector2:
+	var center: Vector2 = _cell_center(cell_v, cell)
+	var start: Vector2i = cell_v as Vector2i
+	if not blocked.has(start):
+		return _below_face(center, size, cell)
+	var free: Vector2i = _nearest_free(start, size, blocked)
+	var target: Vector2 = _cell_center(free, cell)
+	if free == start or center.distance_to(target) <= cell:
+		return _below_face(center, size, cell)
+	return _below_face(target + (center - target).normalized() * cell, size, cell)
+
+
+## Un punto de uso nunca queda dentro de la colisión de la cara del muro norte (fila superior):
+## se baja justo por debajo de ella (se enfoca desde su sala y no a través del muro).
+static func _below_face(local: Vector2, size: Vector2i, cell: float) -> Vector2:
+	if size.y < Database.get_balance_int("mundo.alto_minimo_fila_muro"):
+		return local
+	var floor_y: float = RoomPainter.face_bottom(cell) + cell * FACE_CLEARANCE
+	return Vector2(local.x, maxf(local.y, floor_y))
+
+
+## Celda libre más cercana (recorrido en anchura por la rejilla de la sala); `from` si no hay.
+static func _nearest_free(from: Vector2i, size: Vector2i, blocked: Dictionary) -> Vector2i:
+	var seen: Dictionary = {from: true}
+	var queue: Array[Vector2i] = [from]
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_front()
+		if not blocked.has(c):
+			return c
+		for d: Vector2i in [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP]:
+			var n: Vector2i = c + d
+			if Rect2i(Vector2i.ZERO, size).has_point(n) and not seen.has(n):
+				seen[n] = true
+				queue.append(n)
+	return from
+
+
 static func _cell_center(cell_v: Variant, cell: float) -> Vector2:
 	return (Vector2(cell_v as Vector2i) + Vector2(0.5, 0.5)) * cell
 
@@ -289,7 +342,8 @@ static func _add_cameras(plan: Dictionary, cell: float, index: Dictionary) -> vo
 		if room_node == null:
 			continue
 		var camera: SecurityCamera = SecurityCamera.new()
-		var local: Vector2 = (Vector2(cam["cell"]) + Vector2(0.5, 0.5)) * cell - room_node.position
+		var size: Vector2i = (plan["rooms"][cam["room_id"]] as Rect2i).size
+		var local: Vector2 = _below_face((Vector2(cam["cell"]) + Vector2(0.5, 0.5)) * cell - room_node.position, size, cell)
 		camera.setup(str(cam["id"]), str(cam["room_id"]), cell, local, float(cam["rotation"]))
 		camera.set_wedge_colors(_band_record(plan))
 		room_node.add_child(camera)
@@ -308,7 +362,8 @@ static func _add_exits(plan: Dictionary, cell: float, index: Dictionary) -> void
 		if room_node == null:
 			continue
 		var item: Interactable = Interactable.new()
-		var local: Vector2 = (Vector2(t["cell"]) + Vector2(0.5, 0.5)) * cell - room_node.position
+		var size: Vector2i = (plan["rooms"][t["room_id"]] as Rect2i).size
+		var local: Vector2 = _below_face((Vector2(t["cell"]) + Vector2(0.5, 0.5)) * cell - room_node.position, size, cell)
 		var data: Dictionary = {"transit": t.duplicate(true), "targets": t["targets"], "target_room": t["target_room"]}
 		item.setup(str(t["id"]), EXIT_TYPE, str(t["room_id"]), data, cell, local)
 		room_node.add_child(item)

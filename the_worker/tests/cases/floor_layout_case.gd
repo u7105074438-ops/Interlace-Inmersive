@@ -38,6 +38,7 @@ func run_case() -> void:
 		_check_occlusion(f, plan, streamer)
 		await wait_frames(1)
 		await _check_exits(f, plan, streamer)
+		_check_cameras_clear(f, streamer)
 	_check_wing_3b(streamer)
 	await _check_doors(streamer)
 	_check_gate(streamer)
@@ -240,14 +241,29 @@ func _check_exits(f: int, plan: Dictionary, streamer: FloorStreamer) -> void:
 	for t: Dictionary in plan["transit"]:
 		if t["kind"] != "exit" or t["door_cell"] == Vector2i(-1, -1):
 			continue
-		var inside: Vector2 = streamer.cell_to_world(t["cell"])
 		var door_mid: Vector2 = streamer.to_global(Vector2(t["door_cell"] as Vector2i) * cell) + \
 				(Vector2(0, 1) if t["door_vertical"] else Vector2(1, 0)) * cell
-		var outside: Vector2 = door_mid + (door_mid - inside).normalized() * cell * 1.5
+		var across: Vector2 = Vector2(1, 0) if t["door_vertical"] else Vector2(0, 1)
+		var into: Vector2 = across if across.dot(streamer.cell_to_world(t["cell"]) - door_mid) > 0.0 else -across
+		var inside: Vector2 = door_mid + into * cell * 1.5
+		var outside: Vector2 = door_mid - into * cell * 1.5
 		var query: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(inside, outside, 0b111)
 		if streamer.get_world_2d().direct_space_state.intersect_ray(query).is_empty():
 			open.append(str(t["id"]))
 	check(open.is_empty(), "F%d every exit gap is closed by its glass doors %s" % [f, str(open)])
+
+
+## Ninguna cámara nace dentro de un muro (sus rayos lo atravesarían y la cuña saldría fuera).
+func _check_cameras_clear(f: int, streamer: FloorStreamer) -> void:
+	var buried: Array[String] = []
+	var space: PhysicsDirectSpaceState2D = streamer.get_world_2d().direct_space_state
+	for cam: SecurityCamera in streamer.get_cameras():
+		var query: PhysicsPointQueryParameters2D = PhysicsPointQueryParameters2D.new()
+		query.position = cam.global_position
+		query.collision_mask = 1
+		if not space.intersect_point(query, 1).is_empty():
+			buried.append(cam.camera_id)
+	check(buried.is_empty(), "F%d no security camera inside a wall %s" % [f, str(buried)])
 
 
 func _check_wing_3b(streamer: FloorStreamer) -> void:

@@ -106,6 +106,18 @@ const DECOR_BY_BAND: Dictionary = {
 ## Tipo de escondite → mueble generado cuando no hay mueble en su celda.
 const HIDING_FIXTURES: Dictionary = {"supply_closet": "wardrobe", "curtain": "curtain"}
 const DECOR_DOOR_CLEARANCE := 1
+## Vestido de salas por banda: esquina (fila de la cara del muro), centro de la cara norte, cuadros.
+const DRESS_DEFAULT := "default"
+const DRESS_MIN := Vector2i(6, 5)
+const DRESS_BY_BAND: Dictionary = {
+	"default": {"corner": "plant", "centre": "wall_clock", "art": ""},
+	"the_specialists": {"corner": "plant", "centre": "wall_clock", "art": "wall_art"},
+	"the_power": {"corner": "plant", "centre": "wall_art", "art": "wall_art"},
+	"the_throne": {"corner": "plant", "centre": "wall_art", "art": ""},
+	"the_guts": {"corner": "crate", "centre": "fire_extinguisher", "art": ""},
+	"factory": {"corner": "crate", "centre": "fire_extinguisher", "art": ""},
+	"exterior": {"corner": "plant", "centre": "", "art": ""},
+}
 ## Muebles que son puesto de trabajo cuando tienen dueño (asientos para NPC y jugador).
 const SEAT_TYPES: Array[String] = ["cubicle", "desk", "executive_desk", "counter", "reception_desk", "workbench"]
 const CHAIR_TYPE := "chair"
@@ -268,9 +280,13 @@ static func blocked_cells(room: RoomData, rect: Rect2i, extra: Array = []) -> Di
 ## [{index, owner, type, cell: Vector2i, chair: Vector2 (celdas; punto exacto de la silla), facing}].
 ## El asiento es la silla de datos contigua si la hay; si no, la celda libre dentro de la sala
 ## detrás de la mesa, delante o a los lados (los recintos: su fila abierta, bajo la silla dibujada).
+## La fila superior (bajo la cara del muro norte) no sirve de asiento.
 static func seats_of(room: RoomData) -> Array[Dictionary]:
 	var furniture: Array[Dictionary] = room_furniture(room)
 	var blocked: Dictionary = blocked_cells(room, Rect2i(Vector2i.ZERO, room.size))
+	if room.size.y >= Database.get_balance_int("mundo.alto_minimo_fila_muro"):
+		for x: int in room.size.x:
+			blocked[Vector2i(x, 0)] = true
 	var claimed: Dictionary = {}
 	var out: Array[Dictionary] = []
 	for i: int in furniture.size():
@@ -1422,6 +1438,7 @@ static func _band_id(floor_number: int) -> String:
 static func _build_decor(ctx: Ctx) -> void:
 	_hiding_fixtures(ctx)
 	_gate_barriers(ctx)
+	_room_dressing(ctx)
 	var kit: Array = DECOR_BY_BAND.get(_band_id(ctx.floor_number), [])
 	var rect: Rect2i = ctx.rects[ctx.spine]
 	if kit.is_empty() or rect.size.y < 3:
@@ -1448,6 +1465,46 @@ static func _add_decor(ctx: Ctx, id: String, entries: Array[Dictionary]) -> void
 	var list: Array = ctx.decor.get(id, [])
 	list.append_array(entries)
 	ctx.decor[id] = list
+
+
+## Vestido de salas (§14.8 "elementos de detalle"): en las esquinas de la fila de la cara del muro
+## norte (que no se pisa) una planta o una caja según la banda; en la cara norte, un reloj centrado
+## y, en las bandas altas, cuadros a un cuarto y tres cuartos. Nada bloquea el paso ni una puerta.
+static func _room_dressing(ctx: Ctx) -> void:
+	var kit: Dictionary = DRESS_BY_BAND.get(_band_id(ctx.floor_number), DRESS_BY_BAND[DRESS_DEFAULT])
+	for id: String in ctx.rects:
+		if not _is_placed(ctx, id) or _is_transversal(ctx, id) or id == ctx.spine:
+			continue
+		var room: RoomData = ctx.defs[id]
+		if room.size.x < DRESS_MIN.x or room.size.y < DRESS_MIN.y:
+			continue
+		var taken: Dictionary = _dress_taken(room)
+		var out: Array[Dictionary] = []
+		for x: int in [0, room.size.x - 1]:
+			_dress(ctx, id, taken, out, Vector2i(x, 0), str(kit["corner"]))
+		_dress(ctx, id, taken, out, Vector2i(room.size.x / 2, 0), str(kit["centre"]))
+		if not str(kit["art"]).is_empty():
+			for x: int in [room.size.x / 4, room.size.x * 3 / 4]:
+				_dress(ctx, id, taken, out, Vector2i(x, 0), str(kit["art"]))
+		_add_decor(ctx, id, out)
+
+
+## Celdas ya ocupadas por muebles (también colgados), interactivos, escondites y asientos.
+static func _dress_taken(room: RoomData) -> Dictionary:
+	var out: Dictionary = _furniture_cells(room)
+	for list: Array[Dictionary] in [room.interactables, room.hiding_spots]:
+		for entry: Dictionary in list:
+			out[entry["pos"]] = true
+	for seat: Dictionary in seats_of(room):
+		out[seat["cell"]] = true
+	return out
+
+
+static func _dress(ctx: Ctx, id: String, taken: Dictionary, out: Array[Dictionary], cell: Vector2i, type: String) -> void:
+	if type.is_empty() or taken.has(cell) or taken.has(cell + Vector2i.DOWN) or _near_door(ctx, id, cell):
+		return
+	taken[cell] = true
+	out.append({"type": type, "pos": cell, "rotation": 0.0, "decor": true})
 
 
 ## Barandillas de cristal en las celdas libres de la fila de tornos: solo se cruza por los tornos.

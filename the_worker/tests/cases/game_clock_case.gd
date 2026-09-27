@@ -10,6 +10,10 @@ const EXPECTED_BAND_CHANGES: Array[String] = [
 ]
 const MINUTES_PER_HOUR := 60.0
 const RATE_PATH := "tiempo.minutos_reales_por_hora_por_franja."
+## run_started borra el run.json de SaveSystem: la prueba trabaja en un directorio propio.
+const TEST_STORAGE := "user://test_game_clock"
+const OWNER_MODAL := "ui_modal"
+const OWNER_MENU := "pause_menu"
 
 var _band_news: Array[String] = []
 var _band_olds: Array[String] = []
@@ -40,6 +44,7 @@ func run_case() -> void:
 	_test_rate_scale()
 	_test_save_load()
 	_test_run_signals_resume()
+	_test_pause_owners()
 	_disconnect_bus()
 
 
@@ -287,6 +292,7 @@ func _test_save_load() -> void:
 
 ## The clock starts paused and resumes itself when the run goes live (run_started / run_loaded).
 func _test_run_signals_resume() -> void:
+	SaveSystem.set_storage_dir(TEST_STORAGE)
 	new_run(DEFAULT_SEED, false)
 	check(GameClock.is_paused(), "a fresh run's clock is paused")
 	EventBus.run_started.emit(DEFAULT_SEED)
@@ -296,6 +302,37 @@ func _test_run_signals_resume() -> void:
 	check(not GameClock.is_paused(), "run_loaded resumes the clock")
 	new_run(DEFAULT_SEED, false)
 	check(GameClock.is_paused(), "a new run pauses it again")
+	SaveSystem.set_storage_dir("")
+
+
+## Pausa por dueño: dos modales no se despausan el uno al otro; resume() no pisa a los dueños.
+func _test_pause_owners() -> void:
+	new_run(DEFAULT_SEED, false)
+	GameClock.resume()
+	GameClock.pause_by(OWNER_MODAL)
+	GameClock.pause_by(OWNER_MENU)
+	GameClock.pause_by(OWNER_MENU)
+	check(GameClock.is_paused(), "pause_by pauses a running clock")
+	var expected: Array[String] = [OWNER_MODAL, OWNER_MENU]
+	check_eq(GameClock.get_pause_owners(), expected, "two owners hold a pause (asking twice counts once)")
+	check(GameClock.resume_by(OWNER_MODAL) and GameClock.is_paused(),
+			"releasing one owner keeps the other owner's pause")
+	GameClock.resume()
+	check(GameClock.is_paused(), "resume() does not override an owner's pause")
+	var before: float = GameClock.get_total_minutes()
+	GameClock._process(5.0)
+	check_near(GameClock.get_total_minutes(), before, 0.0001, "_process does nothing while an owner pauses")
+	check(not GameClock.resume_by(OWNER_MODAL), "releasing an owner twice is a no-op")
+	check(GameClock.resume_by(OWNER_MENU) and not GameClock.is_paused(),
+			"the last owner releases → the clock runs (general pause was lifted)")
+	GameClock.pause_by(OWNER_MODAL)
+	GameClock.pause()
+	GameClock.resume_by(OWNER_MODAL)
+	check(GameClock.is_paused() and GameClock.get_pause_owners().is_empty(),
+			"an owner's release does not lift the general pause")
+	GameClock.pause_by(OWNER_MENU)
+	GameClock.clear_pause_owners()
+	check(not GameClock.is_paused_by(OWNER_MENU), "clear_pause_owners frees every owner")
 
 
 # ─── Registro de señales ───────────────────────────────────────

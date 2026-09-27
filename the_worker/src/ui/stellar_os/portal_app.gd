@@ -2,7 +2,7 @@
 # PROPIETARIO DE: el estado de la ventana (ocupación seleccionada y solicitud de ascenso pendiente de confirmar).
 # ESCUCHA: seat_vacated, seat_filled, occupation_changed (solo mientras está abierta, para refrescar).
 class_name PortalApp
-extends Control
+extends OSApp
 
 ## API pública: build_org_chart() -> [{tier, name, occupations: [entrada]}] (escalón 8 arriba);
 ## entrada = {id, name, rank, tier, floor, office, seats: [{index, holder, name, vacant, player,
@@ -16,12 +16,9 @@ extends Control
 ## portal.minutos_muestra_agenda minutos de la jornada laboral y se agrupa en bloques (el horario
 ## de despacho de Voss, §11.8, sale así de su rutina).
 
-signal close_requested
-
 const APP_ID := "portal"
 const TITLE_KEY := "PORTAL_APP_TITLE"
-const ICON := "map"
-const PLAYER_ID := "player"
+const ICON := "portal"
 const CONDITIONS: Array[String] = ["path", "reputation", "merit", "vacancy"]
 const B_AGENDA_TIER := "portal.escalon_agenda_min"
 const B_AGENDA_STEP := "portal.minutos_muestra_agenda"
@@ -29,10 +26,9 @@ const B_DAY_START := "tiempo.hora_inicio_jornada"
 const B_DAY_END := "tiempo.hora_fin_jornada"
 const B_DAYS_PER_WEEK := "tiempo.jornadas_por_semana"
 const MINUTES_PER_HOUR := 60
-const DETAIL_EM := 23.0
+const DETAIL_EM := 20.0
 const Kit := PersonnelApp.OsKit
 
-var _context: Dictionary = {}
 var _standalone: bool = false
 var _in_ui_root: bool = false
 var _embedded: bool = false
@@ -189,11 +185,8 @@ static func is_available() -> bool:
 	return true
 
 
-## context: {occupation_id?: ocupación a seleccionar}.
-func setup(context: Dictionary) -> void:
-	_context = context.duplicate()
-	if _built:
-		select_occupation(str(_context.get("occupation_id", _selected)))
+func get_title_key() -> String:
+	return TITLE_KEY
 
 
 func set_standalone(on: bool) -> void:
@@ -202,8 +195,6 @@ func set_standalone(on: bool) -> void:
 
 func set_embedded(on: bool) -> void:
 	_embedded = on
-	if _window != null:
-		_window.set_title_visible(not on)
 
 
 func request_close() -> void:
@@ -218,17 +209,12 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	theme = Kit.build_theme()
-	_build()
-	_built = true
+	if not _built:
+		setup(context)
+	refresh.call_deferred()
 	EventBus.seat_vacated.connect(_on_seat_vacated)
 	EventBus.seat_filled.connect(_on_seat_filled)
 	EventBus.occupation_changed.connect(_on_occupation_changed)
-	var wanted: String = str(_context.get("occupation_id", ""))
-	if wanted.is_empty():
-		wanted = PlayerState.get_occupation_id()
-	refresh()
-	select_occupation(wanted)
 
 
 func _draw() -> void:
@@ -254,16 +240,13 @@ func _on_occupation_changed(_old_id: String, _new_id: String, _reason: String) -
 	_dirty = true
 
 
-func _build() -> void:
-	_window = PersonnelApp.OsWindow.new(tr(TITLE_KEY), ICON)
-	_window.close_pressed.connect(request_close)
-	var margin: int = Kit.px(Kit.DESKTOP_MARGIN) if _standalone and not _embedded else 0
-	_window.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, margin)
-	_window.set_title_visible(not _embedded)
-	add_child(_window)
+## OSApp: construye la interfaz. context (suelta) o context.extra (carcasa): {occupation_id?}.
+func build() -> void:
+	Kit.use(pal, int(context.get("base", 0)))
+	theme = Kit.build_theme()
 	var col: VBoxContainer = VBoxContainer.new()
 	col.add_theme_constant_override("separation", Kit.px(0.4))
-	_window.body.add_child(col)
+	_frame().add_child(col)
 	var top: HBoxContainer = HBoxContainer.new()
 	top.add_theme_constant_override("separation", Kit.px(0.5))
 	_week = WeekStrip.new()
@@ -279,6 +262,18 @@ func _build() -> void:
 	main.add_child(_build_chart())
 	main.add_child(_build_detail())
 	col.add_child(main)
+	_built = true
+	var wanted: String = Kit.requested(context, "occupation_id", "occupation_id")
+	refresh()
+	select_occupation(wanted if not wanted.is_empty() else PlayerState.get_occupation_id())
+
+
+func _frame() -> Control:
+	if _standalone and not _embedded:
+		_window = Kit.make_window(self, tr(TITLE_KEY), ICON)
+		_window.close_pressed.connect(request_close)
+		return _window.body
+	return Kit.make_holder(self)
 
 
 func _build_chart() -> Control:
@@ -316,13 +311,14 @@ func refresh() -> void:
 	_chart.set_data(tiers, _selected, _targets_of(_selected))
 	_week.days = week_calendar()
 	_week.schedule = IdeaPool.get_meeting_schedule()
+	_week.ideas_in_hand = IdeaPool.get_player_ideas().size()
 	_week.queue_redraw()
 	_summary.post = UITheme.trf("PERS_POST_FMT", [tr(PlayerState.get_occupation().name_key),
 			PlayerState.get_rank()]) if PlayerState.get_occupation() != null else ""
 	_summary.vacancies = vacancy_count()
 	_summary.queue_redraw()
 	_render_detail()
-	_window.set_status([tr("PORTAL_STATUS_SEATS") % [Company.get_all_seats().size(), occupation_count()],
+	Kit.show_status(self, _window, [tr("PORTAL_STATUS_SEATS") % [Company.get_all_seats().size(), occupation_count()],
 			tr("PORTAL_STATUS_VACANT") % vacancy_count(),
 			tr("PERS_STATUS_CLOCK") % [GameClock.get_day(), GameClock.get_time_string()]])
 
@@ -390,9 +386,9 @@ func _add_seats(entry: Dictionary) -> void:
 			variation = Kit.V_STRONG
 		var row: HBoxContainer = Kit.field_row(tr("PORTAL_SEAT_FMT") % (int(seat["index"]) + 1), text, variation)
 		if bool(seat["vacant"]):
-			(row.get_child(1) as Label).add_theme_color_override("font_color", Kit.RED)
+			(row.get_child(1) as Label).add_theme_color_override("font_color", Kit.red())
 		elif bool(seat["player"]):
-			(row.get_child(1) as Label).add_theme_color_override("font_color", Kit.TEAL)
+			(row.get_child(1) as Label).add_theme_color_override("font_color", Kit.teal())
 		_detail_box.add_child(row)
 
 
@@ -415,7 +411,7 @@ func _add_promotion(entry: Dictionary) -> void:
 		var check: HBoxContainer = HBoxContainer.new()
 		check.add_theme_constant_override("separation", Kit.px(0.4))
 		line.text = "✓" if bool(row["ok"]) else "✗"
-		line.color = Kit.GREEN if bool(row["ok"]) else Kit.RED
+		line.color = Kit.green() if bool(row["ok"]) else Kit.red()
 		check.add_child(line)
 		check.add_child(Kit.wrap_label(str(row["text"]), Kit.V_BODY))
 		_detail_box.add_child(check)
@@ -497,6 +493,7 @@ class OrgChart extends Control:
 	signal picked(occupation_id: String)
 
 	const CARD_W := 7.7
+	const CARD_MIN_W := 6.2
 	const CARD_H := 4.3
 	const GAP := 0.4
 	const ROW_GAP := 0.75
@@ -515,12 +512,21 @@ class OrgChart extends Control:
 		tiers = data
 		selected = sel
 		targets = promo
-		var widest: int = 0
-		for tier: Dictionary in tiers:
-			widest = maxi(widest, (tier["occupations"] as Array).size())
-		custom_minimum_size = Vector2(Kit.px(LABEL_W + PAD * 2.0) + widest * Kit.px(CARD_W + GAP),
+		custom_minimum_size = Vector2(Kit.px(LABEL_W + PAD * 2.0) + _widest() * Kit.px(CARD_MIN_W + GAP),
 				tiers.size() * Kit.px(CARD_H + ROW_GAP) + Kit.px(PAD))
 		queue_redraw()
+
+	func _widest() -> int:
+		var widest: int = 1
+		for tier: Dictionary in tiers:
+			widest = maxi(widest, (tier["occupations"] as Array).size())
+		return widest
+
+	## Ancho de tarjeta que llena el espacio disponible (entre el mínimo y el de diseño).
+	func _card_w() -> float:
+		var avail: float = size.x - Kit.px(LABEL_W + PAD * 2.0)
+		var fit_w: float = avail / float(_widest()) - Kit.px(GAP)
+		return clampf(fit_w, Kit.px(CARD_MIN_W), Kit.px(CARD_W))
 
 	func set_selected(sel: String, promo: Array[String]) -> void:
 		selected = sel
@@ -542,14 +548,16 @@ class OrgChart extends Control:
 		_rects.clear()
 		var left: float = float(Kit.px(LABEL_W + PAD))
 		var avail: float = size.x - left - Kit.px(PAD)
+		var card_w: float = _card_w()
+		var step: float = card_w + Kit.px(GAP)
 		for i: int in tiers.size():
 			var entries: Array = tiers[i]["occupations"]
-			var row_w: float = entries.size() * Kit.px(CARD_W + GAP) - Kit.px(GAP)
+			var row_w: float = entries.size() * step - Kit.px(GAP)
 			var x: float = left + maxf((avail - row_w) * 0.5, 0.0)
 			var y: float = Kit.px(PAD) + i * Kit.px(CARD_H + ROW_GAP)
 			for entry: Dictionary in entries:
-				_rects[str(entry["id"])] = Rect2(x, y, Kit.px(CARD_W), Kit.px(CARD_H))
-				x += Kit.px(CARD_W + GAP)
+				_rects[str(entry["id"])] = Rect2(x, y, card_w, Kit.px(CARD_H))
+				x += step
 
 	func _draw() -> void:
 		_layout()
@@ -564,17 +572,17 @@ class OrgChart extends Control:
 		var y: float = Kit.px(PAD * 0.5) + i * Kit.px(CARD_H + ROW_GAP)
 		var band: Rect2 = Rect2(0, y, size.x, Kit.px(CARD_H + PAD))
 		if i % 2 == 0:
-			draw_rect(band, Color(Kit.FACE, 0.28))
+			draw_rect(band, Color(Kit.face(), 0.28))
 		var label: Rect2 = Rect2(Kit.px(PAD * 0.5), y + Kit.px(PAD * 0.5), Kit.px(LABEL_W), Kit.px(CARD_H))
-		draw_rect(label, Kit.TEAL)
+		draw_rect(label, Kit.teal())
 		var parts: PackedStringArray = str(tier["name"]).split(" · ")
 		Kit.text(self, label.position + Vector2(Kit.px(0.35), Kit.px(1.55)), parts[0], Kit.font_black(), Kit.px(1.35),
-				Kit.TITLE_INK, label.size.x - Kit.px(0.7))
+				Kit.title_ink(), label.size.x - Kit.px(0.7))
 		var rest: String = parts[1] if parts.size() > 1 else ""
 		var line_y: float = label.position.y + Kit.px(2.45)
 		for line: String in _wrap(rest, Kit.font_bold(), Kit.px(0.66), label.size.x - Kit.px(0.7)):
 			Kit.text(self, Vector2(label.position.x + Kit.px(0.35), line_y), line, Kit.font_bold(), Kit.px(0.66),
-					Kit.TITLE_INK, label.size.x - Kit.px(0.7))
+					Kit.title_ink(), label.size.x - Kit.px(0.7))
 			line_y += Kit.px(0.75)
 
 	func _draw_links() -> void:
@@ -592,29 +600,29 @@ class OrgChart extends Control:
 				b = Vector2(to.get_center().x, to.position.y)
 				mid_y = a.y - Kit.px(ROW_GAP * 0.45)
 			var pts: PackedVector2Array = PackedVector2Array([a, Vector2(a.x, mid_y), Vector2(b.x, mid_y), b])
-			draw_polyline(pts, Kit.FACE_HI, 7.0)
-			draw_polyline(pts, Kit.TEAL_LIGHT, 3.5)
-			draw_circle(b, 5.0, Kit.TEAL)
+			draw_polyline(pts, Kit.face_hi(), 7.0)
+			draw_polyline(pts, Kit.teal_light(), 3.5)
+			draw_circle(b, 5.0, Kit.teal())
 
 	func _draw_card(entry: Dictionary, r: Rect2) -> void:
 		var vacant: bool = int(entry["vacant"]) > 0
 		var is_sel: bool = str(entry["id"]) == selected
 		draw_rect(Rect2(r.position + Vector2(3, 4), r.size), Color(0, 0, 0, 0.22 if is_sel else 0.12))
-		draw_rect(r, Kit.FIELD)
+		draw_rect(r, Kit.field())
 		var strip: Rect2 = Rect2(r.position, Vector2(r.size.x, Kit.px(0.42)))
-		draw_rect(strip, Kit.HAZARD if vacant else Kit.band_color(int(entry["floor"])))
+		draw_rect(strip, Kit.hazard() if vacant else Kit.band_color(int(entry["floor"])))
 		if vacant:
-			Kit.draw_hatch(self, strip, Kit.INK, 12.0, 4.0)
-			draw_rect(r.grow(-2), Color(Kit.HAZARD, 0.14))
+			Kit.draw_hatch(self, strip, Kit.ink(), 12.0, 4.0)
+			draw_rect(r.grow(-2), Color(Kit.hazard(), 0.14))
 		_draw_card_text(entry, r, vacant)
 		_draw_pips(entry["seats"], r)
-		var border: Color = Kit.SELECT if is_sel else (Kit.RED if vacant else (Kit.TEAL if bool(entry["player_here"])
-				else Kit.INK))
+		var border: Color = Kit.select() if is_sel else (Kit.red() if vacant else (Kit.teal() if bool(entry["player_here"])
+				else Kit.ink()))
 		draw_rect(r, border, false, 3.5 if is_sel or bool(entry["player_here"]) else 2.0)
 		if bool(entry["player_here"]):
-			_draw_tag(r, TranslationServer.translate("PORTAL_TAG_YOU"), Kit.TEAL)
+			_draw_tag(r, TranslationServer.translate("PORTAL_TAG_YOU"), Kit.teal())
 		elif targets.has(str(entry["id"])):
-			_draw_tag(r, TranslationServer.translate("PORTAL_TAG_NEXT"), Kit.TEAL_LIGHT)
+			_draw_tag(r, TranslationServer.translate("PORTAL_TAG_NEXT"), Kit.teal_light())
 
 	func _draw_card_text(entry: Dictionary, r: Rect2, vacant: bool) -> void:
 		var pad: float = float(Kit.px(0.35))
@@ -622,14 +630,14 @@ class OrgChart extends Control:
 		var lines: Array[String] = _wrap(str(entry["name"]), Kit.font_bold(), fsize, r.size.x - pad * 2.0)
 		var y: float = r.position.y + Kit.px(0.42) + fsize * 1.15
 		for line: String in lines:
-			Kit.text(self, Vector2(r.position.x + pad, y), line, Kit.font_bold(), fsize, Kit.INK, r.size.x - pad * 2.0)
+			Kit.text(self, Vector2(r.position.x + pad, y), line, Kit.font_bold(), fsize, Kit.ink(), r.size.x - pad * 2.0)
 			y += fsize * 1.12
 		var holder: String = _holder_line(entry)
 		Kit.text(self, Vector2(r.position.x + pad, r.end.y - Kit.px(1.2)), holder,
-				Kit.font_black() if vacant else Kit.font_regular(), Kit.px(0.72), Kit.RED if vacant else Kit.soft(),
+				Kit.font_black() if vacant else Kit.font_regular(), Kit.px(0.72), Kit.red() if vacant else Kit.soft(),
 				r.size.x - pad * 2.0)
-		Kit.text(self, Vector2(r.position.x + pad, r.end.y - Kit.px(0.3)), "R%d" % int(entry["rank"]),
-				Kit.font_mono(), Kit.px(0.68), Kit.INK, Kit.px(2.0))
+		Kit.text(self, Vector2(r.position.x + pad, r.end.y - Kit.px(0.3)), TranslationServer.translate("PERS_RANK_CHIP") % int(entry["rank"]),
+				Kit.font_mono(), Kit.px(0.68), Kit.ink(), Kit.px(2.0))
 
 	func _holder_line(entry: Dictionary) -> String:
 		var seats: Array = entry["seats"]
@@ -653,18 +661,18 @@ class OrgChart extends Control:
 			var seat: Dictionary = seats[seats.size() - 1 - i]
 			var c: Vector2 = Vector2(x - i * radius * 2.6, y - radius * 0.8)
 			if bool(seat["vacant"]):
-				draw_arc(c, radius, 0, TAU, 12, Kit.RED, 2.0)
+				draw_arc(c, radius, 0, TAU, 12, Kit.red(), 2.0)
 			else:
-				draw_circle(c, radius, Kit.TEAL if bool(seat["player"]) else Kit.INK)
+				draw_circle(c, radius, Kit.teal() if bool(seat["player"]) else Kit.ink())
 
 	func _draw_tag(r: Rect2, text: String, color: Color) -> void:
 		var fsize: int = Kit.px(0.62)
 		var w: float = Kit.font_black().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + Kit.px(0.6)
 		var tag: Rect2 = Rect2(r.end.x - w - Kit.px(0.2), r.position.y - fsize * 0.7, w, fsize * 1.4)
 		draw_rect(tag, color)
-		draw_rect(tag, Kit.INK, false, 1.5)
+		draw_rect(tag, Kit.ink(), false, 1.5)
 		Kit.text(self, Vector2(tag.position.x, tag.get_center().y + fsize * 0.36), text, Kit.font_black(), fsize,
-				Kit.TITLE_INK, w, HORIZONTAL_ALIGNMENT_CENTER)
+				Kit.title_ink(), w, HORIZONTAL_ALIGNMENT_CENTER)
 
 	static func _wrap(text: String, font: Font, fsize: int, width: float) -> Array[String]:
 		var out: Array[String] = []
@@ -688,17 +696,18 @@ class OrgChart extends Control:
 class WeekStrip extends Control:
 	var days: Array[Dictionary] = []
 	var schedule: Dictionary = {}
+	var ideas_in_hand: int = 0
 
 	func _init() -> void:
 		custom_minimum_size.y = Kit.px(4.6)
 
 	func _draw() -> void:
-		Kit.draw_bevel(self, Rect2(Vector2.ZERO, size), Kit.FACE, true)
+		Kit.draw_bevel(self, Rect2(Vector2.ZERO, size), Kit.face(), true)
 		var label_w: float = float(Kit.px(6.2))
 		Kit.text(self, Vector2(Kit.px(0.5), Kit.px(1.5)), TranslationServer.translate("PORTAL_WEEK"), Kit.font_black(),
-				Kit.px(0.8), Kit.TEAL, label_w)
+				Kit.px(0.8), Kit.teal(), label_w - Kit.px(0.8))
 		Kit.text(self, Vector2(Kit.px(0.5), Kit.px(2.8)), TranslationServer.translate("PORTAL_WEEK_SUB"),
-				Kit.font_regular(), Kit.px(0.68), Kit.soft(), label_w)
+				Kit.font_regular(), Kit.px(0.68), Kit.soft(), label_w - Kit.px(0.8))
 		if days.is_empty():
 			return
 		var w: float = (size.x - label_w - Kit.px(0.6)) / float(days.size())
@@ -707,28 +716,33 @@ class WeekStrip extends Control:
 
 	func _draw_day(day: Dictionary, r: Rect2) -> void:
 		var today: bool = bool(day["today"])
-		draw_rect(r, Kit.FIELD if not today else Kit.FACE_HI)
-		draw_rect(r, Kit.SELECT if today else Kit.FACE_MID, false, 3.0 if today else 1.5)
+		draw_rect(r, Kit.field() if not today else Kit.face_hi())
+		draw_rect(r, Kit.select() if today else Kit.face_mid(), false, 3.0 if today else 1.5)
 		var pad: float = float(Kit.px(0.35))
 		Kit.text(self, r.position + Vector2(pad, Kit.px(1.0)), str(day["weekday"]).to_upper(), Kit.font_black(),
-				Kit.px(0.7), Kit.SELECT if today else Kit.INK, r.size.x * 0.6)
+				Kit.px(0.7), Kit.select() if today else Kit.ink(), r.size.x * 0.6)
 		Kit.text(self, Vector2(r.position.x, r.position.y + Kit.px(1.0)), TranslationServer.translate("PORTAL_DAY_FMT")
 				% int(day["day"]), Kit.font_mono(), Kit.px(0.68), Kit.soft(), r.size.x - pad, HORIZONTAL_ALIGNMENT_RIGHT)
 		var y: float = r.position.y + Kit.px(1.55)
 		if bool(day["aurora"]):
-			_event(Rect2(r.position.x + pad, y, r.size.x - pad * 2.0, Kit.px(1.0)), "star", Kit.AMBER,
+			_event(Rect2(r.position.x + pad, y, r.size.x - pad * 2.0, Kit.px(1.0)), "star", Kit.amber(),
 					TranslationServer.translate("PORTAL_AURORA_FMT") % UITheme.format_hour(int(schedule.get("hour", 0))))
 			y += Kit.px(1.15)
+			if ideas_in_hand > 0:
+				Kit.text(self, Vector2(r.position.x + pad, y + Kit.px(0.6)),
+						TranslationServer.translate("PORTAL_IDEAS_FMT") % ideas_in_hand, Kit.font_bold(), Kit.px(0.62),
+						Kit.ink(), r.size.x - pad * 2.0)
+				y += Kit.px(0.9)
 		if bool(day["results"]):
-			_event(Rect2(r.position.x + pad, y, r.size.x - pad * 2.0, Kit.px(1.0)), "coin", Kit.GREEN,
+			_event(Rect2(r.position.x + pad, y, r.size.x - pad * 2.0, Kit.px(1.0)), "coin", Kit.green(),
 					TranslationServer.translate("PORTAL_RESULTS_DAY"))
 
 	func _event(r: Rect2, glyph: String, color: Color, label: String) -> void:
 		draw_rect(r, color)
 		UITheme.draw_icon(self, glyph, Rect2(r.position + Vector2(3, 2), Vector2(r.size.y - 4, r.size.y - 4)),
-				Kit.INK, 1.6)
+				Kit.ink(), 1.6)
 		Kit.text(self, Vector2(r.position.x + r.size.y + 2, r.get_center().y + Kit.px(0.24)), label, Kit.font_bold(),
-				Kit.px(0.64), Kit.INK, r.size.x - r.size.y - 4)
+				Kit.px(0.64), Kit.ink(), r.size.x - r.size.y - 4)
 
 
 ## Tarjeta «tu silla / vacantes».
@@ -738,22 +752,22 @@ class SeatSummary extends Control:
 
 	func _draw() -> void:
 		var r: Rect2 = Rect2(Vector2.ZERO, size)
-		Kit.draw_bevel(self, r, Kit.FACE, false)
+		Kit.draw_bevel(self, r, Kit.face(), false)
 		var count_w: float = float(Kit.px(6.0))
 		var count: Rect2 = Rect2(size.x - count_w - Kit.px(0.3), Kit.px(0.3), count_w, size.y - Kit.px(0.6))
-		draw_rect(count, Kit.HAZARD if vacancies > 0 else Kit.FIELD)
+		draw_rect(count, Kit.hazard() if vacancies > 0 else Kit.field())
 		if vacancies > 0:
-			Kit.draw_hatch(self, Rect2(count.position, Vector2(count.size.x, Kit.px(0.45))), Kit.INK, 10.0, 3.0)
-		draw_rect(count, Kit.INK, false, 2.0)
+			Kit.draw_hatch(self, Rect2(count.position, Vector2(count.size.x, Kit.px(0.45))), Kit.ink(), 10.0, 3.0)
+		draw_rect(count, Kit.ink(), false, 2.0)
 		Kit.text(self, Vector2(count.position.x, count.position.y + Kit.px(2.6)), str(vacancies), Kit.font_black(),
-				Kit.px(2.0), Kit.INK, count.size.x, HORIZONTAL_ALIGNMENT_CENTER)
+				Kit.px(2.0), Kit.ink(), count.size.x, HORIZONTAL_ALIGNMENT_CENTER)
 		Kit.text(self, Vector2(count.position.x, count.end.y - Kit.px(0.35)),
-				TranslationServer.translate("PORTAL_VACANCIES").to_upper(), Kit.font_black(), Kit.px(0.62), Kit.INK,
+				TranslationServer.translate("PORTAL_VACANCIES").to_upper(), Kit.font_black(), Kit.px(0.62), Kit.ink(),
 				count.size.x, HORIZONTAL_ALIGNMENT_CENTER)
 		var text_w: float = count.position.x - Kit.px(0.8)
 		Kit.text(self, Vector2(Kit.px(0.5), Kit.px(1.5)), TranslationServer.translate("PORTAL_YOUR_SEAT").to_upper(),
-				Kit.font_black(), Kit.px(0.72), Kit.TEAL, text_w)
-		Kit.text(self, Vector2(Kit.px(0.5), Kit.px(2.8)), post, Kit.font_bold(), Kit.px(0.9), Kit.INK, text_w)
+				Kit.font_black(), Kit.px(0.72), Kit.teal(), text_w)
+		Kit.text(self, Vector2(Kit.px(0.5), Kit.px(2.8)), post, Kit.font_bold(), Kit.px(0.9), Kit.ink(), text_w)
 		Kit.text(self, Vector2(Kit.px(0.5), Kit.px(3.9)), TranslationServer.translate("PORTAL_HINT"), Kit.font_regular(),
 				Kit.px(0.66), Kit.soft(), text_w)
 
@@ -769,7 +783,7 @@ class ConfirmOverlay extends Control:
 		var center: CenterContainer = CenterContainer.new()
 		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		overlay.add_child(center)
-		var window: PersonnelApp.OsWindow = PersonnelApp.OsWindow.new(title, "hazard")
+		var window: PersonnelApp.OsWindow = PersonnelApp.OsWindow.new(title, "warning")
 		window.custom_minimum_size.x = Kit.px(26.0)
 		window.close_pressed.connect(func() -> void: overlay.answered.emit(false))
 		center.add_child(window)

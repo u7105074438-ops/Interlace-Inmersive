@@ -108,6 +108,7 @@ func _check_overlay_keeps_clock() -> void:
 	var typing: Array[Node] = phone.find_children("*", "LineEdit", true, false)
 	typing.append_array(phone.find_children("*", "TextEdit", true, false))
 	check(typing.is_empty(), "no text fields: the phone never needs to lock movement for typing")
+	check(bool(phone.get_meta(PhoneOverlay.META_OVERLAY, false)), "it flags itself as a non-blocking overlay")
 	check(PhoneOverlay.find_service(get_tree()) != null, "the session inbox service is installed")
 
 

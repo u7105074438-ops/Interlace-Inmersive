@@ -48,10 +48,17 @@ const B_PAUSE := "escenas.pausa_segundos"
 const B_METER := "escenas.medidor_segundos"
 const B_MAX_IDEAS := "escenas.max_ideas_listadas"
 const PERCENT := 100.0
+const MINUTES_PER_HOUR := 60.0
+## Maquetación del selector de ideas: tres tarjetas por fila.
+const PICK_COLUMNS := 3
+const IDEA_CARD_WIDTH := 420.0
 ## Penalización de orden para asistentes de espaldas (más que cualquier distancia del lienzo).
 const DESIGN_FAR := 10000.0
 ## Separación del pasillo respecto a la fila de sillas (px del lienzo de diseño).
 const AISLE_OFFSET := 40.0
+## Escala del tira y afloja: margen sobre la diferencia y ancho mínimo en múltiplos del umbral.
+const METER_HEADROOM := 1.25
+const METER_MIN_BANDS := 3.0
 
 var instant: bool = false
 var clash_overrides: Dictionary = {}
@@ -119,8 +126,10 @@ class ClashMeter extends Control:
 		var cx: float = size.x * 0.5
 		var per: float = cx / maxf(span, 1.0)
 		var band: Rect2 = Rect2(cx - threshold * per, track.position.y, threshold * per * 2.0, track.size.y)
-		draw_rect(Rect2(track.position, Vector2(band.position.x, track.size.y)), UITheme.color("loss").darkened(0.25))
-		draw_rect(Rect2(band.end.x, track.position.y, size.x - band.end.x, track.size.y), UITheme.color("gain").darkened(0.3))
+		var left: Rect2 = Rect2(track.position, Vector2(band.position.x, track.size.y))
+		draw_rect(left, UITheme.color("loss").darkened(0.25))
+		var right: Rect2 = Rect2(band.end.x, track.position.y, size.x - band.end.x, track.size.y)
+		draw_rect(right, UITheme.color("gain").darkened(0.3))
 		draw_rect(band, UITheme.color("faint"))
 		for i: int in int(band.size.x / 12.0):
 			var x: float = band.position.x + 6.0 + i * 12.0
@@ -518,23 +527,24 @@ func _show_message(text: String, button_key: String, action: Callable) -> void:
 func _show_pick() -> void:
 	_step = STEP_PICK
 	var ideas: Array[Idea] = get_player_ideas()
-	_open_panel(tr("AURORA_PICK_TITLE"), tr("AURORA_PICK_BODY" if not ideas.is_empty() else "AURORA_PICK_NONE"))
-	var row: HBoxContainer = HBoxContainer.new()
+	var body: String = "AURORA_PICK_BODY" if not ideas.is_empty() else "AURORA_PICK_NONE"
+	_open_panel(tr("AURORA_PICK_TITLE"), tr(body))
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = PICK_COLUMNS
 	for idea: Idea in ideas:
-		row.add_child(_idea_card(idea))
+		grid.add_child(_idea_card(idea))
 	if not ideas.is_empty():
-		_panel_box.add_child(row)
+		_panel_box.add_child(grid)
 	_button_row([SceneStage.ui_button(tr("AURORA_SKIP"), "", skip_presenting)])
 
 
 func _idea_card(idea: Idea) -> Control:
 	var card: PanelContainer = PanelContainer.new()
 	card.theme_type_variation = UITheme.V_CARD
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.custom_minimum_size.x = IDEA_CARD_WIDTH * SceneStage.ui_scale()
 	var box: VBoxContainer = VBoxContainer.new()
 	card.add_child(box)
 	var title: Label = SceneStage.ui_label("“%s”" % _idea_title(idea), UITheme.V_STRONG, true)
-	title.custom_minimum_size.x = 300
 	box.add_child(title)
 	var facts: String = "%s · %s" % [tr("AURORA_IDEA_QUALITY") % idea.quality,
 			tr("AURORA_IDEA_FRESH") % idea.freshness]
@@ -612,7 +622,7 @@ func _prep_note(prep: String, ready: bool, fits: bool, minutes: float) -> String
 
 
 static func _factor_text(factor: float) -> String:
-	return String.num(factor, 1)
+	return SceneStage.decimal(factor)
 
 
 func _option_available(preparation: String) -> bool:
@@ -626,7 +636,7 @@ func _minutes_left() -> float:
 	if not IdeaPool.is_meeting_open():
 		return 0.0
 	var end_hour: int = int(IdeaPool.get_current_meeting().get("end_hour", GameClock.get_hour()))
-	return float(end_hour) * 60.0 - GameClock.get_day_minutes()
+	return float(end_hour) * MINUTES_PER_HOUR - GameClock.get_day_minutes()
 
 
 func _meeting_end_text() -> String:
@@ -811,7 +821,7 @@ func _clash_row() -> Control:
 	_meter = ClashMeter.new()
 	_meter.threshold = Database.get_balance_float(IdeaPresentation.B_CLASH_THRESHOLD)
 	_meter.difference = float(_result.get("difference", 0.0))
-	_meter.span = maxf(absf(_meter.difference) * 1.25, _meter.threshold * 3.0)
+	_meter.span = maxf(absf(_meter.difference) * METER_HEADROOM, _meter.threshold * METER_MIN_BANDS)
 	_meter.duration = _meter_seconds()
 	_meter.texts = [tr("AURORA_CLASH_SIDE_ACCUSER") % _accuser_name(),
 			tr("AURORA_CLASH_TIE_BAND") % roundi(_meter.threshold), tr("AURORA_CLASH_SIDE_YOU")]

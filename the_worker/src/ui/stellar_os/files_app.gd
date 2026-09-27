@@ -425,7 +425,7 @@ func _copy_idea(f: Dictionary) -> bool:
 	if not block.is_empty():
 		post_status(t(IdeaPool.acquisition_block_key(block)))
 		return false
-	await wait_lag(1.0)
+	await wait_action(StellarOS.ACTION_COPY)
 	var ok: bool = IdeaPool.acquire(idea_id, METHOD_STEAL_FILE)
 	if ok:
 		EventBus.notebook_entry_added.emit(NOTE_CATEGORY, "NOTE_FILE_COPIED_IDEA", [npc_name(get_npc_id())])
@@ -438,7 +438,7 @@ func _copy_idea(f: Dictionary) -> bool:
 
 func _copy_document(f: Dictionary) -> bool:
 	var doc_id: String = str(f["doc_id"])
-	await wait_lag(1.0)
+	await wait_action(StellarOS.ACTION_COPY)
 	var item: ItemData = Database.get_item(doc_id)
 	if item == null:
 		item = Database.get_item(str(Database.get_balance(B_COPY_ITEM)))

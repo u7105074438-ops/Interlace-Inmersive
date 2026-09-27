@@ -116,6 +116,8 @@ const B_ROOF := "mundo.planta_azotea"
 const MARGIN_RATIO := 0.018
 const FRAME_RATIO := 0.42
 const HEADER_RATIO := 3.3
+const HEADER_COMPACT_RATIO := 2.3
+const COMPACT_ROWS := 34.0
 const FOOTER_RATIO := 1.45
 const PAD_RATIO := 0.7
 const SIDE_SHARE := 0.3
@@ -148,7 +150,6 @@ var _sized: Dictionary = {}
 var _badge: Label
 var _occ_label: Label
 var _disguise_label: Label
-var _files_label: Label
 var _toggles: Dictionary = {}
 var _band_row: HBoxContainer
 var _band_label: Label
@@ -168,7 +169,6 @@ func _init() -> void:
 	name = "MapView"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	focus_mode = Control.FOCUS_ALL
 	_layers = {LAYER_CAMERAS: false, LAYER_ROUTES: false, LAYER_OCCUPANCY: false}
 	_layers.merge(_layer_memory, true)
 	_build()
@@ -286,6 +286,7 @@ func select_floor(floor_number: int) -> void:
 		return
 	_selected_floor = floor_number
 	_cut.hover_floor = floor_number
+	_cut.ensure_floor_visible(floor_number)
 	_cut.queue_redraw()
 	_refresh_floor_panel()
 
@@ -782,9 +783,9 @@ static func _floor_of(room_id: String, fallback: int) -> int:
 func marked_targets() -> Array[String]:
 	var raw: Variant = _context.get(CONTEXT_TARGETS, null)
 	if raw == null:
-		for owner: Node in [PlayerState, NPCDirector]:
-			if owner.has_method(TARGETS_GETTER):
-				raw = owner.call(TARGETS_GETTER)
+		for source: Node in [PlayerState, NPCDirector]:
+			if source.has_method(TARGETS_GETTER):
+				raw = source.call(TARGETS_GETTER)
 				break
 	var out: Array[String] = []
 	if raw is Array:
@@ -800,9 +801,9 @@ func file_level_for(npc_id: String) -> int:
 	var given: Variant = _context.get(CONTEXT_FILE_LEVELS, {})
 	if given is Dictionary:
 		level = maxi(level, int((given as Dictionary).get(npc_id, 0)))
-	for owner: Node in [PlayerState, NPCDirector]:
-		if owner.has_method(FILE_LEVEL_GETTER):
-			level = maxi(level, int(owner.call(FILE_LEVEL_GETTER, npc_id)))
+	for source: Node in [PlayerState, NPCDirector]:
+		if source.has_method(FILE_LEVEL_GETTER):
+			level = maxi(level, int(source.call(FILE_LEVEL_GETTER, npc_id)))
 	return level
 
 
@@ -869,7 +870,7 @@ func _build() -> void:
 	_side = VBoxContainer.new()
 	_side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_side_scroll.add_child(_side)
-	_build_access_section()
+	_build_header_card()
 	_build_legend_section()
 	_build_layer_section()
 	_build_floor_section()
@@ -879,15 +880,19 @@ func _build() -> void:
 	_plan_view.room_clicked.connect(_on_room_hovered)
 
 
-func _mk_label(ratio: float, font_path: String, color_key: String, wrap: bool = false) -> Label:
+## Etiqueta con tinta de papel. track = true: persistente, se reescala con el tema (_apply_sizes);
+## las filas efímeras del panel (track = false) reciben el tamaño al crearse.
+func _mk_label(ratio: float, font_path: String, color_key: String, wrap: bool = false, track: bool = true) -> Label:
 	var label: Label = Label.new()
 	label.add_theme_font_override("font", UITheme.font(font_path))
 	label.add_theme_color_override("font_color", MapFloorPlan.palette()[color_key])
+	label.add_theme_font_size_override("font_size", maxi(9, roundi(float(_base()) * ratio)))
 	label.set_meta("map_color", color_key)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if wrap:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_sized[label] = ratio
+	if track:
+		_sized[label] = ratio
 	return label
 
 
@@ -906,24 +911,18 @@ func _separator() -> ColorRect:
 	return line
 
 
-func _build_access_section() -> void:
-	_side.add_child(_section_title("MAP_YOUR_ACCESS"))
-	var row: HBoxContainer = HBoxContainer.new()
-	_side.add_child(row)
-	_badge = _mk_label(1.35, UITheme.FONT_BOLD, "white")
+## Tarjeta del jugador en la cabecera: nivel de acreditación, puesto, disfraz y nivel de expedientes.
+func _build_header_card() -> void:
+	_badge = _mk_label(1.3, UITheme.FONT_BOLD, "red")
 	_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(_badge)
-	var col: VBoxContainer = VBoxContainer.new()
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 0)
-	row.add_child(col)
-	_occ_label = _mk_label(0.92, UITheme.FONT_BOLD, "ink", true)
-	_disguise_label = _mk_label(0.72, UITheme.FONT_SEMIBOLD, "ink_soft", true)
-	_files_label = _mk_label(0.72, UITheme.FONT_SEMIBOLD, "ink_soft", true)
-	for label: Label in [_occ_label, _disguise_label, _files_label]:
-		col.add_child(label)
-	_side.add_child(_separator())
+	add_child(_badge)
+	_occ_label = _mk_label(0.86, UITheme.FONT_BOLD, "white")
+	_disguise_label = _mk_label(0.64, UITheme.FONT_SEMIBOLD, "white")
+	for label: Label in [_occ_label, _disguise_label]:
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		label.clip_text = true
+		add_child(label)
 
 
 func _build_legend_section() -> void:
@@ -950,7 +949,7 @@ func _legend_row(kind: String, status: int, key: String, desc_key: String) -> HB
 	swatch.kind = kind
 	swatch.status = status
 	row.add_child(swatch)
-	var label: Label = _mk_label(0.74, UITheme.FONT_BOLD if desc_key.is_empty() else UITheme.FONT_BOLD, "ink")
+	var label: Label = _mk_label(0.74, UITheme.FONT_BOLD, "ink")
 	label.set_meta("map_key", key)
 	label.set_meta("map_desc", desc_key)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -989,6 +988,11 @@ func _build_layer_section() -> void:
 
 
 func _build_floor_section() -> void:
+	_nav_row = HBoxContainer.new()
+	_side.add_child(_nav_row)
+	_add_nav_button(IconButton.GLYPH_BACK, "MAP_BACK", zoom_out)
+	_add_nav_button(IconButton.GLYPH_UP, "", _step_zoom.bind(1))
+	_add_nav_button(IconButton.GLYPH_DOWN, "", _step_zoom.bind(-1))
 	_floor_title = _mk_label(1.05, UITheme.FONT_BOLD, "ink", true)
 	_side.add_child(_floor_title)
 	_floor_band = _mk_label(0.7, UITheme.FONT_BOLD, "ink_soft")
@@ -1005,11 +1009,6 @@ func _build_floor_section() -> void:
 	_room_list = VBoxContainer.new()
 	_room_list.add_theme_constant_override("separation", 2)
 	_side.add_child(_room_list)
-	_nav_row = HBoxContainer.new()
-	_side.add_child(_nav_row)
-	_add_nav_button(IconButton.GLYPH_BACK, "MAP_BACK", zoom_out)
-	_add_nav_button(IconButton.GLYPH_UP, "", _step_zoom.bind(1))
-	_add_nav_button(IconButton.GLYPH_DOWN, "", _step_zoom.bind(-1))
 	_hint = _mk_label(0.66, UITheme.FONT_SEMIBOLD, "ink_soft", true)
 	_side.add_child(_hint)
 
@@ -1032,12 +1031,13 @@ func _base() -> int:
 
 func _layout() -> void:
 	var base: float = float(_base())
+	var compact: bool = is_compact()
 	var margin: float = maxf(6.0, minf(size.x, size.y) * MARGIN_RATIO)
 	var poster: Rect2 = Rect2(Vector2(margin, margin), size - Vector2(margin, margin) * 2.0)
 	var frame: float = maxf(5.0, base * FRAME_RATIO)
 	var inner: Rect2 = poster.grow(-frame)
-	var header: Rect2 = Rect2(inner.position, Vector2(inner.size.x, maxf(52.0, base * HEADER_RATIO)))
-	var footer_h: float = base * FOOTER_RATIO
+	var header: Rect2 = Rect2(inner.position, Vector2(inner.size.x, maxf(52.0, base * (HEADER_COMPACT_RATIO if compact else HEADER_RATIO))))
+	var footer_h: float = 0.0 if compact else base * FOOTER_RATIO
 	var footer: Rect2 = Rect2(inner.position.x, inner.end.y - footer_h, inner.size.x, footer_h)
 	var pad: float = base * PAD_RATIO
 	var body: Rect2 = Rect2(inner.position.x + pad, header.end.y + pad, inner.size.x - pad * 2.0, footer.position.y - header.end.y - pad * 2.0)
@@ -1048,21 +1048,41 @@ func _layout() -> void:
 	_place(_plan_view, map_rect)
 	_place(_side_scroll, Rect2(map_rect.end.x + pad, body.position.y, side_w, body.size.y))
 	_side.custom_minimum_size.x = side_w - base * 0.8
+	_subtitle.visible = not compact
+	_footer_left.visible = not compact
+	_footer_right.visible = not compact
 	_layout_header(header, base)
 	_place(_footer_left, Rect2(footer.position.x + pad, footer.position.y, footer.size.x * 0.56 - pad, footer.size.y))
 	_place(_footer_right, Rect2(footer.position.x + footer.size.x * 0.56, footer.position.y, footer.size.x * 0.44 - pad, footer.size.y))
 	queue_redraw()
 
 
+## Pantalla baja respecto a la letra (móvil, texto grande): cabecera compacta y sin pie.
+func is_compact() -> bool:
+	return size.y / maxf(1.0, float(_base())) < COMPACT_ROWS
+
+
 func _layout_header(header: Rect2, base: float) -> void:
+	var sign_h: float = header.size.y * 0.62
+	var right: float = header.end.x - sign_h * 2.3 - header.size.y * 0.25 - base
+	var card_w: float = clampf(header.size.x * 0.26, base * 8.0, base * 16.0)
+	var badge: Vector2 = Vector2(base * 2.7, sign_h)
+	var card_x: float = right - card_w
+	_place(_badge, Rect2(card_x, header.get_center().y - badge.y * 0.5, badge.x, badge.y))
+	var text_x: float = card_x + badge.x + base * 0.45
+	var occ_h: float = _occ_label.get_combined_minimum_size().y
+	var dis_h: float = _disguise_label.get_combined_minimum_size().y
+	var top: float = header.get_center().y - (occ_h + dis_h) * 0.5
+	_place(_occ_label, Rect2(text_x, top, right - text_x, occ_h))
+	_place(_disguise_label, Rect2(text_x, top + occ_h, right - text_x, dis_h))
+	_rects["card_x"] = card_x - base * 0.6
 	var left: float = header.position.x + header.size.y * 1.05
-	var sign_w: float = header.size.y * 1.55
-	var width: float = header.size.x - (left - header.position.x) - sign_w - base
+	var width: float = card_x - base * 1.2 - left
 	var title_h: float = _title.get_combined_minimum_size().y
-	var sub_h: float = _subtitle.get_combined_minimum_size().y
-	var top: float = header.position.y + (header.size.y - title_h - sub_h) * 0.5
-	_place(_title, Rect2(left, top, width, title_h))
-	_place(_subtitle, Rect2(left, top + title_h, width, sub_h))
+	var sub_h: float = _subtitle.get_combined_minimum_size().y if _subtitle.visible else 0.0
+	var title_top: float = header.position.y + (header.size.y - title_h - sub_h) * 0.5
+	_place(_title, Rect2(left, title_top, width, title_h))
+	_place(_subtitle, Rect2(left, title_top + title_h, width, sub_h))
 
 
 static func _place(ctrl: Control, r: Rect2) -> void:
@@ -1078,7 +1098,7 @@ func _apply_sizes() -> void:
 			(label as Label).add_theme_font_size_override("font_size", maxi(9, roundi(base * float(_sized[label]))))
 			(label as Label).add_theme_color_override("font_color", pal[str((label as Label).get_meta("map_color"))])
 	_badge.custom_minimum_size = Vector2(base * 2.9, base * 2.3)
-	_badge.add_theme_stylebox_override("normal", _badge_box(pal["ink"], base))
+	_badge.add_theme_stylebox_override("normal", _badge_box(pal["white"], base))
 	_side.add_theme_constant_override("separation", roundi(base * 0.42))
 	for chip: Variant in _toggles.values():
 		(chip as ToggleChip).restyle(base)
@@ -1132,12 +1152,8 @@ func _refresh_access_panel() -> void:
 	_occ_label.text = tr(occ.name_key) if occ != null else ""
 	var disguise: String = str(ctx.get(CTX_DISGUISE, ""))
 	var item: ItemData = Database.get_item(disguise) if not disguise.is_empty() else null
-	_disguise_label.text = UITheme.trf("MAP_DISGUISE_FMT", [tr(item.name_key)]) if item != null else tr("MAP_NO_DISGUISE")
-	var level: int = PlayerState.get_personnel_file_level()
-	var need: int = Database.get_balance_int(B_ROUTINE_LEVEL)
-	_files_label.text = UITheme.trf("MAP_FILE_LEVEL_FMT", [level])
-	if level < need:
-		_files_label.text += "\n" + UITheme.trf("MAP_ROUTINES_LOCKED_FMT", [need])
+	var worn: String = UITheme.trf("MAP_DISGUISE_FMT", [tr(item.name_key)]) if item != null else tr("MAP_NO_DISGUISE")
+	_disguise_label.text = worn + " · " + UITheme.trf("MAP_FILE_LEVEL_FMT", [PlayerState.get_personnel_file_level()])
 
 
 func _refresh_band_label() -> void:
@@ -1180,6 +1196,7 @@ func _refresh_floor_panel() -> void:
 	_floor_status.get_parent().visible = has_floor
 	_floor_people.visible = has_floor
 	for child: Node in _room_list.get_children():
+		_room_list.remove_child(child)
 		child.queue_free()
 	_listed.clear()
 	if not has_floor:
@@ -1208,6 +1225,9 @@ func _people_line(f: int) -> String:
 	var line: String = UITheme.trf("MAP_DOTS_COUNT_FMT", [known])
 	if targets > 0:
 		line += " · " + UITheme.trf("MAP_TARGETS_COUNT_FMT", [targets])
+	var need: int = Database.get_balance_int(B_ROUTINE_LEVEL)
+	if PlayerState.get_personnel_file_level() < need:
+		line += "\n" + UITheme.trf("MAP_ROUTINES_LOCKED_FMT", [need])
 	return line
 
 
@@ -1219,20 +1239,17 @@ func _room_row(room_id: String) -> HBoxContainer:
 	swatch.status = get_room_status(room_id)
 	swatch.small = true
 	row.add_child(swatch)
-	var name_label: Label = _mk_label(0.74, UITheme.FONT_BOLD if room_id == _selected_room else UITheme.FONT_SEMIBOLD, "ink")
+	var name_label: Label = _mk_label(0.74, UITheme.FONT_BOLD if room_id == _selected_room else UITheme.FONT_SEMIBOLD, "ink", false, false)
 	name_label.text = tr(room.name_key) if room != null else room_id
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.clip_text = true
 	row.add_child(name_label)
 	var method: String = get_room_method(room_id)
-	var tail: Label = _mk_label(0.64, UITheme.FONT_BOLD, "alt_ink" if not method.is_empty() else "ink_soft")
+	var tail: Label = _mk_label(0.64, UITheme.FONT_BOLD, "alt_ink" if not method.is_empty() else "ink_soft", false, false)
 	var level: String = UITheme.trf("MAP_CLEARANCE_FMT", [room.clearance_required if room != null else 0])
 	tail.text = tr(str(METHOD_KEYS[method])) + " · " + level if not method.is_empty() else level
 	row.add_child(tail)
-	var base: float = float(_base())
-	for label: Label in [name_label, tail]:
-		label.add_theme_font_size_override("font_size", maxi(9, roundi(base * float(_sized[label]))))
 	return row
 
 
@@ -1267,7 +1284,8 @@ func _draw() -> void:
 	_draw_header_badges(header, pal)
 	_draw_screws(poster, frame, pal)
 	var footer: Rect2 = _rects["footer"]
-	draw_line(footer.position, Vector2(footer.end.x, footer.position.y), pal["ink_faint"], 2.0)
+	if footer.size.y > 0.0:
+		draw_line(footer.position, Vector2(footer.end.x, footer.position.y), pal["ink_faint"], 2.0)
 	var side_x: float = _side_scroll.position.x - float(_base()) * PAD_RATIO * 0.5
 	draw_line(Vector2(side_x, _side_scroll.position.y), Vector2(side_x, _side_scroll.position.y + _side_scroll.size.y), pal["ink_faint"], 2.0)
 
@@ -1277,6 +1295,9 @@ func _draw_header_badges(header: Rect2, pal: Dictionary) -> void:
 	var at: Vector2 = Vector2(header.position.x + header.size.y * 0.52, header.get_center().y)
 	draw_circle(at, s * 0.5, pal["white"])
 	UITheme.draw_icon(self, "star", Rect2(at - Vector2(s, s) * 0.32, Vector2(s, s) * 0.64), pal["red"], 2.0)
+	if _rects.has("card_x"):
+		var x: float = _rects["card_x"]
+		draw_line(Vector2(x, header.position.y + header.size.y * 0.2), Vector2(x, header.end.y - header.size.y * 0.2), Color(pal["white"], 0.45), 2.0)
 	var sign_h: float = header.size.y * 0.62
 	var sign_rect: Rect2 = Rect2(header.end.x - sign_h * 2.3 - header.size.y * 0.25, header.get_center().y - sign_h * 0.5, sign_h * 2.3, sign_h)
 	draw_polygon(UITheme.rounded_rect_points(sign_rect.grow(3.0), sign_h * 0.16), PackedColorArray([pal["white"]]))
@@ -1331,6 +1352,7 @@ func _notification(what: int) -> void:
 			if is_inside_tree():
 				_apply_sizes()
 				_layout()
+				_refresh_floor_panel()
 		NOTIFICATION_TRANSLATION_CHANGED:
 			if is_inside_tree():
 				_refresh_texts()
@@ -1445,14 +1467,14 @@ class ToggleChip extends Button:
 		add_theme_font_size_override("font_size", roundi(base * 0.78))
 		custom_minimum_size.y = base * 1.75
 
-	static func _box(bg: Color, border: Color, base: float, pad_l: float) -> StyleBoxFlat:
+	static func _box(bg: Color, border: Color, base: float, pad_l: float, pad_r: float = -1.0) -> StyleBoxFlat:
 		var sb: StyleBoxFlat = StyleBoxFlat.new()
 		sb.bg_color = bg
 		sb.border_color = border
 		sb.set_border_width_all(2)
 		sb.set_corner_radius_all(roundi(base * 0.3))
 		sb.content_margin_left = pad_l
-		sb.content_margin_right = base * 2.0
+		sb.content_margin_right = pad_r if pad_r >= 0.0 else base * 2.0
 		sb.content_margin_top = base * 0.25
 		sb.content_margin_bottom = base * 0.25
 		return sb
@@ -1485,16 +1507,15 @@ class IconButton extends Button:
 	func restyle(base: float) -> void:
 		var pal: Dictionary = MapFloorPlan.palette()
 		var pad: float = base * (1.9 if glyph == GLYPH_BACK else 0.9)
-		add_theme_stylebox_override("normal", ToggleChip._box(pal["white"], pal["ink"], base, pad))
-		add_theme_stylebox_override("hover", ToggleChip._box(pal["paper_shade"], pal["ink"], base, pad))
-		add_theme_stylebox_override("pressed", ToggleChip._box(pal["paper_shade"], pal["ink"], base, pad))
+		var right: float = base * (0.7 if glyph == GLYPH_BACK else 0.9)
+		add_theme_stylebox_override("normal", ToggleChip._box(pal["white"], pal["ink"], base, pad, right))
+		add_theme_stylebox_override("hover", ToggleChip._box(pal["paper_shade"], pal["ink"], base, pad, right))
+		add_theme_stylebox_override("pressed", ToggleChip._box(pal["paper_shade"], pal["ink"], base, pad, right))
 		for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 			add_theme_color_override(state, pal["ink"])
 		add_theme_font_override("font", UITheme.font(UITheme.FONT_BOLD))
 		add_theme_font_size_override("font_size", roundi(base * 0.78))
 		custom_minimum_size = Vector2(base * 2.0, base * 1.75)
-		if glyph == GLYPH_BACK:
-			(get_theme_stylebox("normal") as StyleBoxFlat).content_margin_right = base * 0.7
 
 	func _draw() -> void:
 		var ink: Color = MapFloorPlan.palette()["ink"]
@@ -1542,7 +1563,11 @@ class CutCanvas extends Control:
 	const COLUMN_WEIGHTS: Dictionary = {"elevator": 0.8, "stairs": 1.2, "service_stairs": 1.2, "freight": 0.8}
 	const COLUMN_ORDER: Array[String] = ["elevator", "stairs", "service_stairs", "freight"]
 	const LEDGE_TYPE := "roof_ledge"
-	const INK_MAX_LUMINANCE := 0.42
+	## Alto mínimo de fila respecto a la letra base: en móvil las chapas siguen siendo legibles.
+	const MIN_ROW_RATIO := 1.3
+	const SHADOW_UNITS := 0.16
+	const DRAG_SLOP := 12.0
+	const WHEEL_ROWS := 1.5
 
 	var view: MapView
 	var hover_floor: int = NO_FLOOR
@@ -1563,10 +1588,16 @@ class CutCanvas extends Control:
 	var _factory_floor: int = 0
 	var _roof: int = 0
 	var _lowest: int = 0
+	var _scroll: float = 0.0
+	var _content_h: float = 0.0
+	var _press_pos: Vector2 = Vector2.INF
+	var _dragging: bool = false
+	var _auto_scrolled: bool = false
 
 	func _init() -> void:
 		name = "Cut"
 		mouse_filter = Control.MOUSE_FILTER_STOP
+		clip_contents = true
 
 	# ── Geometría ──
 
@@ -1605,7 +1636,10 @@ class CutCanvas extends Control:
 			return
 		_roof = floors[0]
 		_lowest = floors[floors.size() - 1]
-		_unit = size.y / (float(floors.size()) + TOP_UNITS + EARTH_UNITS)
+		var levels: float = float(floors.size()) + TOP_UNITS + EARTH_UNITS
+		_unit = maxf(size.y / levels, float(view.base_font()) * MIN_ROW_RATIO)
+		_content_h = _unit * levels
+		_scroll = clampf(_scroll, 0.0, maxf(0.0, _content_h - size.y))
 		var left_w: float = _unit * (BRACKET_UNITS + CHIP_UNITS + GAP_UNITS)
 		var avail: float = maxf(size.x - left_w, _unit * 10.0)
 		_tower_w = minf(avail * TOWER_SHARE, _unit * TOWER_MAX_UNITS)
@@ -1614,17 +1648,38 @@ class CutCanvas extends Control:
 		var group_w: float = left_w + _tower_w + factory_w + _unit * ASSEMBLY_UNITS + gap * 2.0
 		_x0 = maxf(0.0, (size.x - group_w) * 0.5)
 		_cx = _x0 + left_w + _tower_w * 0.5
+		_compute_rows(floors)
+		_compute_annex(factory_w, gap)
+		_compute_core()
+		_compute_blocks()
+
+	func _compute_rows(floors: Array[int]) -> void:
 		_rows.clear()
 		_chips.clear()
 		for i: int in floors.size():
 			var w: float = _tower_w * _band_ratio(floors[i])
-			var y: float = _unit * (TOP_UNITS + float(i))
+			var y: float = _unit * (TOP_UNITS + float(i)) - _scroll
 			_rows[floors[i]] = Rect2(_cx - w * 0.5, y, w, _unit)
 			_chips[floors[i]] = Rect2(_x0 + _unit * BRACKET_UNITS, y + _unit * 0.1, _unit * CHIP_UNITS, _unit * 0.8)
 		_ground_y = (_rows.get(0, _rows[_roof]) as Rect2).end.y
-		_compute_annex(factory_w, gap)
-		_compute_core()
-		_compute_blocks()
+
+	## true si el corte no cabe en alto (texto grande, pantalla de móvil): se desplaza arrastrando.
+	func is_scrollable() -> bool:
+		return _content_h > size.y + 1.0
+
+	func scroll_by(dy: float) -> void:
+		if not is_scrollable():
+			return
+		_scroll = clampf(_scroll + dy, 0.0, _content_h - size.y)
+		queue_redraw()
+
+	## Centra una planta en vertical si el corte se desplaza.
+	func ensure_floor_visible(floor_number: int) -> void:
+		_compute()
+		var r: Rect2 = floor_rect(floor_number)
+		if not is_scrollable() or r.size.y <= 0.0:
+			return
+		scroll_by(r.get_center().y - size.y * 0.5)
 
 	func _compute_annex(factory_w: float, gap: float) -> void:
 		var h: float = _unit * FACTORY_H_UNITS
@@ -1724,8 +1779,12 @@ class CutCanvas extends Control:
 		_compute()
 		if _rows.is_empty():
 			return
+		if is_scrollable() and not _auto_scrolled:
+			_auto_scrolled = true
+			ensure_floor_visible(view.get_player_floor())
 		var pal: Dictionary = MapFloorPlan.palette()
 		_draw_ground(pal)
+		_draw_shadow(pal)
 		for f: int in _rows:
 			if f == _roof:
 				_draw_roof(pal)
@@ -1741,6 +1800,25 @@ class CutCanvas extends Control:
 		_draw_brackets(pal)
 		_draw_hover(pal)
 		_draw_player(pal)
+		_draw_scrollbar(pal)
+
+	## Sombra plana del edificio sobre el papel (profundidad sin perspectiva).
+	func _draw_shadow(pal: Dictionary) -> void:
+		var off: Vector2 = Vector2(_unit, _unit) * SHADOW_UNITS
+		for f: int in _rows:
+			if f >= 0:
+				draw_rect(Rect2((_rows[f] as Rect2).position + off, (_rows[f] as Rect2).size), pal["shadow"])
+		draw_rect(Rect2(_factory_body.position + off, _factory_body.size), pal["shadow"])
+
+	func _draw_scrollbar(pal: Dictionary) -> void:
+		if not is_scrollable():
+			return
+		var w: float = maxf(4.0, _unit * 0.14)
+		var track: Rect2 = Rect2(size.x - w, 0.0, w, size.y)
+		var thumb_h: float = size.y * size.y / _content_h
+		var thumb: Rect2 = Rect2(track.position.x, (size.y - thumb_h) * _scroll / maxf(1.0, _content_h - size.y), w, thumb_h)
+		draw_rect(track, Color(pal["ink_faint"], 0.35))
+		draw_rect(thumb, pal["ink_soft"])
 
 	func _draw_ground(pal: Dictionary) -> void:
 		var earth: Rect2 = Rect2(0.0, _ground_y, size.x, size.y - _ground_y)
@@ -1774,7 +1852,7 @@ class CutCanvas extends Control:
 		_draw_blocks(f, pal)
 
 	func _draw_blocks(f: int, pal: Dictionary) -> void:
-		var spacing: float = maxf(4.0, _unit * 0.2)
+		var spacing: float = maxf(5.0, _unit * 0.26)
 		for id: String in view.get_cut_room_ids(f):
 			if not _blocks.has(id):
 				continue
@@ -1788,6 +1866,7 @@ class CutCanvas extends Control:
 		draw_rect(slab, pal["ink"])
 		draw_rect(slab.grow(-_wall() * 0.4), Color(str(band.get("floor", "#e8e5de"))))
 		var para_h: float = _unit * 0.34
+		draw_rect(Rect2(_core.x - _wall(), row.position.y - _wall() * 0.5, _core.y - _core.x + _wall() * 2.0, row.size.y), pal["ink"])
 		draw_rect(Rect2(row.position.x, row.end.y - _slab() - para_h, _wall() * 1.2, para_h), pal["ink"])
 		draw_rect(Rect2(row.end.x - _wall() * 1.2, row.end.y - _slab() - para_h, _wall() * 1.2, para_h), pal["ink"])
 		for id: String in view.get_cut_room_ids(_roof):
@@ -1843,28 +1922,52 @@ class CutCanvas extends Control:
 		for col: Dictionary in _columns:
 			for f: int in _rows:
 				var row: Rect2 = _rows[f]
-				var cell: Rect2 = Rect2(float(col["x0"]), row.position.y + _wall() * 0.5, float(col["x1"]) - float(col["x0"]), row.size.y - _slab() - _wall() * 0.5)
+				var cell: Rect2 = Rect2(float(col["x0"]), row.position.y, float(col["x1"]) - float(col["x0"]), row.size.y - _slab())
 				if f >= int(col["lo"]) and f <= int(col["hi"]):
-					_draw_shaft_cell(col, f, cell.grow_individual(-_wall() * 0.35, 0.0, -_wall() * 0.35, 0.0), pal)
-				elif f != _roof or str(col["kind"]) != "elevator":
-					draw_rect(cell, pal["ink"])
+					_draw_shaft_cell(col, f, cell.grow_individual(-_wall() * 0.35, -_wall() * 0.5, -_wall() * 0.35, 0.0), pal)
+				else:
+					_draw_concrete(cell, pal)
 			_draw_cabins(col, pal)
+
+	## Hormigón cortado (gris con rayado), convención de sección: donde el hueco no llega.
+	func _draw_concrete(r: Rect2, pal: Dictionary) -> void:
+		draw_rect(r, pal["concrete"])
+		MapFloorPlan.draw_hatch(self, r, pal["ink_faint"], maxf(4.0, _unit * 0.2), 1.0, MapFloorPlan.HATCH_BACKSLASH)
 
 	func _draw_shaft_cell(col: Dictionary, f: int, cell: Rect2, pal: Dictionary) -> void:
 		var kind: String = str(col["kind"])
-		draw_rect(cell, pal["paper_shade"] if kind == "elevator" or kind == "freight" else pal["white"])
 		if kind == "elevator" or kind == "freight":
+			draw_rect(cell, pal["paper_shade"])
 			var rail: float = cell.size.x * 0.18
 			draw_line(Vector2(cell.position.x + rail, cell.position.y), Vector2(cell.position.x + rail, cell.end.y), pal["ink_faint"], 1.0)
 			draw_line(Vector2(cell.end.x - rail, cell.position.y), Vector2(cell.end.x - rail, cell.end.y), pal["ink_faint"], 1.0)
 			return
-		var inset: float = cell.size.x * 0.1
-		draw_line(Vector2(cell.position.x + inset, cell.end.y), Vector2(cell.end.x - inset, cell.position.y + cell.size.y * 0.25), pal["ink_soft"], maxf(1.2, _unit * 0.05))
+		draw_rect(cell, pal["white"])
+		_draw_flights(cell, pal)
 		var up: bool = f < 0
-		var c: Vector2 = cell.get_center() + Vector2(cell.size.x * 0.18, cell.size.y * 0.1)
-		var d: float = minf(cell.size.x, cell.size.y) * 0.22
-		var tri: PackedVector2Array = PackedVector2Array([c + Vector2(0.0, -d if up else d), c + Vector2(-d, d * 0.2 if up else -d * 0.2), c + Vector2(d, d * 0.2 if up else -d * 0.2)])
+		var c: Vector2 = MapFloorPlan._u(cell, 0.3, 0.32)
+		var d: float = minf(cell.size.x, cell.size.y) * 0.2
+		var tip: Vector2 = c + Vector2(0.0, -d if up else d)
+		var tri: PackedVector2Array = PackedVector2Array([tip, c + Vector2(-d, (d if up else -d) * 0.3), c + Vector2(d, (d if up else -d) * 0.3)])
 		draw_colored_polygon(tri, pal["green"])
+
+	## Escalera de ida y vuelta en sección: tramo delantero con peldaños, meseta y tramo trasero discontinuo.
+	func _draw_flights(cell: Rect2, pal: Dictionary) -> void:
+		var inset: float = cell.size.x * 0.1
+		var x0: float = cell.position.x + inset
+		var x1: float = cell.end.x - inset
+		var bottom: float = cell.end.y
+		var mid: float = cell.position.y + cell.size.y * 0.5
+		var steps: int = 4
+		var pts: PackedVector2Array = PackedVector2Array([Vector2(x0, bottom)])
+		for i: int in steps:
+			var y: float = lerpf(bottom, mid, float(i + 1) / float(steps))
+			pts.append(Vector2(lerpf(x0, x1 - inset, float(i) / float(steps)), y))
+			pts.append(Vector2(lerpf(x0, x1 - inset, float(i + 1) / float(steps)), y))
+		pts.append(Vector2(x1, mid))
+		var w: float = maxf(1.2, _unit * 0.05)
+		draw_polyline(pts, pal["ink_soft"], w, true)
+		MapFloorPlan.draw_dashed(self, Vector2(x1 - inset, mid), Vector2(x0, cell.position.y + w), pal["ink_faint"], w, maxf(2.0, _unit * 0.08))
 
 	func _draw_cabins(col: Dictionary, pal: Dictionary) -> void:
 		if str(col["kind"]) != "elevator" and str(col["kind"]) != "freight":
@@ -1915,7 +2018,8 @@ class CutCanvas extends Control:
 		var slab: Rect2 = Rect2(_factory_body.position.x + _wall(), _factory_body.end.y - _slab(), _factory_body.size.x - _wall() * 2.0, _slab() - _wall() * 0.5)
 		draw_rect(slab, Color(str(band.get("floor", "#5a5650"))))
 		_draw_blocks(_factory_floor, pal)
-		var chip: Rect2 = Rect2(_factory.position.x, _factory.position.y - _unit * 1.05, _unit * CHIP_UNITS * 1.25, _unit * 0.8)
+		var chip_x: float = maxf(_factory.position.x, (_rows[_lowest] as Rect2).end.x + _unit * 0.6)
+		var chip: Rect2 = Rect2(chip_x, _ground_y + _unit * (STREET_UNITS + 0.3), _unit * CHIP_UNITS * 1.25, _unit * 0.8)
 		draw_chip(self, chip, view.get_floor_status(_factory_floor), MapView.floor_label_short(_factory_floor), UITheme.font(UITheme.FONT_BOLD), _chip_font(), pal)
 		if hover_floor == _factory_floor:
 			draw_rect(_factory.grow(_wall() * 1.5), pal["ink"], false, _wall() * 1.4)
@@ -1944,9 +2048,9 @@ class CutCanvas extends Control:
 			var c: Vector2 = sign_rect.position + corner * s
 			MapFloorPlan.draw_arrow(self, c, c + (Vector2(0.5, 0.36) * s - corner * s) * 0.35, pal["white"], s * 0.05, s * 0.12)
 		var font: Font = UITheme.font(UITheme.FONT_BOLD)
-		var fs: int = maxi(9, roundi(_unit * 0.3))
+		var fs: int = maxi(10, roundi(minf(_unit * 0.36, float(view.base_font()) * 0.62)))
 		var label: String = tr("MAP_ASSEMBLY_POINT")
-		var lines: PackedStringArray = MapFloorPlan._wrap(label, font, fs, _assembly.size.x * 1.25)
+		var lines: PackedStringArray = MapFloorPlan._wrap(label, font, fs, _assembly.size.x * 1.3)
 		if lines.is_empty():
 			lines = PackedStringArray([label])
 		for i: int in lines.size():
@@ -1974,11 +2078,11 @@ class CutCanvas extends Control:
 			_camera_glyph(at, size_px, pal)
 		for f: int in _rows:
 			if _corridor_has_cameras(f):
-				_camera_glyph(Vector2(_core.x - s * 0.75, (_rows[f] as Rect2).position.y + s * 0.62), s, pal)
+				_camera_glyph(Vector2(_core.y + s * 0.75, (_rows[f] as Rect2).position.y + s * 0.62), s, pal)
 
 	func _camera_glyph(at: Vector2, s: float, pal: Dictionary) -> void:
 		draw_circle(at, s * 0.5, pal["white"])
-		draw_arc(at, s * 0.5, 0.0, TAU, 16, pal["red"], 1.5, true)
+		draw_arc(at, s * 0.5, 0.0, TAU, 16, pal["camera"], 1.2, true)
 		UITheme.draw_icon(self, "camera", Rect2(at - Vector2(s, s) * 0.36, Vector2(s, s) * 0.72), pal["camera"], maxf(1.2, s * 0.09))
 
 	func _corridor_has_cameras(f: int) -> bool:
@@ -2162,11 +2266,7 @@ class CutCanvas extends Control:
 
 	## Acento de banda oscurecido para leerse sobre el papel del plano.
 	static func band_ink(f: int) -> Color:
-		var pal: Dictionary = UITheme.band_palette_for_floor(f)
-		var c: Color = Color(str(pal.get("accent", "#555555")))
-		while c.get_luminance() > INK_MAX_LUMINANCE:
-			c = c.darkened(0.12)
-		return c
+		return MapFloorPlan.band_ink(UITheme.band_palette_for_floor(f))
 
 	func _draw_brackets(pal: Dictionary) -> void:
 		var spans: Dictionary = {}
@@ -2216,28 +2316,71 @@ class CutCanvas extends Control:
 		var font: Font = UITheme.font(UITheme.FONT_BOLD)
 		var fs: int = maxi(9, roundi(minf(_unit * 0.46, float(view.base_font()) * 0.8)))
 		var text: String = tr("MAP_YOU_ARE_HERE")
-		var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 1.1
-		var box: Rect2 = Rect2(Vector2(_cx + _tower_w * 0.5 + _unit * 0.5, at.y - _unit * 1.1), Vector2(tw, fs * 1.6))
-		if box.intersects(_factory.grow(_unit * 0.3)):
-			box.position.y = _factory.position.y - _unit * 1.3 - box.size.y
+		var box_size: Vector2 = Vector2(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 1.1, fs * 1.6)
+		var row: Rect2 = _rows.get(f, _factory)
+		var box: Rect2 = Rect2(Vector2(row.end.x + _unit * 0.7, at.y - box_size.y * 0.5), box_size)
+		var avoid: Rect2 = _factory.grow(_unit * 0.25)
+		if f == _factory_floor:
+			box.position = Vector2(_factory.position.x + _unit * 0.4, _factory.position.y - _unit * 0.8 - box_size.y)
+		elif box.intersects(avoid):
+			box.position.y = avoid.position.y - box_size.y - _unit * 0.2
 		MapFloorPlan.draw_callout(self, at, box.position, text, font, fs, pal)
 		MapFloorPlan.draw_pin(self, at, maxf(4.0, _unit * 0.22), pal)
 
 	# ── Entrada ──
 
+	## Pasar el ratón señala la planta; clic o toque sin arrastre la amplía; arrastre o rueda desplazan.
 	func _gui_input(event: InputEvent) -> void:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
 		if motion != null:
-			_set_hover(floor_at(motion.position))
+			if _press_pos.is_finite() and (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+				_drag(motion.position, motion.relative.y)
+			else:
+				_set_hover(floor_at(motion.position))
 			return
-		if UITheme.is_primary_press(event):
-			var pos: Vector2 = (event as InputEventMouseButton).position if event is InputEventMouseButton \
-					else (event as InputEventScreenTouch).position
-			var f: int = floor_at(pos)
-			if f != NO_FLOOR:
-				_set_hover(f)
-				floor_clicked.emit(f)
-				accept_event()
+		var touch_drag: InputEventScreenDrag = event as InputEventScreenDrag
+		if touch_drag != null:
+			_drag(touch_drag.position, touch_drag.relative.y)
+			return
+		var wheel: InputEventMouseButton = event as InputEventMouseButton
+		if wheel != null and wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			scroll_by(_unit * WHEEL_ROWS * (-1.0 if wheel.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0))
+			accept_event()
+		elif UITheme.is_primary_press(event):
+			_press_pos = _event_pos(event)
+			_dragging = false
+			accept_event()
+		elif _is_primary_release(event):
+			_release(_event_pos(event))
+			accept_event()
+
+	func _drag(pos: Vector2, dy: float) -> void:
+		if not _press_pos.is_finite():
+			return
+		_dragging = _dragging or pos.distance_to(_press_pos) > DRAG_SLOP
+		if _dragging:
+			scroll_by(-dy)
+
+	func _release(pos: Vector2) -> void:
+		var tapped: bool = _press_pos.is_finite() and not _dragging
+		_press_pos = Vector2.INF
+		var f: int = floor_at(pos) if tapped else NO_FLOOR
+		if f != NO_FLOOR:
+			_set_hover(f)
+			floor_clicked.emit(f)
+
+	static func _event_pos(event: InputEvent) -> Vector2:
+		if event is InputEventMouseButton:
+			return (event as InputEventMouseButton).position
+		if event is InputEventScreenTouch:
+			return (event as InputEventScreenTouch).position
+		return Vector2.INF
+
+	static func _is_primary_release(event: InputEvent) -> bool:
+		if event is InputEventScreenTouch:
+			return not (event as InputEventScreenTouch).pressed and not UITheme.touch_emulates_mouse()
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		return mb != null and not mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
 
 	func _set_hover(f: int) -> void:
 		if f == hover_floor or f == NO_FLOOR:

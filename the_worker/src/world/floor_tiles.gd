@@ -38,6 +38,17 @@ static func tile(material: String, base: Color, cell: int, extra: Color = Color.
 static func _paint(material: String, base: Color, c: int, extra: Color, seed: int) -> Image:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed
+	var img: Image = _paint_surface(material, base, c, rng)
+	if img == null:
+		img = _paint_overlay(material, base, c, extra, rng)
+	if img == null:
+		img = Image.create(c, c, false, Image.FORMAT_RGBA8)
+		img.fill(base)
+	return img
+
+
+## Suelos de sala (null si `material` no es uno de ellos).
+static func _paint_surface(material: String, base: Color, c: int, rng: RandomNumberGenerator) -> Image:
 	match material:
 		"carpet":
 			return _checker(base, c, 2, base.darkened(SHADE_STEP), 2 * c, rng, 0)
@@ -63,6 +74,12 @@ static func _paint(material: String, base: Color, c: int, extra: Color, seed: in
 			return _asphalt(base, c, rng)
 		"pavement":
 			return _grid(base, c, c / 2, Color(0, 0, 0, 0.18))
+	return null
+
+
+## Capas y franjas (manchas, acera, peligro); null si no es una de ellas.
+static func _paint_overlay(material: String, base: Color, c: int, extra: Color, rng: RandomNumberGenerator) -> Image:
+	match material:
 		"stains":
 			return _stains(c, rng)
 		"sidewalk":
@@ -71,9 +88,7 @@ static func _paint(material: String, base: Color, c: int, extra: Color, seed: in
 			return _hazard(base, c, extra, maxi(2, c / 3))
 		"hazard_thin":
 			return _hazard(base, c, extra, maxi(2, c / 8))
-	var img: Image = Image.create(c, c, false, Image.FORMAT_RGBA8)
-	img.fill(base)
-	return img
+	return null
 
 
 # ─── Primitivas de imagen ─────────────────────────────────────

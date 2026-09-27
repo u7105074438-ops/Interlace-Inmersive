@@ -160,10 +160,11 @@ func post_status(text: String) -> void:
 	status_posted.emit(text)
 
 
-## Espera del equipo lento (reloj de arena), proporcional a ordenador.retardo_ventana_segundos_por_nivel.
-func wait_lag(factor: float = 1.0) -> void:
+## Espera del equipo lento (reloj de arena) para una acción de ordenador.factor_espera_por_accion
+## ("abrir", "enviar", "generar", "copiar"): retardo del nivel × factor de la acción.
+func wait_action(action: String) -> void:
 	if shell != null:
-		await shell.wait_lag(factor)
+		await shell.wait_lag(StellarOS.action_factor(action))
 
 
 ## DutySystem de la partida (grupo "duty_system"; el escritorio garantiza uno mientras está abierto).

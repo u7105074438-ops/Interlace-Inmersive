@@ -254,7 +254,7 @@ func answer(choice: int) -> Dictionary:
 	if _selected < 0 or _selected >= inbox.size() or not bool(inbox[_selected]["current"]):
 		return {"ok": false, "error": "not_current"}
 	var template: Dictionary = inbox[_selected]["template"]
-	await wait_lag(0.5)
+	await wait_action(StellarOS.ACTION_SEND)
 	var result: Dictionary = duty_system().submit_unit(_duty_id, choice)
 	if not bool(result.get("ok", false)):
 		post_status(t(str(result.get("error_key", ""))))
