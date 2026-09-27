@@ -9,6 +9,8 @@ const ROSE := "npc_rose_miller"
 const PHONE_SCREEN := Vector2(2400, 1080)
 ## La ficha va algo inclinada: su caja puede asomar unos píxeles del rectángulo sin girar.
 const TILT_SLACK := 12.0
+const AUDIO_DRAIN_STEPS := 300
+const AUDIO_DRAIN_STEP_S := 0.1
 
 var _log: Fx.SignalLog
 var _answered: Array = []
@@ -113,8 +115,25 @@ func _check_tone_door_slam() -> void:
 	check(_subtitles.has(door_sub), "…with a subtitle that describes the door (%s)" % door_sub)
 	check_eq(scene.get_step(), InterrogationScene.STEP_PIECE, "then the first piece is presented")
 	EventBus.subtitle_posted.disconnect(_on_subtitle)
-	director.queue_free()
 	await _close(scene)
+	await _drain_audio(director)
+	remove_child(director)
+	director.free()
+	await _drain_audio(null)
+
+
+## Recoge los renders de audio en segundo plano (hilo musical, ambiente, efectos) antes de seguir:
+## un trabajo pendiente del WorkerThreadPool al salir aborta el proceso.
+func _drain_audio(director: AudioDirector) -> void:
+	for _i: int in AUDIO_DRAIN_STEPS:
+		MuzakLibrary.poll()
+		Ambience.poll_jobs()
+		SfxBank.poll_prewarm()
+		var ambience: Ambience = director.get_ambience() if director != null else null
+		var busy: bool = ambience != null and ambience.is_busy()
+		if not MuzakLibrary.is_rendering() and not busy and SfxBank.is_prewarmed():
+			return
+		await get_tree().create_timer(AUDIO_DRAIN_STEP_S).timeout
 
 
 func _on_subtitle(key: String, _position: Vector2, _importance: int) -> void:

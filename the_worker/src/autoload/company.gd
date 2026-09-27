@@ -4,7 +4,8 @@
 class_name CompanySystem
 extends Node
 
-## Manual §6.1-§6.3, §9.2, §9.4, §9.9, §9.10, §11.5-§11.7, §19.8; PASO 21, 32 y 41; BUILD_NOTES §2, §13.
+## Manual §6.1-§6.3, §9.2, §9.4, §9.9, §9.10, §11.5-§11.7, §19.8; PASO 21, 32 y 41;
+## BUILD_NOTES §2, §13.
 ## Emite: seat_vacated, seat_filled, occupation_changed, promotion_available, promotion_declined,
 ## merit_gained, fundamentals_updated, audit_fuse_lit, audit_triggered, strike_discontent_changed,
 ## strike_started, strike_resolved ("appeased"), game_over, notebook_entry_added.
@@ -2203,7 +2204,8 @@ func _on_bribe_result(npc_id: String, accepted: bool, _outcome: String) -> void:
 		register_merit(MERIT_RECOMMENDATION, Database.get_balance_int(B_RECOMMEND_MERIT))
 
 
-## Cualquier resolución termina la huelga; "betrayed" con el jugador de líder es la traición (§11.7).
+## Cualquier resolución termina la huelga; "betrayed" con el jugador de líder es la traición
+## (§11.7).
 func _on_strike_resolved(resolution: String) -> void:
 	_strike_active = false
 	if resolution == STRIKE_BETRAYED and _strike_leader == PLAYER_ID:
@@ -2258,7 +2260,8 @@ func _count_context(week: int) -> Dictionary:
 		FactoryTheft.C_WEEK: week, FactoryTheft.C_DAY: GameClock.get_day(),
 		FactoryTheft.C_STOCK: Database.get_balance_int(B_STOCK_BASE),
 		FactoryTheft.C_PRODUCED: roundi(_week_produced), FactoryTheft.C_FORGED: forged,
-		FactoryTheft.C_RESPONSIBLE: responsible, FactoryTheft.C_CFO: "" if cfo == PLAYER_ID else cfo,
+		FactoryTheft.C_RESPONSIBLE: responsible,
+		FactoryTheft.C_CFO: "" if cfo == PLAYER_ID else cfo,
 	}
 
 

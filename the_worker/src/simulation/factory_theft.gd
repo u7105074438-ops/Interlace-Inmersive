@@ -23,18 +23,19 @@ extends RefCounted
 ##    de fabrica.puestos_transportista, en plantilla, con deuda ≥ deuda_minima_complice o afecto ≥
 ##    afecto_minimo_complice: sobornarlo le deja deuda).
 ##  · Ingreso = interpolación lineal ingreso_min..max según los pares (reventa inmediata: el
-##    producto no entra en el inventario) → PlayerState.add_money(ingreso, "factory_theft_<escala>").
-##    La compañía pierde pares × precio medio de los fundamentales.
+##    producto no entra en el inventario) → PlayerState.add_money(ingreso,
+##    "factory_theft_<escala>"). La compañía pierde pares × precio medio de los fundamentales.
 ##  · crime_committed("theft_product", sala, {value: ingreso, quantity: pares, scale,
 ##    company_loss, loss_booked: true, leaves_record: false, accomplice, theft_id}): NADA se detecta
 ##    en el acto (ni incidente de Security ni pérdida en costes); Tracking suma ORO y DutySystem
 ##    descuenta la cuota. El robo queda pendiente en Company (register_factory_theft).
 ##  · RECUENTO SEMANAL (Company.run_inventory_count en week_closed; build_count_report es puro):
 ##    pares que faltan desde el último recuento; hasta fabrica.tolerancia_recuento_pares es merma
-##    absorbida (el bolsillo: «prácticamente ninguno»); la pérdida entra en theft_losses AL RECUENTO.
-##    Un descuadre se entrega aquí (report_mismatches): Security.report_incident("inventory_mismatch",
-##    gravedad de la mayor escala, fabrica.sala_recuento, provocado por el jugador, {weight de la
-##    mayor escala (× factor_peso_cfo si el CFO, personaje, lo ve en los márgenes: escalas de
+##    absorbida (el bolsillo: «prácticamente ninguno»); la pérdida entra en theft_losses AL
+##    RECUENTO. Un descuadre se entrega aquí (report_mismatches):
+##    Security.report_incident("inventory_mismatch", gravedad de la mayor escala,
+##    fabrica.sala_recuento, provocado por el jugador, {weight de la mayor escala (×
+##    factor_peso_cfo si el CFO, personaje, lo ve en los márgenes: escalas de
 ##    escalas_visibles_margenes), subject, player_culprit, day de la mayor sustracción, hour
 ##    desconocida}). subject: el superior de los albaranes falsificados; si no hay albaranes, el
 ##    jugador si ocupa un puesto responsable del inventario (capataz); si no, nadie (la
@@ -231,7 +232,8 @@ static func find_accomplice() -> String:
 			continue
 		var debt: int = NPCDirector.get_debt(npc.id)
 		var affection: int = NPCDirector.get_affection(npc.id)
-		if best.is_empty() or debt > best_debt or (debt == best_debt and affection > best_affection):
+		if best.is_empty() or debt > best_debt \
+				or (debt == best_debt and affection > best_affection):
 			best = npc.id
 			best_debt = debt
 			best_affection = affection

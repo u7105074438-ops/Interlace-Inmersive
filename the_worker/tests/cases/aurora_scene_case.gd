@@ -48,6 +48,7 @@ func run_case() -> void:
 	await _check_layout(PHONE_SCREEN, true)
 	await _check_layout(DESKTOP_SCREEN, false)
 	await _check_idle_stage()
+	await _check_private_theme()
 	_check_timeline()
 	EventBus.idea_contested.disconnect(_on_contested)
 	EventBus.idea_presented.disconnect(_on_presented)
@@ -234,7 +235,25 @@ func _check_loss() -> void:
 	check_near(rep_before - PlayerState.get_reputation(), 20.0, EPS, "logic: player reputation −20")
 	check_eq(scene.get_stage().get_actor(WITNESSES[0]).get("anim"), "suspicion", "stage: the room turns suspicious")
 	_check_believer_badges(scene, id, int(result.get("believers", 0)))
+	await _check_overlays_inside(scene)
 	await _finish(scene)
+
+
+## Bocadillos e insignias quedan en la zona libre de la sala (nunca bajo el panel ni la cabecera).
+func _check_overlays_inside(scene: AuroraScene) -> void:
+	await wait_frames(3)
+	var stage: SceneStage = scene.get_stage()
+	var safe: Rect2 = stage.safe_rect()
+	var outside: Array[String] = []
+	var shown: int = 0
+	for actor: String in stage.actor_ids():
+		for r: Rect2 in [stage.bubble_rect(actor), stage.badge_rect(actor)]:
+			if r.size == Vector2.ZERO:
+				continue
+			shown += 1
+			if not safe.encloses(r):
+				outside.append(actor)
+	check(shown >= 3 and outside.is_empty(), "%d bubbles/badges, all inside the free area %s" % [shown, outside])
 
 
 ## «Lo sabe» solo sobre los presentes que conocen la idea; el desglose dice cuántos hay en total.
@@ -518,6 +537,24 @@ func _check_idle_stage() -> void:
 	var paints: int = stage.back_paint_count()
 	await wait_frames(IDLE_FRAMES)
 	check_eq(stage.back_paint_count(), paints, "idle stage: the backdrop is not repainted every frame")
+	scene.finish()
+	scene.queue_free()
+	await wait_frames(1)
+
+
+## Sin UIRoot la escena lleva su propio tema: un cambio de tamaño de texto también le llega.
+func _check_private_theme() -> void:
+	if IdeaPool.is_meeting_open():
+		IdeaPool.close_meeting()
+	var saved: int = UITheme.current_text_size
+	UITheme.current_text_size = UITheme.TEXT_MEDIUM
+	var scene: AuroraScene = await _open_scene({})
+	var before: int = scene.theme.default_font_size if scene.theme != null else 0
+	UITheme.current_text_size = UITheme.TEXT_LARGE
+	await wait_frames(2)
+	var after: int = scene.theme.default_font_size if scene.theme != null else 0
+	check(before > 0 and after > before, "text size change applied to the scene's own theme (%d → %d)" % [before, after])
+	UITheme.current_text_size = saved
 	scene.finish()
 	scene.queue_free()
 	await wait_frames(1)

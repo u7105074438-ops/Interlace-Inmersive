@@ -76,7 +76,8 @@ const CRED_SCALE_MIN := 100.0
 const CRED_HEADROOM := 1.05
 ## Encuadres (lienzo de diseño): la mesa y la pantalla cuando el panel ocupa la derecha; el primer
 ## plano de la acusación deja este margen alrededor del orador y el acusador.
-const FRAME_TABLE := Rect2(320, 0, 1380, 872)
+const FRAME_TABLE := Rect2(370, 0, 1200, 872)
+const FRAME_CLASH := Rect2(190, 0, 1390, 872)
 const FRAME_REHEARSAL := Rect2(150, 0, 1440, 872)
 const CLOSEUP_PAD := Vector2(170, 150)
 const HEADER_GAP := 12.0
@@ -1008,7 +1009,7 @@ func _accuse() -> void:
 ## afloja marca la diferencia; la sala (acusador en pie, insignias) queda a la vista a la izquierda.
 func _show_clash() -> void:
 	_stage.say(_accuser(), "")
-	_stage.frame(SceneStage.FRAME_AURORA)
+	_stage.frame(FRAME_CLASH)
 	var box: VBoxContainer = _dock.open(tr("AURORA_CLASH_TITLE"))
 	box.add_child(SceneStage.ui_label("“%s”" % _idea_title(IdeaPool.get_idea(_idea_id)), UITheme.V_CAPTION, true))
 	var span: float = _credibility_span()
@@ -1102,14 +1103,16 @@ func _accuser_breakdown() -> Array[String]:
 			roundi(believers * Database.get_balance_float(IdeaPresentation.B_PER_BELIEVER))]]
 
 
-## Presentes (sin el acusador) que conocen la idea: los únicos con insignia «Lo sabe».
+## Presentes (sin el acusador) que conocen la idea: los únicos con insignia «Lo sabe». Nunca más
+## que los creyentes que cuenta la fórmula (una cifra forzada en QA manda).
 func _believers_here() -> Array[String]:
 	var out: Array[String] = []
 	var idea: Idea = IdeaPool.get_idea(_idea_id)
+	var limit: int = int(_result.get("believers", 0))
 	if idea == null:
 		return out
 	for id: String in _attendees:
-		if id != _accuser() and idea.known_by.has(id):
+		if out.size() < limit and id != _accuser() and idea.known_by.has(id):
 			out.append(id)
 	return out
 
@@ -1141,7 +1144,7 @@ func _reveal_result() -> void:
 		box = _dock.content
 		first = _add_stamp(box)
 	else:
-		_stage.frame(SceneStage.FRAME_AURORA)
+		_stage.frame(FRAME_CLASH)
 		box = _dock.open(_result_title)
 	for line: String in _prep_lines:
 		box.add_child(SceneStage.ui_label(line, UITheme.V_SMALL, true))
@@ -1151,7 +1154,7 @@ func _reveal_result() -> void:
 		if first == null:
 			first = label
 	_dock.add_buttons([SceneStage.ui_button(tr("AURORA_CONTINUE"), UITheme.V_PRIMARY, continue_scene)])
-	_reveal_later(first)
+	_dock.reveal_later(first)
 
 
 func _add_stamp(box: VBoxContainer) -> Label:
@@ -1159,16 +1162,6 @@ func _add_stamp(box: VBoxContainer) -> Label:
 	stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(stamp)
 	return stamp
-
-
-## Desplaza el panel hasta el veredicto cuando la maquetación se asiente (texto grande, móvil).
-func _reveal_later(control: Control) -> void:
-	if control == null or not is_inside_tree():
-		return
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if is_instance_valid(control) and control.is_inside_tree():
-		_dock.scroll.reveal(control)
 
 
 func _snap_meters() -> void:

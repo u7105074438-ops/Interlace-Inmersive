@@ -80,6 +80,8 @@ const IDEA_TELL := "tell_colleague"
 ## Destino "sin decidir" (ningún id de sala lo usa): obliga a reaplicar la agenda.
 const NO_GOAL := "#none"
 const SHORT_EMOTE := 0.6
+## Sin ruta y a más de estas celdas: se coloca en el destino en vez de cruzar muros.
+const UNREACHABLE_CELLS := 2.0
 ## La mirada se cuantiza a 16 rumbos (el dibujo usa 8): menos redibujados con objetivos móviles.
 const LOOK_STEPS := 16.0
 
@@ -92,6 +94,8 @@ var tier: int = 1
 var lod: int = NPCRuntime.LOD_MEDIUM
 var perception: Perception = null
 var indicator: DetectionIndicator = null
+## Segundos de mundo que NPCLayer lo mantiene fuera de la planta tras salir (recados).
+var away_after_exit: float = 0.0
 
 var _layer: NPCLayer = null
 var _bubble: NPCBubble = null
@@ -420,9 +424,13 @@ func _stand_up() -> void:
 	_dirty = true
 
 
+## Ruta del plano hasta `target` (con su carril). Sin ruta posible y lejos: aparece allí (nunca
+## atraviesa muros).
 func _walk_to(target: Vector2) -> void:
 	_stand_up()
 	_path = _layer.path_between(global_position, target) if _layer != null else PackedVector2Array()
+	if _path.is_empty() and _layer != null and global_position.distance_to(target) > _cell * UNREACHABLE_CELLS:
+		global_position = target
 	if _path.is_empty() or _path[_path.size() - 1].distance_to(target) > 1.0:
 		_path.append(target)
 	for i: int in range(1, _path.size() - 1):
@@ -577,6 +585,8 @@ func _draw() -> void:
 ## Agenda, recados, ideas y vida social. Lo llama NPCLayer.
 func think() -> void:
 	_report_room()
+	if perception != null and lod == NPCRuntime.LOD_FULL:
+		perception.refresh_traits()
 	if _leaving or _layer == null:
 		return
 	if not _errand.is_empty():
@@ -633,9 +643,12 @@ func _needs_new_spot(activity: String) -> bool:
 
 
 ## Camina al tránsito de salida (otra planta o la calle) y emite arrived_at_exit al llegar.
-func leave_floor(target_room: String) -> void:
+## `away_seconds` > 0: tiempo (de mundo) que tarda en volver a verse por esta planta aunque la
+## agenda lo devuelva (un recado a otra planta no dura un instante).
+func leave_floor(target_room: String, away_seconds: float = 0.0) -> void:
 	_leaving = true
 	_leave_target = target_room
+	away_after_exit = away_seconds
 	_partner = null
 	if _layer != null:
 		_layer.release_spot(self)
@@ -793,6 +806,7 @@ func on_caught() -> void:
 func _on_perception_state(state: int) -> void:
 	if state == Perception.STATE_NONE and _gesture == "point":
 		_gesture = ""
+		_goal_room = NO_GOAL
 	if state == Perception.STATE_PARTIAL:
 		show_emote(NPCBubble.KIND_QUESTION)
 	elif state == Perception.STATE_FLAGRANT:
@@ -811,7 +825,8 @@ func _start_errand(kind: String, data: Dictionary) -> void:
 	_errand["left"] = _errand_seconds(kind)
 	if not str(spec["bubble"]).is_empty():
 		show_emote(str(spec["bubble"]), float(_errand["left"]))
-	_layer.release_spot(self)
+	if not bool(_errand.get("here", false)):
+		_layer.release_spot(self)
 	_partner = null
 	_go_errand(spec)
 
@@ -832,8 +847,9 @@ func _go_errand(spec: Dictionary) -> void:
 		return
 	var room: String = str(_errand.get("room", ""))
 	if _errand.has("room") and _layer.local_room(room).is_empty():
+		var away: float = float(_errand.get("left", 0.0))
 		_errand = {}
-		leave_floor(room)
+		leave_floor(room, away)
 		_walk_anim = str(spec["walk"])
 		return
 	var target: Vector2 = _errand_destination()

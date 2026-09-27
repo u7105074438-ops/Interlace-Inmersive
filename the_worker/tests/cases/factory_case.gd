@@ -31,7 +31,8 @@ func run_case() -> void:
 	_connect_bus()
 	FactoryTheft.connect_calendar()
 	FactoryTheft.connect_calendar()
-	check(FactoryTheft.is_calendar_connected(), "the weekly count is wired to week_closed (idempotent)")
+	check(FactoryTheft.is_calendar_connected(),
+			"the weekly count is wired to week_closed (idempotent)")
 	_test_manual_table()
 	_test_requirements()
 	_test_pallet_requirements()
@@ -50,7 +51,8 @@ func _test_manual_table() -> void:
 		var cfg: Dictionary = FactoryTheft.get_scale_config(scale)
 		var row: Array = MANUAL_SCALES[scale]
 		check_eq([int(cfg["pares_min"]), int(cfg["pares_max"]), int(cfg["ingreso_min"]),
-				int(cfg["ingreso_max"]), int(cfg["rango_min"])], row, "§11.6 table row for %s" % scale)
+				int(cfg["ingreso_max"]), int(cfg["rango_min"])], row,
+				"§11.6 table row for %s" % scale)
 		check_eq(FactoryTheft.income_for(scale, int(row[0])), int(row[2]),
 				"%s: the fewest pairs pay the table minimum" % scale)
 		check_eq(FactoryTheft.income_for(scale, int(row[1])), int(row[3]),
@@ -63,7 +65,8 @@ func _test_requirements() -> void:
 	_become("email_worker_3b", FACTORY_ROOM)
 	check_eq(_missing("pocket", {}), ["rank"], "R1 inside the factory: rank too low for a pocket")
 	_become("line_operator", FACTORY_ROOM)
-	check(bool(FactoryTheft.check_requirements("pocket")["allowed"]), "R3 inside the factory: pocket")
+	check(bool(FactoryTheft.check_requirements("pocket")["allowed"]),
+			"R3 inside the factory: pocket")
 	_enter(OFFICE_ROOM)
 	check_eq(_missing("pocket", {}), ["location"], "a pocket theft needs to be inside the factory")
 	_enter(FACTORY_ROOM)
@@ -104,7 +107,8 @@ func _test_pallet_requirements() -> void:
 	check(not carrier.is_empty(), "the population has dock workers (carriers)")
 	NPCDirector.add_debt(carrier, 1)
 	check(FactoryTheft.is_accomplice(carrier), "a carrier who owes the player is an accomplice")
-	check(bool(FactoryTheft.check_requirements("pallet")["allowed"]), "foreman + accomplice: pallet")
+	check(bool(FactoryTheft.check_requirements("pallet")["allowed"]),
+			"foreman + accomplice: pallet")
 	check_eq(_missing("pallet", {"accomplice_id": _seat("email_worker_3b")}), ["accomplice"],
 			"an office worker is no haulier")
 
@@ -192,7 +196,8 @@ func _test_responsible_foreman() -> void:
 	FactoryTheft.steal("box", {"pairs": SMALL_BOX_PAIRS})
 	EventBus.week_closed.emit(1)
 	check_eq(_last_report()["points_to"], "player", "the foreman answers for the inventory gap")
-	check(_points_of(_mismatch_cases().back()).has("player"), "the case evidence points at the player")
+	check(_points_of(_mismatch_cases().back()).has("player"),
+			"the case evidence points at the player")
 
 
 # ─── Albaranes falsificados ───────────────────────────────────
@@ -228,15 +233,12 @@ func _check_framed_count(superior: String, suspicion_before: float) -> void:
 			"the mismatch points at the superior")
 	var case_id: String = _mismatch_cases().back() if not _mismatch_cases().is_empty() else ""
 	var pieces: Array = _pieces(case_id)
-	check(pieces.any(func(p: Dictionary) -> bool: return p["points_to"] == superior
-			and p["type"] == "forged_document"), "the forged notes are a forged_document piece")
-	check(not pieces.any(func(p: Dictionary) -> bool: return p["points_to"] == "player"),
-			"no piece points at the player")
+	check(_has_piece(pieces, superior, "forged_document"),
+			"the forged notes are a forged_document piece against the superior")
+	check(not _has_piece(pieces, "player", ""), "no piece points at the player")
 	check(BeliefNet.calculate_player_suspicion() > suspicion_before,
 			"the player's suspicion rises: they had access too")
-	check(BeliefNet.get_records_about("player").any(func(b: Belief) -> bool:
-			return b.fact == "card_log" and b.location == FACTORY_ROOM),
-			"an access record puts the player in the goods room")
+	check(_has_access_record(), "an access record puts the player in the goods room")
 	check_eq(Company.get_forged_delivery_target(), "", "the forged notes cover one count only")
 	Security.resolve_investigation(case_id, "other_guilty", superior)
 	check(not NPCDirector.is_active(superior), "the framed superior is expelled")
@@ -269,7 +271,8 @@ func _test_pallet_in_margins() -> void:
 			"the pallet is visible in the company's margins at the count")
 	var report: Dictionary = _last_report()
 	check(bool(report["cfo_detected"]), "the CFO sees it in the margins")
-	check_near(float(report["weight"]), Database.get_balance_float("fabrica.escalas.pallet.peso_incidente")
+	check_near(float(report["weight"]),
+			Database.get_balance_float("fabrica.escalas.pallet.peso_incidente")
 			* Database.get_balance_float("fabrica.factor_peso_cfo"), EPS,
 			"the CFO's eye weighs on the incident")
 	check_eq(int(report["severity"]), Database.get_balance_int("fabrica.escalas.pallet.gravedad"),
@@ -297,7 +300,8 @@ func _test_save_load() -> void:
 	var again: Dictionary = JSON.parse_string(JSON.stringify(Company.save_state(), "", true, true))
 	_fresh()
 	Company.load_state(again)
-	check(Company.get_inventory_reports().back()["missing"] is int, "count reports keep their types")
+	check(Company.get_inventory_reports().back()["missing"] is int,
+			"count reports keep their types")
 
 
 # ─── Utilidades ────────────────────────────────────────────────
@@ -367,11 +371,29 @@ func _pieces(case_id: String) -> Array:
 	return inv.evidence if inv != null else []
 
 
+## Pieza que apunta a ese sujeto (y de ese tipo si no es "").
+func _has_piece(pieces: Array, points_to: String, piece_type: String) -> bool:
+	for piece: Dictionary in pieces:
+		var same_type: bool = piece_type.is_empty() or piece["type"] == piece_type
+		if piece["points_to"] == points_to and same_type:
+			return true
+	return false
+
+
+func _has_access_record() -> bool:
+	for record: Belief in BeliefNet.get_records_about("player"):
+		if record.fact == "card_log" and record.location == FACTORY_ROOM:
+			return true
+	return false
+
+
 ## Último crime_committed de ese tipo ([] si no hubo).
 func _crime(crime_type: String) -> Array:
-	var calls: Array = _calls("crime_committed").filter(func(c: Array) -> bool:
-		return c[0] == crime_type)
-	return calls.back() if not calls.is_empty() else []
+	var found: Array = []
+	for call: Array in _calls("crime_committed"):
+		if call[0] == crime_type:
+			found = call
+	return found
 
 
 func _notes(text_key: String) -> Array:

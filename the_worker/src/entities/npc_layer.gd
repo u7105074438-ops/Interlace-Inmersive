@@ -24,6 +24,9 @@ extends Node
 ##  · Conos: ajuste "vision_cones" (0 ocultos, 1 automático = cercanos y sutiles, 2 todos; bool →
 ##    1/0) → Perception.cone_mode. F1 (DebugPanel) fuerza todos con set_debug_cones.
 ##  · Clic/toque sobre un personaje (sin dirección pulsada ni ventana modal) → CharacterCard.
+##  · Icono de cámara del HUD (§13.2, PASO 12): a cada sincronía, SecurityCamera.is_player_in_view
+##    de las cámaras de la planta → UIRoot.set_camera_watch(camera_id, dentro). Las grabaciones las
+##    hace ya SecurityCamera (camera_recorded_player → Security guarda la grabación): no se duplican.
 
 const GROUP := "npc_layer"
 const PLAYER_GROUP := "player"
@@ -43,7 +46,7 @@ const SELECT_LIFT := 0.7
 const GOSSIP_REACH := 16.0
 const ROLL_STEPS := 1000
 ## Celdas libres alrededor de cada hueco de puerta (nadie se planta en el paso).
-const DOOR_CLEARANCE := 2
+const DOOR_CLEARANCE := 1
 
 var free_running: bool = false
 ## Coste del último fotograma de la capa (µs de CPU: sincronía, pasos y percepción). QA / perfil.
@@ -66,6 +69,11 @@ var _room_chairs: Dictionary = {}
 var _day_plans: Dictionary = {}
 var _office_tiers: Dictionary = {}
 var _card: CharacterCard = null
+## Reloj de mundo de la capa (segundos, con pausas y cámara lenta) y npc_id → fin de su ausencia.
+var _world_time: float = 0.0
+var _away_until: Dictionary = {}
+## camera_id → el jugador está en su campo (lo último comunicado a UIRoot.set_camera_watch).
+var _camera_watch: Dictionary = {}
 
 
 func _ready() -> void:
@@ -163,6 +171,7 @@ func advance(delta: float) -> void:
 
 func _advance_world(delta: float) -> void:
 	var world_delta: float = delta * world_time_scale()
+	_world_time += world_delta
 	_sync_left -= delta
 	if _sync_left <= 0.0:
 		_sync_left = _interval
@@ -196,6 +205,9 @@ func sync_now() -> void:
 	var cap: int = Database.get_balance_int("lod.max_agentes_completo") + Database.get_balance_int("lod.max_agentes_medio")
 	for npc: NPCRuntime in NPCDirector.get_all_npcs():
 		var previous: int = int(_last_floor.get(npc.id, NPCDirectorSystem.FLOOR_NONE))
+		if float(_away_until.get(npc.id, 0.0)) > _world_time:
+			continue
+		_away_until.erase(npc.id)
 		_last_floor[npc.id] = npc.floor
 		var node: NPCNode = get_node_for(npc.id)
 		if node != null:
@@ -212,6 +224,7 @@ func sync_now() -> void:
 	_initial = false
 	_sync_ideas()
 	_sync_settings()
+	_sync_camera_watch()
 
 
 func _spawn(npc: NPCRuntime, previous_floor: int) -> void:
@@ -250,13 +263,17 @@ func _despawn(npc_id: String, release: bool) -> void:
 		node.queue_free()
 
 
-## Llega a su tránsito: queda situado en su destino (otra planta o fuera) y desaparece.
+## Llega a su tránsito: queda situado en su destino (otra planta o fuera) y desaparece. Tras un
+## recado no reaparece en esta planta hasta pasado away_after_exit (y entonces entra por el
+## tránsito, como quien vuelve).
 func _on_node_exit(node: NPCNode, target_room: String) -> void:
 	NPCDirector.set_current_location(node.npc_id, target_room)
 	NPCDirector.release_current_location(node.npc_id)
 	var npc: NPCRuntime = NPCDirector.get_npc(node.npc_id)
 	if npc != null:
 		_last_floor[node.npc_id] = npc.floor
+	if node.away_after_exit > 0.0:
+		_away_until[node.npc_id] = _world_time + node.away_after_exit
 	_despawn(node.npc_id, false)
 
 
@@ -268,6 +285,8 @@ func _on_floor_loaded(_floor_number: int) -> void:
 	_room_cells.clear()
 	_room_seats.clear()
 	_room_chairs.clear()
+	_away_until.clear()
+	_clear_camera_watch()
 	_initial = true
 	_sync_left = 0.0
 	close_card()
@@ -280,6 +299,26 @@ func _sync_ideas() -> void:
 			active[str(entry.get("npc_id", ""))] = entry
 	for node: NPCNode in get_nodes():
 		node.set_idea(active.get(node.npc_id, {}))
+
+
+## Icono de cámara del HUD (§13.2): dentro del campo de alguna cámara de la planta.
+func _sync_camera_watch() -> void:
+	var ui: UIRoot = UIRoot.find(get_tree())
+	if ui == null or get_player() == null:
+		return
+	for cam: SecurityCamera in _streamer.get_cameras():
+		var inside: bool = cam.is_player_in_view(_player.global_position)
+		if inside != bool(_camera_watch.get(cam.camera_id, false)):
+			_camera_watch[cam.camera_id] = inside
+			ui.set_camera_watch(cam.camera_id, inside)
+
+
+func _clear_camera_watch() -> void:
+	var ui: UIRoot = UIRoot.find(get_tree()) if is_inside_tree() else null
+	for camera_id: String in _camera_watch.keys():
+		if ui != null and bool(_camera_watch[camera_id]):
+			ui.set_camera_watch(camera_id, false)
+	_camera_watch.clear()
 
 
 func _sync_settings() -> void:
@@ -559,21 +598,37 @@ func _chairs(room_id: String) -> Array[Dictionary]:
 	return out
 
 
-## Celda libre de la sala (burnout: junto a la pared, de espaldas a ella).
+## Celda libre de la sala (burnout: junto a la pared). Primero una sin vecinos ocupados (nadie
+## pegado a nadie: los corrillos quedan a una celda de hueco); si no hay, cualquiera libre.
 func _free_cell(node: NPCNode, room_id: String) -> Dictionary:
 	var cells: Array[Vector2i] = _cells(room_id, node.archetype == NPCNode.ARCH_BURNOUT)
 	if cells.is_empty():
 		return {}
 	var start: int = absi(hash(PICK_FORMAT % [node.npc_id, room_id, GameClock.get_day() * 24 + GameClock.get_hour()])) % cells.size()
-	var centre: Vector2 = _streamer.get_room_rect_px(room_id).get_center()
-	for k: int in cells.size():
-		var cell: Vector2i = cells[(start + k) % cells.size()]
-		var key: String = KEY_FORMAT % [room_id, cell.x, cell.y]
-		if _free_key(key, node.npc_id):
-			var p: Vector2 = _streamer.cell_to_world(cell)
-			return {"key": key, "room": room_id, "pos": p, "draw": p, "approach": p, "seated": false,
-					"facing": (centre - p).normalized() if centre.distance_to(p) > 1.0 else Vector2.DOWN}
+	for spaced: bool in [true, false]:
+		for k: int in cells.size():
+			var cell: Vector2i = cells[(start + k) % cells.size()]
+			if _free_key(KEY_FORMAT % [room_id, cell.x, cell.y], node.npc_id) \
+					and (not spaced or not _crowded(room_id, cell, node.npc_id)):
+				return _cell_spot(room_id, cell)
 	return {}
+
+
+func _crowded(room_id: String, cell: Vector2i, npc_id: String) -> bool:
+	for dy: int in range(-1, 2):
+		for dx: int in range(-1, 2):
+			var key: String = KEY_FORMAT % [room_id, cell.x + dx, cell.y + dy]
+			if (dx != 0 or dy != 0) and not _free_key(key, npc_id):
+				return true
+	return false
+
+
+## Sitio de pie en `cell`, mirando hacia el centro de la sala.
+func _cell_spot(room_id: String, cell: Vector2i) -> Dictionary:
+	var centre: Vector2 = _streamer.get_room_rect_px(room_id).get_center()
+	var p: Vector2 = _streamer.cell_to_world(cell)
+	return {"key": KEY_FORMAT % [room_id, cell.x, cell.y], "room": room_id, "pos": p, "draw": p, "approach": p,
+			"seated": false, "facing": (centre - p).normalized() if centre.distance_to(p) > 1.0 else Vector2.DOWN}
 
 
 ## Celdas transitables de la sala lejos de las puertas y de los asientos (cacheadas por planta).

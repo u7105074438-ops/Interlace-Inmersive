@@ -54,6 +54,7 @@ const CRIME_THEFT := "theft_small"
 const PHASE_EVIDENCE_ID := "evidence_collection"
 const CROSS_CHECK_PATH := "evidence_collection.cross_check_uniforms_with_shift_roster"
 const HOURS_PER_DAY := 24
+const NEUTRAL_FACTOR := 1.0
 const TRAIT_PERCEPTION := "perception"
 const K_WINDOWS := "ventanas"
 const K_FROM := "desde"
@@ -97,7 +98,7 @@ static func evaluate(uniform: String, hour: int, room_id: String, distance: floa
 		return _balaclava_result(floor_number)
 	var canonical: String = canonical_uniform(uniform)
 	if canonical.is_empty() or is_own_uniform(canonical) or _no_effect_floor(floor_number):
-		return _result(false, 1.0, false, true)
+		return _result(false, NEUTRAL_FACTOR, false, true)
 	var coherent: bool = is_coherent(canonical, hour, floor_number)
 	if distance < Database.get_balance_float(B_RECOGNISE_DISTANCE) and recognises(observer_npc):
 		var factor: float = Database.get_balance_float(B_RECOGNISED)

@@ -67,7 +67,8 @@ const REASON_LABEL_KEYS: Dictionary = {
 	REASON_UNKNOWN_OPERATION: "BUYER_REASON_UNKNOWN_OPERATION",
 	REASON_NOT_VISITING: "BUYER_REASON_NOT_VISITING",
 	REASON_ALREADY_SERVED: "BUYER_REASON_ALREADY_SERVED",
-	REASON_NOT_A_SELLER: "BUYER_REASON_NOT_A_SELLER", REASON_NOT_IN_ROOM: "BUYER_REASON_NOT_IN_ROOM",
+	REASON_NOT_A_SELLER: "BUYER_REASON_NOT_A_SELLER",
+	REASON_NOT_IN_ROOM: "BUYER_REASON_NOT_IN_ROOM",
 }
 const STATUS_WAITING := "waiting"
 const STATUS_CLOSED := "closed"
@@ -107,6 +108,11 @@ const V_STATUS := "status"
 const V_OPERATION := "operation"
 const V_OUTCOME := "outcome"
 const VISIT_INT_KEYS: Array[String] = [V_HOUR, V_PAIRS, V_VALUE]
+# Material de chantaje de un comprador: {type, amount, day}.
+const M_TYPE := "type"
+const M_AMOUNT := "amount"
+const M_DAY := "day"
+const MATERIAL_INT_KEYS: Array[String] = [M_AMOUNT, M_DAY]
 
 const P_ROOM := "compradores.sala"
 const P_SELLERS := "compradores.ocupaciones_venta"
@@ -223,8 +229,11 @@ static func normalize_buyer(raw: Dictionary) -> Dictionary:
 		traits[str(key)] = int(source[key])
 	out[B_TRAITS] = traits
 	out[B_SEED] = int(raw.get(B_SEED, 0))
-	out[B_MATERIAL] = (raw.get(B_MATERIAL, []) as Array).duplicate(true) \
-			if raw.get(B_MATERIAL, []) is Array else []
+	var material: Array = []
+	for entry: Variant in (raw.get(B_MATERIAL, []) if raw.get(B_MATERIAL, []) is Array else []):
+		if entry is Dictionary:
+			material.append(_int_fields(entry as Dictionary, MATERIAL_INT_KEYS))
+	out[B_MATERIAL] = material
 	return out
 
 
@@ -296,7 +305,8 @@ static func honest_sale(buyer_id: String, options: Dictionary = {}) -> Dictionar
 
 
 ## markup ≤ 0 = compradores.sobreprecio_por_defecto.
-static func overprice(buyer_id: String, markup: float = 0.0, options: Dictionary = {}) -> Dictionary:
+static func overprice(buyer_id: String, markup: float = 0.0,
+		options: Dictionary = {}) -> Dictionary:
 	var opts: Dictionary = options.duplicate()
 	opts["markup"] = markup
 	return operate(buyer_id, OP_OVERPRICE, opts)
@@ -361,8 +371,8 @@ static func _apply_sale(result: Dictionary, visit: Dictionary, options: Dictiona
 			result["income"] = roundi(discount * Database.get_balance_float(P_KICKBACK_SHARE))
 			result["company_loss"] = float(discount)
 			Company.register_sales_fraud(buyer_id, operation, 0, float(discount))
-			Company.add_buyer_material(buyer_id, {"type": MATERIAL_KICKBACK,
-					"amount": int(result["income"])})
+			Company.add_buyer_material(buyer_id, {M_TYPE: MATERIAL_KICKBACK,
+					M_AMOUNT: int(result["income"])})
 	PlayerState.add_money(int(result["income"]), MONEY_REASON_FORMAT % operation)
 	if operation != OP_HONEST:
 		_emit_fraud(result)
@@ -452,6 +462,15 @@ static func _shuffle(values: Array[String], rng: RandomNumberGenerator) -> void:
 
 static func _pick(values: Array, rng: RandomNumberGenerator) -> String:
 	return "" if values.is_empty() else str(values[rng.randi_range(0, values.size() - 1)])
+
+
+## Copia con esas claves de vuelta a entero (JSON las devuelve como float).
+static func _int_fields(source: Dictionary, keys: Array[String]) -> Dictionary:
+	var out: Dictionary = source.duplicate(true)
+	for key: String in keys:
+		if out.has(key):
+			out[key] = int(out[key])
+	return out
 
 
 static func _as_dict(value: Variant) -> Dictionary:

@@ -309,6 +309,7 @@ class Timeline extends RefCounted:
 class Dock extends MarginContainer:
 	signal layout_changed()
 	const MARGIN := 20
+	const REVEAL_FRAMES := 2
 	var panel: PanelContainer
 	var fixed_top: VBoxContainer
 	var title: Label
@@ -318,6 +319,8 @@ class Dock extends MarginContainer:
 	var instant: bool = false
 	var _open: bool = false
 	var _tween: Tween
+	var _reveal: WeakRef = null
+	var _reveal_frames: int = 0
 
 	func _init() -> void:
 		name = "Dock"
@@ -358,6 +361,24 @@ class Dock extends MarginContainer:
 	func _ready() -> void:
 		scroll.fit_to(self, panel)
 		scroll.fade_color = UITheme.color("ink")
+		set_process(false)
+
+	## Desplaza el contenido hasta `control` cuando la maquetación se asiente (dos fotogramas).
+	func reveal_later(control: Control) -> void:
+		if control == null:
+			return
+		_reveal = weakref(control)
+		_reveal_frames = REVEAL_FRAMES
+		set_process(true)
+
+	func _process(_delta: float) -> void:
+		_reveal_frames -= 1
+		if _reveal_frames > 0:
+			return
+		set_process(false)
+		var target: Control = _reveal.get_ref() as Control if _reveal != null else null
+		if target != null and target.is_inside_tree() and content.is_ancestor_of(target):
+			scroll.reveal(target)
 
 	## Vacía el panel, pone el título y lo muestra. Devuelve la caja del contenido.
 	func open(title_text: String) -> VBoxContainer:

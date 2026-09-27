@@ -5,7 +5,7 @@ class_name NPCBubble
 extends Node2D
 
 ## Tipos: exclaim (!), question (?), talk (…), idea (bombilla que late), money (moneda),
-## report (escudo: va a Seguridad), sleep (z z), phone (móvil), eye (vigila). Uno temporal
+## report (escudo: va a Seguridad), sleep (dos «Z» trazadas), phone (móvil), eye (vigila). Uno temporal
 ## (show_emote) tapa al persistente (set_persistent) mientras dura. Se dibuja a la derecha de la
 ## cabeza para no tapar el indicador de detección. Colores: paleta de la interfaz (alto contraste).
 
@@ -25,6 +25,7 @@ const POP_FROM := 0.55
 const BOB_HZ := 1.6
 const BOB_PX := 2.0
 const SIZE_FACTOR := 1.05
+const IDEA_SCALE := 1.4
 const CORNER := 0.42
 const TAIL_W := 0.34
 const OFFSET_X := 1.85
@@ -97,7 +98,7 @@ func _draw() -> void:
 	var kind: String = current_kind()
 	if kind.is_empty():
 		return
-	var r: float = DetectionIndicator.base_radius() * SIZE_FACTOR
+	var r: float = DetectionIndicator.base_radius() * SIZE_FACTOR * (IDEA_SCALE if kind == KIND_IDEA else 1.0)
 	var bob: float = sin(_time * TAU * BOB_HZ) * BOB_PX if kind == KIND_IDEA else 0.0
 	draw_emote(self, Vector2(r * OFFSET_X, -r * OFFSET_Y + bob), r, kind, UITheme.current_high_contrast)
 
@@ -141,8 +142,8 @@ static func _draw_content(c: CanvasItem, center: Vector2, r: float, kind: String
 			for i: int in 3:
 				c.draw_circle(center + Vector2((i - 1) * r * 0.55, r * 0.05), r * DOT_RADIUS * 1.6, ink)
 		KIND_SLEEP:
-			_glyph(c, center + Vector2(-r * 0.3, r * 0.15), r * 0.8, "z", ink)
-			_glyph(c, center + Vector2(r * 0.3, -r * 0.2), r * 0.6, "z", ink)
+			_zed(c, center + Vector2(-r * 0.3, r * 0.15), r * 0.34, ink, w)
+			_zed(c, center + Vector2(r * 0.32, -r * 0.22), r * 0.24, ink, w)
 		_:
 			var icon: String = str(ICONS.get(kind, "info"))
 			var side: float = r * 1.3
@@ -165,6 +166,12 @@ static func _draw_bulb(c: CanvasItem, center: Vector2, r: float, pal: Dictionary
 	c.draw_rect(base.grow(w), ink)
 	c.draw_rect(base, Color(pal["muted"]))
 	c.draw_line(base.position + Vector2(0, base.size.y * 0.5), base.end - Vector2(0, base.size.y * 0.5), ink, w * 0.8)
+
+
+## «Z» de sueño trazada (sin texto).
+static func _zed(c: CanvasItem, center: Vector2, half: float, col: Color, w: float) -> void:
+	c.draw_polyline(PackedVector2Array([center + Vector2(-half, -half), center + Vector2(half, -half),
+			center + Vector2(-half, half), center + Vector2(half, half)]), col, w * 1.3, true)
 
 
 static func _glyph(c: CanvasItem, center: Vector2, r: float, text: String, col: Color) -> void:

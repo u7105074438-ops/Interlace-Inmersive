@@ -88,6 +88,16 @@ extends Node
 ##    del personaje: mark_house_container_looted() (manos: NightOps) deja ese contenedor vacío
 ##    noche.dias_reposicion_botin jornadas (is_house_container_looted); get_house_loot_state() lo
 ##    expone con los robos sufridos. Se guarda con la partida.
+##  · VIGILANCIA PERSONAL (§11.8, la lanza Endgame cuando Pearl Osgood informa a Voss):
+##    begin_personal_surveillance(vigilante, jornadas, motivo) → LOD 0 forzado (motivo
+##    "personal_surveillance"), + npc.vigilancia_personal.bonus_perspicacia en
+##    get_effective_perception y SEGUIMIENTO: en las franjas npc.vigilancia_personal.
+##    franjas_seguimiento su sala es la del jugador (dentro del edificio; una sustitución de
+##    override_routine, p. ej. una reunión provocada, manda sobre el seguimiento). Con nodo del
+##    mundo, el nodo lo hace caminar hacia get_follow_target() ("player"). Dura hasta el cambio de
+##    jornada posterior a hoy + jornadas o end_personal_surveillance(). Se guarda con la partida.
+##    report_player_to_superior(npc, sala): denuncia deliberada al superior (canal "superior",
+##    certeza completa: BeliefNet +10 y anotación; Security pondera el canal).
 
 const PLAYER_ID := "player"
 const FLOOR_NONE := NPCRoutinePlanner.NO_FLOOR
@@ -150,6 +160,12 @@ const EVIDENCE_PARTIAL := "partial_witness"
 const REASON_DEBT := "debt"
 const REASON_SHORTLIST := "shortlist"
 const REASON_MARKED_TARGET := "marked_target"
+const REASON_SURVEILLANCE := "personal_surveillance"
+const ACTIVITY_SURVEILLANCE := "surveillance"
+## Claves de una vigilancia personal (también en save_state).
+const SV_TARGET := "target"
+const SV_UNTIL := "until_day"
+const SV_REASON := "reason"
 const NOTE_CATEGORY_TARGETS := PlayerStateSystem.NOTE_CATEGORY_TARGETS
 
 const STATE_ABSENT := "absent"
@@ -215,6 +231,9 @@ const B_LOD_STAT_SECONDS := "lod.intervalo_estadistico_segundos"
 const B_HOME_ARRIVAL := "noche.hora_llegada_domicilio"
 const B_DAY_START := "tiempo.hora_inicio_jornada"
 const B_LOOT_RESTOCK := "noche.dias_reposicion_botin"
+const B_SURVEILLANCE_BONUS := "npc.vigilancia_personal.bonus_perspicacia"
+const B_SURVEILLANCE_BANDS := "npc.vigilancia_personal.franjas_seguimiento"
+const B_EXTERIOR_FLOOR := "mundo.planta_exterior"
 const HOUSE_LOOTED := "looted"
 const HOUSE_BURGLARIES := "burglaries"
 const HOUSE_LAST_DAY := "last_day"
@@ -243,6 +262,8 @@ var _lod_pins: Dictionary = {}
 var _escalated: Dictionary = {}
 ## npc_id → {looted: {container_id: jornada}, burglaries: int, last_day: int} (§4.3).
 var _house_loot: Dictionary = {}
+## vigilante → {target, until_day, reason}: vigilancia personal del jugador (§11.8).
+var _surveillance: Dictionary = {}
 var _player_room: String = ""
 var _player_floor: int = 0
 var _day: int = 0
@@ -326,6 +347,7 @@ func _clear_population() -> void:
 	_lod_pins.clear()
 	_escalated.clear()
 	_house_loot.clear()
+	_surveillance.clear()
 	_world_located.clear()
 	_plans.clear()
 	_planner = null
@@ -483,6 +505,8 @@ func get_effective_perception(npc_id: String) -> int:
 	var value: float = float(npc.get_trait("perception")) + PlayerState.get_suspicion() * ratio
 	if is_guard(npc_id):
 		value += float(Security.get_guard_perception_bonus())
+	if _surveillance.has(npc_id):
+		value += Database.get_balance_float(B_SURVEILLANCE_BONUS)
 	return maxi(roundi(value), Validate.TRAIT_MIN)
 
 
@@ -730,6 +754,8 @@ func _location_at(npc: NPCRuntime, minute: int, include_minor: bool) -> Dictiona
 	var band: String = _planner.band_of_minute(minute)
 	if npc.schedule_override.has(band):
 		return {"room": str(npc.schedule_override[band]), "activity": "override"}
+	if _follows_player_in(npc.id, band):
+		return {"room": _player_room, "activity": ACTIVITY_SURVEILLANCE}
 	var iv: Dictionary = NPCRoutinePlanner.pick(_plan_for(npc), minute, include_minor)
 	if iv.is_empty():
 		return {"room": npc.home_room, "activity": ""}

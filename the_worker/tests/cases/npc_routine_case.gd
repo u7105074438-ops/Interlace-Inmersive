@@ -39,6 +39,7 @@ func run_case() -> void:
 	EventBus.room_entered.emit(WING, true)
 	_build_world()
 	_check_morning()
+	await _check_card()
 	_check_decision_and_noise()
 	_check_lunch_departure()
 	_check_arrival_at_cafeteria()
@@ -100,6 +101,23 @@ func _check_morning() -> void:
 	var george: NPCNode = _layer.get_node_for(SEVEN[1])
 	check(george != null and george.lod == NPCRuntime.LOD_FULL and george.perception.is_active(),
 			"colleagues in the player's room run full perception (LOD 0)")
+
+
+## §13.7: tocar a un personaje abre su ficha rápida (identidad N1 como mínimo).
+func _check_card() -> void:
+	var card: CharacterCard = _layer.open_card(SEVEN[0])
+	if not check(card != null, "tapping a character opens its quick card"):
+		return
+	await get_tree().process_frame
+	var names: Array[String] = []
+	for label: Node in card.find_children("*", "Label", true, false):
+		names.append((label as Label).text)
+	check(names.has(NPCDirector.get_npc(SEVEN[0]).name), "the card shows the character's name")
+	check(_layer.npc_at(_layer.get_node_for(SEVEN[0]).get_visual_position() + Vector2(0.0, -0.5 * _cell)) == _layer.get_node_for(SEVEN[0]),
+			"a tap on the character's body finds it")
+	_layer.close_card()
+	await get_tree().process_frame
+	check(_layer.get_card() == null, "the card closes")
 
 
 ## Decisiones y ruido llegan a los nodos: denunciar = caminar a Seguridad; esprint cerca = atención.

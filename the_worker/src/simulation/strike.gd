@@ -23,19 +23,22 @@ extends RefCounted
 ##    Company.apply_labour_event("wage_concession") (−15 y coste en nómina); despido del causante
 ##    (directivo de escalón > escalon_max_afectado y menor que el del jugador, con escalón ≥
 ##    escalon_min_despido) → NPCDirector.remove_npc(causante, huelga.causa_despido) y
-##    "culprit_dismissed" (−10). Si el descontento vuelve a ≤ 70, Company da la huelga por apaciguada.
+##    "culprit_dismissed" (−10). Si el descontento vuelve a ≤ 70, Company da la huelga por
+##    apaciguada.
 ##  · Liderar (descontento > umbral): Company.call_strike("player") (estalla si no estaba activa;
-##    Company fija el prestigio laboral); PlayerState.modify_reputation(reputacion_direccion_liderar)
-##    —la reputación del jugador es la que juzga la dirección—; afecto + afecto_bajos_liderar a cada
-##    personaje de escalones bajos y afecto_direccion_liderar a la dirección (escalón ≥
-##    empresa.escalon_directivo). Sin favores ni señales por personaje (no llena la agenda).
-##  · Traicionar (haberla convocado y no comparecer: exige ser su líder): strike_resolved("betrayed")
-##    (Company la termina y marca la traición para siempre; NewsFeed cierra el evento), reputación +
-##    reputacion_direccion_traicionar («salvó la compañía»), agravio permanente agravio_traicion a
-##    cada personaje de escalones bajos (los agravios no decaen) y afecto a la dirección.
+##    Company fija el prestigio laboral);
+##    PlayerState.modify_reputation(reputacion_direccion_liderar) —la reputación del jugador es
+##    la que juzga la dirección—; afecto + afecto_bajos_liderar a cada personaje de escalones
+##    bajos y afecto_direccion_liderar a la dirección (escalón ≥ empresa.escalon_directivo). Sin
+##    favores ni señales por personaje (no llena la agenda de contactos).
+##  · Traicionar (haberla convocado y no comparecer: exige ser su líder):
+##    strike_resolved("betrayed") (Company la termina y marca la traición para siempre; NewsFeed
+##    cierra el evento), reputación + reputacion_direccion_traicionar («salvó la compañía»),
+##    agravio permanente agravio_traicion a cada personaje de escalones bajos (los agravios no
+##    decaen) y afecto a la dirección.
 ##  · Huelga activa (ambos cerebros): unidades × empresa.factor_unidades_huelga y riesgo
-##    (Company), noticia negativa y evento "strike" (NewsFeed al oír strike_started), cotización a la
-##    baja (Market: sentimiento y valor intrínseco). Este módulo no los duplica.
+##    (Company), noticia negativa y evento "strike" (NewsFeed al oír strike_started), cotización a
+##    la baja (Market: sentimiento y valor intrínseco). Este módulo no los duplica.
 
 const PLAYER_ID := "player"
 const RESOLUTION_BETRAYED := "betrayed"
@@ -62,14 +65,16 @@ const REASON_ALREADY_LEADING := "already_leading"
 const REASON_NOT_LEADER := "not_leader"
 const REASON_RUMOUR_FAILED := "rumour_failed"
 const REASON_LABEL_KEYS: Dictionary = {
-	REASON_UNKNOWN_NPC: "STRIKE_REASON_UNKNOWN_NPC", REASON_NOT_LOW_TIER: "STRIKE_REASON_NOT_LOW_TIER",
+	REASON_UNKNOWN_NPC: "STRIKE_REASON_UNKNOWN_NPC",
+	REASON_NOT_LOW_TIER: "STRIKE_REASON_NOT_LOW_TIER",
 	REASON_NOT_DISCONTENTED: "STRIKE_REASON_NOT_DISCONTENTED",
 	REASON_COOLDOWN: "STRIKE_REASON_COOLDOWN", REASON_BETRAYED: "STRIKE_REASON_WORKERS_BETRAYED",
 	REASON_NO_AUTHORITY: "STRIKE_REASON_NO_AUTHORITY",
 	REASON_NOT_MANAGEMENT: "STRIKE_REASON_NOT_MANAGEMENT",
 	REASON_BELOW_THRESHOLD: "STRIKE_REASON_BELOW_THRESHOLD",
 	REASON_ALREADY_LEADING: "STRIKE_REASON_ALREADY_LEADING",
-	REASON_NOT_LEADER: "STRIKE_REASON_NOT_LEADER", REASON_RUMOUR_FAILED: "STRIKE_REASON_RUMOUR_FAILED",
+	REASON_NOT_LEADER: "STRIKE_REASON_NOT_LEADER",
+	REASON_RUMOUR_FAILED: "STRIKE_REASON_RUMOUR_FAILED",
 }
 const REPUTATION_LED := "strike_led"
 const REPUTATION_BETRAYED := "strike_betrayed"
