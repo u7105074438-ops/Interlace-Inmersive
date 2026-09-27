@@ -22,7 +22,7 @@ static var _warned: Dictionary = {}
 
 ## Valor de balance por ruta con puntos ("audio.muzak.nivel_db"); null si no existe.
 static func value(path: String) -> Variant:
-	var db: Node = _autoload("Database")
+	var db: Node = autoload("Database")
 	if db != null and db.has_method("get_balance"):
 		var v: Variant = db.call("get_balance", path)
 		if v != null:
@@ -102,7 +102,7 @@ static func arrangement_for_floor(floor: int) -> String:
 ## {ambient_sound, ambient_noise_level, acoustic_mask, art_band, floor} de una sala; {} si no existe.
 static func room_info(room_id: String) -> Dictionary:
 	var base_id: String = room_id.get_slice(ROOM_SUFFIX_SEPARATOR, 0)
-	var db: Node = _autoload("Database")
+	var db: Node = autoload("Database")
 	if db != null and db.has_method("get_room"):
 		var room: Object = db.call("get_room", base_id)
 		if room is RoomData:
@@ -178,7 +178,8 @@ static func _walk(root: Dictionary, path: String) -> Variant:
 	return node
 
 
-static func _autoload(autoload_name: String) -> Node:
+## Autoload por nombre (null si no existe o no hay árbol). Solo hilo principal.
+static func autoload(autoload_name: String) -> Node:
 	var loop: MainLoop = Engine.get_main_loop()
 	if not loop is SceneTree:
 		return null

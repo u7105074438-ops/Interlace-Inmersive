@@ -1,6 +1,6 @@
 # game_clock_case.gd — Cuerpo de test_game_clock (§21, PASO 5): franjas §5.6, jornada, cierres §15.1, velocidad.
 # PROPIETARIO DE: nada.
-# ESCUCHA: time_band_changed, day_advanced, hour_passed, week_closed, month_closed, quarter_closed, time_skipped (conexión temporal).
+# ESCUCHA: time_band_changed, day_advanced, hour_passed, week_closed, month_closed, quarter_closed, time_skipped (conexión temporal); emite run_started/run_loaded para probar la reanudación.
 extends TestCase
 
 ## Pasos de tiempo real simulados (60 fotogramas por segundo).
@@ -9,6 +9,7 @@ const EXPECTED_BAND_CHANGES: Array[String] = [
 	"work_morning", "lunch", "work_afternoon", "exit", "night", "arrival",
 ]
 const MINUTES_PER_HOUR := 60.0
+const RATE_PATH := "tiempo.minutos_reales_por_hora_por_franja."
 
 var _band_news: Array[String] = []
 var _band_olds: Array[String] = []
@@ -18,6 +19,10 @@ var _hours: Array[int] = []
 var _skips: Array = []
 ## Registro ordenado de cierres y cambios de jornada: "week:1@5", "month:1@20", "day:21".
 var _events: Array[String] = []
+## Lectura del reloj durante cada week_closed: [total_minutes, "HH:MM", día] y durante cada
+## day_advanced: total_minutes.
+var _closure_readings: Array = []
+var _day_totals: Array[float] = []
 
 
 func run_case() -> void:
@@ -31,7 +36,10 @@ func run_case() -> void:
 	_test_sleep()
 	_test_advance_to_band()
 	_test_period_closures()
+	_test_clock_during_closures()
+	_test_rate_scale()
 	_test_save_load()
+	_test_run_signals_resume()
 	_disconnect_bus()
 
 
@@ -102,11 +110,12 @@ func _test_real_time_rates() -> void:
 	var office: float = 0.0
 	for band: String in ["arrival", "work_morning", "lunch", "work_afternoon", "exit"]:
 		var hours: int = _band_hours(band)
-		office += hours * Database.get_balance_float("tiempo.minutos_reales_por_hora_por_franja." + band)
+		office += hours * Database.get_balance_float(RATE_PATH + band)
 	check_near(office, 9.0, 0.001, "balance: the office day 8:00-19:00 lasts 9 real minutes")
-	var night: float = Database.get_balance_float("tiempo.minutos_reales_por_hora_por_franja.night")
-	check_near(office + 4.0 * night, Database.get_balance_float("tiempo.minutos_reales_por_jornada"),
-			0.001, "office + evening until 23:00 = minutos_reales_por_jornada (11)")
+	var night: float = Database.get_balance_float(RATE_PATH + "night")
+	var day_total: float = Database.get_balance_float("tiempo.minutos_reales_por_jornada")
+	check_near(office + 4.0 * night, day_total, 0.001,
+			"office + evening until 23:00 = minutos_reales_por_jornada (11)")
 	new_run(DEFAULT_SEED, false)
 	GameClock.advance_real_seconds(540.0)
 	check_near(GameClock.get_day_minutes(), 19.0 * MINUTES_PER_HOUR, 0.01,
@@ -139,8 +148,12 @@ func _test_speed_multipliers() -> void:
 	check_near(GameClock.get_day_minutes() - before, 15.0, 0.01, "effective 0.2 -> 15 game min")
 	GameClock.set_accessibility_speed(100.0)
 	check_near(GameClock.get_accessibility_speed(),
-			Database.get_balance_float("tiempo.velocidad_accesibilidad_max"), 0.0001,
-			"accessibility speed is clamped to the balance maximum")
+			Database.get_balance_float("menus.velocidad_reloj.max"), 0.0001,
+			"accessibility speed is clamped to the settings-menu maximum (menus.velocidad_reloj)")
+	GameClock.set_accessibility_speed(0.01)
+	check_near(GameClock.get_accessibility_speed(),
+			Database.get_balance_float("menus.velocidad_reloj.min"), 0.0001,
+			"…and to the settings-menu minimum")
 	GameClock.set_accessibility_speed(1.0)
 	GameClock.set_speed_multiplier(1.0)
 
@@ -211,6 +224,47 @@ func _test_period_closures() -> void:
 	check_eq(GameClock.days_since(1), 50, "days_since(1) on day 51")
 
 
+## The week/month/quarter closures see the clock already at 06:00 of the closing day: the total
+## minutes are the same as right after day_advanced (time never reads 24 h in the past).
+func _test_clock_during_closures() -> void:
+	new_run(DEFAULT_SEED, false)
+	GameClock.advance_to_next_day()
+	_clear()
+	for _i: int in 4:
+		GameClock.advance_to_next_day()
+	check_eq(_closure_readings.size(), 1, "one week_closed at the end of day 5")
+	if _closure_readings.is_empty():
+		return
+	var reading: Array = _closure_readings[0]
+	check_eq([reading[1], reading[2]], ["06:00", 5],
+			"during week_closed the day is still 5 and the clock reads 06:00")
+	check_near(float(reading[0]), 5.0 * 1440.0, 0.001,
+			"during week_closed the total minutes are day 5's end (5 x 1440)")
+	check_near(float(reading[0]), _day_totals.back(), 0.001,
+			"the same total minutes as right after day_advanced(6): monotonic time")
+
+
+## minutos_reales_por_jornada drives the pace: the per-band rates are scaled so 8:00-23:00 adds up
+## to it (scale 1 with the shipped data).
+func _test_rate_scale() -> void:
+	var total: float = 0.0
+	for hour: int in range(8, Database.get_balance_int("tiempo.hora_dormir_referencia")):
+		total += GameClock.get_real_minutes_per_game_hour(_band_of_hour(hour))
+	check_near(total, Database.get_balance_float("tiempo.minutos_reales_por_jornada"), 0.001,
+			"scaled rates from 8:00 to the reference bedtime add up to minutos_reales_por_jornada")
+	check_near(GameClock.get_real_minutes_per_game_hour("arrival"),
+			Database.get_balance_float(RATE_PATH + "arrival"), 0.0001,
+			"with the shipped data the scale is 1 (arrival 0.9 real min per game hour)")
+	var rates: Dictionary = {"arrival": 1.0, "work_morning": 1.0, "lunch": 1.0,
+			"work_afternoon": 1.0, "exit": 1.0, "night": 0.5}
+	var starts: Dictionary = {"arrival": 8, "work_morning": 9, "lunch": 13,
+			"work_afternoon": 14, "exit": 18, "night": 19}
+	check_near(GameClockSystem.compute_rate_scale(rates, starts, 8, 23, 26.0), 2.0, 0.0001,
+			"doubling the target real minutes doubles every band's rate (11 h x 1 + 4 h x 0.5 = 13)")
+	check_near(GameClockSystem.compute_rate_scale({}, starts, 8, 23, 11.0), 1.0, 0.0001,
+			"no rates: neutral scale")
+
+
 func _test_save_load() -> void:
 	new_run(DEFAULT_SEED, false)
 	GameClock.set_run_seed(777)
@@ -229,6 +283,19 @@ func _test_save_load() -> void:
 	check_eq(GameClock.get_run_seed(), 777, "load_state restores the run seed")
 	check(GameClock.is_paused(), "load_state leaves the clock paused")
 	GameClock.set_run_seed(DEFAULT_SEED)
+
+
+## The clock starts paused and resumes itself when the run goes live (run_started / run_loaded).
+func _test_run_signals_resume() -> void:
+	new_run(DEFAULT_SEED, false)
+	check(GameClock.is_paused(), "a fresh run's clock is paused")
+	EventBus.run_started.emit(DEFAULT_SEED)
+	check(not GameClock.is_paused(), "run_started resumes the clock")
+	GameClock.pause()
+	EventBus.run_loaded.emit(GameClock.get_day())
+	check(not GameClock.is_paused(), "run_loaded resumes the clock")
+	new_run(DEFAULT_SEED, false)
+	check(GameClock.is_paused(), "a new run pauses it again")
 
 
 # ─── Registro de señales ───────────────────────────────────────
@@ -261,6 +328,8 @@ func _clear() -> void:
 	_hours.clear()
 	_skips.clear()
 	_events.clear()
+	_closure_readings.clear()
+	_day_totals.clear()
 
 
 func _on_band(old_band: String, new_band: String) -> void:
@@ -272,6 +341,7 @@ func _on_day(day_number: int) -> void:
 	_days.append(day_number)
 	_day_hours.append(GameClock.get_hour())
 	_events.append("day:%d" % day_number)
+	_day_totals.append(GameClock.get_total_minutes())
 
 
 func _on_hour(hour: int, _day_number: int) -> void:
@@ -280,6 +350,8 @@ func _on_hour(hour: int, _day_number: int) -> void:
 
 func _on_week(week_number: int) -> void:
 	_events.append("week:%d@%d" % [week_number, GameClock.get_day()])
+	_closure_readings.append([GameClock.get_total_minutes(), GameClock.get_time_string(),
+			GameClock.get_day()])
 
 
 func _on_month(month_number: int) -> void:
@@ -300,6 +372,15 @@ func _events_with_prefix(prefix: String) -> Array[String]:
 		if event.begins_with(prefix):
 			out.append(event)
 	return out
+
+
+## Franja de una hora de 8 a 23 (la última franja cuyo inicio no la supera; orden ascendente).
+func _band_of_hour(hour: int) -> String:
+	var band: String = ""
+	for candidate: String in GameClock.get_band_order():
+		if GameClock.get_band_start_hour(candidate) <= hour:
+			band = candidate
+	return band
 
 
 func _band_hours(band: String) -> int:

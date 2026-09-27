@@ -5,8 +5,8 @@ class_name MenuKit
 extends RefCounted
 
 ## Los colores salen de data/art_bands.json (paletas por banda) y de balance `menus.*`.
-## Los tunables se leen con bal(): Database.get_balance() si Database ya cargó los datos;
-## si no (Database aún sin cargar o en stub), se lee balance.json directamente (solo lectura).
+## Los tunables se leen con bal(): Database.get_balance() si la ruta existe (Database.has_balance);
+## si no (Database en stub o clave añadida después de cargar), balance.json directamente (solo lectura).
 
 const BALANCE_FILE := "res://data/balance.json"
 const BANDS_FILE := "res://data/art_bands.json"
@@ -40,17 +40,22 @@ const SEMANTIC: Dictionary = {
 
 static var _balance: Dictionary = {}
 static var _bands: Dictionary = {}
+static var _floor_bands: Dictionary = {}
 static var _fonts: Dictionary = {}
+## Cachés de colores resueltos y de escala de texto: se revalidan una vez por fotograma (o al
+## cambiar un ajuste, invalidate_cache) para no consultar SaveSystem en cada llamada de dibujo.
+static var _color_cache: Dictionary = {}
+static var _cache_frame: int = -1
+static var _cache_hc: bool = false
+static var _cache_scale: float = 1.0
 
 
 # ─── Balance ───────────────────────────────────────────────────
 
 ## Valor de balance por ruta con puntos ("menus.apertura.m1_segundos").
 static func bal(path: String) -> Variant:
-	if Database.has_method("get_balance"):
-		var value: Variant = Database.get_balance(path)
-		if value != null:
-			return value
+	if Database.has_method("has_balance") and bool(Database.call("has_balance", path)):
+		return Database.get_balance(path)
 	return _walk(_balance_data(), path)
 
 
@@ -106,16 +111,17 @@ static func band_palette(band_id: String) -> Dictionary:
 static func band_for_floor(floor_number: int) -> Dictionary:
 	if _bands.is_empty():
 		_load_bands()
-	for band_id: String in _bands:
-		var band: Dictionary = _bands[band_id]
-		if (band.get("floors", []) as Array).has(floor_number):
-			return band
-	return _bands.get("the_pit", {})
+	var band: Variant = _floor_bands.get(floor_number)
+	return band if band != null else _bands.get("the_pit", {})
 
 
 static func _load_bands() -> void:
-	var data: Dictionary = read_json(BANDS_FILE)
-	for raw: Variant in data.get("bands", []):
+	var list: Array = []
+	if Database.has_method("get_all_art_bands"):
+		list = Database.call("get_all_art_bands")
+	if list.is_empty():
+		list = read_json(BANDS_FILE).get("bands", [])
+	for raw: Variant in list:
 		if not (raw is Dictionary):
 			continue
 		var band: Dictionary = (raw as Dictionary).duplicate()
@@ -129,16 +135,59 @@ static func _load_bands() -> void:
 			floors.append(int(f))
 		band["floors"] = floors
 		_bands[str(band.get("id", ""))] = band
+		for f: int in floors:
+			if not _floor_bands.has(f):
+				_floor_bands[f] = band
+
+
+## Olvida las cachés de color y escala (lo llama SettingsMenu al aplicar un ajuste).
+static func invalidate_cache() -> void:
+	_cache_frame = -1
+
+
+## Revalida las cachés como mucho una vez por fotograma.
+static func _refresh_cache() -> void:
+	var frame: int = Engine.get_process_frames()
+	if frame == _cache_frame:
+		return
+	_cache_frame = frame
+	var hc: bool = SettingsMenu.get_bool("high_contrast")
+	if hc != _cache_hc:
+		_color_cache.clear()
+	_cache_hc = hc
+	_cache_scale = _read_text_scale()
+
+
+## true con el ajuste de alto contraste activo (§13.10).
+static func is_high_contrast() -> bool:
+	_refresh_cache()
+	return _cache_hc
 
 
 ## Color semántico de la interfaz (ver SEMANTIC). En alto contraste, fondo/texto/foco duros.
 static func color(semantic: String) -> Color:
-	if SettingsMenu.get_bool("high_contrast"):
+	_refresh_cache()
+	var cached: Variant = _color_cache.get(semantic)
+	if cached != null:
+		return cached
+	var resolved: Color = _resolve_color(semantic)
+	_color_cache[semantic] = resolved
+	return resolved
+
+
+static func _resolve_color(semantic: String) -> Color:
+	if _cache_hc:
 		var hc: Color = _high_contrast(semantic)
 		if hc.a > 0.0:
 			return hc
 	var pair: Array = SEMANTIC.get(semantic, ["exterior", "outline"])
 	return band_palette(str(pair[0])).get(str(pair[1]), Color.MAGENTA)
+
+
+## Color de rótulos pequeños (antetítulos, cabeceras de sección) derivado de `base`; en alto
+## contraste, tinta pura: los derivados oscurecidos del amarillo de foco no alcanzan AA (§13.10).
+static func heading_color(base: Color) -> Color:
+	return color("ink") if is_high_contrast() else base
 
 
 static func _high_contrast(semantic: String) -> Color:
@@ -158,8 +207,14 @@ static func _high_contrast(semantic: String) -> Color:
 
 ## Color de tinte de un eje de seguimiento ("blood", "gold", "silk", "sweat", "hybrid", "defeat").
 static func axis_color(axis: String) -> Color:
+	var key: String = "axis:" + axis
+	var cached: Variant = _color_cache.get(key)
+	if cached != null:
+		return cached
 	var table: Dictionary = bal_dict("menus.tinte_eje")
-	return Color.from_string(str(table.get(axis, table.get("hybrid", ""))), color("gold"))
+	var resolved: Color = Color.from_string(str(table.get(axis, table.get("hybrid", ""))), color("gold"))
+	_color_cache[key] = resolved
+	return resolved
 
 
 # ─── Fuentes ───────────────────────────────────────────────────
@@ -211,6 +266,11 @@ static func _mono_font() -> Font:
 
 ## Multiplicador del tamaño de texto (§13.10: tres niveles).
 static func text_scale() -> float:
+	_refresh_cache()
+	return _cache_scale
+
+
+static func _read_text_scale() -> float:
 	var levels: Variant = bal("menus.escala_texto")
 	var level: int = SettingsMenu.get_int("text_size")
 	if levels is Array and not (levels as Array).is_empty():
@@ -231,6 +291,7 @@ static func build_theme() -> Theme:
 	theme.default_font_size = fs(FONT_BODY)
 	_style_buttons(theme)
 	_style_menu_items(theme)
+	_style_toggles(theme)
 	_style_inputs(theme)
 	_style_containers(theme)
 	_style_labels(theme)
@@ -287,15 +348,28 @@ static func _style_buttons(theme: Theme) -> void:
 	theme.set_font_size("font_size", "Button", fs(FONT_BUTTON))
 
 
+## Variación "TWToggle": opciones seleccionables (controles segmentados, tarjetas de contrato).
+static func _style_toggles(theme: Theme) -> void:
+	theme.set_type_variation("TWToggle", "Button")
+	var ink: Color = color("ink")
+	theme.set_stylebox("normal", "TWToggle", box(color("paper"), ink, OUTLINE, 3))
+	theme.set_stylebox("hover", "TWToggle", box(color("paper").lerp(color("amber"), 0.3), ink, OUTLINE, 3))
+	var on: StyleBoxFlat = box(color("amber"), ink, OUTLINE + 1, SHADOW)
+	theme.set_stylebox("pressed", "TWToggle", on)
+	theme.set_stylebox("hover_pressed", "TWToggle", on)
+
+
 ## Variación "TWMenuItem": elementos del menú principal, texto claro sobre la noche.
 static func _style_menu_items(theme: Theme) -> void:
 	theme.set_type_variation("TWMenuItem", "Button")
 	var clear: StyleBoxFlat = box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0)
-	clear.content_margin_left = 18
+	var lit: StyleBoxFlat = box(color("amber"), color("ink"), OUTLINE, SHADOW)
+	for sb: StyleBoxFlat in [clear, lit]:
+		sb.content_margin_left = 18
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 4
 	theme.set_stylebox("normal", "TWMenuItem", clear)
 	theme.set_stylebox("disabled", "TWMenuItem", clear)
-	var lit: StyleBoxFlat = box(color("amber"), color("ink"), OUTLINE, SHADOW)
-	lit.content_margin_left = 18
 	for state: String in ["hover", "pressed", "hover_pressed", "focus"]:
 		theme.set_stylebox(state, "TWMenuItem", lit)
 	theme.set_color("font_color", "TWMenuItem", color("paper"))
@@ -305,7 +379,7 @@ static func _style_menu_items(theme: Theme) -> void:
 	theme.set_color("font_outline_color", "TWMenuItem", color("ink"))
 	theme.set_constant("outline_size", "TWMenuItem", 0)
 	theme.set_font("font", "TWMenuItem", font("display"))
-	theme.set_font_size("font_size", "TWMenuItem", fs(FONT_HEADING))
+	theme.set_font_size("font_size", "TWMenuItem", fs(FONT_HEADING - 6))
 
 
 static func _style_inputs(theme: Theme) -> void:
@@ -354,6 +428,25 @@ static func _style_containers(theme: Theme) -> void:
 	theme.set_constant("separation", "HBoxContainer", 14)
 	theme.set_constant("h_separation", "GridContainer", 24)
 	theme.set_constant("v_separation", "GridContainer", 24)
+	_style_scrollbars(theme)
+
+
+## Barra de desplazamiento visible y táctil: carril claro con contorno y tirador ámbar.
+static func _style_scrollbars(theme: Theme) -> void:
+	var ink: Color = color("ink")
+	var track: StyleBoxFlat = box(color("paper_dim"), ink, 2, 0)
+	var grab: StyleBoxFlat = box(color("amber"), ink, 2, 0)
+	var grab_hot: StyleBoxFlat = box(color("gold"), ink, 2, 0)
+	for sb: StyleBoxFlat in [track, grab, grab_hot]:
+		sb.content_margin_left = 9
+		sb.content_margin_right = 9
+		sb.content_margin_top = 9
+		sb.content_margin_bottom = 9
+	theme.set_stylebox("scroll", "VScrollBar", track)
+	theme.set_stylebox("scroll_focus", "VScrollBar", track)
+	theme.set_stylebox("grabber", "VScrollBar", grab)
+	theme.set_stylebox("grabber_highlight", "VScrollBar", grab_hot)
+	theme.set_stylebox("grabber_pressed", "VScrollBar", grab_hot)
 
 
 static func _style_labels(theme: Theme) -> void:
@@ -391,44 +484,71 @@ static func button(text: String, variation: String = "") -> Button:
 	return b
 
 
-## Marco de memorándum a pantalla casi completa. Devuelve {root, panel, body, back, title, scroll}.
-static func memo_frame(title_text: String, kicker_text: String) -> Dictionary:
+## Marco de memorándum. Devuelve {root, panel, body, back, title, scroll, area}. El cuerpo va siempre
+## en un MenuScroll (barra visible y aviso de «hay más»). compact = panel centrado que se ajusta a
+## su contenido y solo desplaza si no cabe; si no, ocupa casi toda la pantalla.
+static func memo_frame(title_text: String, kicker_text: String, compact: bool = false) -> Dictionary:
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 96)
+		margin.add_theme_constant_override("margin_" + side, 260 if compact else 96)
 	for side: String in ["top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 44)
+		margin.add_theme_constant_override("margin_" + side, 36 if compact else 44)
 	var panel: PanelContainer = PanelContainer.new()
+	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER if compact else Control.SIZE_FILL
 	margin.add_child(panel)
 	var column: VBoxContainer = VBoxContainer.new()
 	panel.add_child(column)
+	var header: Dictionary = _memo_header(title_text, kicker_text)
+	column.add_child(header["row"])
+	column.add_child(rule(color("ink"), OUTLINE))
+	var body: VBoxContainer = VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 18)
+	var area: MenuScroll = MenuScroll.new()
+	area.name = "ScrollArea"
+	area.fade_color = color("paper")
+	area.set_content(body)
+	if compact:
+		area.fit_to(margin, panel)
+	else:
+		area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(area)
+	return {"root": margin, "panel": panel, "body": body, "back": header["back"], "title": header["title"],
+		"scroll": area.scroll, "area": area}
+
+
+static func _memo_header(title_text: String, kicker_text: String) -> Dictionary:
 	var header: HBoxContainer = HBoxContainer.new()
-	column.add_child(header)
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	titles.add_theme_constant_override("separation", 0)
 	header.add_child(titles)
 	var kicker: Label = label(kicker_text.to_upper(), "TWSmall")
 	kicker.add_theme_font_override("font", font("bold"))
-	kicker.add_theme_color_override("font_color", color("gold").darkened(0.35))
+	kicker.add_theme_color_override("font_color", heading_color(color("gold").darkened(0.35)))
 	titles.add_child(kicker)
-	var title: Label = label(title_text, "TWHeading")
+	var title: Label = label(title_text, "TWHeading", true)
 	titles.add_child(title)
 	var back: Button = button(TranslationServer.translate("UI_BACK"))
 	back.name = "Back"
 	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(back)
-	column.add_child(rule(color("ink"), OUTLINE))
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	column.add_child(scroll)
-	var body: VBoxContainer = VBoxContainer.new()
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 18)
-	scroll.add_child(body)
-	return {"root": margin, "panel": panel, "body": body, "back": back, "title": title, "scroll": scroll}
+	return {"row": header, "title": title, "back": back}
+
+
+## true si una pantalla ya construida (built_locale no vacío) quedó en otro idioma y debe rehacerse.
+## La notificación de traducción también llega al entrar en el árbol, antes de _ready().
+static func locale_outdated(node: Node, built_locale: String) -> bool:
+	return node.is_inside_tree() and not built_locale.is_empty() and built_locale != TranslationServer.get_locale()
+
+
+## Da el foco al control en el siguiente fotograma, si sigue en el árbol.
+static func focus_later(control: Control) -> void:
+	var grab: Callable = func() -> void:
+		if is_instance_valid(control) and control.is_inside_tree() and control.is_visible_in_tree():
+			control.grab_focus()
+	grab.call_deferred()
 
 
 ## Línea horizontal plana.
@@ -458,6 +578,23 @@ static func trf(key: String, values: Dictionary) -> String:
 	return TranslationServer.translate(key).format(values)
 
 
+const CHARACTER_PAINTER_SCRIPT := "res://src/entities/character_painter.gd"
+
+
+## Retrato con el pintor de personajes compartido (§14.4) si existe; false si no (usar draw_person).
+static func draw_portrait(canvas: CanvasItem, portrait_seed: int, tier: int, rect: Rect2) -> bool:
+	if not ResourceLoader.exists(CHARACTER_PAINTER_SCRIPT):
+		return false
+	var painter: GDScript = load(CHARACTER_PAINTER_SCRIPT) as GDScript
+	if painter == null or not painter.has_method("draw_portrait") or not painter.has_method("appearance_from_seed"):
+		return false
+	var appearance: Variant = painter.call("appearance_from_seed", portrait_seed, tier, false, "")
+	if not (appearance is Dictionary):
+		return false
+	painter.call("draw_portrait", canvas, appearance, rect)
+	return true
+
+
 ## Silueta sencilla de persona (cabeza + hombros + cuerpo) con contorno, vista 3/4.
 static func draw_person(canvas: CanvasItem, feet: Vector2, height: float, body: Color, head: Color,
 		outline: Color, facing_up: bool = false) -> void:
@@ -482,6 +619,9 @@ static func draw_person(canvas: CanvasItem, feet: Vector2, height: float, body: 
 const AUDIO_DIRECTOR_SCRIPT := "res://src/ui/audio/audio_director.gd"
 const AUDIO_GROUP := "audio_director"
 
+## false = audio_call nunca crea un AudioDirector propio (pruebas: sin renders de música en hilos).
+static var spawn_audio: bool = true
+
 
 ## Llama a un método de AudioDirector si existe (nodo del grupo "audio_director"). Si no hay ninguno
 ## y `create` es true, instancia uno propio hijo de `host`, solo si implementa `method`.
@@ -489,7 +629,7 @@ static func audio_call(host: Node, method: String, args: Array, create: bool = f
 	if host == null or not host.is_inside_tree():
 		return
 	var director: Node = host.get_tree().get_first_node_in_group(AUDIO_GROUP)
-	if director == null and create:
+	if director == null and create and spawn_audio:
 		director = _spawn_audio_director(host, method)
 	if director != null and director.has_method(method):
 		director.callv(method, args)

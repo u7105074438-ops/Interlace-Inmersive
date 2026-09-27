@@ -10,11 +10,24 @@ extends RefCounted
 ## se extruyen hacia arriba (vista cenital 3/4). Orientación (§27): grados horario, 0 = mira al sur.
 ## Clases de bloqueo (BUILD_NOTES §14): TALL capa 2 (bloquea paso y visión), LOW capa 3 (bloquea
 ## paso, obstrucción parcial ×0,4), NONE sin colisión. Tipos desconocidos → caja genérica LOW.
+## Recintos (cubículo, cabina de aseo): solo bloquea su fila del fondo (mesa, inodoro); la fila
+## abierta es transitable y sus mamparas laterales cortan el paso por los costados. Se dibujan en
+## piezas (entry["part"]): "floor" plano bajo los actores, "back" (mampara del fondo + mesa, con
+## origen de orden Y al pie de la fila del fondo) y "sides" (mamparas laterales, origen al pie de
+## la huella), para que quien se sienta dentro se vea (BUILD_NOTES §14: los NPC llegan a su mesa).
 
 const BLOCK_NONE := 0
 const BLOCK_LOW := 1
 const BLOCK_TALL := 2
-const DEFAULT_SIZES: Dictionary = {"cubicle": Vector2i(2, 2)}
+const PART_FULL := ""
+const PART_FLOOR := "floor"
+const PART_BACK := "back"
+const PART_SIDES := "sides"
+const ENCLOSURES: Array[String] = ["cubicle", "toilet_stall"]
+## Silla del cubículo: centro del hueco + x, a y px del borde abierto (px de referencia).
+const CHAIR_OFFSET := Vector2(6, 16)
+const PARTITION_REF := 7.0
+const DEFAULT_SIZES: Dictionary = {"cubicle": Vector2i(2, 2), "toilet_stall": Vector2i(2, 2)}
 ## tipo → [bloqueo, altura de extrusión en px a 48 px/celda, "prop" (ordenado en Y) | "flat"]
 const SPECS: Dictionary = {
 	"armchair": [BLOCK_LOW, 8, "flat"], "bar_counter": [BLOCK_LOW, 14, "prop"],
@@ -24,7 +37,7 @@ const SPECS: Dictionary = {
 	"chair": [BLOCK_NONE, 0, "flat"], "clothes_rack": [BLOCK_LOW, 22, "prop"],
 	"coffee_machine": [BLOCK_LOW, 16, "prop"], "conveyor": [BLOCK_LOW, 8, "prop"],
 	"counter": [BLOCK_LOW, 13, "prop"], "crate": [BLOCK_LOW, 14, "prop"],
-	"cubicle": [BLOCK_LOW, 14, "prop"], "desk": [BLOCK_LOW, 8, "prop"],
+	"cubicle": [BLOCK_LOW, 14, "prop"], "desk": [BLOCK_LOW, 8, "prop"], "curtain": [BLOCK_NONE, 0, "flat"],
 	"dumpster": [BLOCK_LOW, 16, "prop"], "electrical_panel": [BLOCK_TALL, 26, "prop"],
 	"executive_desk": [BLOCK_LOW, 10, "prop"], "filing_cabinet": [BLOCK_TALL, 22, "prop"],
 	"foosball_table": [BLOCK_LOW, 9, "prop"], "fridge": [BLOCK_TALL, 30, "prop"],
@@ -52,9 +65,16 @@ const SPECS: Dictionary = {
 	"wardrobe": [BLOCK_TALL, 30, "prop"], "water_cooler": [BLOCK_LOW, 20, "prop"],
 	"weight_bench": [BLOCK_LOW, 6, "flat"], "whiteboard": [BLOCK_LOW, 24, "prop"],
 	"window_wall": [BLOCK_LOW, 0, "flat"], "workbench": [BLOCK_LOW, 10, "prop"],
+	"barrier": [BLOCK_LOW, 16, "prop"], "wall_clock": [BLOCK_NONE, 0, "flat"],
+	"fire_extinguisher": [BLOCK_NONE, 0, "flat"],
 }
 const UNKNOWN_SPEC: Array = [BLOCK_LOW, 12, "prop"]
+## Silueta normalizada de un piano de cola (teclado arriba, cola curva abajo).
+const PIANO_SHAPE: Array[Vector2] = [Vector2(0, 0), Vector2(1, 0), Vector2(1, 0.28), Vector2(0.92, 0.42),
+		Vector2(0.8, 0.5), Vector2(0.7, 0.6), Vector2(0.66, 0.72), Vector2(0.62, 0.85), Vector2(0.5, 0.96),
+		Vector2(0.3, 1.0), Vector2(0.12, 0.97), Vector2(0.02, 0.88), Vector2(0, 0.75)]
 const REFERENCE_CELL := 48.0
+const CONVEYOR_SPEED := 16.0
 const INSET := 3.0
 const OUTLINE_W := 2.0
 const THIN_W := 1.0
@@ -78,6 +98,9 @@ const C_LEAF_NATURAL: Array[Color] = [Color("#3f7d3a"), Color("#5a9a48"), Color(
 		Color("#79a95a"), Color("#4c8a52")]
 const C_BOOKS: Array[Color] = [Color("#b8433a"), Color("#3a6fb8"), Color("#e0b43a"),
 		Color("#4a9a5a"), Color("#7a4ab8"), Color("#d9d2c0"), Color("#2d2d38")]
+const C_PRODUCTS: Array[Color] = [Color("#e84a3a"), Color("#f2c230"), Color("#3a8fe8"), Color("#4ac06a"),
+		Color("#f28c1c"), Color("#b04ae8"), Color("#f4f1e8")]
+const C_BINDERS: Array[Color] = [Color("#e8e0c8"), Color("#c9b98f"), Color("#7fa0c0"), Color("#d8d2c0")]
 const C_CARS: Array[Color] = [Color("#c23b35"), Color("#2c5fa8"), Color("#e8e6df"),
 		Color("#1f1f24"), Color("#6b7580"), Color("#d8a83a")]
 const C_CLOTHES: Array[Color] = [Color("#c94a4a"), Color("#3a6fb8"), Color("#e8d8b0"),
@@ -86,7 +109,12 @@ const C_CLOTHES: Array[Color] = [Color("#c94a4a"), Color("#3a6fb8"), Color("#e8d
 var pal: Dictionary = {}
 var style: Dictionary = {}
 var scale: float = 1.0
+## Tiempo de animación ambiental (lo fija el nodo que dibuja, p. ej. la cinta transportadora).
+var anim_time: float = 0.0
 var _facing: Vector2 = Vector2.DOWN
+var _entry: Dictionary = {}
+var _part: String = PART_FULL
+var _open_south: bool = true
 var _seed: int = 0
 var _owner: String = ""
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -121,39 +149,82 @@ static func footprint(entry: Dictionary) -> Rect2i:
 	return Rect2i(pos, Vector2i(maxi(1, size.x), maxi(1, size.y)))
 
 
-## Celdas que bloquean el paso (el cubículo solo bloquea su fila de escritorio).
+## Celdas que bloquean el paso (un recinto solo bloquea su fila del fondo).
 static func blocked_cells(entry: Dictionary) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var rect: Rect2i = footprint(entry)
 	var type: String = str(entry["type"])
 	if blocking_of(type) == BLOCK_NONE:
 		return out
+	var enclosure: bool = is_enclosure(type)
 	for y: int in range(rect.position.y, rect.end.y):
 		for x: int in range(rect.position.x, rect.end.x):
-			if type == "cubicle" and y != _cubicle_desk_row(entry, rect):
+			if enclosure and y != back_row(entry):
 				continue
 			out.append(Vector2i(x, y))
 	return out
 
 
-static func _cubicle_desk_row(entry: Dictionary, rect: Rect2i) -> int:
-	var facing: Vector2 = facing_of(float(entry.get("rotation", 0.0)))
-	return rect.end.y - 1 if facing.y < -0.5 else rect.position.y
+static func is_enclosure(type: String) -> bool:
+	return ENCLOSURES.has(type)
 
 
-## Celda de asiento de un puesto (cubículo o mesa con dueño) en celdas locales.
+## Recinto abierto al sur (rotación 0; los laterales 90/270 se tratan como 0) o al norte (180).
+static func opens_south(entry: Dictionary) -> bool:
+	return facing_of(float(entry.get("rotation", 0.0))).y > -0.5
+
+
+## Fila (celdas locales de sala) del fondo de un recinto: mesa del cubículo, inodoro de la cabina.
+static func back_row(entry: Dictionary) -> int:
+	var rect: Rect2i = footprint(entry)
+	return rect.position.y if opens_south(entry) else rect.end.y - 1
+
+
+## Fila abierta (la del asiento) de un recinto: la contigua a la fila del fondo.
+static func open_row(entry: Dictionary) -> int:
+	return back_row(entry) + (1 if opens_south(entry) else -1)
+
+
+## Celdas justo fuera del lado abierto de un recinto (por donde se entra).
+static func front_cells(entry: Dictionary) -> Array[Vector2i]:
+	var rect: Rect2i = footprint(entry)
+	var y: int = rect.end.y if opens_south(entry) else rect.position.y - 1
+	var out: Array[Vector2i] = []
+	for x: int in range(rect.position.x, rect.end.x):
+		out.append(Vector2i(x, y))
+	return out
+
+
+## Punto de la silla de un cubículo en px, dada su huella en px (lo usan el dibujo y los asientos).
+static func chair_point(entry: Dictionary, r: Rect2) -> Vector2:
+	var k: float = r.size.x / (REFERENCE_CELL * float(footprint(entry).size.x))
+	var x: float = r.get_center().x + CHAIR_OFFSET.x * k
+	return Vector2(x, r.end.y - CHAIR_OFFSET.y * k) if opens_south(entry) \
+			else Vector2(x, r.position.y + CHAIR_OFFSET.y * k)
+
+
+## Celda de asiento por defecto (sin silla ni sala): la fila abierta del recinto o detrás de la mesa.
 static func seat_cell(entry: Dictionary) -> Vector2i:
 	var rect: Rect2i = footprint(entry)
 	var facing: Vector2 = facing_of(float(entry.get("rotation", 0.0)))
-	if str(entry["type"]) == "cubicle":
-		var desk_row: int = _cubicle_desk_row(entry, rect)
-		return Vector2i(rect.position.x, rect.end.y - 1 if desk_row == rect.position.y else rect.position.y)
+	if is_enclosure(str(entry["type"])):
+		return Vector2i(rect.position.x + rect.size.x / 2 if rect.size.x > 1 else rect.position.x, open_row(entry))
 	var behind: Vector2i = Vector2i(roundi(-facing.x), roundi(-facing.y))
 	if behind.y < 0:
 		return Vector2i(rect.position.x + rect.size.x / 2, rect.position.y - 1)
 	if behind.y > 0:
 		return Vector2i(rect.position.x + rect.size.x / 2, rect.end.y)
 	return Vector2i(rect.position.x - 1 if behind.x < 0 else rect.end.x, rect.position.y)
+
+
+## Piezas de orden Y de un mueble "prop": [{part, origin_rows}] con el origen (filas desde el borde
+## superior de la huella) donde se ordena con los actores. Los recintos se parten en fondo y laterales.
+static func prop_parts(entry: Dictionary) -> Array[Dictionary]:
+	var rect: Rect2i = footprint(entry)
+	if not is_enclosure(str(entry["type"])):
+		return [{"part": PART_FULL, "origin_rows": float(rect.size.y)}]
+	var back_end: float = float(back_row(entry) - rect.position.y + 1)
+	return [{"part": PART_BACK, "origin_rows": back_end}, {"part": PART_SIDES, "origin_rows": float(rect.size.y)}]
 
 
 static func facing_of(rotation_deg: float) -> Vector2:
@@ -170,6 +241,9 @@ func height_of(type: String) -> float:
 
 func draw_item(ci: CanvasItem, entry: Dictionary, r: Rect2) -> void:
 	var type: String = str(entry["type"])
+	_entry = entry
+	_part = str(entry.get("part", PART_FULL))
+	_open_south = opens_south(entry)
 	_facing = facing_of(float(entry.get("rotation", 0.0)))
 	_owner = str(entry.get("owner", ""))
 	_seed = hash(str(style.get("room_id", ""))) ^ hash(entry.get("pos", Vector2i.ZERO)) ^ hash(type)
@@ -299,35 +373,66 @@ func _mug(ci: CanvasItem, p: Vector2) -> void:
 
 # ─── Oficina ──────────────────────────────────────────────────
 
+## Cubículo en tres piezas (ver cabecera): suelo + ala lateral + silla, fondo (mampara + mesa) y
+## laterales. Abierto al sur: mesa arriba, silla abajo mirando al norte; al norte, en espejo.
 func _draw_cubicle(ci: CanvasItem, r: Rect2) -> void:
-	var t: float = _px(6)
-	var h: float = height_of("cubicle")
-	var fabric: Color = _fabric()
-	var rail: Color = _c("furniture").lightened(0.1)
-	var inner: Rect2 = Rect2(r.position.x + t, r.position.y + t, r.size.x - t * 2, r.size.y - t)
-	ci.draw_rect(Rect2(inner.position, inner.size), _c("carpet").darkened(0.06))
-	var desk: Rect2 = Rect2(inner.position.x, inner.position.y, inner.size.x, inner.size.y * 0.42)
-	_box(ci, desk, _px(6), _c("furniture"))
-	ci.draw_rect(Rect2(inner.position.x, desk.end.y - _px(6), inner.size.x * 0.28, inner.size.y * 0.25),
-			_c("furniture").darkened(0.05))
+	var t: float = _px(PARTITION_REF)
+	var south: bool = _open_south
+	var inner: Rect2 = Rect2(r.position.x + t, r.position.y + (t if south else 0.0), r.size.x - t * 2.0, r.size.y - t)
+	var desk: Rect2 = Rect2(inner.position.x, inner.position.y if south else inner.end.y - inner.size.y * 0.4,
+			inner.size.x, inner.size.y * 0.4)
 	var vacant: bool = _owner == "vacant"
-	_monitor(ci, Vector2(desk.get_center().x, desk.position.y + _px(4)), _px(22), true)
-	ci.draw_rect(Rect2(desk.get_center().x - _px(9), desk.end.y - _px(12), _px(18), _px(4)), C_PAPER.darkened(0.1))
-	if not vacant:
-		_papers(ci, Rect2(desk.position.x + _px(4), desk.position.y + _px(2), _px(16), _px(10)), 2)
-		_mug(ci, Vector2(desk.end.x - _px(9), desk.position.y + _px(8)))
-	_office_chair(ci, Vector2(inner.get_center().x + _px(4), inner.end.y - _px(14)), Vector2.UP, vacant)
-	for wall: Rect2 in [Rect2(r.position.x, r.position.y, r.size.x, t),
-			Rect2(r.position.x, r.position.y, t, r.size.y), Rect2(r.end.x - t, r.position.y, t, r.size.y)]:
-		_box(ci, wall, h, fabric, fabric.darkened(0.3))
-		ci.draw_line(Vector2(wall.position.x, wall.position.y - h), Vector2(wall.end.x, wall.position.y - h),
-				rail, _px(2))
+	if _part == PART_FLOOR or _part == PART_FULL:
+		ci.draw_rect(inner, _c("carpet").lightened(0.04))
+		var side_y: float = desk.end.y - _px(4) if south else desk.position.y - inner.size.y * 0.34 + _px(4)
+		_box(ci, Rect2(inner.position.x, side_y, inner.size.x * 0.26, inner.size.y * 0.34), _px(5), _c("furniture").darkened(0.04))
+		_office_chair(ci, chair_point(_entry, r), Vector2.UP if south else Vector2.DOWN, vacant)
+	if _part == PART_BACK or _part == PART_FULL:
+		var back: Rect2 = Rect2(r.position.x, r.position.y if south else r.end.y - t, r.size.x, t)
+		if south:
+			_partition(ci, back)
+		var top: Rect2 = _box(ci, desk, _px(5), _c("furniture"))
+		_cubicle_desk_items(ci, top, vacant, south)
+		if not south:
+			_partition(ci, back, 0.6)
+	if _part == PART_SIDES or _part == PART_FULL:
+		_partition(ci, Rect2(r.position.x, r.position.y, t, r.size.y))
+		_partition(ci, Rect2(r.end.x - t, r.position.y, t, r.size.y))
+
+
+## Mampara tapizada con remate claro (altura del cubículo × `ratio`).
+func _partition(ci: CanvasItem, wall: Rect2, ratio: float = 1.0) -> void:
+	var fabric: Color = _fabric()
+	var rail: Color = _c("furniture").lightened(0.18)
+	var wall_top: Rect2 = _box(ci, wall, height_of("cubicle") * ratio, fabric, fabric.darkened(0.25))
+	ci.draw_rect(Rect2(wall_top.position, Vector2(wall_top.size.x, _px(2.5))), rail)
+	ci.draw_rect(Rect2(wall_top.position, Vector2(_px(2.5), wall_top.size.y)), rail)
+
+
+## Monitor al fondo de la mesa (de frente si el puesto abre al sur) y teclado del lado del asiento.
+func _cubicle_desk_items(ci: CanvasItem, top: Rect2, vacant: bool, screen_visible: bool) -> void:
+	var mon_y: float = top.position.y + _px(15) if screen_visible else top.end.y - _px(2)
+	var key_y: float = top.end.y - _px(11) if screen_visible else top.position.y + _px(4)
+	var mon_c: Vector2 = Vector2(top.get_center().x + _px(6), mon_y)
+	ci.draw_rect(Rect2(mon_c.x - _px(11), key_y, _px(22), _px(6)), Color("#e7e4dc"))
+	ci.draw_rect(Rect2(mon_c.x - _px(11), key_y, _px(22), _px(6)), _ol(), false, _px(1))
+	ci.draw_circle(Vector2(mon_c.x + _px(16), key_y + _px(3)), _px(2.5), Color("#e7e4dc"))
+	_monitor(ci, mon_c, _px(26), screen_visible)
+	if vacant:
+		ci.draw_rect(Rect2(top.position.x + _px(4), top.position.y + _px(4), _px(12), _px(9)), C_CARDBOARD)
+		return
+	_papers(ci, Rect2(top.position.x + _px(3), top.position.y + _px(3), _px(18), _px(14)), 2)
+	_mug(ci, Vector2(top.end.x - _px(7), top.position.y + _px(10)))
+	if _rng.randf() < 0.5:
+		_rect(ci, Rect2(top.position.x + _px(4), top.end.y - _px(12), _px(7), _px(8)), _pick(C_BOOKS))
+	if _rng.randf() < 0.35:
+		ci.draw_circle(Vector2(top.end.x - _px(6), top.end.y - _px(8)), _px(3.5), _pick(C_LEAF_PLASTIC))
 
 
 func _office_chair(ci: CanvasItem, c: Vector2, facing: Vector2, pushed: bool) -> void:
 	var col: Color = Color("#3b3f45") if str(style.get("band", "")) != "the_throne" else _leather()
 	var off: Vector2 = facing * _px(4) if pushed else Vector2.ZERO
-	var seat: Rect2 = Rect2(c + off - Vector2(_px(9), _px(9)), Vector2(_px(18), _px(18)))
+	var seat: Rect2 = Rect2(c + off - Vector2(_px(10), _px(10)), Vector2(_px(20), _px(20)))
 	_shadow(ci, seat)
 	_poly(ci, _rounded(seat, _px(5)), col)
 	var back_c: Vector2 = c + off - facing * _px(10)
@@ -555,28 +660,49 @@ func _draw_shelf_rack(ci: CanvasItem, r: Rect2) -> void:
 	var h: float = height_of("shelf_rack")
 	var metal: Color = C_METAL.lerp(_c("wall"), 0.25)
 	var top: Rect2 = _box(ci, d, h, metal.darkened(0.1), metal.darkened(0.45))
-	var archive: bool = str(style.get("kit", "")) == "archive" or str(style.get("band", "")) != "the_guts"
-	_items_on_top(ci, top, archive)
+	var goods: Array[Color] = _goods_palette()
+	_goods_grid(ci, top.grow(-_px(2)), goods)
+	if r.size.x < r.size.y:
+		return
 	var front: Rect2 = _inset(_front(d, h), 1.5)
 	for row: int in 2:
 		var y: float = front.position.y + front.size.y * (row + 1) / 2.0
 		var x: float = front.position.x + _px(1)
 		while x < front.end.x - _px(6):
 			var bw: float = _rng.randf_range(_px(6), _px(11))
-			var col: Color = C_CARDBOARD if not archive else _pick([Color("#e8e0c8"), Color("#c9b98f"), Color("#7fa0c0")])
-			ci.draw_rect(Rect2(x, y - front.size.y * 0.42, minf(bw, front.end.x - x), front.size.y * 0.4), col)
+			ci.draw_rect(Rect2(x, y - front.size.y * 0.42, minf(bw, front.end.x - x), front.size.y * 0.4), _pick(goods))
 			x += bw + _px(1.5)
 		ci.draw_line(Vector2(front.position.x, y), Vector2(front.end.x, y), C_STEEL_DARK, _px(1.5))
 
 
-func _items_on_top(ci: CanvasItem, top: Rect2, archive: bool) -> void:
-	var x: float = top.position.x + _px(3)
-	while x < top.end.x - _px(10):
-		var w: float = _rng.randf_range(_px(7), _px(13))
-		var box: Rect2 = Rect2(x, top.position.y + _px(3), minf(w, top.end.x - x - _px(2)), top.size.y - _px(6))
-		ci.draw_rect(box, C_CARDBOARD if not archive else Color("#e2d6b8"))
-		ci.draw_rect(box, _ol().lerp(C_CARDBOARD, 0.5), false, _px(1))
-		x += w + _px(2)
+## Mercancía según el uso de la sala: productos de colores (tiendas), archivadores o cajas.
+func _goods_palette() -> Array[Color]:
+	var room_id: String = str(style.get("room_id", ""))
+	var band: String = str(style.get("band", ""))
+	if band == "exterior" or room_id.begins_with("flagship") or room_id.contains("shop"):
+		return C_PRODUCTS
+	if str(style.get("kit", "")) == "archive" or not band in ["the_guts", "factory"]:
+		return C_BINDERS
+	return [C_CARDBOARD, C_CARDBOARD.darkened(0.12), C_CARDBOARD.lightened(0.1)]
+
+
+## Rejilla de artículos sobre la balda, a lo largo de su eje mayor (1 o 2 filas).
+func _goods_grid(ci: CanvasItem, top: Rect2, goods: Array[Color]) -> void:
+	var long_x: bool = top.size.x >= top.size.y
+	var length: float = top.size.x if long_x else top.size.y
+	var depth: float = top.size.y if long_x else top.size.x
+	var lanes: int = 2 if depth > _px(30) else 1
+	var step: float = _px(9)
+	for lane: int in lanes:
+		var t: float = 0.0
+		while t < length - step * 0.5:
+			var along: float = minf(step - _px(1.5), length - t)
+			var across: float = depth / lanes - _px(2)
+			var p: Vector2 = Vector2(t, lane * depth / lanes) if long_x else Vector2(lane * depth / lanes, t)
+			var size: Vector2 = Vector2(along, across) if long_x else Vector2(across, along)
+			ci.draw_rect(Rect2(top.position + p, size), _pick(goods))
+			t += step
+	ci.draw_rect(top, _ol().lerp(C_METAL, 0.5), false, _px(1))
 
 
 func _draw_wardrobe(ci: CanvasItem, r: Rect2) -> void:
@@ -803,16 +929,21 @@ func _draw_toilet_stall(ci: CanvasItem, r: Rect2) -> void:
 	var h: float = height_of("toilet_stall")
 	var t: float = _px(4)
 	var col: Color = _c("accent").lerp(Color("#d8d4c8"), 0.55)
-	ci.draw_rect(r, _c("floor").lightened(0.05))
-	var bowl_c: Vector2 = Vector2(r.get_center().x, r.position.y + _px(18))
-	_rect(ci, Rect2(bowl_c.x - _px(9), r.position.y + _px(4), _px(18), _px(7)), C_CERAMIC)
-	_poly(ci, _rounded(Rect2(bowl_c.x - _px(8), bowl_c.y - _px(6), _px(16), _px(20)), _px(8)), C_CERAMIC)
-	ci.draw_circle(bowl_c + Vector2(0, _px(4)), _px(4), C_WATER.lightened(0.3))
-	for wall: Rect2 in [Rect2(r.position.x, r.position.y, t, r.size.y), Rect2(r.end.x - t, r.position.y, t, r.size.y)]:
-		_box(ci, wall, h, col, col.darkened(0.25))
-	var door: Rect2 = Rect2(r.position.x + t, r.end.y - t, r.size.x * 0.62, t)
-	_box(ci, door, h * 0.92, col.darkened(0.08), col.darkened(0.2))
-	ci.draw_circle(Vector2(door.end.x - _px(5), door.position.y - h * 0.45), _px(1.6), C_RED_LED)
+	var south: bool = _open_south
+	if _part == PART_FLOOR or _part == PART_FULL:
+		ci.draw_rect(r, _c("floor").lightened(0.05))
+	if _part == PART_BACK or _part == PART_FULL:
+		var tank_y: float = r.position.y + _px(4) if south else r.end.y - _px(11)
+		var bowl_c: Vector2 = Vector2(r.get_center().x, r.position.y + _px(18) if south else r.end.y - _px(22))
+		_rect(ci, Rect2(bowl_c.x - _px(9), tank_y, _px(18), _px(7)), C_CERAMIC)
+		_poly(ci, _rounded(Rect2(bowl_c.x - _px(8), bowl_c.y - _px(6), _px(16), _px(20)), _px(8)), C_CERAMIC)
+		ci.draw_circle(bowl_c + Vector2(0, _px(4)), _px(4), C_WATER.lightened(0.3))
+	if _part == PART_SIDES or _part == PART_FULL:
+		for wall: Rect2 in [Rect2(r.position.x, r.position.y, t, r.size.y), Rect2(r.end.x - t, r.position.y, t, r.size.y)]:
+			_box(ci, wall, h, col, col.darkened(0.25))
+		var door: Rect2 = Rect2(r.position.x + t, r.end.y - t if south else r.position.y, r.size.x * 0.62, t)
+		_box(ci, door, h * 0.92, col.darkened(0.08), col.darkened(0.2))
+		ci.draw_circle(Vector2(door.end.x - _px(5), door.position.y - h * 0.45), _px(1.6), C_RED_LED)
 
 
 func _draw_sink(ci: CanvasItem, r: Rect2) -> void:
@@ -1012,9 +1143,12 @@ func _draw_conveyor(ci: CanvasItem, r: Rect2) -> void:
 		else:
 			ci.draw_line(Vector2(top.position.x + t, top.position.y + _px(2)), Vector2(top.position.x + t, top.end.y - _px(2)),
 					Color("#3c3f44"), _px(1))
+	var shift: float = fmod(anim_time * _px(CONVEYOR_SPEED), _px(40))
 	for i: int in int(length / _px(40)):
-		var p: Vector2 = top.position + (Vector2(top.size.x * 0.5, _px(20) + i * _px(40)) if vertical
-				else Vector2(_px(20) + i * _px(40), top.size.y * 0.5))
+		var t: float = _px(20) + i * _px(40) + shift
+		if t > length - _px(10):
+			continue
+		var p: Vector2 = top.position + (Vector2(top.size.x * 0.5, t) if vertical else Vector2(t, top.size.y * 0.5))
 		_rect(ci, Rect2(p - Vector2(_px(8), _px(6)), Vector2(_px(16), _px(12))), C_CARDBOARD)
 	ci.draw_rect(top, C_HAZARD, false, _px(2))
 
@@ -1067,14 +1201,50 @@ func _draw_street_lamp(ci: CanvasItem, r: Rect2) -> void:
 	ci.draw_circle(head + Vector2(0, _px(2)), _px(4), Color("#ffe6a0"))
 
 
+## Pedestal del torno (a la izquierda de su calle): acero pulido, lector y flecha verde. La aleta de
+## cristal que abre y cierra la calle la dibuja la compuerta (Door de tipo "turnstile").
 func _draw_turnstile(ci: CanvasItem, r: Rect2) -> void:
-	var d: Rect2 = Rect2(r.position.x + _px(4), r.get_center().y - _px(6), _px(12), _px(12))
-	_box(ci, d, height_of("turnstile"), C_METAL.lightened(0.1), C_METAL.darkened(0.3))
-	var hub: Vector2 = Vector2(d.end.x, d.get_center().y - height_of("turnstile") * 0.6)
-	for k: int in 3:
-		var ang: float = -0.3 + k * TAU / 3.0
-		ci.draw_line(hub, hub + Vector2(cos(ang), sin(ang) * 0.6) * _px(18), C_STEEL_DARK, _px(3))
-	ci.draw_circle(Vector2(d.get_center().x, d.position.y - height_of("turnstile") + _px(4)), _px(2.2), C_GREEN_LED)
+	var h: float = height_of("turnstile")
+	var d: Rect2 = Rect2(r.position.x + _px(2), r.position.y + _px(6), _px(12), r.size.y - _px(10))
+	var top: Rect2 = _box(ci, d, h, C_METAL.lightened(0.15), C_METAL.darkened(0.3))
+	ci.draw_rect(Rect2(top.position.x + _px(2), top.position.y + _px(4), top.size.x - _px(4), _px(9)), C_SCREEN_DARK)
+	ci.draw_rect(Rect2(top.position.x + _px(3.5), top.position.y + _px(5.5), top.size.x - _px(7), _px(6)), C_SCREEN)
+	var arrow: Vector2 = Vector2(top.get_center().x, top.end.y - _px(9))
+	ci.draw_colored_polygon(PackedVector2Array([arrow + Vector2(-_px(4), -_px(3)), arrow + Vector2(_px(4), -_px(3)),
+			arrow + Vector2(0, _px(3))]), C_GREEN_LED)
+
+
+## Barandilla de cristal (cierra la fila de tornos): postes de acero y panel translúcido.
+func _draw_barrier(ci: CanvasItem, r: Rect2) -> void:
+	var h: float = height_of("barrier")
+	var d: Rect2 = Rect2(r.position.x, r.get_center().y - _px(3), r.size.x, _px(6))
+	_shadow(ci, d)
+	var glass: Rect2 = Rect2(d.position.x, d.position.y - h, d.size.x, h + d.size.y)
+	ci.draw_rect(glass, Color(C_SCREEN.r, C_SCREEN.g, C_SCREEN.b, 0.45))
+	ci.draw_line(glass.position + Vector2(_px(5), glass.size.y - _px(3)), glass.position + Vector2(_px(14), _px(3)),
+			Color(1, 1, 1, 0.6), _px(2))
+	ci.draw_rect(glass, _ol(), false, _px(1.5))
+	ci.draw_line(glass.position, Vector2(glass.end.x, glass.position.y), C_METAL.lightened(0.2), _px(3))
+	for x: float in [d.position.x + _px(2), d.end.x - _px(2)]:
+		ci.draw_line(Vector2(x, d.end.y), Vector2(x, glass.position.y), C_STEEL_DARK, _px(3))
+
+
+## Reloj de pared (colgado en la cara norte): esfera, agujas y marco.
+func _draw_wall_clock(ci: CanvasItem, r: Rect2) -> void:
+	var c: Vector2 = Vector2(r.get_center().x, r.position.y - _px(4))
+	_circle(ci, c, _px(8), C_PAPER)
+	ci.draw_line(c, c + Vector2(0, -_px(5.5)), Color("#1b1b1b"), _px(1.5))
+	ci.draw_line(c, c + Vector2(_px(4), _px(1.5)), Color("#1b1b1b"), _px(1.5))
+	ci.draw_circle(c, _px(1.4), C_RED_LED)
+
+
+## Extintor colgado (cara norte): cuerpo rojo, válvula negra y soporte.
+func _draw_fire_extinguisher(ci: CanvasItem, r: Rect2) -> void:
+	var ext: Rect2 = Rect2(r.get_center().x - _px(5), r.position.y - _px(16), _px(10), _px(20))
+	_poly(ci, _rounded(ext, _px(4)), Color("#d33a2c"))
+	ci.draw_rect(Rect2(ext.position.x + _px(2), ext.position.y - _px(3), ext.size.x - _px(4), _px(4)), Color("#1b1b1b"))
+	ci.draw_line(ext.position + Vector2(_px(2), _px(5)), ext.position + Vector2(_px(2), ext.size.y - _px(4)),
+			Color(1, 1, 1, 0.45), _px(1.5))
 
 
 func _draw_statue(ci: CanvasItem, r: Rect2) -> void:
@@ -1138,20 +1308,34 @@ func _draw_clothes_rack(ci: CanvasItem, r: Rect2) -> void:
 	ci.draw_line(Vector2(d.position.x, rail_y), Vector2(d.end.x, rail_y), C_METAL, _px(2.5))
 
 
+## Piano de cola visto desde arriba: caja curva lacada, tapa abierta con su vara, teclado blanco
+## y negro del lado del pianista (norte) y banqueta.
 func _draw_piano(ci: CanvasItem, r: Rect2) -> void:
 	var d: Rect2 = _inset(r, 3.0)
 	var h: float = height_of("piano")
-	var pts: PackedVector2Array = [Vector2(d.position.x, d.position.y - h), Vector2(d.end.x, d.position.y - h),
-			Vector2(d.end.x, d.get_center().y - h), Vector2(d.get_center().x, d.end.y - h),
-			Vector2(d.position.x, d.end.y - h)]
+	var body: PackedVector2Array = _piano_outline(Rect2(d.position.x, d.position.y + _px(8) - h, d.size.x, d.size.y - _px(8)))
 	_shadow(ci, d)
-	_poly(ci, pts, Color("#141416"))
-	ci.draw_rect(Rect2(d.position.x + _px(2), d.position.y - h + _px(2), d.size.x - _px(4), _px(6)), Color("#f7f7f2"))
-	for i: int in int(d.size.x / _px(5)):
-		ci.draw_line(Vector2(d.position.x + _px(4) + i * _px(5), d.position.y - h + _px(2)),
-				Vector2(d.position.x + _px(4) + i * _px(5), d.position.y - h + _px(6)), Color("#141416"), _px(1))
-	ci.draw_line(Vector2(d.position.x + _px(8), d.position.y - h + _px(12)), Vector2(d.end.x - _px(10), d.get_center().y - h),
-			C_GOLD, _px(1))
+	_poly(ci, body, Color("#18181b"))
+	var lid: PackedVector2Array = _piano_outline(Rect2(d.position.x + _px(5), d.position.y + _px(14) - h,
+			d.size.x - _px(10), d.size.y - _px(22)))
+	_poly(ci, lid, Color("#2c2c31"))
+	ci.draw_line(lid[0] + Vector2(_px(4), _px(4)), lid[lid.size() / 2], Color(1, 1, 1, 0.22), _px(2))
+	ci.draw_line(Vector2(d.get_center().x, d.position.y + _px(14) - h), Vector2(d.get_center().x + _px(10),
+			d.get_center().y - h), C_GOLD, _px(1.5))
+	var keys: Rect2 = Rect2(d.position.x + _px(3), d.position.y + _px(2) - h, d.size.x - _px(6), _px(7))
+	_rect(ci, keys, Color("#f7f7f2"))
+	for i: int in int(keys.size.x / _px(6)):
+		if i % 7 != 2 and i % 7 != 6:
+			ci.draw_rect(Rect2(keys.position.x + _px(4) + i * _px(6), keys.position.y, _px(2.5), _px(4)), Color("#141416"))
+	_rect(ci, Rect2(d.get_center().x - _px(12), d.position.y - _px(9), _px(24), _px(8)), Color("#2a1c16"))
+
+
+## Contorno de la caja de un piano de cola dentro de `r` (recto al teclado, curvo al fondo).
+func _piano_outline(r: Rect2) -> PackedVector2Array:
+	var pts: PackedVector2Array = []
+	for p: Vector2 in PIANO_SHAPE:
+		pts.append(r.position + p * r.size)
+	return pts
 
 
 func _draw_mixing_desk(ci: CanvasItem, r: Rect2) -> void:
@@ -1242,6 +1426,19 @@ func _draw_window_wall(ci: CanvasItem, r: Rect2) -> void:
 		var t: float = i * (r.size.x if horizontal else r.size.y) / panes
 		var a: Vector2 = glass.position + (Vector2(t, 0) if horizontal else Vector2(0, t))
 		ci.draw_line(a, a + (Vector2(0, glass.size.y) if horizontal else Vector2(glass.size.x, 0)), _c("accent"), _px(2))
+
+
+## Cortinas: pliegues verticales colgados del muro más cercano (escondite).
+func _draw_curtain(ci: CanvasItem, r: Rect2) -> void:
+	var col: Color = Color("#8f1e24") if str(style.get("band", "")) in ["the_throne", "the_power"] else Color("#5a6f8a")
+	var folds: int = 4
+	var d: Rect2 = Rect2(r.position.x + _px(4), r.position.y - _px(10), r.size.x - _px(8), r.size.y + _px(6))
+	_shadow(ci, d)
+	for i: int in folds:
+		var f: Rect2 = Rect2(d.position.x + i * d.size.x / folds, d.position.y, d.size.x / folds, d.size.y)
+		ci.draw_rect(f, col if i % 2 == 0 else col.darkened(0.2))
+	ci.draw_rect(d, _ol(), false, _px(OUTLINE_W))
+	ci.draw_line(d.position, Vector2(d.end.x, d.position.y), C_GOLD, _px(3))
 
 
 func _draw_generic(ci: CanvasItem, r: Rect2) -> void:

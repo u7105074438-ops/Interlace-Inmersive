@@ -8,6 +8,8 @@ extends RefCounted
 ## márgenes de UI), no parámetros de juego. Las usan CharacterPainter, CharacterRig,
 ## CharacterProps y CharacterPortrait.
 
+## Color "ninguno" (Color() por defecto es negro opaco).
+const NONE := Color(0, 0, 0, 0)
 const OUTLINE := Color("#1d1a22")
 const OUTLINE_WIDTH := 1.6
 const SHADOW := Color(0.05, 0.04, 0.08, 0.28)
@@ -62,22 +64,22 @@ const HEAD_AGES := 4
 ## y balanceo de brazos; leg = altura de cadera.
 const TIER_SHAPES: Array[Dictionary] = [
 	{},
-	{"shoulder": 12.5, "hip": 13.5, "torso": 20.0, "hunch": 5.0, "loose": 0.2, "pad": 0.0,
-		"stride": 0.7, "swing": 0.55, "leg": 14.5, "head": 11.8},
-	{"shoulder": 13.0, "hip": 13.0, "torso": 20.5, "hunch": 3.8, "loose": 0.15, "pad": 0.0,
-		"stride": 0.78, "swing": 0.7, "leg": 15.0, "head": 11.6},
-	{"shoulder": 14.0, "hip": 11.0, "torso": 22.0, "hunch": 0.6, "loose": 0.0, "pad": 0.0,
-		"stride": 1.0, "swing": 1.0, "leg": 16.0, "head": 11.4},
-	{"shoulder": 16.2, "hip": 11.6, "torso": 22.5, "hunch": 0.0, "loose": 0.0, "pad": 0.45,
-		"stride": 1.0, "swing": 0.8, "leg": 16.5, "head": 11.4},
-	{"shoulder": 17.8, "hip": 12.0, "torso": 23.0, "hunch": -0.6, "loose": 0.0, "pad": 1.0,
-		"stride": 1.3, "swing": 1.05, "leg": 17.0, "head": 11.4},
-	{"shoulder": 18.8, "hip": 12.6, "torso": 23.5, "hunch": -0.8, "loose": 0.0, "pad": 1.0,
-		"stride": 1.35, "swing": 1.05, "leg": 17.0, "head": 11.5},
-	{"shoulder": 20.5, "hip": 16.0, "torso": 24.5, "hunch": -1.2, "loose": 0.06, "pad": 0.8,
-		"stride": 0.95, "swing": 0.35, "leg": 17.0, "head": 11.8},
-	{"shoulder": 22.0, "hip": 17.5, "torso": 25.5, "hunch": -1.4, "loose": 0.08, "pad": 0.8,
-		"stride": 0.9, "swing": 0.25, "leg": 17.0, "head": 12.0},
+	{"shoulder": 13.0, "hip": 13.8, "torso": 21.0, "hunch": 4.2, "loose": 0.2, "pad": 0.0,
+		"stride": 0.75, "swing": 0.6, "leg": 16.0, "head": 10.6},
+	{"shoulder": 13.4, "hip": 13.2, "torso": 21.5, "hunch": 3.2, "loose": 0.15, "pad": 0.0,
+		"stride": 0.82, "swing": 0.72, "leg": 16.5, "head": 10.6},
+	{"shoulder": 14.2, "hip": 11.4, "torso": 22.5, "hunch": 0.5, "loose": 0.0, "pad": 0.0,
+		"stride": 1.0, "swing": 1.0, "leg": 17.0, "head": 10.6},
+	{"shoulder": 16.2, "hip": 11.8, "torso": 23.0, "hunch": 0.0, "loose": 0.0, "pad": 0.45,
+		"stride": 1.0, "swing": 0.85, "leg": 17.2, "head": 10.8},
+	{"shoulder": 17.8, "hip": 12.2, "torso": 23.5, "hunch": -0.6, "loose": 0.0, "pad": 1.0,
+		"stride": 1.3, "swing": 1.05, "leg": 17.5, "head": 10.9},
+	{"shoulder": 18.8, "hip": 12.8, "torso": 24.0, "hunch": -0.8, "loose": 0.0, "pad": 1.0,
+		"stride": 1.35, "swing": 1.05, "leg": 17.5, "head": 11.0},
+	{"shoulder": 20.5, "hip": 16.0, "torso": 25.0, "hunch": -1.2, "loose": 0.06, "pad": 0.8,
+		"stride": 0.95, "swing": 0.35, "leg": 17.5, "head": 11.2},
+	{"shoulder": 22.0, "hip": 17.5, "torso": 26.0, "hunch": -1.4, "loose": 0.08, "pad": 0.8,
+		"stride": 0.9, "swing": 0.25, "leg": 17.5, "head": 11.4},
 ]
 ## Vestuario por escalón (§14.4 capa "vestuario por rango").
 const TIER_OUTFITS: Array[String] = [
@@ -95,38 +97,42 @@ const PALETTES: Array[Dictionary] = [
 		"coat": Color("#b88f5a")},
 	{"casual": Color("#3f8390"), "shirt": Color("#dbe8f3"), "tie": Color("#213f78"),
 		"blazer": Color("#46607f"), "suit": Color("#1f2b46"), "trousers": Color("#2a3244"),
-		"coat": Color("#1d1d22")},
+		"coat": Color("#4a4e58")},
 	{"casual": Color("#9a3f3f"), "shirt": Color("#f3eee4"), "tie": Color("#2f6040"),
 		"blazer": Color("#7b6a58"), "suit": Color("#39393e"), "trousers": Color("#303036"),
 		"coat": Color("#c49a62")},
 	{"casual": Color("#5c6e94"), "shirt": Color("#e5edf7"), "tie": Color("#a07c1c"),
 		"blazer": Color("#58647a"), "suit": Color("#4a5059"), "trousers": Color("#3b4048"),
-		"coat": Color("#2a2a30")},
+		"coat": Color("#5c4a3c")},
 	{"casual": Color("#6b8f40"), "shirt": Color("#f5f4ee"), "tie": Color("#62307a"),
 		"blazer": Color("#8a8070"), "suit": Color("#2f2a28"), "trousers": Color("#2b2624"),
 		"coat": Color("#a88455")},
 	{"casual": Color("#a0689f"), "shirt": Color("#e8f0e6"), "tie": Color("#b8432f"),
 		"blazer": Color("#55555c"), "suit": Color("#1c1d23"), "trousers": Color("#1f2026"),
-		"coat": Color("#23232a")},
+		"coat": Color("#3f4a5e")},
 	{"casual": Color("#cf7a4c"), "shirt": Color("#f2e6ee"), "tie": Color("#22436a"),
 		"blazer": Color("#8c6b4f"), "suit": Color("#56473a"), "trousers": Color("#40362d"),
 		"coat": Color("#c9a26c")},
 	{"casual": Color("#56616c"), "shirt": Color("#fbfbfb"), "tie": Color("#a83c6e"),
 		"blazer": Color("#3f4f5e"), "suit": Color("#263a48"), "trousers": Color("#27313b"),
-		"coat": Color("#1f1f24")},
+		"coat": Color("#6b5a48")},
 	{"casual": Color("#b3a843"), "shirt": Color("#e3eef4"), "tie": Color("#3a3a3f"),
 		"blazer": Color("#6b7788"), "suit": Color("#3e4b5e"), "trousers": Color("#333d4c"),
 		"coat": Color("#b28a58")},
 	{"casual": Color("#2f4c78"), "shirt": Color("#f7f1e6"), "tie": Color("#bf8e2c"),
 		"blazer": Color("#5e4f66"), "suit": Color("#2b2331"), "trousers": Color("#2a2430"),
-		"coat": Color("#1c1b20")},
+		"coat": Color("#54585f")},
 	{"casual": Color("#a84b41"), "shirt": Color("#ecf2fb"), "tie": Color("#3a5c37"),
 		"blazer": Color("#606770"), "suit": Color("#46494f"), "trousers": Color("#3a3d42"),
 		"coat": Color("#c0955f")},
 	{"casual": Color("#70847a"), "shirt": Color("#fff8ec"), "tie": Color("#7e2e2e"),
 		"blazer": Color("#4d5d53"), "suit": Color("#20302b"), "trousers": Color("#232d29"),
-		"coat": Color("#26262b")},
+		"coat": Color("#4d3b33")},
 ]
+## Distancia RGB mínima entre el pelo y la prenda de arriba (contraste de silueta).
+const MIN_HAIR_CONTRAST := 0.22
+## Color de la prenda de arriba de la paleta según el vestuario del escalón.
+const TOP_KEYS: Array[String] = ["casual", "casual", "casual", "shirt", "blazer", "suit", "suit", "suit", "suit"]
 const JEANS: Array[Color] = [Color("#3e5070"), Color("#2f3b52"), Color("#56647c")]
 const KHAKI: Array[Color] = [Color("#9b8d6c"), Color("#6a6d72"), Color("#7d6a55")]
 const SNEAKER := Color("#ece9e2")
@@ -136,14 +142,33 @@ const SHOE_BROWN := Color("#4a3325")
 ## Uniformes (disfraz §10.4 y vestuario de oficio): cuerpo, pantalón, detalle, guantes.
 const UNIFORMS: Dictionary = {
 	"security": {"top": Color("#2b3d5e"), "bottom": Color("#1d2433"), "trim": Color("#d8b04a"),
-		"cap": Color("#1c2638"), "hands": Color()},
+		"cap": Color("#1c2638"), "hands": NONE},
 	"cleaning": {"top": Color("#3f9f9c"), "bottom": Color("#2f7c7a"), "trim": Color("#e9f4f2"),
-		"cap": Color(), "hands": Color("#f0c43a")},
+		"cap": NONE, "hands": Color("#f0c43a")},
 	"maintenance": {"top": Color("#c9692a"), "bottom": Color("#8e4a1f"), "trim": Color("#e8d15a"),
-		"cap": Color("#5b6068"), "hands": Color()},
+		"cap": Color("#5b6068"), "hands": NONE},
 	"factory": {"top": Color("#4d5b6b"), "bottom": Color("#39424e"), "trim": Color("#e6e04a"),
-		"cap": Color(), "hands": Color()},
+		"cap": NONE, "hands": NONE},
 }
+
+## Abrigo de lujo del escalón 8 (§14.5): paño burdeos oscuro, cuello de terciopelo negro y ribete dorado.
+const LUX_COAT := Color("#4e1f28")
+const LUX_COAT_COLLAR := Color("#16121a")
+const LUX_COAT_LINING := Color("#d8b04a")
+
+## Presentación del personaje (sesga peinado y vello facial): "f" / "m". Los genéricos la toman
+## del nombre de pila del banco de nombres (npcs_generation.json → name_bank); sin nombre, de la semilla.
+const PRESENTATION_F := "f"
+const PRESENTATION_M := "m"
+const FEMININE_FIRST_NAMES: Array[String] = [
+	"Brenda", "Diane", "Fiona", "Helen", "Judith", "Laura", "Nora", "Patricia", "Rachel", "Tessa",
+	"Beatrice", "Doreen", "Frances", "Hazel", "Janet", "Linda", "Olive", "Rita", "Theresa", "Una",
+	"Wendy", "Barbara", "Denise", "Harriet", "Irene", "Karen", "Maureen", "Pamela", "Sheila", "Valerie",
+	"Debbie", "Claudia", "Sonia", "Amelia", "Ludmila", "Connie", "Diana", "Rose", "Bree", "Lorna", "Pearl",
+]
+## Peinados genéricos por presentación (índices de HAIRS sin los reservados). Solo "m" lleva vello facial.
+const HAIRS_F: Array[int] = [2, 4, 8, 10, 11, 12, 13, 14, 15, 16, 17, 21]
+const HAIRS_M: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 18, 19, 20, 21]
 
 ## Accesorios genéricos (15). Los de mano solo se ven en escalones 1–3 (§14.5: el 4 va sin nada).
 const ACCESSORIES: Array[String] = [
@@ -154,7 +179,7 @@ const HANDHELD: Array[String] = ["mug", "folder", "phone", "tablet", "coffee_cup
 const HANDS_FREE_TIER := 4
 
 ## Peinados (25): [estilo, vello facial]. Los tres últimos están reservados a los nominados.
-const HAIRS: Array[PackedStringArray] = [
+const HAIRS: Array[Array] = [
 	["bald", ""], ["bald", "full_beard"], ["buzz", ""], ["buzz", "stubble"],
 	["short_side", ""], ["short_side", "moustache"], ["crew", ""], ["quiff", ""],
 	["slick", ""], ["slick", "goatee"], ["curly", ""], ["afro", ""], ["bob", ""],
@@ -195,8 +220,8 @@ const HAIR_STYLES: Dictionary = {
 		"extra": "braids"},
 	"bouffant": {"cap": true, "hl": 0.42, "vol": 0.3, "sides": 0.9, "back": 0.5, "part": 0.6,
 		"extra": "bouffant"},
-	"silver_mane": {"cap": true, "hl": 0.7, "vol": 0.14, "sides": 0.45, "back": 0.25,
-		"part": 0.0, "extra": "shine"},
+	"silver_mane": {"cap": true, "hl": 0.78, "vol": 0.1, "sides": 0.3, "back": 0.3,
+		"part": 0.0, "extra": "swept"},
 	"mullet": {"cap": true, "hl": 0.5, "vol": 0.08, "sides": 0.35, "back": 0.8, "part": 0.0},
 }
 
@@ -205,6 +230,10 @@ const PORTRAIT_BANDS: Array[String] = [
 	"the_pit", "the_pit", "the_pit", "the_pit", "the_specialists", "the_specialists",
 	"the_power", "the_power", "the_throne",
 ]
+
+
+static func top_color(tier: int, palette: int) -> Color:
+	return PALETTES[palette][TOP_KEYS[clampi(tier, 1, OUTFIT_COUNT)]]
 
 
 # ─── Primitivas ────────────────────────────────────────────────
@@ -241,7 +270,7 @@ static func arc(center: Vector2, radii: Vector2, a0: float, a1: float, segments:
 
 
 ## Polígono relleno con contorno cerrado (estilo vectorial plano con contorno, §14.2).
-static func fill(canvas: CanvasItem, pts: PackedVector2Array, color: Color,
+static func fill(canvas: CharacterCanvas, pts: PackedVector2Array, color: Color,
 		outline: Color = OUTLINE, width: float = OUTLINE_WIDTH) -> void:
 	if pts.size() < 3:
 		return
@@ -253,25 +282,28 @@ static func fill(canvas: CanvasItem, pts: PackedVector2Array, color: Color,
 	canvas.draw_polyline(closed, outline, width, true)
 
 
-static func circle(canvas: CanvasItem, center: Vector2, radius: float, color: Color,
+## Círculo relleno con contorno (sin contorno, relleno con antialiasing).
+static func circle(canvas: CharacterCanvas, center: Vector2, radius: float, color: Color,
 		outline: Color = OUTLINE, width: float = OUTLINE_WIDTH) -> void:
-	canvas.draw_circle(center, radius, color, true, -1.0, true)
-	if width > 0.0:
-		canvas.draw_arc(center, radius, 0.0, TAU, ELLIPSE_SEGMENTS, outline, width, true)
+	if width <= 0.0:
+		canvas.draw_circle(center, radius, color, true, -1.0, true)
+		return
+	canvas.draw_circle(center, radius, color)
+	canvas.draw_arc(center, radius, 0.0, TAU, CharacterCanvas.segments_for(radius) + 1, outline, width, true)
 
 
-## Miembro con extremos redondeados: contorno más ancho debajo y relleno encima.
-static func limb(canvas: CanvasItem, points: PackedVector2Array, thickness: float, color: Color,
+## Miembro con extremos redondeados: un solo polígono (contorno del trazo grueso) con contorno.
+static func limb(canvas: CharacterCanvas, points: PackedVector2Array, thickness: float, color: Color,
 		outline: Color = OUTLINE, width: float = OUTLINE_WIDTH) -> void:
-	var outer: float = thickness + width * 2.0
-	for i: int in points.size():
-		canvas.draw_circle(points[i], outer * 0.5, outline, true, -1.0, true)
-		if i > 0:
-			canvas.draw_line(points[i - 1], points[i], outline, outer, true)
-	for i: int in points.size():
-		canvas.draw_circle(points[i], thickness * 0.5, color, true, -1.0, true)
-		if i > 0:
-			canvas.draw_line(points[i - 1], points[i], color, thickness, true)
+	var half: float = (thickness + width) * 0.5
+	if points.size() == 1 or (points.size() == 2 and points[0].distance_squared_to(points[1]) < 0.01):
+		circle(canvas, points[0], half, color, outline, width)
+		return
+	var shapes: Array[PackedVector2Array] = Geometry2D.offset_polyline(points, half,
+			Geometry2D.JOIN_ROUND, Geometry2D.END_ROUND)
+	for shape: PackedVector2Array in shapes:
+		if not Geometry2D.is_polygon_clockwise(shape) or shapes.size() == 1:
+			fill(canvas, shape, color, outline, width)
 
 
 ## Intersección de dos polígonos simples (el trozo con más vértices; vacío si no se tocan).

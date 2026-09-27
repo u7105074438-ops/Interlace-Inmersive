@@ -1,6 +1,6 @@
 # day_summary.gd — Resumen de jornada al dormir: ingresos, gastos, medidores y deberes (§15.6).
 # PROPIETARIO DE: la vista del resumen y el registro auxiliar de la jornada (DayTracker).
-# ESCUCHA: DayTracker: money_changed, reputation_changed, suspicion_changed, duty_completed, duty_failed.
+# ESCUCHA: (DayTracker) money_changed, reputation_changed, suspicion_changed, duty_completed, duty_failed.
 class_name DaySummary
 extends PanelContainer
 
@@ -10,7 +10,8 @@ extends PanelContainer
 ##   income_lines / expense_lines: Array[{reason: String | key: String, amount: int}]
 ##   reputation / suspicion: float (valor actual) · reputation_delta / suspicion_delta: float
 ##   missed_duties / completed_duties: Array de claves de nombre, ids o diccionarios de deber.
-## Motivos de dinero conocidos → clave HUD_REASON_<MOTIVO>; el resto se agrupa en "Otros".
+## Motivos de dinero conocidos → clave HUD_REASON_<MOTIVO> (se ignora lo que siga a ":", p. ej.
+## "cash_pickup:cash_small" → HUD_REASON_CASH_PICKUP); el resto se agrupa en "Otros".
 
 signal closed()
 
@@ -51,9 +52,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	grow_horizontal = Control.GROW_DIRECTION_BOTH
-	grow_vertical = Control.GROW_DIRECTION_BOTH
-	set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	UITheme.center_fitted(self)
 
 
 func setup(summary: Dictionary) -> void:
@@ -182,7 +181,7 @@ func _build_footer() -> HBoxContainer:
 
 ## Texto de un motivo de dinero ("wage" → HUD_REASON_WAGE; desconocido → "Otros").
 static func reason_text(reason: String) -> String:
-	var key: String = REASON_KEY % reason.to_upper()
+	var key: String = REASON_KEY % reason.get_slice(":", 0).to_upper()
 	var text: String = String(TranslationServer.translate(key))
 	return text if text != key else String(TranslationServer.translate(REASON_OTHER))
 
@@ -275,7 +274,8 @@ class DayTracker extends RefCounted:
 	func _on_money(old_value: int, new_value: int, reason: String) -> void:
 		var delta: int = new_value - old_value
 		var bucket: Dictionary = income if delta >= 0 else expenses
-		bucket[reason] = int(bucket.get(reason, 0)) + absi(delta)
+		var group: String = reason.get_slice(":", 0)
+		bucket[group] = int(bucket.get(group, 0)) + absi(delta)
 
 	func _on_rep(_old_value: float, new_value: float) -> void:
 		rep_now = new_value
@@ -284,12 +284,12 @@ class DayTracker extends RefCounted:
 		sus_now = new_value
 
 	func _on_done(duty_id: String, _quality: float, _method: String) -> void:
-		completed.append(_duty_key(duty_id))
+		completed.append(duty_name_key(duty_id))
 
 	func _on_failed(duty_id: String, _consequence: String) -> void:
-		missed.append(_duty_key(duty_id))
+		missed.append(duty_name_key(duty_id))
 
-	func _duty_key(duty_id: String) -> String:
+	func duty_name_key(duty_id: String) -> String:
 		for duty: Dictionary in PlayerState.get_todays_duties():
 			if str(duty.get("id", "")) == duty_id:
 				return str(duty.get("name_key", duty_id))

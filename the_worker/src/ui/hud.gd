@@ -1,9 +1,6 @@
-# hud.gd — HUD mínimo de §13.1 (reloj, capital, rango + reputación/sospecha, deberes, acción)
-#          y superposiciones de §13.2 (halo rojo de zona no acreditada, icono de cámara).
+# hud.gd — HUD mínimo de §13.1 (reloj, capital, rango + reputación/sospecha, deberes, acción) y superposiciones de §13.2 (halo rojo de zona no acreditada, icono de cámara).
 # PROPIETARIO DE: la presentación del HUD, el estado plegado de deberes y las marcas de deber del día.
-# ESCUCHA: money_changed, reputation_changed, suspicion_changed, occupation_changed, clearance_changed,
-#          time_band_changed, day_advanced, duty_assigned/completed/failed/progressed, room_entered,
-#          floor_changed, disguise_changed, camera_recorded_player, run_started, run_loaded.
+# ESCUCHA: money_changed, reputation_changed, suspicion_changed, occupation_changed, clearance_changed, time_band_changed, day_advanced, duty_assigned/completed/failed/progressed, room_entered, floor_changed, disguise_changed, camera_recorded_player, run_started, run_loaded.
 class_name HUD
 extends Control
 
@@ -19,7 +16,8 @@ const STATUS_FAILED := "failed"
 const MARGIN := 28
 const ACCENT_BAR_W := 5
 const PANEL_GAP := 10
-const TOUCH_DUTIES_LIFT_RADII := 2.9
+const TOUCH_DUTIES_LIFT_RADII := 3.5
+const RANK_CHIP_PAD_H := 9
 const WEEKDAY_KEY := "HUD_WEEKDAY_%d"
 const BAND_KEY := "HUD_TIMEBAND_%s"
 const PLAYER_ID := "player"
@@ -47,6 +45,7 @@ var _watching_cameras: Dictionary = {}
 var _camera_pulse: float = 0.0
 var _blink: float = 0.0
 var _touch_layout: bool = false
+var _money_tween: Tween
 
 var _clock_label: Label
 var _day_label: Label
@@ -136,7 +135,7 @@ func set_suspicion(value: float) -> void:
 
 func set_time_band(band: String) -> void:
 	_band = band
-	_band_label.text = UITheme.trf(BAND_KEY % band.to_upper()).to_upper() if not band.is_empty() else ""
+	_band_label.text = UITheme.trf(BAND_KEY % band.to_upper()) if not band.is_empty() else ""
 	_band_label.visible = not band.is_empty()
 
 
@@ -144,7 +143,7 @@ func set_day(day: int) -> void:
 	_day = day
 	var per_week: int = maxi(UITheme.tune_int("tiempo.jornadas_por_semana"), 1)
 	var weekday: String = UITheme.trf(WEEKDAY_KEY % posmod(day - 1, per_week))
-	_day_label.text = UITheme.trf("HUD_DAY_FMT", [day, weekday]).to_upper()
+	_day_label.text = UITheme.trf("HUD_DAY_FMT", [day, weekday])
 
 
 ## Ocupación mostrada (rango y nombre del puesto) a partir de su id de occupations.json.
@@ -153,7 +152,7 @@ func set_occupation(occupation_id: String) -> void:
 	var occ: OccupationData = Database.get_occupation(occupation_id) if not occupation_id.is_empty() else null
 	var rank: int = occ.rank if occ != null else PlayerState.get_rank()
 	_rank_label.text = UITheme.trf("HUD_RANK_FMT", [rank])
-	_occ_label.text = UITheme.trf(occ.name_key).to_upper() if occ != null else ""
+	_occ_label.text = UITheme.trf(occ.name_key) if occ != null else ""
 	_occ_label.visible = occ != null
 
 
@@ -249,19 +248,36 @@ func is_camera_icon_visible() -> bool:
 	return _camera_pill.visible
 
 
-## Disposición táctil: los deberes suben por encima del grupo de botones de VirtualControls.
+## Disposición táctil: los deberes suben por encima del grupo de botones de VirtualControls y
+## la indicación contextual por encima del asa de la barra inferior.
 func set_touch_layout(on: bool) -> void:
 	_touch_layout = on
 	_prompt.set_touch_mode(on)
 	var lift: float = UITheme.tune("interfaz.stick_radio") * TOUCH_DUTIES_LIFT_RADII if on else 0.0
-	_duties_panel.offset_bottom = -MARGIN - lift
-	_duties_panel.offset_top = _duties_panel.offset_bottom - _duties_panel.get_combined_minimum_size().y
 	if on:
 		set_duties_collapsed(true)
+	_duties_panel.offset_bottom = -MARGIN - lift
+	UITheme.fit_to_min(_duties_panel)
+	_prompt.offset_bottom = -MARGIN - (VirtualControls.HANDLE_H + PANEL_GAP if on else 0.0)
+	UITheme.fit_to_min(_prompt)
+
+
+## Oculta la indicación contextual mientras algo la tapa (barra inferior táctil abierta).
+func set_prompt_suppressed(on: bool) -> void:
+	_prompt.set_suppressed(on)
 
 
 func get_meters_rect() -> Rect2:
 	return _meters_panel.get_rect()
+
+
+## Cabecera pulsable de la lista de deberes (pruebas de entrada táctil).
+func get_duties_header() -> Control:
+	return _duties_header
+
+
+func is_halo_pulsing() -> bool:
+	return _halo.is_pulsing()
 
 
 # Lectura para pruebas y herramientas.
@@ -329,6 +345,7 @@ func _place(ctrl: Control, preset: Control.LayoutPreset) -> void:
 	ctrl.grow_horizontal = Control.GROW_DIRECTION_BEGIN if right else (
 			Control.GROW_DIRECTION_BOTH if center else Control.GROW_DIRECTION_END)
 	ctrl.grow_vertical = Control.GROW_DIRECTION_BEGIN if bottom else Control.GROW_DIRECTION_END
+	UITheme.keep_fitted(ctrl)
 
 
 func _panel(variation: String = UITheme.V_PANEL) -> PanelContainer:
@@ -338,10 +355,24 @@ func _panel(variation: String = UITheme.V_PANEL) -> PanelContainer:
 	return panel
 
 
-func _label(variation: String, text: String = "") -> Label:
+## Etiqueta de texto dinámico (ya traducido por código; sin traducción automática).
+func _label(variation: String, text: String = "", upper: bool = false) -> Label:
 	var label: Label = Label.new()
 	label.theme_type_variation = variation
 	label.text = text
+	label.uppercase = upper
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+
+## Rótulo fijo: la clave se traduce sola y se actualiza al cambiar de idioma.
+func _caption_label(variation: String, key: String) -> Label:
+	var label: Label = Label.new()
+	label.theme_type_variation = variation
+	label.text = key
+	label.uppercase = true
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_ALWAYS
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
 
@@ -359,9 +390,9 @@ func _build_clock() -> void:
 	row.add_child(column)
 	_clock_label = _label(UITheme.V_CLOCK, UITheme.format_hour(0, 0))
 	column.add_child(_clock_label)
-	_day_label = _label(UITheme.V_CAPTION)
+	_day_label = _label(UITheme.V_CAPTION, "", true)
 	column.add_child(_day_label)
-	_band_label = _label(UITheme.V_CAPTION)
+	_band_label = _label(UITheme.V_CAPTION, "", true)
 	column.add_child(_band_label)
 	_place(_clock_panel, Control.PRESET_TOP_LEFT)
 
@@ -390,7 +421,7 @@ func _build_meters() -> void:
 	_rank_label = _label(UITheme.V_STRONG)
 	_rank_chip.add_child(_rank_label)
 	head.add_child(_rank_chip)
-	_occ_label = _label(UITheme.V_CAPTION)
+	_occ_label = _label(UITheme.V_CAPTION, "", true)
 	_occ_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_occ_label)
 	var grid: GridContainer = GridContainer.new()
@@ -406,7 +437,7 @@ func _build_meters() -> void:
 func _meter_row(grid: GridContainer, icon: String, color_name: String, key: String,
 		bar: UITheme.MeterBar) -> Label:
 	grid.add_child(UITheme.IconView.new(icon, color_name))
-	var caption: Label = _label(UITheme.V_CAPTION, UITheme.trf(key).to_upper())
+	var caption: Label = _caption_label(UITheme.V_CAPTION, key)
 	caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	grid.add_child(caption)
 	grid.add_child(bar)
@@ -427,7 +458,7 @@ func _build_duties() -> void:
 	_duties_header.gui_input.connect(_on_duties_header_input)
 	column.add_child(_duties_header)
 	_duties_header.add_child(UITheme.IconView.new("clipboard", "paper"))
-	var title: Label = _label(UITheme.V_CAPTION, UITheme.trf("HUD_DUTIES").to_upper())
+	var title: Label = _caption_label(UITheme.V_CAPTION, "HUD_DUTIES")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_duties_header.add_child(title)
 	_duties_count = _label(UITheme.V_STRONG)
@@ -447,7 +478,7 @@ func _build_status() -> void:
 	var row: HBoxContainer = HBoxContainer.new()
 	_restricted_pill.add_child(row)
 	row.add_child(UITheme.IconView.new("no_entry", "paper"))
-	row.add_child(_label(UITheme.V_STRONG, UITheme.trf("HUD_RESTRICTED").to_upper()))
+	row.add_child(_caption_label(UITheme.V_STRONG, "HUD_RESTRICTED"))
 	_restricted_detail = _label(UITheme.V_SMALL)
 	_restricted_detail.add_theme_color_override("font_color", Color.WHITE)
 	row.add_child(_restricted_detail)
@@ -459,7 +490,7 @@ func _build_status() -> void:
 	cam_row.add_child(UITheme.IconView.new("camera", "paper"))
 	_camera_dot = UITheme.IconView.new("target", "danger", 0.55)
 	cam_row.add_child(_camera_dot)
-	cam_row.add_child(_label(UITheme.V_STRONG, UITheme.trf("HUD_ON_CAMERA").to_upper()))
+	cam_row.add_child(_caption_label(UITheme.V_STRONG, "HUD_ON_CAMERA"))
 	_camera_pill.visible = false
 	_status_row.add_child(_camera_pill)
 	_place(_status_row, Control.PRESET_CENTER_TOP)
@@ -515,13 +546,12 @@ func _duty_detail(duty: Dictionary, status: String) -> String:
 	return ""
 
 
+## Un toque llega como toque y como clic emulado: UITheme.is_primary_press cuenta solo uno.
 func _on_duties_header_input(event: InputEvent) -> void:
-	var tap: bool = event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed
-	var click: bool = event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
-	if tap or click:
-		set_duties_collapsed(not _duties_collapsed)
+	if event is InputEventScreenTouch or event is InputEventMouseButton:
 		_duties_header.accept_event()
+	if UITheme.is_primary_press(event):
+		set_duties_collapsed(not _duties_collapsed)
 
 
 # ─── Señales ───────────────────────────────────────────────────────
@@ -629,6 +659,8 @@ func _on_run_started(_run_seed: int) -> void:
 
 
 func _on_run_loaded(_day_number: int) -> void:
+	_duty_marks.clear()
+	_duty_progress.clear()
 	refresh_all()
 
 
@@ -676,12 +708,16 @@ func _show_money_delta(delta: int) -> void:
 		return
 	_money_delta.text = UITheme.format_signed_money(delta)
 	_money_delta.add_theme_color_override("font_color", UITheme.color("gain" if delta > 0 else "loss"))
+	UITheme.fit_to_min(_money_panel)
 	_money_delta.offset_top = _money_panel.offset_bottom + PANEL_GAP
-	_money_delta.offset_bottom = _money_delta.offset_top + _money_delta.get_combined_minimum_size().y
+	UITheme.fit_to_min(_money_delta)
 	_money_delta.modulate.a = 1.0
-	var tween: Tween = create_tween()
-	tween.tween_interval(UITheme.tune("interfaz.dinero_delta_segundos") * 0.6)
-	tween.tween_property(_money_delta, "modulate:a", 0.0, UITheme.tune("interfaz.dinero_delta_segundos") * 0.4)
+	if _money_tween != null and _money_tween.is_valid():
+		_money_tween.kill()
+	var seconds: float = UITheme.tune("interfaz.dinero_delta_segundos")
+	_money_tween = create_tween()
+	_money_tween.tween_interval(seconds * 0.6)
+	_money_tween.tween_property(_money_delta, "modulate:a", 0.0, seconds * 0.4)
 
 
 func _style_rank_chip() -> void:
@@ -693,11 +729,16 @@ func _style_rank_chip() -> void:
 	sb.shadow_size = 0
 	sb.content_margin_top = 2
 	sb.content_margin_bottom = 2
+	sb.content_margin_left = RANK_CHIP_PAD_H
+	sb.content_margin_right = RANK_CHIP_PAD_H
+	sb.set_corner_radius_all(6)
 	_rank_chip.add_theme_stylebox_override("panel", sb)
 	_rank_label.add_theme_color_override("font_color", UITheme.readable_on(_accent))
 
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _rank_chip != null and is_inside_tree():
+		_retranslate()
 	if what == NOTIFICATION_THEME_CHANGED and _rank_chip != null:
 		_accent = UITheme.band_accent_for_floor(_floor)
 		if _accent_bar != null:
@@ -713,42 +754,77 @@ func _current_clearance() -> int:
 	return maxi(PlayerState.get_clearance(), occ.clearance if occ != null else 0)
 
 
+## Vuelve a formatear los textos dinámicos tras un cambio de idioma.
+func _retranslate() -> void:
+	set_money(_money)
+	set_day(_day)
+	set_time_band(_band)
+	set_occupation(_occupation_id)
+	set_zone_restricted(_restricted, _required_clearance)
+	_rebuild_duties()
+	if _prompt.has_action():
+		_prompt.show_action(_prompt.get_prompt_key(), _prompt.get_icon_id(), _prompt.get_args())
+
+
 static func _call_or(target: Object, method: String, fallback: Variant) -> Variant:
 	if target != null and target.has_method(method):
 		return target.call(method)
 	return fallback
 
 
-## Halo rojo en el perímetro de la pantalla, con pulso suave (solo procesa mientras está activo).
+## Halo rojo en el perímetro de la pantalla. El degradado se dibuja una sola vez (al activarse o
+## cambiar de tamaño) y el pulso anima self_modulate con un tween en bucle: sin redibujar por fotograma.
 class HaloOverlay extends Control:
 	var active: bool = false
-	var _t: float = 0.0
+	var _tween: Tween
+	var _alpha_max: float = 0.0
+	var _thickness: float = 0.0
 
 	func _init() -> void:
 		name = "Halo"
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		visible = false
-		set_process(false)
 
 	func set_active(on: bool) -> void:
+		if on == active:
+			return
 		active = on
 		visible = on
-		set_process(on)
-		queue_redraw()
+		if _tween != null and _tween.is_valid():
+			_tween.kill()
+		if on:
+			_alpha_max = UITheme.tune("interfaz.halo_alfa_max")
+			_thickness = UITheme.tune("interfaz.halo_grosor_fraccion")
+			queue_redraw()
+			_start_pulse()
 
-	func _process(delta: float) -> void:
-		_t += delta
-		queue_redraw()
+	func is_pulsing() -> bool:
+		return _tween != null and _tween.is_valid() and _tween.is_running()
+
+	func _start_pulse() -> void:
+		if not is_inside_tree():
+			return
+		var hz: float = maxf(UITheme.tune("interfaz.halo_pulso_hz"), 0.01)
+		var low: float = UITheme.tune("interfaz.halo_alfa_min") / maxf(_alpha_max, 0.01)
+		self_modulate.a = 1.0
+		_tween = create_tween().set_loops()
+		_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_tween.tween_property(self, "self_modulate:a", low, 0.5 / hz)
+		_tween.tween_property(self, "self_modulate:a", 1.0, 0.5 / hz)
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED or what == NOTIFICATION_THEME_CHANGED:
+			queue_redraw()
+		elif what == NOTIFICATION_ENTER_TREE and active and not is_pulsing():
+			_start_pulse.call_deferred()
 
 	func _draw() -> void:
-		var hz: float = UITheme.tune("interfaz.halo_pulso_hz")
-		var pulse: float = 0.5 + 0.5 * sin(_t * TAU * hz)
-		var alpha: float = lerpf(UITheme.tune("interfaz.halo_alfa_min"), UITheme.tune("interfaz.halo_alfa_max"), pulse)
-		var col: Color = get_theme_color("danger", UITheme.HUD_TYPE)
-		var outer: Color = Color(col, alpha)
-		var inner: Color = Color(col, 0.0)
-		var th: float = minf(size.x, size.y) * UITheme.tune("interfaz.halo_grosor_fraccion")
+		if not active:
+			return
+		var outer: Color = Color(get_theme_color("danger", UITheme.HUD_TYPE), _alpha_max)
+		var inner: Color = Color(outer, 0.0)
+		var th: float = minf(size.x, size.y) * _thickness
 		var tl: Vector2 = Vector2.ZERO
 		var tr: Vector2 = Vector2(size.x, 0)
 		var br: Vector2 = size

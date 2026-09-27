@@ -5,7 +5,9 @@ class_name DialogBox
 extends PanelContainer
 
 ## options: Array de claves (String) o diccionarios {text_key, args?: Array, danger?: bool,
-## disabled?: bool, icon?: String}. Emite chosen(índice) una sola vez; CANCEL (-1) si se cancela.
+## disabled?: bool, icon?: String}. Emite chosen(índice) una sola vez; CANCEL (-1) si se cancela
+## o si el cuadro sale del árbol sin elegir (cambio de escena). El foco inicial va a la primera
+## opción no peligrosa (§13.7: una acción irreversible nunca se confirma con una sola pulsación).
 ## Teclado: 1-9 eligen directamente; flechas + Intro; Esc cancela (si es cancelable).
 
 signal chosen(index: int)
@@ -15,6 +17,7 @@ const WIDTH_EMS := 24.0
 const MAX_NUMBER_KEYS := 9
 
 var _buttons: Array[Button] = []
+var _danger: Array[bool] = []
 var _done: bool = false
 var _cancellable: bool = true
 var _title: Label
@@ -42,6 +45,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	_center()
+	tree_exiting.connect(cancel)
 	if not _buttons.is_empty():
 		_focus_first.call_deferred()
 
@@ -94,6 +98,17 @@ func get_option_text(index: int) -> String:
 	return _buttons[index].text if index >= 0 and index < _buttons.size() else ""
 
 
+## Índice de la opción que recibe el foco al abrir (la primera habilitada y no peligrosa).
+func get_default_index() -> int:
+	for i: int in _buttons.size():
+		if not _buttons[i].disabled and not _danger[i]:
+			return i
+	for i: int in _buttons.size():
+		if not _buttons[i].disabled:
+			return i
+	return CANCEL
+
+
 func _add_option(index: int, option: Variant) -> void:
 	var spec: Dictionary = option if option is Dictionary else {"text_key": str(option)}
 	var button: Button = Button.new()
@@ -101,11 +116,13 @@ func _add_option(index: int, option: Variant) -> void:
 	button.text = "%d   %s" % [index + 1, label] if index < MAX_NUMBER_KEYS else label
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.disabled = bool(spec.get("disabled", false))
-	if bool(spec.get("danger", false)):
+	var danger: bool = bool(spec.get("danger", false))
+	if danger:
 		button.theme_type_variation = UITheme.V_DANGER
 	button.pressed.connect(choose.bind(index))
 	_options_box.add_child(button)
 	_buttons.append(button)
+	_danger.append(danger)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -119,13 +136,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _focus_first() -> void:
-	for button: Button in _buttons:
-		if not button.disabled and button.is_inside_tree():
-			button.grab_focus()
-			return
+	var index: int = get_default_index()
+	if index >= 0 and _buttons[index].is_inside_tree():
+		_buttons[index].grab_focus()
 
 
 func _center() -> void:
-	grow_horizontal = Control.GROW_DIRECTION_BOTH
-	grow_vertical = Control.GROW_DIRECTION_BOTH
-	set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	UITheme.center_fitted(self)

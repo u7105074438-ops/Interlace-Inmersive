@@ -12,6 +12,9 @@ extends Control
 
 const BOOT_SCENARIO := "boot"
 
+## El escenario de QA se lanza una sola vez por proceso (volver al menú recarga esta escena).
+static var _autopilot_launched: bool = false
+
 
 func _ready() -> void:
 	InputSetup.register_actions()
@@ -20,7 +23,9 @@ func _ready() -> void:
 	SettingsMenu.load_and_apply()
 	var data_ok: bool = GameLaunch.ensure_database()
 	if Autopilot.is_requested():
-		Autopilot.launch(get_tree())
+		if not _autopilot_launched:
+			_autopilot_launched = true
+			Autopilot.launch(get_tree())
 		if Autopilot.get_arg("autopilot") != BOOT_SCENARIO:
 			return
 	if data_ok:
@@ -63,7 +68,7 @@ static func build_error_screen(errors: Array[String]) -> Control:
 		go_on.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		go_on.pressed.connect(func() -> void: _continue_anyway(root))
 		body.add_child(go_on)
-	quit.grab_focus.call_deferred()
+	MenuKit.focus_later(quit)
 	return root
 
 

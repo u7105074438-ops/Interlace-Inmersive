@@ -8,11 +8,14 @@ extends VBoxContainer
 ##  · text_key: clave de strings.csv ("SFX_FOOTSTEPS"...), se muestra entre corchetes.
 ##  · source_position: posición de mundo del sonido; Vector2.INF = sin posición (sin flecha).
 ##    La flecha apunta desde el jugador (grupo "player") hacia la fuente.
-##  · importance: 0 ambiente (gris) · 1 informativo (blanco) · 2 peligro (ámbar, negrita).
+##  · importance: forma Y color (§13.10): 0 ambiente (gris, cursiva) · 1 informativo (blanco,
+##    redonda) · 2 peligro (ámbar, negrita, triángulo de aviso delante).
 ## Un subtítulo idéntico aún visible se agrupa ("×2") y renueva su duración.
+## Al cambiar de idioma las líneas visibles se vuelven a traducir (se guarda la clave y la cuenta).
 
 const IMPORTANCE_COLORS: Array[String] = ["muted", "paper", "warn"]
 const MAX_IMPORTANCE := 2
+const AMBIENT := 0
 
 var _enabled: bool = true
 var _lines: Array[Dictionary] = []
@@ -64,6 +67,22 @@ func get_line_text(index: int) -> String:
 	return (_lines[index]["label"] as Label).text
 
 
+## Importancia (0-2) de la línea `index` (-1 si no existe).
+func get_line_level(index: int) -> int:
+	return int(_lines[index]["level"]) if index >= 0 and index < _lines.size() else -1
+
+
+## La línea lleva el triángulo de aviso (importancia máxima).
+func line_has_hazard_glyph(index: int) -> bool:
+	return index >= 0 and index < _lines.size() and (_lines[index]["hazard"] as Control).visible
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED:
+		for line: Dictionary in _lines:
+			_set_line_text(line)
+
+
 func clear_lines() -> void:
 	for line: Dictionary in _lines:
 		(line["panel"] as Node).queue_free()
@@ -95,16 +114,18 @@ func _make_line(text_key: String, angle: float, level: int) -> Dictionary:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(row)
-	var icon: UITheme.IconView = UITheme.IconView.new("speaker", IMPORTANCE_COLORS[level], 0.8)
+	var hazard: UITheme.IconView = UITheme.IconView.new("hazard", IMPORTANCE_COLORS[MAX_IMPORTANCE], 0.95)
+	row.add_child(hazard)
+	var icon: UITheme.IconView = UITheme.IconView.new("speaker", IMPORTANCE_COLORS[level], 0.95)
 	row.add_child(icon)
 	var label: Label = Label.new()
-	label.theme_type_variation = UITheme.V_STRONG if level == MAX_IMPORTANCE else ""
-	label.text = UITheme.trf("HUD_SUBTITLE_FMT", [UITheme.trf(text_key)])
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	row.add_child(label)
 	var line: Dictionary = {
-		"panel": panel, "label": label, "icon": icon, "key": text_key, "count": 1,
-		"text": label.text, "remaining": _duration(level), "fade": _duration(0) * 0.25,
+		"panel": panel, "label": label, "icon": icon, "hazard": hazard, "key": text_key, "count": 1,
+		"level": level, "remaining": _duration(level), "fade": _duration(0) * 0.25,
 	}
+	_set_line_text(line)
 	_apply_style(line, angle, level)
 	return line
 
@@ -113,13 +134,23 @@ func _repeat_last(angle: float, level: int) -> void:
 	var line: Dictionary = _lines.back()
 	line["count"] = int(line["count"]) + 1
 	line["remaining"] = _duration(level)
-	(line["label"] as Label).text = UITheme.trf("HUD_SUBTITLE_REPEAT", [str(line["text"]), int(line["count"])])
+	line["level"] = level
+	_set_line_text(line)
 	_apply_style(line, angle, level)
+
+
+## Texto de la línea a partir de su clave y su cuenta (se rehace al cambiar de idioma).
+func _set_line_text(line: Dictionary) -> void:
+	var text: String = UITheme.trf("HUD_SUBTITLE_FMT", [UITheme.trf(str(line["key"]))])
+	if int(line["count"]) > 1:
+		text = UITheme.trf("HUD_SUBTITLE_REPEAT", [text, int(line["count"])])
+	(line["label"] as Label).text = text
 
 
 func _apply_style(line: Dictionary, angle: float, level: int) -> void:
 	var icon: UITheme.IconView = line["icon"]
 	icon.set_color_name(IMPORTANCE_COLORS[level])
+	(line["hazard"] as Control).visible = level == MAX_IMPORTANCE
 	if is_nan(angle):
 		icon.set_icon("speaker")
 		icon.set_angle(0.0)
@@ -127,9 +158,13 @@ func _apply_style(line: Dictionary, angle: float, level: int) -> void:
 		icon.set_icon("arrow")
 		icon.set_angle(angle)
 	var label: Label = line["label"]
+	label.theme_type_variation = UITheme.V_STRONG if level == MAX_IMPORTANCE else ""
 	label.remove_theme_color_override("font_color")
+	label.remove_theme_font_override("font")
 	if level != 1:
 		label.add_theme_color_override("font_color", UITheme.color(IMPORTANCE_COLORS[level]))
+	if level == AMBIENT:
+		label.add_theme_font_override("font", UITheme.italic(UITheme.font(UITheme.FONT_REGULAR)))
 
 
 func _duration(level: int) -> float:

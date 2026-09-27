@@ -1,26 +1,40 @@
 # news_feed.gd — Capa compartida de noticias y sentimiento (§7.11): cada noticia produce a la vez un efecto de mercado y un efecto social.
-# PROPIETARIO DE: noticias publicadas (sentimiento, peso social, enterramientos), escándalos consolidados, cola de noticias programadas y eventos de mercado activos (§19.10, §9.12).
+# PROPIETARIO DE: noticias publicadas (sentimiento, peso social, enterramientos), escándalos consolidados, cola de noticias programadas, eventos de mercado activos (§19.10, §9.12) y campañas activistas ya anunciadas.
 # ESCUCHA: day_advanced, quarter_closed, body_discovered, investigation_opened, strike_started, strike_resolved, audit_triggered, insider_pattern_detected
 class_name NewsFeedSystem
 extends Node
 
 ## CAPA COMPARTIDA (§7.11). Cada noticia guarda DOS magnitudes que nacen del mismo evento:
 ##  - `sentiment`: la lee Market (get_sentiment_contribution) → cotización.
-##  - `suspicion`: peso social 0-100 (vigilancia). BeliefNet la suma a la sospecha del jugador
-##    (get_suspicion_contribution: noticias sobre el jugador y sobre la compañía) y Security la
-##    usa para el nivel de alerta (get_scandal_count). NPCDirector/BeliefNet leen
-##    get_suspicion_about(npc_id) para escándalos fabricados contra un personaje.
-## La señal `news_published(id, sentiment, is_scandal)` avisa a ambos cerebros a la vez; su primer
-## argumento es el id ÚNICO de la noticia ("news_12"): get_news(id) da titular, sujeto y fuente.
+##  - `suspicion`: peso social 0-100 (vigilancia). Contrato para BeliefNet (pendiente de su lado,
+##    ver informe): sumar get_suspicion_contribution() (noticias sobre el jugador y sobre la
+##    compañía) a la sospecha del jugador y recalcular al oír news_published / news_buried /
+##    day_advanced. NPCDirector puede leer get_suspicion_about(npc_id) (escándalo fabricado o
+##    campaña activista contra un personaje) y Security get_scandal_count() para la alerta.
+## La señal `news_published(id, sentiment, is_scandal)` avisa a ambos cerebros a la vez. DECISIÓN:
+## su primer argumento es el id ÚNICO de la noticia ("news_12"), no la clave de titular: Company
+## indexa la prensa negativa por ese id y lo retira con news_buried(id). Para mostrarla,
+## get_headline_key(id) (o get_news(id).headline_id) da la clave de strings.csv.
 ## Enterrar (bury) anula las DOS magnitudes y emite news_buried. Un escándalo sobre la compañía o
 ## el jugador que llega a `dias_consolidacion` jornadas sin enterrar queda consolidado: ya no se
 ## puede enterrar y cuenta para siempre en get_settled_scandal_count() (Market resta múltiplo;
-## Tracking puede sumar RUINA al ver crecer ese contador). La prensa enterrada puede reaparecer
-## (prob_reaparicion_diaria) "por vía externa".
+## Tracking suma RUINA). La prensa enterrada puede reaparecer "por vía externa"
+## (prob_reaparicion_diaria durante dias_ventana_reaparicion jornadas).
+## Oyentes (todo síncrono): body_discovered → escándalo; investigation_opened → prensa solo si el
+## disparador es is_public_news (investigations.json) o la gravedad alcanza gravedad_minima_prensa
+## (la máxima), nunca para incidentes con titular propio (body_found, insider_pattern) ni para el
+## fraude (fraud_at_month_close: su cara pública es la auditoría) → un hecho, un titular;
+## strike_started/resolved → noticia y evento "strike"; audit_triggered(true) → fraude (fuente
+## "audit": Market aplica su factor de falsificación y no el de escándalo);
+## insider_pattern_detected → escándalo bursátil del jugador. Al abrir cada jornada anuncia las
+## campañas activistas nuevas de Market (escándalo sobre su objetivo).
 ## Eventos de mercado (§9.12): se sortean por trimestre con el RNG del sistema, se programan con
 ## 1-3 jornadas de antelación (visibles para R25+ vía Market.get_upcoming_news) y al publicarse
 ## quedan activos con sus efectos sorteados: Company los lee con get_active_market_events() /
-## get_event_multiplier() / get_event_addition(); Market lee multiple_multiplier.
+## get_event_multiplier() / get_event_addition(); Market lee multiple_multiplier. Los eventos con
+## duration_days (viralización: dos semanas) sostienen su sentimiento mientras duran. Las manos
+## pueden terminarlos (resolve_market_event, ends_on/until_resolved), mitigarlos (cargo
+## mitigable_by) o amplificarlos (cargo amplifiable_by).
 
 const SUBJECT_COMPANY := "company"
 const SUBJECT_PLAYER := "player"
@@ -36,13 +50,19 @@ const SOURCE_STRIKE := "strike"
 const SOURCE_AUDIT := "audit"
 const SOURCE_INSIDER := "insider"
 const SOURCE_RESURFACED := "resurfaced"
+const SOURCE_CAMPAIGN := "activist_campaign"
 
 const HEADLINE_BODY_FOUND := "NEWS_BODY_FOUND"
 const HEADLINE_INVESTIGATION := "NEWS_INVESTIGATION_OPENED"
 const HEADLINE_FRAUD := "NEWS_FRAUD_UNCOVERED"
-## Incidentes con noticia propia (body_discovered / insider_pattern_detected): no se duplican.
-const DEDICATED_INCIDENTS: Array[String] = ["body_found", "insider_pattern"]
+const HEADLINE_CAMPAIGN := "NEWS_ACTIVIST_CAMPAIGN"
 const INCIDENT_FRAUD := "fraud_at_month_close"
+## Incidentes con cara pública propia (body_discovered, insider_pattern_detected, la auditoría del
+## fraude): su caso nunca genera un segundo titular.
+const DEDICATED_INCIDENTS: Array[String] = ["body_found", "insider_pattern", INCIDENT_FRAUD]
+const TRIGGERS_KEY := "incident_triggers"
+const PUBLIC_NEWS_KEY := "is_public_news"
+const MULTIPLIER_SUFFIX := "_multiplier"
 const STRIKE_EVENT_ID := "strike"
 const CRIME_FRAMING := "framing"
 const ID_PREFIX := "news_"
@@ -51,6 +71,7 @@ const NEUTRAL_MULTIPLIER := 1.0
 
 var _events_catalogue: Array[Dictionary] = []
 var _insider_cfg: Dictionary = {}
+var _incident_triggers: Dictionary = {}
 
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _today: int = 0
@@ -59,6 +80,7 @@ var _news: Array[Dictionary] = []
 var _scheduled: Array[Dictionary] = []
 var _active_events: Array[Dictionary] = []
 var _settled_scandals: int = 0
+var _announced_campaigns: Array[String] = []
 
 
 func _ready() -> void:
@@ -82,6 +104,7 @@ func reset_for_new_run() -> void:
 	_scheduled.clear()
 	_active_events.clear()
 	_settled_scandals = 0
+	_announced_campaigns.clear()
 	roll_quarter_events(_quarter_of(_today))
 
 
@@ -154,9 +177,11 @@ func get_scandal_count(days: int) -> int:
 ## Decaimiento diario del sentimiento y del peso social; consolidación y reaparición.
 func apply_daily_decay() -> void:
 	var sentiment_decay: float = _bf("noticias.decaimiento_sentimiento_diario")
+	var sustained_decay: float = _bf("noticias.decaimiento_sentimiento_evento_sostenido")
 	var suspicion_decay: float = _bf("noticias.decaimiento_sospecha_diario")
 	for item: Dictionary in _news:
-		item["sentiment"] = float(item["sentiment"]) * sentiment_decay
+		var decay: float = sustained_decay if _is_sustained(item) else sentiment_decay
+		item["sentiment"] = float(item["sentiment"]) * decay
 		item["suspicion"] = float(item["suspicion"]) * suspicion_decay
 		item["age"] = int(item["age"]) + 1
 		_try_consolidate(item)
@@ -168,7 +193,7 @@ func save_state() -> Dictionary:
 	return {
 		"today": _today, "next_id": _next_id, "news": _news.duplicate(true),
 		"scheduled": _scheduled.duplicate(true), "active_events": _active_events.duplicate(true),
-		"settled_scandals": _settled_scandals,
+		"settled_scandals": _settled_scandals, "announced_campaigns": _announced_campaigns.duplicate(),
 		"rng_seed": str(_rng.seed), "rng_state": str(_rng.state),
 	}
 
@@ -183,6 +208,9 @@ func load_state(data: Dictionary) -> void:
 	_active_events = _typed_list(data.get("active_events", []))
 	for item: Dictionary in _news:
 		_normalise_news_item(item)
+	_announced_campaigns.clear()
+	for key: Variant in data.get("announced_campaigns", []):
+		_announced_campaigns.append(str(key))
 	_rng.seed = str(data.get("rng_seed", "0")).to_int()
 	_rng.state = str(data.get("rng_state", "0")).to_int()
 
@@ -200,6 +228,11 @@ func publish_about(headline_id: String, sentiment_delta: float, is_scandal: bool
 func get_news(news_id: String) -> Dictionary:
 	var item: Dictionary = _find(news_id)
 	return item.duplicate() if not item.is_empty() else {}
+
+
+## Clave de strings.csv del titular de una noticia ("" si no existe). La UI la usa con tr().
+func get_headline_key(news_id: String) -> String:
+	return str(_find(news_id).get("headline_id", ""))
 
 
 ## Todas las noticias guardadas (incluidas enterradas), copias; para la UI y depuración.
@@ -254,6 +287,7 @@ func advance_day(day_number: int) -> void:
 	apply_daily_decay()
 	_expire_events()
 	_publish_due_scheduled()
+	publish_campaign_news()
 
 
 ## Programa una noticia futura (conocida `lead_days` jornadas antes por los rangos >= min_rank).
@@ -319,12 +353,86 @@ func get_event_addition(effect_key: String) -> float:
 	return total
 
 
+## Programa un evento concreto del catálogo para `day_number` (depuración F1, guiones de QA); si
+## ya estaba programado, lo mueve. Falla si ya está activo. Efectos sorteados con el RNG del sistema.
+func schedule_market_event(event_id: String, day_number: int) -> bool:
+	var ev: Dictionary = _catalogue_event(event_id)
+	if ev.is_empty() or day_number <= _today or not _active_event(event_id).is_empty():
+		return false
+	for item: Dictionary in _scheduled.duplicate():
+		if str(item.get("event_id", "")) == event_id:
+			_scheduled.erase(item)
+	_schedule_event(ev, day_number)
+	return true
+
+
+## Termina antes de tiempo un evento activo que lo admite: el que declara ends_on (la causa debe
+## coincidir: "supplier_change" para el cuero) o el que dura until_resolved. Devuelve si terminó.
+func resolve_market_event(event_id: String, cause: String) -> bool:
+	var ev: Dictionary = _active_event(event_id)
+	var spec: Dictionary = _catalogue_event(event_id)
+	if ev.is_empty() or cause.is_empty():
+		return false
+	var ends_on: String = str(spec.get("ends_on", ""))
+	if ends_on.is_empty() and not bool(spec.get("until_resolved", false)):
+		return false
+	if not ends_on.is_empty() and cause != ends_on:
+		return false
+	_active_events.erase(ev)
+	return true
+
+
+## El cargo que figura en mitigable_by (Jefe de Compras, Dirección Jurídica) atenúa el evento una
+## vez: cada efecto se acerca a neutro en noticias.factor_mitigacion_evento.
+func mitigate_market_event(event_id: String, occupation_id: String) -> bool:
+	var ev: Dictionary = _active_event(event_id)
+	if ev.is_empty() or bool(ev.get("mitigated", false)):
+		return false
+	if occupation_id.is_empty() or str(_catalogue_event(event_id).get("mitigable_by", "")) != occupation_id:
+		return false
+	ev["effects"] = _scale_effects(ev.get("effects", {}), _bf("noticias.factor_mitigacion_evento"))
+	ev["mitigated"] = true
+	return true
+
+
+## El cargo que figura en amplifiable_by (Director de Comunicación) multiplica una vez el
+## sentimiento vivo de la noticia del evento por noticias.factor_amplificacion_evento.
+func amplify_market_event(event_id: String, occupation_id: String) -> bool:
+	var ev: Dictionary = _active_event(event_id)
+	if ev.is_empty() or bool(ev.get("amplified", false)):
+		return false
+	if occupation_id.is_empty() or str(_catalogue_event(event_id).get("amplifiable_by", "")) != occupation_id:
+		return false
+	var item: Dictionary = _find(str(ev.get("news_id", "")))
+	if item.is_empty():
+		return false
+	item["sentiment"] = float(item["sentiment"]) * _bf("noticias.factor_amplificacion_evento")
+	ev["amplified"] = true
+	return true
+
+
+## Prensa de un caso (§7.11, §32.7): nunca los incidentes con cara pública propia; si no,
+## is_public_news del disparador o gravedad ≥ noticias.gravedad_minima_prensa (la máxima).
+func is_press_worthy(incident_type: String, severity: int) -> bool:
+	if DEDICATED_INCIDENTS.has(incident_type):
+		return false
+	var trigger: Dictionary = _incident_triggers.get(incident_type, {})
+	return bool(trigger.get(PUBLIC_NEWS_KEY, false)) \
+			or severity >= _bi("noticias.gravedad_minima_prensa")
+
+
 # ═══ Privado ══════════════════════════════════════════════════════════
 
 func _load_static_data() -> void:
 	_events_catalogue = Database.get_market_events()
 	var insider: Variant = Database.get_market_params().get("insider_detection", {})
 	_insider_cfg = insider as Dictionary if insider is Dictionary else {}
+	_incident_triggers.clear()
+	var triggers: Variant = Database.get_investigation_params().get(TRIGGERS_KEY, [])
+	if triggers is Array:
+		for trigger: Variant in triggers:
+			if trigger is Dictionary:
+				_incident_triggers[str((trigger as Dictionary).get("id", ""))] = trigger
 
 
 func _bf(path: String) -> float:
@@ -353,7 +461,7 @@ func _publish(headline_id: String, sentiment: float, is_scandal: bool, subject: 
 		"initial_sentiment": sentiment, "is_scandal": is_scandal, "subject": subject,
 		"suspicion": _social_weight(is_scandal, subject), "day": _today, "age": 0,
 		"buried": false, "buried_by": "", "consolidated": false, "resurfaced": false,
-		"source": source,
+		"source": source, "event_id": "",
 	})
 	EventBus.news_published.emit(news_id, sentiment, is_scandal)
 	return news_id
@@ -371,11 +479,48 @@ func _social_weight(is_scandal: bool, subject: String) -> float:
 	return _bf("noticias.sospecha_fabricado_objetivo")
 
 
+## Evita dos titulares iguales el mismo día por un mismo hecho (p. ej. auditoría + su caso).
+func _published_today(headline_id: String) -> bool:
+	for item: Dictionary in _news:
+		if str(item["headline_id"]) == headline_id and int(item["day"]) == _today:
+			return true
+	return false
+
+
 func _find(news_id: String) -> Dictionary:
 	for item: Dictionary in _news:
 		if str(item["id"]) == news_id:
 			return item
 	return {}
+
+
+func _active_event(event_id: String) -> Dictionary:
+	for ev: Dictionary in _active_events:
+		if str(ev.get("id", "")) == event_id:
+			return ev
+	return {}
+
+
+## Noticia de un evento activo con duración explícita en jornadas (§9.12: "durante dos semanas").
+func _is_sustained(item: Dictionary) -> bool:
+	var event_id: String = str(item.get("event_id", ""))
+	if event_id.is_empty() or _active_event(event_id).is_empty():
+		return false
+	return _catalogue_event(event_id).has("duration_days")
+
+
+## Multiplicadores (*_multiplier) se acercan a 1; aditivos se escalan.
+static func _scale_effects(effects: Variant, factor: float) -> Dictionary:
+	var out: Dictionary = {}
+	if not effects is Dictionary:
+		return out
+	for key: Variant in (effects as Dictionary).keys():
+		var value: float = float((effects as Dictionary)[key])
+		if str(key).ends_with(MULTIPLIER_SUFFIX):
+			out[key] = NEUTRAL_MULTIPLIER + (value - NEUTRAL_MULTIPLIER) * factor
+		else:
+			out[key] = value * factor
+	return out
 
 
 func _try_consolidate(item: Dictionary) -> void:
@@ -388,12 +533,14 @@ func _try_consolidate(item: Dictionary) -> void:
 		_settled_scandals += 1
 
 
-## "La prensa suprimida puede reaparecer por vía externa": vuelve como noticia nueva.
+## "La prensa suprimida puede reaparecer por vía externa": durante dias_ventana_reaparicion
+## jornadas tras publicarse, cada noticia enterrada puede volver como noticia nueva.
 func _resurface_buried() -> void:
 	var chance: float = _bf("noticias.prob_reaparicion_diaria")
+	var window: int = _bi("noticias.dias_ventana_reaparicion")
 	var candidates: Array[Dictionary] = []
 	for item: Dictionary in _news:
-		if bool(item["buried"]) and not bool(item["resurfaced"]):
+		if bool(item["buried"]) and not bool(item["resurfaced"]) and int(item["age"]) <= window:
 			candidates.append(item)
 	for item: Dictionary in candidates:
 		if _rng.randf() < chance:
@@ -462,6 +609,7 @@ func _publish_due_scheduled() -> void:
 				bool(item["is_scandal"]), SUBJECT_MARKET if from_event else SUBJECT_COMPANY,
 				SOURCE_EVENT if from_event else SOURCE_SCHEDULED)
 		if from_event:
+			_find(news_id)["event_id"] = str(item["event_id"])
 			_activate_event(str(item["event_id"]), item.get("effects", {}), news_id)
 
 
@@ -509,6 +657,25 @@ func _normalise_news_item(item: Dictionary) -> void:
 		item[key] = bool(item.get(key, false))
 	for key: String in ["sentiment", "initial_sentiment", "suspicion"]:
 		item[key] = float(item.get(key, 0.0))
+	item["event_id"] = str(item.get("event_id", ""))
+
+
+## Campaña activista nueva de Market → escándalo sobre su objetivo: jugador (sentimiento y
+## vigilancia) o rival (peso social en get_suspicion_about(rival)). Una vez por campaña; se llama
+## al abrir cada jornada. Devuelve los ids publicados.
+func publish_campaign_news() -> Array[String]:
+	var live: Array[String] = []
+	var published: Array[String] = []
+	for campaign: Dictionary in Market.get_activist_campaigns():
+		var key: String = "%s|%s|%d" % [campaign[MarketSystem.CAMPAIGN_INVESTOR],
+				campaign[MarketSystem.CAMPAIGN_TARGET], int(campaign[MarketSystem.CAMPAIGN_SINCE])]
+		live.append(key)
+		if _announced_campaigns.has(key):
+			continue
+		published.append(_publish(HEADLINE_CAMPAIGN, _bf("noticias.sentimiento_campana_activista"),
+				true, str(campaign[MarketSystem.CAMPAIGN_TARGET]), SOURCE_CAMPAIGN))
+	_announced_campaigns = live
+	return published
 
 
 # ═══ Oyentes ══════════════════════════════════════════════════════════
@@ -526,13 +693,13 @@ func _on_body_discovered(_body_id: String, _room_id: String) -> void:
 			SUBJECT_COMPANY, SOURCE_BODY)
 
 
-## Solo gravedad alta es prensa; los incidentes con noticia propia no se duplican.
+## Un hecho, un titular: solo los casos que is_press_worthy() admite (síncrono; un segundo caso
+## genérico el mismo día no repite titular).
 func _on_investigation_opened(_case_id: String, incident_type: String, severity: int) -> void:
-	if severity < _bi("noticias.gravedad_minima_prensa") or DEDICATED_INCIDENTS.has(incident_type):
+	if not is_press_worthy(incident_type, severity) or _published_today(HEADLINE_INVESTIGATION):
 		return
-	var headline: String = HEADLINE_FRAUD if incident_type == INCIDENT_FRAUD else HEADLINE_INVESTIGATION
-	_publish(headline, _bf("noticias.sentimiento_investigacion_publica"), true, SUBJECT_COMPANY,
-			SOURCE_INVESTIGATION)
+	_publish(HEADLINE_INVESTIGATION, _bf("noticias.sentimiento_investigacion_publica"), true,
+			SUBJECT_COMPANY, SOURCE_INVESTIGATION)
 
 
 func _on_strike_started() -> void:

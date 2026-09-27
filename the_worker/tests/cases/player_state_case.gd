@@ -22,6 +22,10 @@ func run_case() -> void:
 	_test_duties()
 	_test_duty_deadlines()
 	_test_failure_ladder()
+	_test_multi_duty_days()
+	_test_periodic_duties()
+	_test_demotion_risk()
+	_test_rebuild_during_rollover()
 	_test_meters()
 	_test_tracking_facade()
 	_test_position_and_identity()
@@ -47,20 +51,26 @@ func _test_start_state() -> void:
 			"the player starts at the 3B office on floor 3")
 	check(PlayerState.has_item("keys_basic") and PlayerState.has_item("stamp"),
 			"R1 is issued keys and stamp (occupation tools) without carrying them")
+	check(not PlayerState.is_carrying("keys_basic") and PlayerState.is_carrying("phone"),
+			"is_carrying is physical possession: issued keys are not carried, the phone is")
+	check(not PlayerState.remove_item("keys_basic"),
+			"an issued-but-not-carried tool cannot be removed (check is_carrying first)")
 
 
 func _test_money() -> void:
 	_clear()
 	PlayerState.add_money(50, "test_income")
 	check_eq(PlayerState.get_money(), 170, "add_money adds")
-	check_eq(_calls("money_changed"), [[120, 170, "test_income"]], "money_changed(old, new, reason)")
+	check_eq(_calls("money_changed"), [[120, 170, "test_income"]],
+			"money_changed(old, new, reason)")
 	check(not PlayerState.spend_money(1000, "bribe"), "spend_money fails with insufficient funds")
 	check_eq(PlayerState.get_money(), 170, "a failed payment leaves money untouched")
 	check_eq(_calls("money_changed").size(), 1, "a failed payment emits nothing")
 	check(PlayerState.can_afford(170) and not PlayerState.can_afford(171), "can_afford boundary")
 	check(PlayerState.spend_money(170, "rent"), "spending exactly all the money works")
 	check_eq(PlayerState.get_money(), 0, "money reaches zero")
-	check(not PlayerState.spend_money(1, "breakfast"), "cannot pay with zero money (starvation risk)")
+	check(not PlayerState.spend_money(1, "breakfast"),
+			"cannot pay with zero money (starvation risk)")
 	PlayerState.add_money(-5, "negative")
 	check_eq(PlayerState.get_money(), 0, "add_money ignores negative amounts")
 
@@ -190,32 +200,144 @@ func _test_duty_deadlines() -> void:
 	GameClock.advance_minutes(60.0)
 	check_eq(_calls("duty_failed"), [[START_DUTY, "warning"]], "at 18:00 the pending duty fails")
 	check_eq(PlayerState.get_duty(START_DUTY)["status"], "failed", "status failed")
+	new_run(DEFAULT_SEED, false)
+	GameClock.advance_minutes(9.5 * 60.0)
+	_clear()
+	PlayerState.set_occupation("order_filer", "promotion")
+	check_eq(_calls("duty_deadline_warned"), [["duty_orders_r2", 0.5]],
+			"a duty assigned at 17:30 (deadline 18:00) is warned at once with 0.5 h left (§15.6)")
+	GameClock.advance_minutes(30.0)
+	check_eq(_calls("duty_deadline_warned").size(), 1, "the warning is not repeated")
+	check_eq(_calls("duty_failed"), [["duty_orders_r2", "warning"]], "…and it fails at 18:00")
 
 
 func _test_failure_ladder() -> void:
 	check_eq([Database.get_balance_int("deberes.fallos_para_aviso"),
 			Database.get_balance_int("deberes.fallos_para_descenso"),
 			Database.get_balance_int("deberes.fallos_para_expulsion")], [1, 3, 5],
-			"balance: warning at 1, demotion at 3, expulsion at 5 failures")
+			"balance: warning at 1, demotion at 3, expulsion at 5 failed days")
 	new_run(DEFAULT_SEED, false)
 	_clear()
 	for _day: int in 5:
 		PlayerState.fail_duty(START_DUTY)
 		GameClock.advance_to_next_day()
-	var consequences: Array = []
-	for call: Array in _calls("duty_failed"):
-		consequences.append(call[1])
-	check_eq(consequences, ["warning", "warning", "demotion", "demotion", "expulsion"],
-			"consecutive failures escalate warning -> demotion -> expulsion")
+	check_eq(_consequences(), ["warning", "warning", "demotion", "warning", "expulsion"],
+			"failed days escalate: demotion once when the streak reaches 3 (it survives the"
+			+ " demotion, so day 4 is a warning), expulsion at 5 (§4.4 incumplimiento reiterado)")
 	PlayerState.complete_duty(START_DUTY, 1.0, "honest")
 	GameClock.advance_to_next_day()
 	check_eq(PlayerState.get_consecutive_failures(), 0, "a clean day resets the failure streak")
+	PlayerState.fail_duty(START_DUTY)
+	GameClock.advance_to_next_day()
+	PlayerState.fail_duty(START_DUTY)
+	PlayerState.set_occupation("senior_accountant", "lateral")
+	check_eq(PlayerState.get_consecutive_failures(), 2,
+			"the streak of failed days survives an occupation change")
+	GameClock.advance_to_next_day()
+	check_eq(PlayerState.get_consecutive_failures(), 2,
+			"a jornada with no duties (monthly-only post) is neutral")
 	new_run(DEFAULT_SEED, false)
 	PlayerState.set_occupation("eternal_intern", "demotion")
 	_clear()
 	PlayerState.fail_duty("duty_errands_r0")
 	check_eq(_calls("duty_failed"), [["duty_errands_r0", "expulsion"]],
 			"failing at R0 means expulsion (fail_penalty expulsion, §4.4)")
+
+
+## Several duties in one jornada count as ONE failed day, and at most one demotion per day.
+func _test_multi_duty_days() -> void:
+	new_run(DEFAULT_SEED, false)
+	PlayerState.set_occupation("ceo", "test")
+	check_eq(_duty_ids(PlayerState.get_pending_duties()),
+			["duty_share_price_target_r33", "duty_crisis_management_r33"],
+			"CEO on day 1: the two daily duties (the quarterly board only on quarter-closing days)")
+	_clear()
+	GameClock.advance_minutes(10.0 * 60.0)
+	check_eq(_consequences(), ["warning", "warning"], "CEO misses day 1: two warnings, no demotion")
+	check_eq(PlayerState.get_consecutive_failures(), 1, "one failed day, not two failures")
+	GameClock.advance_to_next_day()
+	_clear()
+	GameClock.advance_minutes(10.0 * 60.0)
+	check_eq(_consequences(), ["demotion", "warning"],
+			"second missed day: demotion_risk streak 2 -> one demotion; the other is a warning")
+	check_eq(PlayerState.get_consecutive_failures(), 2, "two failed days")
+	new_run(DEFAULT_SEED, false)
+	PlayerState.set_occupation("security_guard", "test")
+	_clear()
+	GameClock.advance_minutes(15.0 * 60.0)
+	check_eq(_calls("duty_failed"), [["duty_guard_round_morning_r10", "warning"],
+			["duty_guard_round_afternoon_r10", "warning"], ["duty_closing_round_r10", "expulsion"]],
+			"guard: rounds due 13:00/18:00 warn, the forgotten 22:00 closing round expels (§23.6)")
+	check_eq(PlayerState.get_consecutive_failures(), 1, "three failures in one day = one failed day")
+
+
+## Periodic duties (subtype prefix weekly_/monthly_/quarterly_) are only due on closing days.
+func _test_periodic_duties() -> void:
+	var r13: Dictionary = Database.get_occupation("senior_accountant").duties[0]
+	var r28: Dictionary = Database.get_occupation("cfo").duties[0]
+	var r11: Dictionary = Database.get_occupation("junior_shoe_designer").duties[0]
+	var r1: Dictionary = Database.get_occupation(START_OCCUPATION).duties[0]
+	check_eq([PlayerState.get_duty_frequency(r13), PlayerState.get_duty_frequency(r28),
+			PlayerState.get_duty_frequency(r11), PlayerState.get_duty_frequency(r1)],
+			["monthly", "quarterly", "weekly", "daily"],
+			"frequency inferred from the subtype (monthly_close, quarterly_results, weekly_sketches)")
+	check_eq(_days_with_duties("senior_accountant", 21), [20],
+			"R13 monthly close: only on day 20 (jornadas_por_mes), not on ordinary days")
+	check_eq(_days_with_duties("cfo", 26), [25],
+			"R28 quarterly results: only on day 25 (jornadas_por_trimestre)")
+	check_eq(_days_with_duties("junior_shoe_designer", 11), [5, 10],
+			"R11 weekly sketches: days 5 and 10 (jornadas_por_semana)")
+	check_eq(_days_with_duties(START_OCCUPATION, 3), [1, 2, 3], "R1 emails: every day")
+
+
+## demotion_risk: the same periodic duty failed fallos_para_descenso_riesgo (2) times -> demotion
+## ("dos trimestres deficientes suponen degradación", §23.7).
+func _test_demotion_risk() -> void:
+	check_eq(Database.get_balance_int("deberes.fallos_para_descenso_riesgo"), 2,
+			"balance: two deficient periods of a demotion_risk duty")
+	new_run(DEFAULT_SEED, false)
+	PlayerState.set_occupation("cfo", "test")
+	_clear()
+	_advance_to_day(25)
+	check(_calls("duty_failed").is_empty(), "no quarterly failure before day 25")
+	GameClock.advance_minutes(10.0 * 60.0)
+	_advance_to_day(50)
+	GameClock.advance_minutes(10.0 * 60.0)
+	check_eq(_calls("duty_failed"), [["duty_quarterly_results_r28", "warning"],
+			["duty_quarterly_results_r28", "demotion"]],
+			"CFO: first deficient quarter -> warning, second -> demotion")
+	check_eq(PlayerState.get_duty_failure_streak("duty_quarterly_results_r28"), 2, "streak 2")
+	new_run(DEFAULT_SEED, false)
+	PlayerState.set_occupation("b10_director", "test")
+	_clear()
+	PlayerState.fail_duty("duty_block_sales_r20")
+	GameClock.advance_to_next_day()
+	PlayerState.complete_duty("duty_block_sales_r20", 1.0, "honest")
+	check_eq(PlayerState.get_duty_failure_streak("duty_block_sales_r20"), 0,
+			"completing a demotion_risk duty resets its streak")
+	GameClock.advance_to_next_day()
+	PlayerState.fail_duty("duty_block_sales_r20")
+	check_eq(_consequences(), ["warning", "warning"],
+			"fail, succeed, fail: not consecutive -> no demotion")
+
+
+## A listener that demotes synchronously while the day closes (DutySystem -> Company) must not make
+## PlayerState rebuild the new day twice.
+func _test_rebuild_during_rollover() -> void:
+	new_run(DEFAULT_SEED, false)
+	GameClock.set_time(1, 5, 30)
+	var demote: Callable = func(_id: String, _consequence: String) -> void:
+		EventBus.occupation_changed.emit(PlayerState.get_occupation_id(), "order_filer", "demotion")
+	EventBus.duty_failed.connect(demote)
+	_clear()
+	GameClock.advance_minutes(30.0)
+	EventBus.duty_failed.disconnect(demote)
+	check_eq(_calls("duty_failed"), [[START_DUTY, "warning"]],
+			"the duty left pending at the 06:00 rollover fails once")
+	check_eq(_calls("duty_assigned"), [["duty_orders_r2", "volume", 18]],
+			"day 2's duty of the new occupation is assigned exactly once")
+	check_eq(_duty_ids(PlayerState.get_todays_duties()), ["duty_orders_r2"],
+			"today's list belongs to the new occupation")
 
 
 func _test_meters() -> void:
@@ -231,22 +353,30 @@ func _test_meters() -> void:
 	PlayerState._set_suspicion_from_beliefnet(42.5)
 	check_near(PlayerState.get_suspicion(), 42.5, 0.0001, "suspicion cache set by BeliefNet")
 	EventBus.suspicion_changed.emit(42.5, 61.0)
-	check_near(PlayerState.get_suspicion(), 61.0, 0.0001, "suspicion_changed refreshes the cache")
+	check_near(PlayerState.get_suspicion(), 42.5, 0.0001,
+			"only BeliefNet's exclusive setter writes the cache: a stray suspicion_changed does not")
 
 
 func _test_tracking_facade() -> void:
+	new_run(DEFAULT_SEED, false)
 	_clear()
+	var blood: int = Tracking.get_axis("blood")
 	PlayerState.add_tracking("blood", 10)
 	check_eq(_calls("tracking_event_recorded"), [["blood", 10, "player_state"]],
 			"add_tracking emits tracking_event_recorded(axis, amount, source)")
+	check_eq(PlayerState.get_tracking("blood"), blood + 10,
+			"Tracking accumulates the event: the blood axis rose by 10 (§12.8)")
+	check_eq(PlayerState.get_dominant_axis(), "blood", "blood 10 vs 0 elsewhere: blood dominates")
+	PlayerState.add_tracking("gold", 15)
+	check_eq([PlayerState.get_tracking("gold"), PlayerState.get_dominant_axis()], [15, "gold"],
+			"gold 15 overtakes blood 10 as the dominant axis")
+	PlayerState.add_tracking("ruin", 40)
+	check_eq([PlayerState.get_tracking("ruin"), PlayerState.get_dominant_axis()], [40, "gold"],
+			"ruin accumulates but is not a style axis")
 	PlayerState.add_tracking("glitter", 5)
 	PlayerState.add_tracking("gold", 0)
-	check_eq(_calls("tracking_event_recorded").size(), 1, "unknown axes and zero amounts ignored")
-	for axis: String in ["blood", "gold", "silk", "sweat", "ruin"]:
-		check_eq(PlayerState.get_tracking(axis), Tracking.get_axis(axis),
-				"get_tracking(%s) reads Tracking" % axis)
-	check_eq(PlayerState.get_dominant_axis(), Tracking.get_dominant_axis(),
-			"get_dominant_axis reads Tracking")
+	check_eq(_calls("tracking_event_recorded").size(), 3, "unknown axes and zero amounts ignored")
+	check_eq(PlayerState.get_tracking("gold"), 15, "…and change nothing")
 
 
 func _test_position_and_identity() -> void:
@@ -279,6 +409,8 @@ func _test_save_load() -> void:
 	PlayerState.add_item("food_basic")
 	check(PlayerState.stash_item("food_basic", "hide_3b_desk", "wing_3b"), "setup: stash")
 	PlayerState.complete_duty("duty_orders_r2", 0.7, "assist")
+	GameClock.advance_to_next_day()
+	PlayerState.fail_duty("duty_orders_r2")
 	PlayerState.set_disguise("uniform_security")
 	PlayerState.set_player_name("Ana")
 	var snapshot: Dictionary = PlayerState.save_state()
@@ -293,7 +425,10 @@ func _test_save_load() -> void:
 	check_eq(PlayerState.get_item_count("foreign_document"), 2, "stacked items restored")
 	check_eq(PlayerState.get_hot_item_count(), 3, "hot items restored")
 	check(PlayerState.get_stashes().has("hide_3b_desk"), "stashes restored")
-	check_eq(PlayerState.get_duty("duty_orders_r2")["status"], "completed", "duties restored")
+	check_eq(PlayerState.get_duty("duty_orders_r2")["status"], "failed", "duties restored")
+	check_eq([PlayerState.get_consecutive_failures(),
+			PlayerState.get_duty_failure_streak("duty_orders_r2")], [1, 1],
+			"failure streaks restored")
 	check_eq(PlayerState.get_player_name(), "Ana", "name restored")
 	check(PlayerState.retrieve_item("hide_3b_desk", "food_basic"), "restored stash is usable")
 
@@ -332,6 +467,30 @@ func _calls(signal_name: String) -> Array:
 
 func _clear() -> void:
 	_log.clear()
+
+
+func _consequences() -> Array[String]:
+	var out: Array[String] = []
+	for call: Array in _calls("duty_failed"):
+		out.append(str(call[1]))
+	return out
+
+
+func _advance_to_day(day: int) -> void:
+	while GameClock.get_day() < day:
+		GameClock.advance_to_next_day()
+
+
+## Fresh run in `occupation_id`; days 1..last_day on which it had any duty assigned.
+func _days_with_duties(occupation_id: String, last_day: int) -> Array[int]:
+	new_run(DEFAULT_SEED, false)
+	PlayerState.set_occupation(occupation_id, "test")
+	var days: Array[int] = []
+	while GameClock.get_day() <= last_day:
+		if not PlayerState.get_todays_duties().is_empty():
+			days.append(GameClock.get_day())
+		GameClock.advance_to_next_day()
+	return days
 
 
 func _inventory_ids() -> Array[String]:

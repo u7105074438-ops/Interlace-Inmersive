@@ -28,6 +28,15 @@ const WAV_BITS := 16
 const WAV_BYTES_PER_SAMPLE := 2
 const WAV_RIFF_EXTRA := 36
 const DENORMAL_GUARD := 1.0e-9
+## Formantes F1/F2 (Hz) de vocales genéricas para el murmullo.
+const VOWELS: Array[Vector2] = [
+	Vector2(730, 1090), Vector2(270, 2290), Vector2(300, 870), Vector2(530, 1840),
+	Vector2(570, 840), Vector2(440, 1020), Vector2(660, 1720),
+]
+const SYLLABLE_S := Vector2(0.07, 0.2)
+const SYLLABLE_PAUSE_CHANCE := 0.18
+const SYLLABLE_GAP_S := 0.04
+const FORMANT_DAMPING := 0.28
 
 static var _noise: PackedFloat32Array = PackedFloat32Array()
 
@@ -64,19 +73,8 @@ static func silence(seconds: float, rate: int) -> PackedFloat32Array:
 	return buf
 
 
-## Oscilador ingenuo (sin antialiasing: el aliasing forma parte del sonido barato).
-static func osc(wave: int, phase: float) -> float:
-	match wave:
-		Wave.SQUARE:
-			return 1.0 if phase < 0.5 else -1.0
-		Wave.SAW:
-			return 2.0 * phase - 1.0
-		Wave.TRIANGLE:
-			return 1.0 - 4.0 * absf(phase - 0.5)
-	return sin(TAU * phase)
-
-
 ## Suma un tono con barrido lineal f0→f1, ataque lineal y caída exponencial (tau 0 = sin caída).
+## Osciladores ingenuos, sin antialiasing: el aliasing forma parte del sonido barato.
 static func tone_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s: float,
 		f0: float, f1: float, amp: float, wave: int, attack_s: float, tau_s: float) -> void:
 	var start: int = int(start_s * rate)
@@ -108,10 +106,10 @@ static func tone_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s:
 
 ## Suma una ráfaga de ruido filtrado (paso alto y paso bajo de un polo; 0 = sin filtro).
 static func noise_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s: float, amp: float,
-		attack_s: float, tau_s: float, hp_hz: float, lp_hz: float, seed: int) -> void:
+		attack_s: float, tau_s: float, hp_hz: float, lp_hz: float, noise_seed: int) -> void:
 	var burst: PackedFloat32Array = silence(dur_s, rate)
 	var table: PackedFloat32Array = noise_table()
-	var offset: int = absi(seed * 7919) & NOISE_MASK
+	var offset: int = absi(noise_seed * 7919) & NOISE_MASK
 	var k: float = exp(-1.0 / (tau_s * rate)) if tau_s > 0.0 else 1.0
 	var att: float = maxf(1.0, attack_s * rate)
 	var guard: float = maxf(1.0, CLICK_GUARD_S * rate)
@@ -151,12 +149,12 @@ static func bell_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s:
 
 ## Cuerda pulsada Karplus-Strong (arpa, bajo pulsado).
 static func pluck_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s: float, freq: float,
-		amp: float, damping: float, seed: int) -> void:
+		amp: float, damping: float, noise_seed: int) -> void:
 	var period: int = maxi(2, int(float(rate) / freq))
 	var line: PackedFloat32Array = PackedFloat32Array()
 	line.resize(period)
 	var table: PackedFloat32Array = noise_table()
-	var offset: int = absi(seed * 104729) & NOISE_MASK
+	var offset: int = absi(noise_seed * 104729) & NOISE_MASK
 	var prev: float = 0.0
 	for i: int in period:
 		prev = prev + 0.5 * (table[(offset + i) & NOISE_MASK] - prev)
@@ -170,6 +168,36 @@ static func pluck_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s
 		var out: float = line[j]
 		line[j] = (out + nxt) * 0.5 * damping
 		buf[start + i] += out * amp * minf(1.0, float(n - i) / guard)
+
+
+## Murmullo ininteligible: sílabas con fuente glotal (sierra) y dos formantes de vocal (charla, radio).
+static func babble_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s: float,
+		pitch_hz: float, amp: float, noise_seed: int) -> void:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = noise_seed
+	var t: float = start_s
+	while t < start_s + dur_s:
+		var syl: float = rng.randf_range(SYLLABLE_S.x, SYLLABLE_S.y)
+		if rng.randf() >= SYLLABLE_PAUSE_CHANCE:
+			var vowel: Vector2 = VOWELS[rng.randi() % VOWELS.size()]
+			var p0: float = pitch_hz * rng.randf_range(0.9, 1.15)
+			syllable_into(buf, rate, t, syl, Vector2(p0, p0 * rng.randf_range(0.88, 1.05)), vowel, amp)
+		t += syl + rng.randf_range(0.0, SYLLABLE_GAP_S)
+
+
+## Una sílaba: barrido de tono (x→y) filtrado por los formantes F1/F2 de `vowel`.
+static func syllable_into(buf: PackedFloat32Array, rate: int, start_s: float, dur_s: float,
+		pitch: Vector2, vowel: Vector2, amp: float) -> void:
+	var src: PackedFloat32Array = silence(dur_s, rate)
+	tone_into(src, rate, 0.0, dur_s, pitch.x, pitch.y, 1.0, Wave.SAW, dur_s * 0.25, 0.0)
+	var f1: PackedFloat32Array = src.duplicate()
+	bandpass(f1, rate, vowel.x, FORMANT_DAMPING)
+	bandpass(src, rate, vowel.y, FORMANT_DAMPING)
+	var n: int = f1.size()
+	for i: int in n:
+		var fade: float = minf(1.0, float(n - i) / (float(n) * 0.35))
+		f1[i] = (f1[i] + src[i] * 0.6) * fade
+	mix_into(buf, f1, int(start_s * rate), amp, false)
 
 
 ## Coeficiente de un filtro de un polo para la frecuencia de corte dada.
@@ -269,16 +297,16 @@ static func normalize(buf: PackedFloat32Array, target: float) -> float:
 	return g
 
 
-## Suma src sobre dst desde `offset`; con `wrap` la cola que sobra vuelve al principio (bucles).
+## Suma src sobre dst desde `offset`; con `wrap_tail` la cola que sobra vuelve al principio (bucles).
 static func mix_into(dst: PackedFloat32Array, src: PackedFloat32Array, offset: int, gain: float,
-		wrap: bool) -> void:
+		wrap_tail: bool) -> void:
 	var size: int = dst.size()
 	if size == 0:
 		return
 	for i: int in src.size():
 		var j: int = offset + i
 		if j >= size:
-			if not wrap:
+			if not wrap_tail:
 				return
 			j %= size
 		if j >= 0:

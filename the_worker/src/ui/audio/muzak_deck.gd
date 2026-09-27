@@ -1,28 +1,32 @@
 # muzak_deck.gd — La "pletina" del edificio: reproduce las pistas del hilo musical como una cinta que se degrada.
-# PROPIETARIO DE: el estado de reproducción (posición, variante de la melodía, silencios, oscilaciones, telemetría).
+# PROPIETARIO DE: el estado de reproducción (posición, granos, variante de la melodía, silencios, oscilaciones, telemetría).
 # ESCUCHA: nada.
 class_name MuzakDeck
 extends RefCounted
 
-## Lee las pistas de MuzakSynth.render_piece() a velocidad variable (tempo × irregularidad × wow &
-## flutter: la velocidad de cinta cambia tempo Y tono a la vez), elige por nota la variante limpia /
-## desafinada / atonal, introduce silencios anómalos y cortes, siseo y pérdida de agudos (§14.9).
-## Coste: unas pocas operaciones por muestra; lo llama AudioDirector solo con los frames que el
-## generador admite (sin bucles de espera). También sirve para el render sin conexión (WAV, tests).
+## Lee las pistas de MuzakSynth.render_piece() y elige por nota la variante limpia / desafinada /
+## atonal, con silencios anómalos, cortes, siseo y pérdida de agudos (§14.9).
+## Tempo y tono van separados (§14.9: 26-50 solo "reducción leve del tempo"): el ancla avanza a
+## tempo × velocidad y dos cabezas de lectura con ventanas triangulares cruzadas (granos de
+## `grain_s`) leen a la velocidad de la cinta, que solo cambia con la irregularidad y el wow &
+## flutter (la "oscilación de tono" de 51-75). Con tempo 1 las dos cabezas coinciden y el coste es
+## el de una lectura. Lo llama AudioDirector solo con los frames que el generador admite (sin
+## bucles de espera). También sirve para el render sin conexión (WAV, tests).
 
 const BLOCK := 64
 const FADE_S := 0.006
 const JITTER_SMOOTH_S := 0.35
 const SILENT_GAIN := 0.001
 const HISS_SMOOTH := 0.5
+const DRIFT_EPS := 0.0001
+const HALF := 0.5
 const EVENT_DROPOUT := "dropout"
 const EVENT_CUT := "cut"
 const EVENT_INTERRUPT := "interrupt"
 const EVENT_LOOP := "loop"
 
-## Si es true, cada bloque anota {rate, gain, variant} en `telemetry` (escenario QA, análisis).
+## Si es true, cada bloque anota tempo, tono, ganancia y variante (escenario QA, tests): get_telemetry().
 var record_telemetry: bool = false
-var telemetry: Dictionary = {}
 
 var _rate: int = 0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -32,6 +36,7 @@ var _acc: PackedFloat32Array = PackedFloat32Array()
 var _mel: Array[PackedFloat32Array] = []
 var _switches: PackedInt32Array = PackedInt32Array()
 var _length: int = 0
+var _loaded_id: String = ""
 var _pending: Dictionary = {}
 var _pending_keep_pos: bool = true
 var _pos: float = 0.0
@@ -41,12 +46,17 @@ var _variant: int = 0
 var _target: Dictionary = {}
 var _cur: Dictionary = {"tempo": 1.0, "jitter": 0.0, "wow": 0.0, "flutter": 0.0, "hiss": 0.0,
 		"lowpass_hz": 0.0}
+var _grain_s: float = 0.0
 var _jit: float = 0.0
 var _jit_target: float = 0.0
 var _jit_timer: float = 0.0
 var _wow_ph: float = 0.0
 var _flut_ph: float = 0.0
 var _step: float = 1.0
+var _pitch: float = 1.0
+var _grain_ph: float = 0.0
+var _off_a: float = 0.0
+var _off_b: float = 0.0
 var _silence_left: int = 0
 var _silence_kills_hiss: bool = false
 var _g: float = 1.0
@@ -56,13 +66,17 @@ var _lp_y: float = 0.0
 var _hiss_y: float = 0.0
 var _noise_i: int = 0
 var _events: Array[String] = []
+var _tele_rate: PackedFloat32Array = PackedFloat32Array()
+var _tele_pitch: PackedFloat32Array = PackedFloat32Array()
+var _tele_gain: PackedFloat32Array = PackedFloat32Array()
+var _tele_variant: PackedByteArray = PackedByteArray()
 
 
 ## rate = frecuencia de salida (igual a la de las pistas); smooth_s = inercia de los parámetros;
 ## swap_fade_s = fundido al cambiar de arreglo (0 = inmediato).
-func setup(rate: int, seed: int, smooth_s: float, swap_fade_s: float) -> void:
+func setup(rate: int, rng_seed: int, smooth_s: float, swap_fade_s: float) -> void:
 	_rate = rate
-	_rng.seed = seed
+	_rng.seed = rng_seed
 	_smooth_s = smooth_s
 	_swap_fade_s = swap_fade_s
 	_reset_telemetry()
@@ -70,6 +84,23 @@ func setup(rate: int, seed: int, smooth_s: float, swap_fade_s: float) -> void:
 
 func has_stems() -> bool:
 	return _length > 0
+
+
+## True mientras espera el fundido para cambiar a otras pistas.
+func has_pending() -> bool:
+	return not _pending.is_empty()
+
+
+## "pieza|arreglo" de las pistas que suenan ("" si ninguna).
+func loaded_id() -> String:
+	return _loaded_id
+
+
+## {rate (tempo), pitch (velocidad de lectura), gain, variant: arrays por bloque de BLOCK muestras,
+## block, sample_rate}.
+func get_telemetry() -> Dictionary:
+	return {"rate": _tele_rate, "pitch": _tele_pitch, "gain": _tele_gain, "variant": _tele_variant,
+			"block": BLOCK, "sample_rate": _rate}
 
 
 func get_length_s() -> float:
@@ -88,14 +119,41 @@ func is_silenced() -> bool:
 	return _silence_left > 0
 
 
+## Variantes de melodía de las pistas que sonarán (las pendientes, si hay un cambio en curso).
+func variant_count() -> int:
+	if not _pending.is_empty():
+		return (_pending.get("mel", []) as Array).size()
+	return _mel.size()
+
+
 ## Cambia de pistas con un fundido breve; `keep_position` conserva el punto del bucle (el hilo
 ## musical del edificio es continuo: al cambiar de planta sigue por el mismo compás).
 func load_stems(stems: Dictionary, keep_position: bool) -> void:
 	if _length <= 0 or _swap_fade_s <= 0.0:
+		_pending = {}
 		_apply_stems(stems, keep_position)
 		return
 	_pending = stems
 	_pending_keep_pos = keep_position
+
+
+## Versión ampliada (variantes añadidas) de unas pistas ya cargadas o pendientes: sin fundido ni
+## salto. Si esas pistas aún esperan su fundido, se sustituye la versión pendiente (nunca vuelve
+## una versión vieja con menos variantes).
+func upgrade_stems(stems: Dictionary) -> void:
+	var id: String = stems_id(stems)
+	if not _pending.is_empty() and stems_id(_pending) == id:
+		_pending = stems
+		return
+	var mel: Array = stems.get("mel", [])
+	if _length > 0 and id == _loaded_id and int(stems.get("length", 0)) == _length and not mel.is_empty():
+		_mel.assign(mel)
+	else:
+		load_stems(stems, true)
+
+
+static func stems_id(stems: Dictionary) -> String:
+	return MuzakLibrary.key_for(str(stems.get("piece", "")), str(stems.get("arrangement", "")))
 
 
 func load_stems_now(stems: Dictionary) -> void:
@@ -107,6 +165,7 @@ func load_stems_now(stems: Dictionary) -> void:
 func set_degradation(params: Dictionary, immediate: bool) -> void:
 	var first: bool = _target.is_empty()
 	_target = params.duplicate()
+	_grain_s = float(_target.get("grain_s", 0.0))
 	if immediate or first or _smooth_s <= 0.0:
 		for key: String in _cur.keys():
 			_cur[key] = float(_target.get(key, _cur[key]))
@@ -119,11 +178,17 @@ func interrupt(seconds: float) -> void:
 	_events.append(EVENT_INTERRUPT)
 
 
-## Avanza la cinta sin sonar (plantas sin hilo musical): al volver sigue por donde iría.
+## Avanza la cinta sin sonar (plantas sin hilo musical): al volver sigue por donde iría. Un cambio
+## de pistas pendiente se aplica ya (no hay nada audible que fundir).
 func skip(seconds: float) -> void:
+	if not _pending.is_empty():
+		_apply_stems(_pending, _pending_keep_pos)
+		_pending = {}
+		_swap_g = 1.0
 	if _length <= 0:
 		return
 	_pos = fmod(_pos + seconds * float(_rate) * float(_cur["tempo"]), float(_length))
+	_prev_pos = _pos
 
 
 ## Eventos desde la última llamada: "dropout", "cut", "interrupt", "loop".
@@ -158,11 +223,15 @@ func _apply_stems(stems: Dictionary, keep_position: bool) -> void:
 	var new_len: int = int(stems.get("length", 0))
 	if _mel.is_empty() or _acc.size() < new_len or new_len <= 0:
 		_length = 0
+		_loaded_id = ""
 		return
 	_pos = fmod(_pos, float(new_len)) if keep_position else 0.0
 	_length = new_len
+	_loaded_id = stems_id(stems)
 	_prev_pos = _pos
 	_switch_idx = 0
+	_off_a = 0.0
+	_off_b = 0.0
 	_variant = MuzakSynth.VARIANT_CLEAN
 
 
@@ -174,21 +243,30 @@ func _update_block(n: int) -> void:
 	_flut_ph = fmod(_flut_ph + dt * float(_target.get("flutter_hz", 0.0)), 1.0)
 	var wobble: float = float(_cur["wow"]) * sin(TAU * _wow_ph) \
 			+ float(_cur["flutter"]) * sin(TAU * _flut_ph)
-	_step = maxf(0.0, float(_cur["tempo"]) * (1.0 + _jit) * (1.0 + wobble))
+	_pitch = maxf(0.0, (1.0 + _jit) * (1.0 + wobble))
+	_step = _pitch * float(_cur["tempo"])
 	_check_switches()
 	_schedule_silences(dt)
 	if not _pending.is_empty() and _swap_g < SILENT_GAIN:
 		_apply_stems(_pending, _pending_keep_pos)
 		_pending = {}
 	if record_telemetry:
-		(telemetry["rate"] as PackedFloat32Array).append(_step)
-		(telemetry["gain"] as PackedFloat32Array).append(_g * _swap_g)
-		(telemetry["variant"] as PackedByteArray).append(_variant)
+		_tele_rate.append(_step)
+		_tele_pitch.append(_pitch if _grain_s > 0.0 else _step)
+		_tele_gain.append(_g * _swap_g)
+		_tele_variant.append(_variant)
 
 
 func _render_block(out: PackedVector2Array, from: int, n: int) -> void:
-	var acc: PackedFloat32Array = _acc
-	var mel: PackedFloat32Array = _mel[mini(_variant, _mel.size() - 1)]
+	var dry: PackedFloat32Array = PackedFloat32Array()
+	dry.resize(n)
+	var drift: float = _pitch - _step if _grain_s > 0.0 else 0.0
+	if absf(drift) < DRIFT_EPS:
+		drift = 0.0
+	if drift == 0.0 and _off_a == 0.0 and _off_b == 0.0:
+		_read_plain(dry, n)
+	else:
+		_read_grains(dry, n, drift)
 	var noise: PackedFloat32Array = SynthDSP.noise_table()
 	var fade_k: float = _fade_coef(FADE_S)
 	var swap_k: float = _fade_coef(_swap_fade_s)
@@ -197,25 +275,77 @@ func _render_block(out: PackedVector2Array, from: int, n: int) -> void:
 	var sg_t: float = 0.0 if not _pending.is_empty() else 1.0
 	var lp_a: float = SynthDSP.one_pole_coef(_rate, maxf(1.0, float(_cur["lowpass_hz"])))
 	var hiss: float = float(_cur["hiss"])
-	var lf: float = float(_length)
-	var pos: float = _pos
 	for i: int in n:
-		var ip: int = int(pos)
-		var ip2: int = ip + 1 if ip + 1 < _length else 0
-		var fr: float = pos - float(ip)
-		var s: float = acc[ip] + (acc[ip2] - acc[ip]) * fr + mel[ip] + (mel[ip2] - mel[ip]) * fr
 		_g += (g_t - _g) * fade_k
 		_hg += (hg_t - _hg) * fade_k
 		_swap_g += (sg_t - _swap_g) * swap_k
 		_hiss_y += HISS_SMOOTH * (noise[_noise_i & SynthDSP.NOISE_MASK] - _hiss_y)
 		_noise_i += 1
-		_lp_y += lp_a * (s * _g * _swap_g + _hiss_y * hiss * _hg - _lp_y)
+		_lp_y += lp_a * (dry[i] * _g * _swap_g + _hiss_y * hiss * _hg - _lp_y)
 		out[from + i] = Vector2(_lp_y, _lp_y)
-		pos += _step
+	_silence_left = maxi(0, _silence_left - n)
+
+
+## Una sola cabeza (tempo = velocidad de lectura): interpolación lineal de acompañamiento + melodía.
+func _read_plain(dry: PackedFloat32Array, n: int) -> void:
+	var acc: PackedFloat32Array = _acc
+	var mel: PackedFloat32Array = _mel[mini(_variant, _mel.size() - 1)]
+	var lf: float = float(_length)
+	var last: int = _length - 1
+	var step: float = _step
+	var pos: float = _pos
+	for i: int in n:
+		var ip: int = int(pos)
+		var ip2: int = ip + 1 if ip < last else 0
+		var fr: float = pos - float(ip)
+		dry[i] = acc[ip] + (acc[ip2] - acc[ip]) * fr + mel[ip] + (mel[ip2] - mel[ip]) * fr
+		pos += step
 		if pos >= lf:
 			pos -= lf
 	_pos = pos
-	_silence_left = maxi(0, _silence_left - n)
+
+
+## Dos cabezas desfasadas medio grano: cada una lee a la velocidad de la cinta desde el ancla y se
+## reengancha a él cuando su ventana vale cero (estiramiento temporal barato: "debe sonar económica").
+func _read_grains(dry: PackedFloat32Array, n: int, drift: float) -> void:
+	var acc: PackedFloat32Array = _acc
+	var mel: PackedFloat32Array = _mel[mini(_variant, _mel.size() - 1)]
+	var lf: float = float(_length)
+	var last: int = _length - 1
+	var gstep: float = 1.0 / maxf(1.0, _grain_s * float(_rate))
+	var step: float = _step
+	var pos: float = _pos
+	var ga: float = _grain_ph
+	var oa: float = _off_a
+	var ob: float = _off_b
+	for i: int in n:
+		var pa: float = fposmod(pos + oa, lf)
+		var pb: float = fposmod(pos + ob, lf)
+		var ia: int = int(pa)
+		var ib: int = int(pb)
+		var ia2: int = ia + 1 if ia < last else 0
+		var ib2: int = ib + 1 if ib < last else 0
+		var fa: float = pa - float(ia)
+		var fb: float = pb - float(ib)
+		var wa: float = 1.0 - absf(2.0 * ga - 1.0)
+		dry[i] = (acc[ia] + (acc[ia2] - acc[ia]) * fa + mel[ia] + (mel[ia2] - mel[ia]) * fa) * wa \
+				+ (acc[ib] + (acc[ib2] - acc[ib]) * fb + mel[ib] + (mel[ib2] - mel[ib]) * fb) * (1.0 - wa)
+		var before: float = ga
+		ga += gstep
+		if ga >= 1.0:
+			ga -= 1.0
+			oa = 0.0
+		elif before < HALF and ga >= HALF:
+			ob = 0.0
+		oa += drift
+		ob += drift
+		pos += step
+		if pos >= lf:
+			pos -= lf
+	_pos = pos
+	_grain_ph = ga
+	_off_a = oa
+	_off_b = ob
 
 
 func _fade_coef(seconds: float) -> float:
@@ -279,5 +409,7 @@ func _schedule_silences(dt: float) -> void:
 
 
 func _reset_telemetry() -> void:
-	telemetry = {"rate": PackedFloat32Array(), "gain": PackedFloat32Array(),
-			"variant": PackedByteArray(), "block": BLOCK, "sample_rate": _rate}
+	_tele_rate = PackedFloat32Array()
+	_tele_pitch = PackedFloat32Array()
+	_tele_gain = PackedFloat32Array()
+	_tele_variant = PackedByteArray()

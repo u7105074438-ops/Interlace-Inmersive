@@ -176,17 +176,17 @@ static func drum(kind: String, rate: int) -> PackedFloat32Array:
 	var buf: PackedFloat32Array = SynthDSP.silence(0.4, rate)
 	match kind:
 		"kick":
-			SynthDSP.tone_into(buf, rate, 0.0, 0.3, 110.0, 42.0, 0.9, SynthDSP.Wave.SINE, 0.002, 0.11)
+			SynthDSP.tone_into(buf, rate, 0.0, 0.3, 110.0, 42.0, 0.6, SynthDSP.Wave.SINE, 0.002, 0.11)
 		"rim":
-			SynthDSP.tone_into(buf, rate, 0.0, 0.05, 1700.0, 1650.0, 0.35, SynthDSP.Wave.SINE, 0.0, 0.01)
+			SynthDSP.tone_into(buf, rate, 0.0, 0.05, 1700.0, 1650.0, 0.45, SynthDSP.Wave.SINE, 0.0, 0.01)
 			SynthDSP.tone_into(buf, rate, 0.0, 0.05, 520.0, 500.0, 0.25, SynthDSP.Wave.SINE, 0.0, 0.015)
 			SynthDSP.noise_into(buf, rate, 0.0, 0.015, 0.3, 0.0, 0.003, 2500.0, 0.0, 11)
 		"swish":
-			SynthDSP.noise_into(buf, rate, 0.0, 0.34, 0.3, 0.06, 0.1, 2200.0, 7000.0, 23)
+			SynthDSP.noise_into(buf, rate, 0.0, 0.34, 0.55, 0.06, 0.1, 2200.0, 7000.0, 23)
 		"tap":
-			SynthDSP.noise_into(buf, rate, 0.0, 0.1, 0.45, 0.002, 0.03, 1500.0, 6000.0, 37)
+			SynthDSP.noise_into(buf, rate, 0.0, 0.1, 0.7, 0.002, 0.03, 1500.0, 6000.0, 37)
 		"hat":
-			SynthDSP.noise_into(buf, rate, 0.0, 0.06, 0.3, 0.001, 0.012, 6500.0, 0.0, 53)
+			SynthDSP.noise_into(buf, rate, 0.0, 0.06, 0.45, 0.001, 0.012, 6500.0, 0.0, 53)
 	return buf
 
 
@@ -264,8 +264,8 @@ static func melody(score: Dictionary, arr: Dictionary, rate: int, spb: float, le
 static func variant_offset(variant: int, rng: RandomNumberGenerator, cfg: Dictionary) -> float:
 	if variant == MuzakSynth.VARIANT_SOUR:
 		var sour: Vector2 = cfg["sour_cents"]
-		var sign: float = 1.0 if rng.randf() < 0.5 else -1.0
-		return sign * rng.randf_range(sour.x, sour.y) / CENTS_PER_SEMITONE
+		var direction: float = 1.0 if rng.randf() < 0.5 else -1.0
+		return direction * rng.randf_range(sour.x, sour.y) / CENTS_PER_SEMITONE
 	if variant == MuzakSynth.VARIANT_ATONAL:
 		var shifts: Array = cfg["atonal_shifts"]
 		var cents: float = float(cfg["atonal_cents"])
@@ -274,15 +274,15 @@ static func variant_offset(variant: int, rng: RandomNumberGenerator, cfg: Dictio
 	return 0.0
 
 
-static func lead_note(kind: String, midi: float, gate_s: float, rate: int, seed: int) -> PackedFloat32Array:
+static func lead_note(kind: String, midi: float, gate_s: float, rate: int, noise_seed: int) -> PackedFloat32Array:
 	if REEDS.has(kind):
-		return reed(REEDS[kind], midi, gate_s, rate, seed)
+		return reed(REEDS[kind], midi, gate_s, rate, noise_seed)
 	var dur: float = gate_s + LEAD_RELEASE_S
 	var buf: PackedFloat32Array = SynthDSP.silence(dur, rate)
 	var f: float = SynthDSP.midi_hz(midi)
 	match kind:
 		"flute":
-			return flute(midi, gate_s, rate, seed)
+			return flute(midi, gate_s, rate, noise_seed)
 		"vibes":
 			SynthDSP.bell_into(buf, rate, 0.0, dur, f, 0.45, 4.0, 1.1, 0.7)
 			SynthDSP.bell_into(buf, rate, 0.0, dur, f, 0.3, 1.0, 0.3, 1.2)
@@ -295,13 +295,13 @@ static func lead_note(kind: String, midi: float, gate_s: float, rate: int, seed:
 
 
 ## "Saxofón" sintético: sierra + cuadrada, scoop de afinación, vibrato retardado, aliento, filtro SVF.
-static func reed(p: Array, midi: float, gate_s: float, rate: int, seed: int) -> PackedFloat32Array:
+static func reed(p: Array, midi: float, gate_s: float, rate: int, noise_seed: int) -> PackedFloat32Array:
 	var v: PackedFloat32Array = PackedFloat32Array(p)
 	var buf: PackedFloat32Array = SynthDSP.silence(gate_s + v[R_RELEASE], rate)
 	var env: PackedFloat32Array = _reed_envelope(v, gate_s, rate, buf.size())
 	var incs: PackedFloat32Array = _reed_pitch(v, SynthDSP.midi_hz(midi + v[R_OCTAVE]), rate, buf.size())
 	var noise: PackedFloat32Array = SynthDSP.noise_table()
-	var off: int = absi(seed * 7349) & SynthDSP.NOISE_MASK
+	var off: int = absi(noise_seed * 7349) & SynthDSP.NOISE_MASK
 	var sq: float = v[R_SQUARE]
 	var breath: float = v[R_BREATH]
 	var cut: float = v[R_CUT]
@@ -363,11 +363,11 @@ static func _reed_pitch(v: PackedFloat32Array, freq: float, rate: int, n: int) -
 
 
 ## Flauta: seno + armónico + aliento, vibrato suave (doblaje orquestal de las plantas altas).
-static func flute(midi: float, gate_s: float, rate: int, seed: int) -> PackedFloat32Array:
+static func flute(midi: float, gate_s: float, rate: int, noise_seed: int) -> PackedFloat32Array:
 	var freq: float = SynthDSP.midi_hz(midi)
 	var buf: PackedFloat32Array = SynthDSP.silence(gate_s + LEAD_RELEASE_S, rate)
 	var noise: PackedFloat32Array = SynthDSP.noise_table()
-	var off: int = absi(seed * 3571) & SynthDSP.NOISE_MASK
+	var off: int = absi(noise_seed * 3571) & SynthDSP.NOISE_MASK
 	var ph: float = 0.0
 	for i: int in buf.size():
 		var t: float = float(i) / rate

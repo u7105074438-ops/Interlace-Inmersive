@@ -25,6 +25,8 @@ const KEY_SLOTS := "slots"
 const KEY_NOTE := "_nota"
 ## Escalón máximo con indicador slacker (§24.3 paso 6: escalones 1 a 3).
 const SLACKER_MAX_TIER := 3
+## RR. HH. incorpora siempre un Rookie cuando nadie cualifica para una vacante (§6.3).
+const HIRE_ARCHETYPE := "rookie"
 
 var npcs: Array[NPCRuntime] = []
 ## npc_id → perfil (ver cabecera).
@@ -55,6 +57,31 @@ func generate() -> void:
 		if dep is Dictionary:
 			_generate_department(dep)
 	_apply_fixed_link_gatherings()
+
+
+## Rookie contratado por RR. HH. (§6.3 paso 2) con el id que acuña Company. Sin corrillos: el
+## Rookie carece de aristas sociales (§8.1). taken_names evita repetir nombre-apellido.
+func create_hire(npc_id: String, occupation_id: String, taken_names: Dictionary) -> NPCRuntime:
+	_used_names = taken_names.duplicate()
+	var job: Dictionary = job_info(occupation_id, "")
+	var npc: NPCRuntime = NPCRuntime.new()
+	npc.id = npc_id
+	npc.name = _pick_name()
+	npc.archetype = HIRE_ARCHETYPE
+	npc.traits = roll_traits(HIRE_ARCHETYPE)
+	npc.occupation_id = occupation_id
+	npc.tier = int(job.get("tier", OccupationData.MIN_TIER))
+	npc.department = str(job.get("department", ""))
+	npc.home_room = str(job.get("office_room", ""))
+	npc.current_room = npc.home_room
+	npc.routine_template = _routine_for(occupation_id, {}, npc.tier)
+	npc.home_address = _home_address_for(npc.tier)
+	npc.is_slacker = _roll_slacker(npc.tier, false)
+	npc.portrait_seed = _roll_portrait_seed()
+	npcs.append(npc)
+	profiles[npc_id] = _base_profile(job, {})
+	profiles[npc_id]["seat_index"] = -1
+	return npc
 
 
 # ─── Nominados ────────────────────────────────────────────────

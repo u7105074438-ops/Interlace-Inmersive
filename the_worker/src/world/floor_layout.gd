@@ -17,7 +17,8 @@ extends RefCounted
 ##   cameras: [{id, room_id, cell, rotation}] (grados en sentido horario, 0 = mira al sur; una
 ##           cámara de datos sin rotación, o con 0, apunta al centro de su sala).
 ##   corridor_id: sala eje de la planta (pasillo, calle, túnel o sala núcleo).
-##   Extra: floor, size, band, order, landmarks [{id, rect}], links {id: [ids]}.
+##   Extra: floor, size, band, order, landmarks [{id, rect}], links {id: [ids]},
+##          decor {room_id: [muebles generados]} (pasillos y escondites sin mueble; ver furniture_of).
 
 const SIDE_TOP := 0
 const SIDE_BOTTOM := 1
@@ -44,12 +45,16 @@ const TRANSIT_BY_INTERACTABLE: Dictionary = {
 }
 ## Tránsitos que se colocan en el extremo izquierdo del eje; el resto, en el derecho.
 const LEFT_CAP_KINDS: Array[String] = [TRANSIT_ELEVATOR, TRANSIT_STAIRS]
-const SIDE_CAP_KINDS: Array[String] = [TRANSIT_STAIRS, TRANSIT_SERVICE_STAIRS]
 ## Sala núcleo de las plantas sin pasillo (§22): la circulación nace de ella.
 const HUB_ROOMS: Dictionary = {
-	-3: "service_tunnel", -2: "dead_archive", -1: "garage", 0: "main_reception",
+	-3: "service_tunnel", -2: "dead_archive", -1: "service_stairs", 0: "turnstiles",
 	21: "rooftop_terrace", 100: "assembly_line", 200: "street",
 }
+## Núcleos que se estiran como eje aunque no sean alargados: el control de torniquetes de la planta
+## baja es el vestíbulo de ascensores (recepción, tienda y cafetería se abren a él). Si el eje es
+## una sala de tránsito (escalera), su tramo ocupa el arranque del eje (ancho de datos).
+## En S1 el rellano de la escalera de servicio hace de pasillo técnico (garaje, vestuarios, taller).
+const STRETCHED_HUBS: Array[String] = ["turnstiles", "service_stairs"]
 const KEY_FULL_WIDTH := "full_floor_width"
 const KEY_VIRTUAL := "virtual"
 const KEY_BASE_ID := "base_id"
@@ -65,12 +70,31 @@ const EXIT_ID_FORMAT := "exit_%s_%s"
 const CORRIDOR_CAMERA_FORMAT := "%s_cam_%d"
 const HUGE_SCORE := 1.0e18
 const CENTER_WEIGHT := 4.0
+## Decoración de pasillo por banda (contra los muros, entre puertas): [tipo, ancho en celdas].
+const DECOR_BY_BAND: Dictionary = {
+	"the_pit": [["plant", 1], ["water_cooler", 1], ["trash_bin", 1], ["plant", 1], ["vending_machine", 1]],
+	"the_specialists": [["plant", 1], ["bench", 2], ["water_cooler", 1], ["planter_box", 2]],
+	"the_power": [["planter_box", 2], ["statue", 1], ["sofa", 3], ["plant", 1]],
+	"the_throne": [["statue", 1], ["planter_box", 2], ["plant", 1], ["sofa", 3]],
+	"exterior": [["street_lamp", 1], ["bench", 2], ["trash_bin", 1], ["street_lamp", 1], ["planter_box", 2]],
+	"the_guts": [["crate", 1], ["electrical_panel", 1], ["crate", 1]],
+	"factory": [["crate", 1], ["pallet_stack", 2]],
+}
+## Tipo de escondite → mueble generado cuando no hay mueble en su celda.
+const HIDING_FIXTURES: Dictionary = {"supply_closet": "wardrobe", "curtain": "curtain"}
+const DECOR_DOOR_CLEARANCE := 1
+## Muebles que son puesto de trabajo cuando tienen dueño (asientos para NPC y jugador).
+const SEAT_TYPES: Array[String] = ["cubicle", "desk", "executive_desk", "counter", "reception_desk", "workbench"]
+const CHAIR_TYPE := "chair"
+const NO_CELL := Vector2i(-1, -1)
 
 static var _vent_floors_cache: Array[int] = []
+static var _furniture_cache: Dictionary = {}
 
 
 class Ctx extends RefCounted:
 	var floor_number: int = 0
+	var decor: Dictionary = {}
 	var defs: Dictionary = {}
 	var ids: Array[String] = []
 	var links: Dictionary = {}
@@ -106,6 +130,7 @@ static func compute(floor: int) -> Dictionary:
 	_build_doors(ctx)
 	_build_transit(ctx)
 	_build_cameras(ctx)
+	_build_decor(ctx)
 	return _finish_plan(ctx)
 
 
@@ -147,15 +172,134 @@ static func find_arrival(plan: Dictionary, source_room: String, kind: String) ->
 	return {}
 
 
-## Celdas de mobiliario que bloquean el paso, en coordenadas de planta.
-static func blocked_cells(room: RoomData, rect: Rect2i) -> Dictionary:
-	var out: Dictionary = {}
+## Mobiliario completo de una sala en el plano: el de datos (orientación efectiva, ver
+## room_furniture) más la decoración generada (pasillos, escondites, vestido de salas).
+static func furniture_of(plan: Dictionary, room: RoomData) -> Array[Dictionary]:
+	var out: Array[Dictionary] = room_furniture(room).duplicate()
+	for entry: Dictionary in plan.get("decor", {}).get(room.id, []):
+		out.append(entry)
+	return out
+
+
+## Mobiliario de datos con su orientación efectiva: un recinto (cubículo, cabina) cuya entrada queda
+## tapada por otro mueble o por el muro se gira 180º (filas apiladas → puestos espalda con espalda).
+## Mismo orden e índices que room.furniture (furniture_index de los asientos). No modificar.
+static func room_furniture(room: RoomData) -> Array[Dictionary]:
+	var key: int = room.get_instance_id()
+	if _furniture_cache.has(key):
+		return _furniture_cache[key]
+	var out: Array[Dictionary] = []
 	for entry: Dictionary in room.furniture:
+		out.append(entry.duplicate())
+	for i: int in out.size():
+		if not FurniturePainter.is_enclosure(str(out[i]["type"])) or _entrance_clear(out, i, out[i], room.size):
+			continue
+		var flipped: Dictionary = out[i].duplicate()
+		flipped["rotation"] = fmod(float(out[i].get("rotation", 0.0)) + 180.0, 360.0)
+		if _entrance_clear(out, i, flipped, room.size):
+			out[i] = flipped
+	_furniture_cache[key] = out
+	return out
+
+
+## Alguna celda delante del lado abierto de `entry` (sustituto del mueble i) está libre y dentro.
+static func _entrance_clear(list: Array[Dictionary], index: int, entry: Dictionary, size: Vector2i) -> bool:
+	var blocked: Dictionary = {}
+	for i: int in list.size():
+		if i != index:
+			for c: Vector2i in FurniturePainter.blocked_cells(list[i]):
+				blocked[c] = true
+	for c: Vector2i in FurniturePainter.front_cells(entry):
+		if Rect2i(Vector2i.ZERO, size).has_point(c) and not blocked.has(c):
+			return true
+	return false
+
+
+## Celdas de mobiliario que bloquean el paso, en coordenadas de planta (+ decoración opcional).
+static func blocked_cells(room: RoomData, rect: Rect2i, extra: Array = []) -> Dictionary:
+	var out: Dictionary = {}
+	var entries: Array = room_furniture(room).duplicate()
+	entries.append_array(extra)
+	for entry: Dictionary in entries:
 		if FurniturePainter.blocking_of(str(entry["type"])) == FurniturePainter.BLOCK_NONE:
 			continue
 		for cell: Vector2i in FurniturePainter.blocked_cells(entry):
 			out[rect.position + cell] = true
 	return out
+
+
+## Puestos de trabajo (muebles de SEAT_TYPES con dueño) en celdas locales de sala:
+## [{index, owner, type, cell: Vector2i, chair: Vector2 (celdas; punto exacto de la silla), facing}].
+## El asiento es la silla de datos contigua si la hay; si no, la celda libre dentro de la sala
+## detrás de la mesa, delante o a los lados (los recintos: su fila abierta, bajo la silla dibujada).
+static func seats_of(room: RoomData) -> Array[Dictionary]:
+	var furniture: Array[Dictionary] = room_furniture(room)
+	var blocked: Dictionary = blocked_cells(room, Rect2i(Vector2i.ZERO, room.size))
+	var claimed: Dictionary = {}
+	var out: Array[Dictionary] = []
+	for i: int in furniture.size():
+		var entry: Dictionary = furniture[i]
+		if not SEAT_TYPES.has(str(entry["type"])) or not entry.has("owner"):
+			continue
+		var seat: Dictionary = _enclosure_seat(entry) if FurniturePainter.is_enclosure(str(entry["type"])) \
+				else _desk_seat(entry, furniture, room.size, blocked, claimed)
+		claimed[seat["cell"]] = true
+		seat.merge({"index": i, "owner": str(entry["owner"]), "type": str(entry["type"])})
+		out.append(seat)
+	return out
+
+
+static func _enclosure_seat(entry: Dictionary) -> Dictionary:
+	var fp: Rect2i = FurniturePainter.footprint(entry)
+	var chair: Vector2 = FurniturePainter.chair_point(entry, Rect2(Vector2(fp.position), Vector2(fp.size)))
+	var cell: Vector2i = Vector2i(clampi(floori(chair.x), fp.position.x, fp.end.x - 1), FurniturePainter.open_row(entry))
+	var facing: Vector2 = Vector2.UP if FurniturePainter.opens_south(entry) else Vector2.DOWN
+	return {"cell": cell, "chair": chair, "facing": facing}
+
+
+static func _desk_seat(entry: Dictionary, furniture: Array[Dictionary], size: Vector2i, blocked: Dictionary,
+		claimed: Dictionary) -> Dictionary:
+	var fp: Rect2i = FurniturePainter.footprint(entry)
+	var behind: Vector2i = FurniturePainter.seat_cell(entry)
+	var cell: Vector2i = _adjacent_chair(fp, behind, furniture, size, blocked, claimed)
+	if cell == NO_CELL:
+		cell = _free_side_cell(entry, fp, size, blocked, claimed)
+	var target: Vector2 = Vector2(clampi(cell.x, fp.position.x, fp.end.x - 1), clampi(cell.y, fp.position.y, fp.end.y - 1))
+	return {"cell": cell, "chair": Vector2(cell) + Vector2(0.5, 0.5), "facing": (target - Vector2(cell)).normalized()}
+
+
+## Silla de datos pegada a un lado de la huella, libre, dentro de la sala y sin reclamar; primero
+## las del lado del puesto (`behind`, detrás de la mesa según su rotación), después cualquiera.
+static func _adjacent_chair(fp: Rect2i, behind: Vector2i, furniture: Array[Dictionary], size: Vector2i,
+		blocked: Dictionary, claimed: Dictionary) -> Vector2i:
+	for same_side: bool in [true, false]:
+		for entry: Dictionary in furniture:
+			var c: Vector2i = entry.get("pos", NO_CELL)
+			if str(entry["type"]) != CHAIR_TYPE or not fp.grow(1).has_point(c) or fp.has_point(c):
+				continue
+			var edge: bool = (c.x >= fp.position.x and c.x < fp.end.x) or (c.y >= fp.position.y and c.y < fp.end.y)
+			var side_ok: bool = not same_side or (c.y == behind.y if behind.y < fp.position.y or behind.y >= fp.end.y
+					else c.x == behind.x)
+			if edge and side_ok and _seat_ok(c, size, blocked, claimed):
+				return c
+	return NO_CELL
+
+
+## Primera celda libre junto a la mesa: detrás (convención de datos), delante y a los lados.
+static func _free_side_cell(entry: Dictionary, fp: Rect2i, size: Vector2i, blocked: Dictionary,
+		claimed: Dictionary) -> Vector2i:
+	var behind: Vector2i = FurniturePainter.seat_cell(entry)
+	var mid: Vector2i = Vector2i(fp.position.x + fp.size.x / 2, fp.position.y + fp.size.y / 2)
+	var candidates: Array[Vector2i] = [behind, Vector2i(mid.x, fp.end.y), Vector2i(mid.x, fp.position.y - 1),
+			Vector2i(fp.position.x - 1, mid.y), Vector2i(fp.end.x, mid.y)]
+	for c: Vector2i in candidates:
+		if _seat_ok(c, size, blocked, claimed):
+			return c
+	return behind
+
+
+static func _seat_ok(c: Vector2i, size: Vector2i, blocked: Dictionary, claimed: Dictionary) -> bool:
+	return Rect2i(Vector2i.ZERO, size).has_point(c) and not blocked.has(c) and not claimed.has(c)
 
 
 # ─── Contexto ─────────────────────────────────────────────────
@@ -239,11 +383,13 @@ static func _add_link(ctx: Ctx, a: String, b: String) -> void:
 
 
 static func _choose_spine(ctx: Ctx) -> String:
+	if ctx.ids.is_empty():
+		return ""
 	for id: String in ctx.ids:
 		if bool((ctx.defs[id] as RoomData).extra.get(KEY_FULL_WIDTH, false)):
 			return id
-	var hub: String = str(HUB_ROOMS.get(ctx.floor_number, ""))
-	if ctx.defs.has(hub):
+	var hub: String = _resolve(ctx, str(HUB_ROOMS.get(ctx.floor_number, "")))
+	if not hub.is_empty():
 		return hub
 	var best: String = ctx.ids[0]
 	for id: String in ctx.ids:
@@ -263,7 +409,7 @@ static func _is_transversal(ctx: Ctx, id: String) -> bool:
 
 static func _is_spine_floor(ctx: Ctx) -> bool:
 	var room: RoomData = ctx.defs[ctx.spine]
-	if room.size.x == 0 or bool(room.extra.get(KEY_FULL_WIDTH, false)):
+	if room.size.x == 0 or bool(room.extra.get(KEY_FULL_WIDTH, false)) or STRETCHED_HUBS.has(base_id(ctx.spine)):
 		return true
 	var aspect: float = float(room.size.x) / float(maxi(1, room.size.y))
 	return aspect >= Database.get_balance_float("mundo.aspecto_minimo_eje")
@@ -287,7 +433,8 @@ static func _layout_spine(ctx: Ctx) -> void:
 	var left: Array[String] = []
 	var right: Array[String] = []
 	_split_caps(ctx, left, right)
-	var start_x: int = _cap_width(ctx, left, false)
+	var head: int = spine_head(spine_def)
+	var start_x: int = head + _cap_width(ctx, left, false)
 	var cursors: Array[int] = [start_x, start_x]
 	cursors[SIDE_TOP] = _reserve_facade(ctx, start_x)
 	for id: String in _spine_primaries(ctx):
@@ -296,8 +443,13 @@ static func _layout_spine(ctx: Ctx) -> void:
 	var used: int = maxi(cursors[SIDE_TOP], cursors[SIDE_BOTTOM]) + _cap_width(ctx, right, true)
 	var length: int = maxi(used, spine_def.size.x)
 	ctx.rects[ctx.spine] = Rect2i(0, 0, length, height)
-	_place_left_cap(ctx, left, height)
+	_place_left_cap(ctx, left, height, head)
 	_place_right_cap(ctx, right, length, height)
+
+
+## Celdas del arranque del eje reservadas al tramo de escalera cuando el eje es un tránsito.
+static func spine_head(spine_def: RoomData) -> int:
+	return spine_def.size.x if not transit_kind_of(spine_def).is_empty() else 0
 
 
 ## Tránsitos transversales no enlazados por ninguna sala concreta → extremos del eje.
@@ -348,12 +500,21 @@ static func _reserve_facade(ctx: Ctx, start_x: int) -> int:
 	return rect.end.x
 
 
-## Salas enlazadas directamente con el eje (no transversales), en orden de datos.
+## Salas enlazadas directamente con el eje (no transversales): primero las que enlazan con un
+## tránsito del extremo izquierdo, al final las que enlazan con uno del derecho (orden estable).
 static func _spine_primaries(ctx: Ctx) -> Array[String]:
-	var out: Array[String] = []
+	var buckets: Array = [[], [], []]
 	for id: String in ctx.links[ctx.spine]:
-		if not _is_transversal(ctx, id) and not ctx.rects.has(id):
-			out.append(id)
+		if _is_transversal(ctx, id) or ctx.rects.has(id):
+			continue
+		var bucket: int = 1
+		for other: String in ctx.links[id]:
+			if other != ctx.spine and _is_transversal(ctx, other):
+				bucket = 0 if LEFT_CAP_KINDS.has(transit_kind_of(ctx.defs[other])) else 2
+		(buckets[bucket] as Array).append(id)
+	var out: Array[String] = []
+	for bucket: Array in buckets:
+		out.append_array(bucket)
 	return out
 
 
@@ -409,12 +570,13 @@ static func _place_chain(ctx: Ctx, chain: Array[String], side: int, x: int, heig
 		ctx.rects[id] = Rect2i(x, y, size.x, size.y)
 		if not ctx.parent.has(id):
 			ctx.parent[id] = ctx.spine
+		_reserve_exit_apron(ctx, id, side)
 		x += size.x
 	return x
 
 
-static func _place_left_cap(ctx: Ctx, cap: Array[String], height: int) -> void:
-	var cursors: Array[int] = [0, 0]
+static func _place_left_cap(ctx: Ctx, cap: Array[String], height: int, head: int) -> void:
+	var cursors: Array[int] = [head, head]
 	var index: int = 0
 	for id: String in cap:
 		var size: Vector2i = (ctx.defs[id] as RoomData).size
@@ -454,17 +616,32 @@ static func _layout_hub(ctx: Ctx) -> void:
 	var queue: Array[String] = [ctx.spine]
 	while not queue.is_empty():
 		var current: String = queue.pop_front()
-		for other: String in ctx.links[current]:
+		for other: String in _by_area_desc(ctx, ctx.links[current]):
 			if ctx.rects.has(other):
 				continue
 			if _attach(ctx, other, current):
 				queue.append(other)
 
 
+## Orden estable por área descendente: las salas grandes eligen hueco antes que las pequeñas.
+static func _by_area_desc(ctx: Ctx, ids: Array[String]) -> Array[String]:
+	var out: Array[String] = ids.duplicate()
+	var order: Dictionary = {}
+	for i: int in out.size():
+		order[out[i]] = i
+	out.sort_custom(func(a: String, b: String) -> bool:
+		var area_a: int = (ctx.defs[a] as RoomData).size.x * (ctx.defs[a] as RoomData).size.y
+		var area_b: int = (ctx.defs[b] as RoomData).size.x * (ctx.defs[b] as RoomData).size.y
+		return area_a > area_b or (area_a == area_b and int(order[a]) < int(order[b])))
+	return out
+
+
 ## Coloca `id` adosada a `parent_id` (búsqueda de huecos determinista). false si no cabe.
 static func _attach(ctx: Ctx, id: String, parent_id: String) -> bool:
 	var size: Vector2i = (ctx.defs[id] as RoomData).size
-	var rect: Rect2i = _find_adjacent(ctx, size, ctx.rects[parent_id])
+	var rect: Rect2i = _find_adjacent(ctx, size, ctx.rects[parent_id], ctx.min_overlap)
+	if rect.size == Vector2i.ZERO:
+		rect = _find_adjacent(ctx, size, ctx.rects[parent_id], ctx.door_width)
 	if rect.size == Vector2i.ZERO:
 		return false
 	ctx.rects[id] = rect
@@ -519,9 +696,17 @@ static func _place_remaining(ctx: Ctx) -> void:
 					progress = true
 					break
 	for id: String in ctx.ids:
-		if not _is_placed(ctx, id):
-			if not _attach(ctx, id, ctx.spine):
-				push_error("FloorLayout: no space for %s on floor %d" % [id, ctx.floor_number])
+		if not _is_placed(ctx, id) and not _attach(ctx, id, ctx.spine):
+			_attach_anywhere(ctx, id)
+
+
+## Último recurso: junto a cualquier sala colocada (con puerta), para no dejar salas fuera.
+static func _attach_anywhere(ctx: Ctx, id: String) -> void:
+	for other: String in ctx.rects.keys():
+		if other != id and _is_placed(ctx, other) and _attach(ctx, id, other):
+			push_warning("FloorLayout: %s placed next to %s (no space near its links)" % [id, other])
+			return
+	push_error("FloorLayout: no space for %s on floor %d" % [id, ctx.floor_number])
 
 
 static func _is_placed(ctx: Ctx, id: String) -> bool:
@@ -529,20 +714,23 @@ static func _is_placed(ctx: Ctx, id: String) -> bool:
 
 
 ## Mejor posición adosada: minimiza el área del contorno total y el descentrado.
-static func _find_adjacent(ctx: Ctx, size: Vector2i, parent_rect: Rect2i) -> Rect2i:
+static func _find_adjacent(ctx: Ctx, size: Vector2i, parent_rect: Rect2i, min_overlap: int) -> Rect2i:
 	var best: Rect2i = Rect2i()
 	var best_score: float = HUGE_SCORE
 	var bounds: Rect2i = _bounds(ctx)
+	## Proporción de contorno buscada (pantalla 16:9): plantas compactas y legibles.
+	var aspect: float = maxf(0.1, Database.get_balance_float("mundo.proporcion_planta"))
 	for side: int in HUB_SIDES:
 		var along_len: int = parent_rect.size.x if side <= SIDE_BOTTOM else parent_rect.size.y
 		var own_len: int = size.x if side <= SIDE_BOTTOM else size.y
-		for offset: int in range(ctx.min_overlap - own_len, along_len - ctx.min_overlap + 1):
+		for offset: int in range(min_overlap - own_len, along_len - min_overlap + 1):
 			var rect: Rect2i = _adjacent_rect(parent_rect, size, side, offset)
 			if _collides(ctx, rect):
 				continue
 			var grown: Rect2i = bounds.merge(rect)
 			var centre_off: float = absf(float(offset) + own_len * 0.5 - along_len * 0.5)
-			var score: float = float(grown.get_area()) + centre_off * CENTER_WEIGHT
+			var side_len: float = maxf(grown.size.x / aspect, float(grown.size.y))
+			var score: float = side_len * side_len + float(grown.get_area()) * 0.25 + centre_off * CENTER_WEIGHT
 			if score < best_score:
 				best_score = score
 				best = rect
@@ -662,11 +850,10 @@ static func _door_clear(ctx: Ctx, wall: Dictionary, start: int, blocked: Diction
 	var line: int = int(wall["line"])
 	for i: int in ctx.door_width:
 		var along: int = start + i
-		var inside: Array[Vector2i] = [Vector2i(line, along), Vector2i(line - 1, along)] \
-				if wall["vertical"] else [Vector2i(along, line), Vector2i(along, line - 1)]
-		for cell: Vector2i in inside:
-			if blocked.has(cell):
-				return false
+		var a: Vector2i = Vector2i(line, along) if wall["vertical"] else Vector2i(along, line)
+		var b: Vector2i = Vector2i(line - 1, along) if wall["vertical"] else Vector2i(along, line - 1)
+		if blocked.has(a) or blocked.has(b):
+			return false
 	return true
 
 
@@ -819,7 +1006,11 @@ static func _facade_slot(ctx: Ctx, link: Dictionary) -> Dictionary:
 ## Primer tramo de muro exterior libre (sin sala al otro lado ni otra puerta) de la sala.
 static func _free_wall(ctx: Ctx, room_id: String) -> Dictionary:
 	var rect: Rect2i = ctx.rects[room_id]
-	var sides: Array[int] = EXIT_SIDES_SPINE if room_id == ctx.spine else EXIT_SIDES_HUB
+	var sides: Array[int] = EXIT_SIDES_SPINE.duplicate() if room_id == ctx.spine else EXIT_SIDES_HUB.duplicate()
+	if ctx.parent.has(room_id) and _is_placed(ctx, str(ctx.parent[room_id])):
+		var outward: int = _outward_side(rect, ctx.rects[ctx.parent[room_id]])
+		sides.erase(outward)
+		sides.push_front(outward)
 	for side: int in sides:
 		var along_len: int = rect.size.x if side <= SIDE_BOTTOM else rect.size.y
 		var centre: int = (along_len - ctx.door_width) / 2
@@ -839,6 +1030,10 @@ static func _exit_at(ctx: Ctx, room_id: String, rect: Rect2i, side: int, offset:
 			else Vector2i(1, ctx.door_width), side, offset)
 	for other_id: String in ctx.rects:
 		if other_id != room_id and probe.intersects(ctx.rects[other_id]):
+			return {}
+	for t: Dictionary in ctx.transit:
+		if t["kind"] == TRANSIT_EXIT and t["door_cell"] != Vector2i(-1, -1) \
+				and Rect2i(t["door_cell"], Vector2i.ONE).grow(ctx.door_width + 1).intersects(probe):
 			return {}
 	var vertical: bool = side >= SIDE_LEFT
 	var line_cell: Vector2i
@@ -923,6 +1118,7 @@ static func _finish_plan(ctx: Ctx) -> Dictionary:
 		"cameras": _shift_list(ctx.cameras, shift, ["cell"]),
 		"landmarks": _shift_landmarks(ctx.landmarks, shift),
 		"links": ctx.links.duplicate(true), "band": _band_id(ctx.floor_number),
+		"decor": ctx.decor.duplicate(true),
 	}
 
 
@@ -947,3 +1143,94 @@ static func _shift_landmarks(marks: Array[Dictionary], shift: Vector2i) -> Array
 
 static func _band_id(floor_number: int) -> String:
 	return str(Database.get_art_band_for_floor(floor_number).get("id", ""))
+
+
+# ─── Decoración de pasillo ────────────────────────────────────
+
+## Muebles decorativos contra los muros norte y sur del eje, entre puertas (deterministas).
+static func _build_decor(ctx: Ctx) -> void:
+	_hiding_fixtures(ctx)
+	var kit: Array = DECOR_BY_BAND.get(_band_id(ctx.floor_number), [])
+	var rect: Rect2i = ctx.rects[ctx.spine]
+	if kit.is_empty() or rect.size.y < 3:
+		return
+	var busy: Dictionary = _spine_busy_cells(ctx, rect)
+	var spacing: int = maxi(1, Database.get_balance_int("mundo.espaciado_decoracion_pasillo"))
+	var out: Array[Dictionary] = []
+	var index: int = 0
+	for row: int in [0, rect.size.y - 1]:
+		var x: int = spacing / 2
+		while x < rect.size.x - 1:
+			var item: Array = kit[index % kit.size()]
+			if _run_free(busy, Vector2i(x, row), int(item[1])):
+				out.append({"type": str(item[0]), "pos": Vector2i(x, row), "size": [int(item[1]), 1],
+						"rotation": 0.0 if row == 0 else 180.0, "decor": true})
+				index += 1
+			x += spacing
+	ctx.decor[ctx.spine] = out
+
+
+## Escondites sin mueble propio: armario de material (alto) o cortinas (planas) en su celda.
+static func _hiding_fixtures(ctx: Ctx) -> void:
+	for id: String in ctx.rects:
+		if not _is_placed(ctx, id) or _is_transversal(ctx, id):
+			continue
+		var room: RoomData = ctx.defs[id]
+		var occupied: Dictionary = _furniture_cells(room)
+		var out: Array[Dictionary] = []
+		for spot: Dictionary in room.hiding_spots:
+			var type: String = str(HIDING_FIXTURES.get(str(spot["type"]), ""))
+			if type.is_empty() or occupied.has(spot["pos"]) or _near_door(ctx, id, spot["pos"]):
+				continue
+			out.append({"type": type, "pos": spot["pos"], "rotation": 0.0, "decor": true})
+		if not out.is_empty():
+			ctx.decor[id] = out
+
+
+static func _furniture_cells(room: RoomData) -> Dictionary:
+	var out: Dictionary = {}
+	for entry: Dictionary in room.furniture:
+		var fp: Rect2i = FurniturePainter.footprint(entry)
+		for y: int in range(fp.position.y, fp.end.y):
+			for x: int in range(fp.position.x, fp.end.x):
+				out[Vector2i(x, y)] = true
+	return out
+
+
+static func _near_door(ctx: Ctx, room_id: String, local: Vector2i) -> bool:
+	var cell: Vector2i = (ctx.rects[room_id] as Rect2i).position + local
+	for door: Dictionary in ctx.doors:
+		if door["walkable"] and (door["a"] == room_id or door["b"] == room_id):
+			var span: Rect2i = Rect2i(door["cell"], Vector2i(1, int(door["width"])) if door["vertical"]
+					else Vector2i(int(door["width"]), 1)).grow(DECOR_DOOR_CLEARANCE + 1)
+			if span.has_point(cell):
+				return true
+	return false
+
+
+## Celdas locales del eje que deben quedar libres: frente a puertas, tránsitos y extremos.
+static func _spine_busy_cells(ctx: Ctx, rect: Rect2i) -> Dictionary:
+	var busy: Dictionary = blocked_cells(ctx.defs[ctx.spine], Rect2i(Vector2i.ZERO, rect.size))
+	var openings: Array[Dictionary] = []
+	for door: Dictionary in ctx.doors:
+		if door["a"] == ctx.spine or door["b"] == ctx.spine:
+			openings.append({"cell": door["cell"], "vertical": door["vertical"], "width": door["width"]})
+	for t: Dictionary in ctx.transit:
+		if t["room_id"] == ctx.spine:
+			openings.append({"cell": t["cell"], "vertical": false, "width": 1})
+	for o: Dictionary in openings:
+		var c: Vector2i = (o["cell"] as Vector2i) - rect.position
+		for k: int in range(-DECOR_DOOR_CLEARANCE, int(o["width"]) + DECOR_DOOR_CLEARANCE):
+			for d: int in range(-1, 2):
+				busy[c + (Vector2i(d, k) if o["vertical"] else Vector2i(k, d))] = true
+	for y: int in rect.size.y:
+		busy[Vector2i(0, y)] = true
+		busy[Vector2i(rect.size.x - 1, y)] = true
+	return busy
+
+
+static func _run_free(busy: Dictionary, start: Vector2i, width: int) -> bool:
+	for k: int in width:
+		if busy.has(start + Vector2i(k, 0)):
+			return false
+	return true

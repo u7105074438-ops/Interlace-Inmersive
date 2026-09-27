@@ -1,4 +1,4 @@
-# market_case.gd — Cuerpo de test_market: fórmulas §9.3, paso horario (nunca por fotograma), trimestre con/sin escándalo, reversión por gravedad, calendario §9.4 y guardado.
+# market_case.gd — Cuerpo de test_market: fórmulas §9.3, paso horario (nunca por fotograma, con el reloj en marcha), trimestre con/sin escándalo, reversión por gravedad al cierre trimestral, cifras acumuladas del trimestre, calendario §9.4 y guardado.
 # PROPIETARIO DE: nada.
 # ESCUCHA: stock_price_updated, results_presentation_due (solo para comprobarlas).
 extends TestCase
@@ -29,6 +29,10 @@ const REVERSION_DAYS := 60
 const MIN_MANIPULATION_GAIN := 0.05
 const HALF_REVERTED := 0.5
 const MOSTLY_REVERTED := 0.2
+const FRAME_SAMPLE := 30
+const LOW_EFFICIENCY_DAYS := 10
+const EFFICIENCY_CUT := -0.3
+const SURPRISE_RANGE := 0.2
 const EVENT_SCANDAL := "scandal"
 const EVENT_PRAISE := "praise"
 const PRAISE_HEADLINE := "NEWS_FABRICATED_PRAISE"
@@ -39,20 +43,25 @@ const NOISE_SAMPLE_DAYS := 120
 
 var _price_updates: int = 0
 var _due: Array[int] = []
+var _reported: int = 0
 
 
 func run_case() -> void:
 	check(new_run(DEFAULT_SEED, false), "Database loaded the data files")
 	EventBus.stock_price_updated.connect(_on_price_updated)
 	EventBus.results_presentation_due.connect(_on_due)
+	EventBus.quarter_reported.connect(func(_r: Dictionary, _p: Dictionary) -> void: _reported += 1)
 	_test_manual_numbers()
 	_test_intrinsic_value()
 	_test_daily_formula()
 	await _test_hourly_not_per_frame()
 	_test_hour_wiring_and_day_close()
+	_test_real_clock_quarter()
 	_test_momentum_history()
 	_test_scandal_quarter()
 	_test_gravity_reverts_manipulation()
+	_test_manipulation_buys_time_not_immunity()
+	_test_quarter_figures_accumulate()
 	_test_calendar()
 	_test_save_load()
 
@@ -126,10 +135,21 @@ func _test_daily_formula() -> void:
 func _test_hourly_not_per_frame() -> void:
 	new_run(DEFAULT_SEED, false)
 	var start: float = Market.get_price()
-	await wait_frames(20)
-	check_eq(Market.get_price(), start, "the price does not change per frame")
+	var minutes: float = GameClock.get_total_minutes()
+	var hour: int = GameClock.get_hour()
+	GameClock.resume()
+	await wait_frames(FRAME_SAMPLE)
+	GameClock.pause()
+	check(GameClock.get_total_minutes() > minutes, "the game clock ran during %d frames" % FRAME_SAMPLE)
+	if GameClock.get_hour() == hour:
+		check_eq(Market.get_price(), start, "frames without an hour boundary never move the price")
+	else:
+		check_eq(Market.get_steps_done_today(), GameClock.get_hour() - hour,
+				"only hour boundaries move the price")
 	check(not Market.is_processing() and not Market.is_physics_processing(),
 			"Market has no per-frame processing")
+	new_run(DEFAULT_SEED, false)
+	start = Market.get_price()
 	var expected_step: float = Market.compute_daily_delta(start, Market.get_intrinsic_value(),
 			Market.get_sentiment(), Market.get_momentum(), Market.get_noise_today()) / OFFICE_HOURS
 	_price_updates = 0
@@ -161,6 +181,26 @@ func _test_hour_wiring_and_day_close() -> void:
 	var history: Array[float] = Market.get_price_history(1)
 	check_eq(history[0], Market.get_price(), "the day close is stored in the history")
 	check_eq(Market.get_steps_done_today(), 0, "a new trading day starts with no steps")
+
+
+## Integración con el GameClock real: 11 pasos por jornada, cita de resultados y cierre trimestral.
+func _test_real_clock_quarter() -> void:
+	new_run(DEFAULT_SEED, false)
+	_price_updates = 0
+	GameClock.advance_to_next_day()
+	check_eq(_price_updates, OFFICE_HOURS, "a real game day produces exactly 11 hourly price steps")
+	check_eq(Market.get_current_day(), GameClock.get_day(), "Market follows day_advanced")
+	check_eq(Market.get_price_history(10).size(), 2, "one close recorded per day")
+	_due.clear()
+	_reported = 0
+	while GameClock.get_day() <= QUARTER_DAYS:
+		GameClock.advance_to_next_day()
+	check(_due.size() == 1 and _due[0] == 1, "results_presentation_due(1) during day 25")
+	check_eq(_reported, 1, "quarter_reported once when the first quarter closes")
+	check(not Market.get_last_presentation().is_empty(),
+			"no player presentation: the NPC presenter's results still move investors")
+	check_eq(Market.get_price_history(QUARTER_DAYS + 1).size(), QUARTER_DAYS + 1,
+			"25 trading days recorded")
 
 
 func _test_momentum_history() -> void:
@@ -198,26 +238,80 @@ func _test_scandal_quarter() -> void:
 			"the scandal quarter closes below the opening price (mean %.2f)" % (dirty_sum / runs))
 
 
+## §9.3: "la gravedad revierte el efecto y el cierre trimestral lo alcanza".
 func _test_gravity_reverts_manipulation() -> void:
-	var half_life: int = ceili(log(0.5) / log(1.0 - MANUAL_ALPHA))
 	for run_seed: int in GRAVITY_SEEDS:
 		var clean: Array[float] = _simulate(run_seed, REVERSION_DAYS, -1, "")
 		var manipulated: Array[float] = _simulate(run_seed, REVERSION_DAYS, 1, EVENT_PRAISE)
 		var peak: float = 0.0
-		var peak_day: int = 0
-		for d: int in REVERSION_DAYS:
-			var diff: float = manipulated[d] - clean[d]
-			if diff > peak:
-				peak = diff
-				peak_day = d
-		var later: int = mini(peak_day + 2 * half_life, REVERSION_DAYS - 1)
+		for d: int in QUARTER_DAYS:
+			peak = maxf(peak, manipulated[d] - clean[d])
 		var tag: String = "seed %d" % run_seed
 		check(peak >= MANUAL_START_PRICE * MIN_MANIPULATION_GAIN,
 				"%s: fabricated praise buys a real rise (+%.2f)" % [tag, peak])
-		check(manipulated[later] - clean[later] <= peak * HALF_REVERTED,
-				"%s: gravity halves the gain within two half-lives (%d days)" % [tag, 2 * half_life])
+		var at_close: float = manipulated[QUARTER_DAYS - 1] - clean[QUARTER_DAYS - 1]
+		check(at_close <= peak * HALF_REVERTED,
+				"%s: by the quarter close (day 25) gravity has taken back at least half (%.2f of %.2f)"
+				% [tag, at_close, peak])
 		check(manipulated[REVERSION_DAYS - 1] - clean[REVERSION_DAYS - 1] <= peak * MOSTLY_REVERTED,
 				"%s: after %d days at most 20 %% of the gain remains" % [tag, REVERSION_DAYS])
+
+
+## Fundamentales deteriorados (eficiencia −30 %: V ≈ 24 €): la noticia fabricada sube la acción
+## por encima del camino sin manipular, pero el cierre trimestral la deja muy por debajo de 42,50.
+func _test_manipulation_buys_time_not_immunity() -> void:
+	for run_seed: int in GRAVITY_SEEDS:
+		var clean: Array[float] = _simulate_weak(run_seed, false)
+		var manipulated: Array[float] = _simulate_weak(run_seed, true)
+		var bought: bool = false
+		for d: int in range(1, QUARTER_DAYS):
+			bought = bought or manipulated[d] > clean[d] + MANUAL_START_PRICE * MIN_MANIPULATION_GAIN
+		check(bought, "seed %d: the manipulation buys time (a higher price for a while)" % run_seed)
+		check(manipulated[QUARTER_DAYS - 1] < MANUAL_START_PRICE * (1.0 - MIN_MANIPULATION_GAIN * 2.0),
+				"seed %d: no immunity — the quarter close falls to %.2f" % [run_seed,
+				manipulated[QUARTER_DAYS - 1]])
+
+
+func _simulate_weak(run_seed: int, manipulate: bool) -> Array[float]:
+	new_run(run_seed, false)
+	Company.modify_factory_efficiency(EFFICIENCY_CUT)
+	var closes: Array[float] = []
+	for d: int in range(1, QUARTER_DAYS + 1):
+		if manipulate and d == 1:
+			_apply_event(EVENT_PRAISE)
+		_run_trading_day()
+		NewsFeed.apply_daily_decay()
+		closes.append(Market.get_price())
+	return closes
+
+
+## Las cifras del trimestre son la suma de sus jornadas (no una foto del último día): diez
+## jornadas de fábrica a medio gas se notan en la presentación aunque hoy todo vaya bien.
+func _test_quarter_figures_accumulate() -> void:
+	new_run(DEFAULT_SEED, false)
+	var normal: float = float(Company.get_fundamentals()["profit"])
+	Company.modify_factory_efficiency(EFFICIENCY_CUT)
+	var weak: float = float(Company.get_fundamentals()["profit"])
+	check(weak < normal, "lower efficiency lowers the daily profit")
+	for _d: int in LOW_EFFICIENCY_DAYS:
+		_run_trading_day()
+	Company.modify_factory_efficiency(-EFFICIENCY_CUT)
+	while Market.get_current_day() < Market.get_presentation_day():
+		_run_trading_day()
+	var quarter: Dictionary = Market.get_quarter_real_figures(true)
+	var expected: float = LOW_EFFICIENCY_DAYS * weak + (QUARTER_DAYS - LOW_EFFICIENCY_DAYS) * normal
+	check_eq(int(quarter["days"]), QUARTER_DAYS, "the quarter has 25 trading days")
+	check_near(float(quarter["profit"]), expected, 1.0, "quarter profit = 10 weak days + 15 normal days")
+	var surprise: float = (expected - QUARTER_DAYS * normal) / (QUARTER_DAYS * normal)
+	check_near(Market.get_figures_score(), clampf(0.5 + surprise * 0.5 / SURPRISE_RANGE, 0.0, 1.0),
+			EPS, "the figures score judges the whole quarter (%.3f)" % Market.get_figures_score())
+	check(Market.get_figures_score() < 0.5, "early losses still miss expectations on day 25")
+	var totals: Array = []
+	EventBus.quarter_reported.connect(func(real: Dictionary, _rep: Dictionary) -> void:
+			totals.append(real), CONNECT_ONE_SHOT)
+	EventBus.quarter_closed.emit(1)
+	check(totals.size() == 1 and absf(float(totals[0]["profit"]) - expected) < 1.0,
+			"quarter_reported carries the quarter totals")
 
 
 func _test_calendar() -> void:

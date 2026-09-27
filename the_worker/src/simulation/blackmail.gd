@@ -12,6 +12,12 @@ extends RefCounted
 ## o settled (cupo de exigencias cubierto: calla para siempre) · refuse() o plazo vencido: used
 ## (lo cuenta: denuncia en Seguridad o chivatazo anónimo según su valentía).
 ## Comprar silencio no es comprar olvido (§12.2): el material no borra ninguna creencia.
+## Exigencias: por chat del móvil (phone_message_received, PHONE_BLACKMAIL_*) salvo la del
+## sobornable en plena flagrancia, que es cara a cara (subtitle_posted, BLACKMAIL_FACE_*).
+## Pagar: dinero (Bribery.Wallet de ctx, por defecto PlayerState); promoción → cuesta reputación,
+## deja un favor en su registro y le da mérito de recomendación (empresa.merito_recomendacion,
+## que pesa en la vacante, §6.3/§7.8); favor → reputación y favor en su registro.
+## El tick diario lo dispara CaughtHandler (day_advanced); el estado vive en NPCDirector.
 
 const TARGET_PLAYER := "player"
 const KIND_WITNESSED := "witnessed_crime"
@@ -41,6 +47,13 @@ const PHONE_KEYS: Dictionary = {
 	DEMAND_MONEY: "PHONE_BLACKMAIL_MONEY", DEMAND_PROMOTION: "PHONE_BLACKMAIL_PROMOTION",
 	DEMAND_FAVOUR: "PHONE_BLACKMAIL_FAVOUR",
 }
+const FACE_KEYS: Dictionary = {
+	DEMAND_MONEY: "BLACKMAIL_FACE_MONEY", DEMAND_PROMOTION: "BLACKMAIL_FACE_PROMOTION",
+	DEMAND_FAVOUR: "BLACKMAIL_FACE_FAVOUR",
+}
+## Nivel de importancia del subtítulo (0 ambiente · 1 normal · 2 crítico), no un ajuste.
+const SUBTITLE_IMPORTANCE := 2
+const B_PROMOTION_MERIT := "empresa.merito_recomendacion"
 
 const STATUS_HELD := "held"
 const STATUS_DEMANDED := "demanded"
@@ -130,9 +143,10 @@ static func process_day(day: int, npcs: Array[NPCRuntime] = []) -> Array[Diction
 	return events
 
 
-## Emite la exigencia: blackmail_initiated (la primera vez), blackmail_demanded y el mensaje
-## de chat correspondiente.
-static func issue_demand(npc: NPCRuntime, entry: Dictionary, day: int) -> Dictionary:
+## Emite la exigencia: blackmail_initiated (la primera vez), blackmail_demanded y el mensaje:
+## chat del móvil o, cara a cara (face_to_face), un subtítulo. Devuelve el suceso con text_key.
+static func issue_demand(npc: NPCRuntime, entry: Dictionary, day: int,
+		face_to_face: bool = false) -> Dictionary:
 	var demand_type: String = str(entry.get("demand_type", ""))
 	if not DEMAND_TYPES.has(demand_type):
 		demand_type = _pick_demand_type(npc.id, day)
@@ -143,9 +157,14 @@ static func issue_demand(npc: NPCRuntime, entry: Dictionary, day: int) -> Dictio
 	if int(entry.get("demands_made", 0)) == 0:
 		EventBus.blackmail_initiated.emit(npc.id, TARGET_PLAYER, str(entry.get("kind", "")))
 	EventBus.blackmail_demanded.emit(npc.id, demand_type, int(entry["amount"]))
-	EventBus.phone_message_received.emit(npc.id, str(PHONE_KEYS[demand_type]), true)
+	var text_key: String = str((FACE_KEYS if face_to_face else PHONE_KEYS)[demand_type])
+	if face_to_face:
+		EventBus.subtitle_posted.emit(text_key, Vector2.INF, SUBTITLE_IMPORTANCE)
+	else:
+		EventBus.phone_message_received.emit(npc.id, text_key, true)
 	return {"npc_id": npc.id, "event": EVENT_DEMANDED, "demand_type": demand_type,
-			"amount": entry["amount"], "deadline_day": entry["deadline_day"]}
+			"amount": entry["amount"], "deadline_day": entry["deadline_day"],
+			"text_key": text_key}
 
 
 ## Dinero: salario diario × multiplicador × escalada^exigencias ya pagadas. Resto: 0.
@@ -205,9 +224,7 @@ static func _pay_cost(npc: NPCRuntime, entry: Dictionary, ctx: Dictionary) -> Di
 			"reputation_cost": 0.0, "favour_magnitude": 0, "text_key": TEXT_PAID}
 	if demand_type == DEMAND_MONEY:
 		var amount: int = int(entry.get("amount", 0))
-		var wallet: Variant = ctx.get("wallet")
-		var payer: Object = wallet as Object if wallet is Object else PlayerState
-		if not bool(payer.call("spend_money", amount, MONEY_REASON)):
+		if not Bribery.wallet_from(ctx).spend_money(amount, MONEY_REASON):
 			return {"ok": false, "reason": REASON_NO_FUNDS, "amount": amount}
 		result["amount"] = amount
 		return result
@@ -218,7 +235,19 @@ static func _pay_cost(npc: NPCRuntime, entry: Dictionary, ctx: Dictionary) -> Di
 		NPCDirector.add_favour(npc.id, FAVOUR_TYPE_FORMAT % demand_type, magnitude)
 	result["reputation_cost"] = cost
 	result["favour_magnitude"] = magnitude
+	if demand_type == DEMAND_PROMOTION:
+		result["merit_given"] = _back_promotion(npc)
 	return result
+
+
+## Respaldar su ascenso: mérito de recomendación que cuenta en la próxima vacante.
+static func _back_promotion(npc: NPCRuntime) -> int:
+	var merit: int = Bribery.tunable_int(B_PROMOTION_MERIT)
+	if Bribery.is_managed(npc):
+		NPCDirector.add_merit(npc.id, merit)
+	else:
+		npc.merit += merit
+	return merit
 
 
 static func _refuse_entry(npc: NPCRuntime, entry: Dictionary, event: String,

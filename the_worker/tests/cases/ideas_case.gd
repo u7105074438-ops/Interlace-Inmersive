@@ -1,4 +1,4 @@
-# ideas_case.gd — Cuerpo de test_ideas: fórmula de generación, calidad, señal, caducidad y las cinco vías (§11.1).
+# ideas_case.gd — Cuerpo de test_ideas: fórmula y frecuencia real de generación, calidad, señal, caducidad y las cinco vías con sus requisitos y rastros (§11.1).
 # PROPIETARIO DE: nada.
 # ESCUCHA: idea_generated, idea_acquired, idea_expired, idea_presented, player_seen_partially, crime_committed (conexiones del caso).
 extends TestCase
@@ -9,9 +9,18 @@ const SONIA := "npc_sonia_vail"
 const NATE := "npc_nate_brackley"
 const DEBBIE := "npc_debbie_foyle"
 const RAY := "npc_ray_cudmore"
+## Posibles confidentes (el primero que aún no conozca la idea).
+const CONFIDANTS: Array[String] = ["npc_bernard_lasker", "npc_amelia_cole", "npc_tom_iverson",
+	"npc_connie_marks"]
+const ELSEWHERE := "cafeteria"
 const TRIALS := 4000
 ## 3σ de una proporción p≈0,5 con 4000 ensayos ≈ 0,024.
 const FREQ_TOLERANCE := 0.025
+## Jornadas simuladas por el camino diario real; 3σ de p≈0,5 con 400 jornadas ≈ 0,075.
+const DAILY_DAYS := 400
+const DAILY_TOLERANCE := 0.075
+## Toda la plantilla: miles de tiradas, la suma real no se aparta más de un 5 % de la esperada.
+const TOTAL_TOLERANCE := 0.05
 const QUALITY_SAMPLES := 300
 const EPS := 0.000001
 
@@ -36,11 +45,12 @@ func run_case() -> void:
 	_check_acquisition_methods()
 	_check_owner_presents_first()
 	_check_save_load()
+	_check_daily_generation_path()
 
 
 func _connect_signals() -> void:
 	EventBus.idea_generated.connect(func(id: String, owner: String, q: int, dept: String) -> void:
-		_generated.append([id, owner, q, dept]))
+		_generated.append([id, owner, q, dept, GameClock.get_hour()]))
 	EventBus.idea_acquired.connect(func(id: String, method: String) -> void:
 		_acquired.append([id, method]))
 	EventBus.idea_expired.connect(func(id: String) -> void: _expired.append(id))
@@ -51,6 +61,47 @@ func _connect_signals() -> void:
 	EventBus.crime_committed.connect(func(crime: String, room: String, d: Dictionary) -> void:
 		_crimes.append([crime, room, d]))
 
+
+# ─── Ayudas: situar personajes y jugador (el caso hace de «manos») ──────
+
+func _player_to(room_id: String) -> void:
+	EventBus.room_entered.emit(room_id, true)
+
+
+## Sala actual del personaje (si no tiene, se le sienta en su puesto).
+func _room_of(npc_id: String) -> String:
+	var room: String = NPCDirector.get_current_location(npc_id)
+	if room.is_empty():
+		room = NPCDirector.get_npc(npc_id).home_room
+		NPCDirector.set_current_location(npc_id, room)
+	return room
+
+
+## Confidente que todavía no conoce la idea (al nacer pudo contársela ya a alguien).
+func _new_confidant(idea_id: String) -> String:
+	for npc_id: String in CONFIDANTS:
+		if not IdeaPool.get_idea(idea_id).known_by.has(npc_id):
+			return npc_id
+	return ""
+
+
+## Escucha legítima: el propietario se la cuenta a un confidente con el jugador en la sala.
+func _overhear(idea_id: String) -> bool:
+	var owner: String = IdeaPool.get_idea(idea_id).owner
+	IdeaPool.share_idea(idea_id, _new_confidant(idea_id))
+	_player_to(_room_of(owner))
+	return IdeaPool.acquire(idea_id, IdeaPool.METHOD_OVERHEAR)
+
+
+func _records_with_fact(fact: String) -> int:
+	var count: int = 0
+	for record: Belief in BeliefNet.get_records_about("player"):
+		if record.fact == fact:
+			count += 1
+	return count
+
+
+# ─── Generación ─────────────────────────────────────────────────────────
 
 func _check_probability_formula() -> void:
 	var modifier: float = IdeaPool.get_generation_modifier()
@@ -72,7 +123,7 @@ func _check_generation_frequency() -> void:
 				hits += 1
 		var expected: float = IdeaPool.get_generation_probability(ambition)
 		check_near(float(hits) / TRIALS, expected, FREQ_TOLERANCE,
-				"daily generation frequency over %d days matches p for ambition %d"
+				"daily roll frequency over %d trials matches p for ambition %d"
 				% [TRIALS, ambition])
 	check_eq(_count_hits(500), _count_hits(500), "same run seed -> same generation sequence")
 
@@ -84,6 +135,42 @@ func _count_hits(days: int) -> int:
 		if IdeaPool.roll_generation(70):
 			hits += 1
 	return hits
+
+
+## El camino real (process_new_day tira, process_hour suelta la idea a su hora) sobre muchas
+## jornadas: la frecuencia de Claudia y la de toda la plantilla siguen la fórmula (sin topes).
+func _check_daily_generation_path() -> void:
+	new_run()
+	var expected_total: float = 0.0
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if IdeaPool.is_ambitious_enough(npc.get_trait("ambition")):
+			expected_total += IdeaPool.get_generation_probability(npc.get_trait("ambition"))
+	_generated.clear()
+	var first_day: int = GameClock.get_day() + 1
+	for offset: int in DAILY_DAYS:
+		_simulate_day(first_day + offset)
+	var claudia: int = 0
+	var hours_ok: bool = true
+	for entry: Array in _generated:
+		claudia += 1 if entry[1] == CLAUDIA else 0
+		hours_ok = hours_ok and int(entry[4]) >= 9 and int(entry[4]) <= 17
+	var p: float = IdeaPool.get_generation_probability(94)
+	check_near(float(claudia) / DAILY_DAYS, p, DAILY_TOLERANCE,
+			"Claudia (ambition 94) generates %.3f ideas/day through the daily path (p = %.3f)"
+			% [float(claudia) / DAILY_DAYS, p])
+	check_near(float(_generated.size()) / (expected_total * DAILY_DAYS), 1.0, TOTAL_TOLERANCE,
+			"whole staff: %d ideas vs %.0f expected by the formula (no live-idea cap)"
+			% [_generated.size(), expected_total * DAILY_DAYS])
+	check(hours_ok, "ideas are born during working hours (9-17)")
+
+
+func _simulate_day(day: int) -> void:
+	GameClock.set_time(day, 6, 0)
+	IdeaPool.process_new_day(day)
+	for hour: int in range(Database.get_balance_int("ideas.hora_generacion_min"),
+			Database.get_balance_int("ideas.hora_generacion_max") + 1):
+		GameClock.set_time(day, hour, 0)
+		IdeaPool.process_hour(hour, day)
 
 
 func _check_quality_and_freshness() -> void:
@@ -139,6 +226,12 @@ func _check_signalling() -> void:
 			.has(entry.get("behaviour", "")), "an observable behaviour change is chosen")
 	IdeaPool.process_hour(int(entry.get("until_hour", 0)), GameClock.get_day())
 	check(IdeaPool.get_signalling_npcs().is_empty(), "the indicator fades after ideas.horas_senal")
+	check(not IdeaPool.is_being_told(id), "no telling once the signal is over")
+	check(IdeaPool.share_idea(id, NATE), "the owner tells a colleague")
+	check(IdeaPool.is_being_told(id), "telling a colleague opens the overhearing window")
+	check_eq(IdeaPool.get_signalling_npcs()[0].get("behaviour", ""), IdeaPool.BEHAVIOUR_TELL,
+			"the owner is seen walking over to tell someone")
+	check(IdeaPool.get_idea(id).known_by.has(NATE), "the confidant now knows whose idea it is")
 
 
 func _check_expiry() -> void:
@@ -159,14 +252,17 @@ func _check_expiry() -> void:
 	check_eq(IdeaPool.expire_stale_ideas(), 0, "nothing else is stale")
 
 
+# ─── Las cinco vías (§11.1): requisito y rastro ─────────────────────────
+
 func _check_acquisition_methods() -> void:
-	IdeaPool.reset_for_new_run()
+	new_run()
+	GameClock.set_time(1, 10, 0)
 	_acquired.clear()
 	_check_overhear()
 	_check_steal_file()
 	_check_inherit()
-	_check_consented(DEBBIE, IdeaPool.METHOD_PURCHASE, "owner_knows_all")
-	_check_consented(RAY, IdeaPool.METHOD_GIFTED, "none")
+	_check_purchase()
+	_check_gifted()
 	var bogus: String = IdeaPool.generate_idea(GEORGE, "general")
 	check(not IdeaPool.acquire(bogus, "telepathy"), "unknown acquisition method is rejected")
 	check_eq(_acquired.size(), 5, "idea_acquired once per successful method")
@@ -177,6 +273,17 @@ func _check_acquisition_methods() -> void:
 
 func _check_overhear() -> void:
 	var id: String = IdeaPool.generate_idea(GEORGE, "general")
+	var owner_room: String = _room_of(GEORGE)
+	IdeaPool.process_hour(GameClock.get_hour() + Database.get_balance_int("ideas.horas_senal"),
+			GameClock.get_day())
+	_player_to(owner_room)
+	check_eq(IdeaPool.get_acquisition_block(id, IdeaPool.METHOD_OVERHEAR),
+			IdeaPool.BLOCK_NOT_TELLING, "overhear needs the owner to be telling someone")
+	check(IdeaPool.share_idea(id, _new_confidant(id)), "George tells a colleague")
+	_player_to(ELSEWHERE)
+	check_eq(IdeaPool.get_acquisition_block(id, IdeaPool.METHOD_OVERHEAR),
+			IdeaPool.BLOCK_TOO_FAR, "overhear needs proximity (same room)")
+	_player_to(owner_room)
 	_seen.clear()
 	_crimes.clear()
 	check(IdeaPool.acquire(id, IdeaPool.METHOD_OVERHEAR), "overhear acquires the idea")
@@ -194,24 +301,40 @@ func _check_overhear() -> void:
 
 func _check_steal_file() -> void:
 	var id: String = IdeaPool.generate_idea(SONIA, "general")
+	var desk: String = NPCDirector.get_npc(SONIA).home_room
+	NPCDirector.set_current_location(SONIA, desk)
+	_player_to(desk)
+	check_eq(IdeaPool.get_acquisition_block(id, IdeaPool.METHOD_STEAL_FILE),
+			IdeaPool.BLOCK_OWNER_AT_DESK, "steal_file: not while the owner sits at the computer")
+	NPCDirector.set_current_location(SONIA, ELSEWHERE)
+	_player_to(ELSEWHERE)
+	check_eq(IdeaPool.get_acquisition_block(id, IdeaPool.METHOD_STEAL_FILE),
+			IdeaPool.BLOCK_NOT_AT_DESK, "steal_file: you must be at the owner's computer")
+	_player_to(desk)
 	_seen.clear()
 	_crimes.clear()
+	var records_before: int = _records_with_fact("chat_log:file_copied")
 	check(IdeaPool.acquire(id, IdeaPool.METHOD_STEAL_FILE), "steal_file acquires the idea")
 	check_eq(_crimes.size(), 1, "steal_file emits one crime")
 	if not _crimes.is_empty():
-		check_eq(_crimes[0][0], "file_copied", "steal_file leaves a file_copied digital record")
+		check_eq(_crimes[0][0], "file_copied", "steal_file is a file_copied crime")
+		check_eq(_crimes[0][1], desk, "the copy happens at the owner's desk")
 		check_eq((_crimes[0][2] as Dictionary).get("idea_id", ""), id, "crime names the idea")
+	check_eq(_records_with_fact("chat_log:file_copied"), records_before + 1,
+			"BeliefNet keeps a digital record about the player (readable by IT)")
 	check(_seen.is_empty(), "steal_file: the owner does not see you")
 	check_eq(IdeaPool.get_acquisition_trace(id), "digital_record", "steal_file trace")
 
 
 func _check_inherit() -> void:
 	var id: String = IdeaPool.generate_idea(NATE, "general")
-	check(not IdeaPool.acquire(id, IdeaPool.METHOD_INHERIT), "cannot inherit while the owner is here")
+	check_eq(IdeaPool.get_acquisition_block(id, IdeaPool.METHOD_INHERIT),
+			IdeaPool.BLOCK_OWNER_PRESENT, "no inheritance while owner is here")
 	EventBus.npc_removed.emit(NATE, "expelled")
 	check(IdeaPool.is_owner_gone(NATE), "npc_removed marks the owner as gone")
 	check(IdeaPool.get_unclaimed_ideas().has(IdeaPool.get_idea(id)), "orphan idea is unclaimed")
-	check(not IdeaPool.acquire(id, IdeaPool.METHOD_OVERHEAR), "nobody left to overhear")
+	check_eq(IdeaPool.get_acquisition_block(id, IdeaPool.METHOD_OVERHEAR),
+			IdeaPool.BLOCK_OWNER_GONE, "nobody left to overhear")
 	_seen.clear()
 	_crimes.clear()
 	check(IdeaPool.acquire(id, IdeaPool.METHOD_INHERIT), "inherit acquires the orphan idea")
@@ -220,28 +343,54 @@ func _check_inherit() -> void:
 	check(IdeaPool.get_unclaimed_ideas().is_empty(), "inherited idea is no longer unclaimed")
 
 
-func _check_consented(owner: String, method: String, trace: String) -> void:
-	var id: String = IdeaPool.generate_idea(owner, "general")
+func _check_purchase() -> void:
+	var id: String = IdeaPool.generate_idea(DEBBIE, "general")
 	_seen.clear()
 	_crimes.clear()
-	check(IdeaPool.acquire(id, method), "%s acquires the idea" % method)
-	check(_seen.is_empty() and _crimes.is_empty(), "%s leaves no documentary trace" % method)
-	check(IdeaPool.get_idea(id).known_by.has(owner), "%s: the owner still knows the idea" % method)
-	check_eq(IdeaPool.get_acquisition_trace(id), trace, "%s trace" % method)
+	check(IdeaPool.acquire(id, IdeaPool.METHOD_PURCHASE), "purchase acquires the idea")
+	check(_seen.is_empty() and _crimes.is_empty(), "purchase leaves no documentary trace")
+	check(IdeaPool.get_idea(id).known_by.has(DEBBIE), "purchase: the owner keeps full knowledge")
+	check_eq(IdeaPool.get_acquisition_trace(id), "owner_knows_all", "purchase trace")
+
+
+func _check_gifted() -> void:
+	var id: String = IdeaPool.generate_idea(RAY, "general")
+	var needed: int = Database.get_balance_int("ideas.deuda_minima_cesion")
+	check_eq(IdeaPool.get_acquisition_block(id, IdeaPool.METHOD_GIFTED), IdeaPool.BLOCK_LOW_DEBT,
+			"gifted needs a high debt towards the player")
+	check_eq(IdeaPool.acquisition_block_key(IdeaPool.BLOCK_LOW_DEBT), "IDEA_BLOCK_LOW_DEBT",
+			"block reasons have a text key")
+	NPCDirector.add_debt(RAY, needed - 1 - NPCDirector.get_debt(RAY))
+	check(not IdeaPool.acquire(id, IdeaPool.METHOD_GIFTED), "one point short: no gift")
+	NPCDirector.add_debt(RAY, 1)
+	_seen.clear()
+	_crimes.clear()
+	check(IdeaPool.acquire(id, IdeaPool.METHOD_GIFTED), "a debtor gives the idea away")
+	check(_seen.is_empty() and _crimes.is_empty(), "gifted leaves no trace at all")
+	check_eq(IdeaPool.get_acquisition_trace(id), "none", "gifted trace")
 
 
 func _check_owner_presents_first() -> void:
 	IdeaPool.reset_for_new_run()
 	var id: String = IdeaPool.generate_idea(GEORGE, "design")
-	IdeaPool.acquire(id, IdeaPool.METHOD_OVERHEAR)
+	check(_overhear(id), "the player overhears George's idea")
 	_presented.clear()
 	var merit: int = IdeaPool.present_for_owner(id)
 	check(merit > 0, "the owner earns merit presenting their own idea")
 	check_eq(_presented.back(), [id, GEORGE, merit], "idea_presented by the owner")
 	IdeaPool.start_meeting()
+	check(not IdeaPool.stage_presentation(id), "a spent idea cannot even be staged")
 	var result: Dictionary = IdeaPool.present(id)
 	check_eq(result["status"], IdeaPool.STATUS_ALREADY_PRESENTED, "owner presented first")
 	check_eq(result["merit"], 0, "an idea presented by its owner is worth nothing to the player")
+	var fresh: String = IdeaPool.generate_idea(SONIA, "design")
+	check(_overhear(fresh), "the player overhears Sonia's idea")
+	var raw: Dictionary = IdeaPool.present(fresh)
+	check_eq(raw["status"], IdeaPool.STATUS_NOT_STAGED,
+			"§19 present() without the Aurora scene does not resolve anything")
+	check(not IdeaPool.get_idea(fresh).presented and IdeaPool.get_player_ideas().has(
+			IdeaPool.get_idea(fresh)), "... and the idea is not wasted")
+	check_eq(IdeaPool.contest(fresh, SONIA), "", "no clash outside a staged presentation")
 	IdeaPool.close_meeting()
 
 
@@ -249,15 +398,17 @@ func _check_save_load() -> void:
 	IdeaPool.reset_for_new_run()
 	var a: String = IdeaPool.generate_idea(GEORGE, "marketing")
 	var b: String = IdeaPool.generate_idea(SONIA, "legal")
-	IdeaPool.acquire(b, IdeaPool.METHOD_STEAL_FILE)
+	_overhear(b)
 	var saved: Variant = JSON.parse_string(JSON.stringify(IdeaPool.save_state()))
 	var before: Array[int] = _quality_sequence()
 	var dump_a: Dictionary = IdeaPool.get_idea(a).to_dict()
 	var dump_b: Dictionary = IdeaPool.get_idea(b).to_dict()
+	var signals: Array[Dictionary] = IdeaPool.get_signalling_npcs()
 	IdeaPool.reset_for_new_run()
 	IdeaPool.load_state(saved as Dictionary)
 	check_eq(IdeaPool.get_idea(a).to_dict(), dump_a, "save/load restores idea A exactly")
 	check_eq(IdeaPool.get_idea(b).to_dict(), dump_b, "save/load restores idea B exactly")
+	check_eq(IdeaPool.get_signalling_npcs().size(), signals.size(), "save/load restores signals")
 	check_eq(_quality_sequence(), before, "save/load restores the RNG stream")
 	check(IdeaPool.generate_idea(GEORGE, "general") == "idea_3", "id counter restored")
 

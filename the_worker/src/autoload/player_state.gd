@@ -1,45 +1,70 @@
 # player_state.gd — Estado del jugador: ocupación, capital, medidores, inventario, alijos, deberes y posición.
-# PROPIETARIO DE: ocupación, capital, reputación, caché de sospecha, inventario, alijos (objetos ocultos), deberes de la jornada, fallos consecutivos, sala/planta/disfraz/nombre (§19.3, BUILD_NOTES §13).
-# ESCUCHA: day_advanced, hour_passed, occupation_changed, room_entered, room_exited, floor_changed, suspicion_changed.
+# PROPIETARIO DE: ocupación, capital, reputación, caché de sospecha, inventario, alijos (objetos ocultos), deberes de la jornada, rachas de fallos, sala/planta/disfraz/nombre, RNG de hallazgos casuales en alijos (§19.3, BUILD_NOTES §13).
+# ESCUCHA: day_advanced, hour_passed, occupation_changed, room_entered, room_exited, floor_changed, player_searched, evidence_added.
 class_name PlayerStateSystem
 extends Node
 
-## Manual §4.4, §6, §10, §11.3, §12.8, §15.4, §19.3 (PASO 6, PASO 37); BUILD_NOTES §2, §11, §13.
+## Manual §4.4, §6, §10, §11.3, §12.8, §15.4, §15.6, §19.3, §23 (PASO 6, PASO 37); BUILD_NOTES §2,
+## §11, §13.
 ## Emite: occupation_changed, clearance_changed, money_changed, reputation_changed, inventory_changed,
 ## item_hidden, item_disposed, duty_assigned, duty_completed, duty_failed, duty_progressed,
-## duty_deadline_warned, disguise_changed, tracking_event_recorded.
+## duty_deadline_warned, disguise_changed, tracking_event_recorded, notebook_entry_added.
 ## DECISIONES:
 ##  · Partida nueva: ocupación balance jugador.ocupacion_inicial (email_worker_3b, R1), capital
 ##    economia.dinero_inicial, reputación jugador.reputacion_inicial, inventario inventario.inicial.
 ##    reset_for_new_run() y load_state() no emiten señales (estado silencioso).
-##  · Sospecha: la calcula BeliefNet; aquí solo se guarda en caché mediante
-##    _set_suspicion_from_beliefnet() (uso EXCLUSIVO de BeliefNet) o la señal suspicion_changed.
+##  · Sospecha: la calcula BeliefNet y la escribe aquí SOLO con _set_suspicion_from_beliefnet() (uso
+##    EXCLUSIVO de BeliefNet, PASO 6), antes de emitir suspicion_changed. PlayerState no escucha
+##    suspicion_changed: ninguna otra fuente puede sobrescribir la caché.
 ##  · occupation_changed emitida por otro sistema (p. ej. Company al promover) se adopta aquí sin
-##    reemitirla; set_occupation() la emite. Ambos caminos reconstruyen los deberes y emiten
-##    clearance_changed si cambia la acreditación.
+##    reemitirla; set_occupation() la emite. Ambos caminos reconstruyen los deberes, reinician las
+##    rachas por deber y emiten clearance_changed si cambia la acreditación.
 ##  · Gastos diarios (§15.4): punto medio de desayuno y cena + alquiler + estatus del escalón
 ##    (economia.estatus_por_escalon). R1: 5 + 10 + 7 = 22 € (margen 30 − 22 = 8 €). get_daily_expenses()
-##    solo calcula: los COBRA quien gestione la comida y el descanso (ciclo exterior) con spend_money.
-##  · Deberes: se construyen al empezar la jornada (day_advanced) y al cambiar de ocupación; el id
-##    es el del deber en occupations.json. Campo opcional "frequency" (daily | weekly | monthly |
-##    quarterly; por defecto daily): los periódicos solo aparecen la última jornada del periodo.
-##    Un deber cuyo plazo ya pasó al asignarse no se asigna ese día. Aviso tiempo.aviso_deber_
-##    pendiente_horas_antes antes del plazo (duty_deadline_warned); al llegar deadline_hour, el deber
-##    pendiente falla solo. fail_duty() aplica deberes.penalizacion_reputacion_fallo y emite
-##    duty_failed(id, consecuencia): "warning" | "demotion" | "expulsion" | "none", la mayor entre la
-##    escalera de fallos consecutivos (deberes.fallos_para_*) y la mínima de fail_penalty
-##    (deberes.consecuencia_minima_por_penalizacion). Ejecutar la consecuencia es cosa de
-##    DutySystem/Company. Los fallos consecutivos vuelven a 0 al cerrar una jornada sin fallos y con
-##    algún deber cumplido.
+##    solo calcula: los COBRA el ciclo exterior con spend_money al oír day_advanced (no "al dormir":
+##    la jornada también avanza a las 06:00 si el jugador no duerme, y la inanición §4.4 debe
+##    comprobarse igual).
+##  · Deberes: se construyen al empezar la jornada (day_advanced) y al cambiar de ocupación; el id es
+##    el de occupations.json. Periodicidad (get_duty_frequency): campo "frequency" si existe; si no,
+##    el prefijo del subtype según deberes.frecuencia_por_prefijo_subtipo (weekly_ / monthly_ /
+##    quarterly_); por defecto daily. Los periódicos solo se asignan la última jornada del periodo
+##    (días 5, 10… / 20, 40… / 25, 50…). Un deber cuyo plazo ya pasó al asignarse no se asigna. Aviso
+##    tiempo.aviso_deber_pendiente_horas_antes antes del plazo (duty_deadline_warned); si se asigna
+##    ya dentro de esa ventana, el aviso sale en el acto (§15.6). Al llegar deadline_hour, el
+##    pendiente falla solo.
+##  · Fallos: fail_duty() aplica deberes.penalizacion_reputacion_fallo y emite duty_failed(id,
+##    consecuencia) "none" | "warning" | "demotion" | "expulsion" = la mayor de: (a) la escalera de
+##    JORNADAS consecutivas con algún fallo (get_consecutive_failures: una jornada con tres deberes
+##    fallidos cuenta una vez): ≥ fallos_para_aviso → aviso; al ALCANZAR fallos_para_descenso →
+##    descenso (una sola vez por racha: la racha sobrevive al descenso y la jornada siguiente vuelve a
+##    ser aviso); ≥ fallos_para_expulsion → expulsión; (b) la mínima de fail_penalty
+##    (deberes.consecuencia_minima_por_penalizacion; expulsion = R0 y cierres); (c) fail_penalty
+##    "demotion_risk": descenso cuando ESE deber falla deberes.fallos_para_descenso_riesgo veces
+##    seguidas (dos meses / dos trimestres deficientes, §23.5, §23.7). Como mucho un descenso por
+##    jornada: los demás fallos de ese día se rebajan a aviso. La racha de jornadas vuelve a 0 al
+##    cerrar una jornada sin fallos y con algún deber cumplido; la de cada deber, al cumplirlo o al
+##    cambiar de ocupación. Ejecutar la consecuencia es cosa de DutySystem/Company.
+##  · Reentrada: el estado se actualiza antes de emitir y los bucles recorren la lista de la
+##    jornada que empezaron; si un oyente cambia la ocupación (descenso síncrono) la lista nueva no
+##    se toca ni se reconstruye dos veces.
 ##  · Inventario: 8 posiciones (inventario.capacidad). Apilables comparten posición (ItemData.stack
 ##    = unidades). Herramientas de puesto (kind post_tool) no se pueden recoger. El efectivo
 ##    ordinario se convierte en capital al recogerlo.
 ##  · Material entregado por el puesto (occupation.tools: llaves, estampa, uniforme del limpiador,
-##    llaves maestras del vigilante...): has_item() es true aunque no se lleve encima, y si se lleva
-##    NO cuenta como comprometedor mientras la ocupación actual lo entregue (get_inventory() devuelve
-##    su copia como "ordinary" con extra.issued = true). Al dejar el puesto, lo que se conserve
-##    vuelve a ser comprometedor (uniforme que ya no corresponde).
+##    llaves maestras del vigilante...): has_item() es true aunque no se lleve encima (ACCESO);
+##    is_carrying() dice si está físicamente en el inventario (lo que remove_item / stash_item /
+##    dispose_item pueden retirar). Si se lleva NO cuenta como comprometedor mientras la ocupación
+##    actual lo entregue (get_inventory() devuelve su copia como "ordinary" con extra.issued = true).
+##    Al dejar el puesto, lo que se conserve vuelve a ser comprometedor.
 ##  · Alijos: stash_item() en un escondite de trash_dock equivale a dispose_item(id, "trash_dock").
+##    Requisas por eventos (BUILD_NOTES §2, sin llamadas entre autoloads): player_searched con
+##    found_hot_items > 0 → confiscate_hot_items(); evidence_added de tipo compromising_item → se
+##    cruzan los hallazgos de Security.get_found_items() (solo lectura) y cada objeto hallado en un
+##    alijo propio se retira de él (item_disposed "confiscated" + cuaderno). Hallazgo casual §11.3:
+##    en day_advanced, cada alijo cuya ubicación tenga prob_hallazgo_diaria se vacía con esa
+##    probabilidad (RNG propio sembrado con GameClock.get_run_seed()) si su descubridor (Connie
+##    Marks) sigue activo; item_disposed "found_by_staff" + cuaderno. Recuperar cuesta
+##    get_stash_retrieval_minutes(): InventoryRules.retrieve_from_stash() avanza el reloj.
 ##  · Ejes de seguimiento: los posee Tracking. add_tracking() solo emite tracking_event_recorded;
 ##    get_tracking()/get_dominant_axis() leen Tracking.
 ##  · get_name() de BUILD_NOTES §13 no puede existir en un Node (choca con Node.get_name()):
@@ -61,17 +86,31 @@ const CONSEQ_EXPULSION := "expulsion"
 const CONSEQUENCE_LADDER: Array[String] = [
 	CONSEQ_NONE, CONSEQ_WARNING, CONSEQ_DEMOTION, CONSEQ_EXPULSION,
 ]
+## Índices de CONSEQUENCE_LADDER.
+const LEVEL_NONE := 0
+const LEVEL_WARNING := 1
+const LEVEL_DEMOTION := 2
+const LEVEL_EXPULSION := 3
+const PENALTY_DEMOTION_RISK := "demotion_risk"
 const METHOD_CONFISCATED := "confiscated"
+const METHOD_FOUND_BY_STAFF := "found_by_staff"
+const NOTE_CATEGORY := "stashes"
+const NOTE_STASH_FOUND := "NOTE_STASH_FOUND_BY_STAFF"
+const NOTE_STASH_SEIZED := "NOTE_STASH_SEIZED"
 const REASON_DUTY_FAILED := "duty_failed"
 const CASH_REASON_FORMAT := "cash_pickup:%s"
 const DEFAULT_NAME_KEY := "PLAYER_DEFAULT_NAME"
 const EXTRA_ISSUED := "issued"
+const UNKNOWN_OCCUPATION_WARNING := "PlayerState: ocupación desconocida '%s'"
+const RNG_SALT := "player_state"
+const COMMENT_PREFIX := "_"
 const MINUTES_PER_HOUR := 60
 const MINUTES_PER_DAY := 1440
 
 # Campos de cada deber de la jornada (además de los de occupations.json).
 const D_ID := "id"
 const D_TYPE := "type"
+const D_SUBTYPE := "subtype"
 const D_DEADLINE := "deadline_hour"
 const D_FREQUENCY := "frequency"
 const D_FAIL_PENALTY := "fail_penalty"
@@ -89,6 +128,11 @@ const K_ROOM := "room_id"
 const K_LOCATION := "location"
 const K_DAY := "day"
 const K_ITEMS := "items"
+# Hallazgos de Security.get_found_items(): {case_id, spot_id, item_id, room_id, day}.
+const F_CASE := "case_id"
+const F_SPOT := "spot_id"
+const F_ITEM := "item_id"
+const FIND_KEY_FORMAT := "%s|%s|%s"
 
 const P_START_OCCUPATION := "jugador.ocupacion_inicial"
 const P_START_REPUTATION := "jugador.reputacion_inicial"
@@ -105,8 +149,10 @@ const P_START_ITEMS := "inventario.inicial"
 const P_FAILS_WARNING := "deberes.fallos_para_aviso"
 const P_FAILS_DEMOTION := "deberes.fallos_para_descenso"
 const P_FAILS_EXPULSION := "deberes.fallos_para_expulsion"
+const P_FAILS_DEMOTION_RISK := "deberes.fallos_para_descenso_riesgo"
 const P_FAIL_REPUTATION := "deberes.penalizacion_reputacion_fallo"
 const P_PENALTY_FLOOR_FORMAT := "deberes.consecuencia_minima_por_penalizacion.%s"
+const P_FREQ_BY_PREFIX := "deberes.frecuencia_por_prefijo_subtipo"
 const P_WARN_HOURS := "tiempo.aviso_deber_pendiente_horas_antes"
 const P_ROLLOVER := "tiempo.hora_cambio_jornada"
 const P_DAYS_WEEK := "tiempo.jornadas_por_semana"
@@ -122,6 +168,12 @@ const S_STASHES := "stashes"
 const S_DUTIES := "duties"
 const S_DUTY_DAY := "duty_day"
 const S_FAILURES := "consecutive_failures"
+const S_LAST_FAILED_DAY := "last_failed_day"
+const S_SEVERE_DAY := "severe_consequence_day"
+const S_DUTY_STREAKS := "duty_failure_streaks"
+const S_PROCESSED_FINDS := "processed_finds"
+const S_RNG_SEED := "rng_seed"
+const S_RNG_STATE := "rng_state"
 const S_ROOM := "room"
 const S_FLOOR := "floor"
 const S_DISGUISE := "disguise"
@@ -135,9 +187,20 @@ var _suspicion: float = 0.0
 ## Una entrada por posición ocupada; ItemData.stack = unidades en esa posición.
 var _slots: Array[ItemData] = []
 var _stashes: Dictionary = {}
+## Deberes de la jornada. Se REEMPLAZA (nunca se vacía en sitio) al reconstruirse, para que un
+## bucle en curso siga recorriendo la lista que empezó.
 var _duties: Array[Dictionary] = []
 var _duty_day: int = 0
+## Jornadas consecutivas con al menos un deber fallido.
 var _consecutive_failures: int = 0
+## Última jornada que sumó a _consecutive_failures y última con un descenso/expulsión emitido.
+var _last_failed_day: int = 0
+var _severe_day: int = 0
+## duty_id → fallos consecutivos de ese deber (demotion_risk).
+var _duty_streaks: Dictionary = {}
+## Hallazgos de Security ya aplicados a los alijos ("caso|escondite|objeto").
+var _processed_finds: Array[String] = []
+var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _room: String = ""
 var _floor: int = 0
 var _disguise: String = ""
@@ -151,7 +214,8 @@ func _ready() -> void:
 	EventBus.room_entered.connect(_on_room_entered)
 	EventBus.room_exited.connect(_on_room_exited)
 	EventBus.floor_changed.connect(_on_floor_changed)
-	EventBus.suspicion_changed.connect(_on_suspicion_changed)
+	EventBus.player_searched.connect(_on_player_searched)
+	EventBus.evidence_added.connect(_on_evidence_added)
 
 
 func reset_for_new_run() -> void:
@@ -166,7 +230,9 @@ func reset_for_new_run() -> void:
 		if InventoryRules.occupies_slot(item) and _can_accept(item):
 			_insert_item(item)
 	_stashes.clear()
-	_consecutive_failures = 0
+	_processed_finds.clear()
+	_reset_failure_state()
+	_rng.seed = GameClock.get_run_seed() ^ RNG_SALT.hash()
 	_disguise = ""
 	_player_name = ""
 	_place_at_office()
@@ -205,10 +271,8 @@ func get_daily_wage() -> int:
 ## Cambia la ocupación, reconstruye los deberes de la jornada y emite occupation_changed y, si
 ## cambia la acreditación, clearance_changed. Id desconocido o igual al actual: no hace nada.
 func set_occupation(id: String, reason: String) -> void:
-	var old_id: String = get_occupation_id()
-	if id == old_id or not _adopt_occupation(id):
-		return
-	EventBus.occupation_changed.emit(old_id, id, reason)
+	if id != get_occupation_id():
+		_adopt_occupation(id, reason, true)
 
 
 func get_personnel_file_level() -> int:
@@ -343,9 +407,16 @@ func remove_item(item_id: String) -> bool:
 	return true
 
 
-## true si está en el inventario o si lo entrega la ocupación actual (occupation.tools).
+## ACCESO: true si está en el inventario o si lo entrega la ocupación actual (occupation.tools),
+## aunque no se lleve encima. Para retirarlo (remove_item, stash_item, dispose_item) compruebe
+## is_carrying().
 func has_item(item_id: String) -> bool:
-	return _find_slot(item_id) >= 0 or _is_issued(item_id)
+	return is_carrying(item_id) or _is_issued(item_id)
+
+
+## EXTRA: posesión física (al menos una unidad en el inventario).
+func is_carrying(item_id: String) -> bool:
+	return _find_slot(item_id) >= 0
 
 
 func has_hot_items() -> bool:
@@ -386,7 +457,8 @@ func dispose_item(item_id: String, method: String) -> bool:
 	return true
 
 
-## EXTRA: requisa todo lo comprometedor tras un registro (item_disposed "confiscated").
+## EXTRA: requisa todo lo comprometedor (item_disposed "confiscated" por unidad). Se aplica sola al
+## oír player_searched con found_hot_items > 0; las manos también pueden llamarla (idempotente).
 func confiscate_hot_items() -> Array[String]:
 	var taken: Array[String] = []
 	for index: int in range(_slots.size() - 1, -1, -1):
@@ -450,18 +522,18 @@ func get_stashes() -> Dictionary:
 	return _stashes.duplicate(true)
 
 
-## EXTRA: una investigación encontró el alijo: se retira entero (item_disposed "confiscated").
-func confiscate_stash(spot_id: String) -> Array[String]:
-	var taken: Array[String] = []
+## EXTRA: minutos de juego que cuesta recuperar algo de ese alijo (inventario.escondites.
+## <ubicación>.minutos_recuperacion; 0 si no existe). Los cobra InventoryRules.retrieve_from_stash.
+func get_stash_retrieval_minutes(spot_id: String) -> int:
 	if not _stashes.has(spot_id):
-		return taken
-	for record: Dictionary in _stashes[spot_id][K_ITEMS]:
-		for _unit: int in maxi(int(record.get("stack", 1)), 1):
-			taken.append(str(record.get("id", "")))
-	_stashes.erase(spot_id)
-	for item_id: String in taken:
-		EventBus.item_disposed.emit(item_id, METHOD_CONFISCATED)
-	return taken
+		return 0
+	return InventoryRules.retrieval_minutes(str(_stashes[spot_id][K_LOCATION]))
+
+
+## EXTRA (manos): retira el alijo entero (item_disposed "confiscated"). Los autoloads no la llaman:
+## las requisas de Security llegan por evidence_added (ver DECISIONES).
+func confiscate_stash(spot_id: String) -> Array[String]:
+	return _empty_stash(spot_id, METHOD_CONFISCATED)
 
 
 # ─── Deberes ───────────────────────────────────────────────────
@@ -483,19 +555,16 @@ func complete_duty(duty_id: String, quality: float, method: String) -> void:
 	duty[D_QUALITY] = quality
 	duty[D_METHOD] = method
 	duty[D_PROGRESS] = 1.0
+	_duty_streaks.erase(duty_id)
 	EventBus.duty_completed.emit(duty_id, quality, method)
 
 
+## Consecuencia en duty_failed según DECISIONES (escalera por jornadas, mínima de fail_penalty,
+## racha de demotion_risk, un descenso por jornada como mucho).
 func fail_duty(duty_id: String) -> void:
 	var duty: Dictionary = _find_pending_duty(duty_id)
-	if duty.is_empty():
-		return
-	duty[D_STATUS] = STATUS_FAILED
-	_consecutive_failures += 1
-	var consequence: String = _failure_consequence(str(duty.get(D_FAIL_PENALTY, "")))
-	duty[D_CONSEQUENCE] = consequence
-	EventBus.duty_failed.emit(duty_id, consequence)
-	modify_reputation(Database.get_balance_float(P_FAIL_REPUTATION), REASON_DUTY_FAILED)
+	if not duty.is_empty():
+		_fail_entry(duty)
 
 
 func get_pending_duties() -> Array[Dictionary]:
@@ -506,8 +575,29 @@ func get_pending_duties() -> Array[Dictionary]:
 	return out
 
 
+## Jornadas consecutivas con al menos un deber fallido (no deberes: una jornada cuenta una vez).
 func get_consecutive_failures() -> int:
 	return _consecutive_failures
+
+
+## EXTRA: fallos consecutivos de un deber concreto (racha de demotion_risk).
+func get_duty_failure_streak(duty_id: String) -> int:
+	return int(_duty_streaks.get(duty_id, 0))
+
+
+## EXTRA: "daily" | "weekly" | "monthly" | "quarterly" de una definición o deber de la jornada:
+## campo "frequency" o, si falta, prefijo del subtype (deberes.frecuencia_por_prefijo_subtipo).
+func get_duty_frequency(duty: Dictionary) -> String:
+	if duty.has(D_FREQUENCY):
+		return str(duty[D_FREQUENCY])
+	var subtype: String = str(duty.get(D_SUBTYPE, ""))
+	var by_prefix: Variant = Database.get_balance(P_FREQ_BY_PREFIX)
+	if by_prefix is Dictionary:
+		for prefix: Variant in by_prefix:
+			var text: String = str(prefix)
+			if not text.begins_with(COMMENT_PREFIX) and subtype.begins_with(text):
+				return str(by_prefix[prefix])
+	return FREQ_DAILY
 
 
 ## EXTRA: progreso 0-1 de un deber pendiente (minijuegos de deber). Emite duty_progressed.
@@ -586,7 +676,10 @@ func save_state() -> Dictionary:
 		S_OCCUPATION: get_occupation_id(), S_MONEY: _money, S_REPUTATION: _reputation,
 		S_SUSPICION: _suspicion, S_INVENTORY: inventory, S_STASHES: _stashes.duplicate(true),
 		S_DUTIES: get_todays_duties(), S_DUTY_DAY: _duty_day,
-		S_FAILURES: _consecutive_failures, S_ROOM: _room, S_FLOOR: _floor,
+		S_FAILURES: _consecutive_failures, S_LAST_FAILED_DAY: _last_failed_day,
+		S_SEVERE_DAY: _severe_day, S_DUTY_STREAKS: _duty_streaks.duplicate(),
+		S_PROCESSED_FINDS: _processed_finds.duplicate(), S_RNG_SEED: str(_rng.seed),
+		S_RNG_STATE: str(_rng.state), S_ROOM: _room, S_FLOOR: _floor,
 		S_DISGUISE: _disguise, S_NAME: _player_name,
 	}
 
@@ -605,6 +698,12 @@ func load_state(data: Dictionary) -> void:
 	_duties = _normalize_duties(data.get(S_DUTIES, []))
 	_duty_day = int(data.get(S_DUTY_DAY, 0))
 	_consecutive_failures = int(data.get(S_FAILURES, 0))
+	_last_failed_day = int(data.get(S_LAST_FAILED_DAY, 0))
+	_severe_day = int(data.get(S_SEVERE_DAY, 0))
+	_duty_streaks = _normalize_int_dict(data.get(S_DUTY_STREAKS, {}))
+	_processed_finds.assign(_normalize_strings(data.get(S_PROCESSED_FINDS, [])))
+	_rng.seed = str(data.get(S_RNG_SEED, "0")).to_int()
+	_rng.state = str(data.get(S_RNG_STATE, "0")).to_int()
 	_room = str(data.get(S_ROOM, ""))
 	_floor = int(data.get(S_FLOOR, 0))
 	_disguise = str(data.get(S_DISGUISE, ""))
@@ -613,11 +712,15 @@ func load_state(data: Dictionary) -> void:
 
 # ─── Oyentes ───────────────────────────────────────────────────
 
+## Cierra la jornada anterior, asigna la nueva (salvo que un descenso durante el cierre ya la
+## asignara) y tira los hallazgos casuales de los alijos.
 func _on_day_advanced(_day_number: int) -> void:
 	if not _active:
 		return
 	_close_duty_day()
-	_build_duties(true)
+	if _duty_day != GameClock.get_day():
+		_build_duties(true)
+	_roll_stash_discoveries()
 
 
 func _on_hour_passed(_hour: int, _day_number: int) -> void:
@@ -626,9 +729,9 @@ func _on_hour_passed(_hour: int, _day_number: int) -> void:
 
 
 ## Otro sistema (Company al promover/degradar) cambió la ocupación del jugador: se adopta.
-func _on_occupation_changed(_old_id: String, new_id: String, _reason: String) -> void:
+func _on_occupation_changed(_old_id: String, new_id: String, reason: String) -> void:
 	if _active and new_id != get_occupation_id():
-		_adopt_occupation(new_id)
+		_adopt_occupation(new_id, reason, false)
 
 
 func _on_room_entered(room_id: String, by_player: bool) -> void:
@@ -645,21 +748,46 @@ func _on_floor_changed(_old_floor: int, new_floor: int) -> void:
 	_floor = new_floor
 
 
-func _on_suspicion_changed(_old_value: float, new_value: float) -> void:
-	_suspicion = new_value
+## Un registro corporal encontró material comprometedor: se requisa (item_disposed "confiscated").
+func _on_player_searched(found_hot_items: int, _outcome: String) -> void:
+	if _active and found_hot_items > 0:
+		confiscate_hot_items()
+
+
+## Una investigación añadió la pieza de un objeto comprometedor: cada hallazgo nuevo de
+## Security.get_found_items() (solo lectura) que esté en un alijo propio se retira de él.
+func _on_evidence_added(_case_id: String, evidence_type: String, _weight: float,
+		_points_to: String) -> void:
+	if not _active or evidence_type != InvestigationEngine.EV_ITEM:
+		return
+	for find: Dictionary in Security.get_found_items():
+		var spot_id: String = str(find.get(F_SPOT, ""))
+		var item_id: String = str(find.get(F_ITEM, ""))
+		var key: String = FIND_KEY_FORMAT % [str(find.get(F_CASE, "")), spot_id, item_id]
+		if _processed_finds.has(key):
+			continue
+		_processed_finds.append(key)
+		if _take_from_stash(spot_id, item_id, METHOD_CONFISCATED) > 0:
+			EventBus.notebook_entry_added.emit(NOTE_CATEGORY, NOTE_STASH_SEIZED, [])
 
 
 # ─── Interno: ocupación y posición ─────────────────────────────
 
-## Cambia la ocupación sin emitir occupation_changed. false si el id no existe.
-func _adopt_occupation(id: String) -> bool:
+## Cambia la ocupación y reconstruye los deberes (los pendientes del puesto anterior se descartan
+## sin fallar). Orden: duty_assigned… → occupation_changed (si `announce`) → clearance_changed
+## (si cambia). false si el id no existe.
+func _adopt_occupation(id: String, reason: String, announce: bool) -> bool:
 	var occupation: OccupationData = Database.get_occupation(id)
 	if occupation == null:
-		push_warning("PlayerState: ocupación desconocida '%s'" % id)
+		push_warning(UNKNOWN_OCCUPATION_WARNING % id)
 		return false
+	var old_id: String = get_occupation_id()
 	var old_clearance: int = get_clearance()
 	_occupation = occupation
+	_duty_streaks.clear()
 	_build_duties(true)
+	if announce:
+		EventBus.occupation_changed.emit(old_id, id, reason)
 	if occupation.clearance != old_clearance:
 		EventBus.clearance_changed.emit(old_clearance, occupation.clearance)
 	return true
@@ -673,29 +801,44 @@ func _place_at_office() -> void:
 
 # ─── Interno: deberes ──────────────────────────────────────────
 
+## Reemplaza la lista de la jornada (una lista NUEVA: un bucle en curso conserva la anterior).
 func _build_duties(emit: bool) -> void:
-	_duties.clear()
+	var duties: Array[Dictionary] = []
+	_duties = duties
 	_duty_day = GameClock.get_day()
 	if _occupation == null:
 		return
 	var now: float = GameClock.get_day_minutes()
 	for definition: Dictionary in _occupation.duties:
-		if not _is_due_today(definition) or now >= _deadline_minutes(definition):
-			continue
-		var duty: Dictionary = definition.duplicate(true)
-		duty.merge({
-			D_STATUS: STATUS_PENDING, D_PROGRESS: 0.0, D_QUALITY: 0.0, D_METHOD: "",
-			D_WARNED: false, D_DAY: _duty_day, D_CONSEQUENCE: "",
-		}, true)
-		_duties.append(duty)
-		if emit:
-			EventBus.duty_assigned.emit(duty[D_ID], str(duty.get(D_TYPE, "")),
-					int(duty.get(D_DEADLINE, 0)))
+		if _is_due_today(definition) and now < _deadline_minutes(definition):
+			duties.append(_new_duty(definition))
+	if emit:
+		_announce_duties(duties, now)
+
+
+func _new_duty(definition: Dictionary) -> Dictionary:
+	var duty: Dictionary = definition.duplicate(true)
+	duty.merge({
+		D_STATUS: STATUS_PENDING, D_PROGRESS: 0.0, D_QUALITY: 0.0, D_METHOD: "",
+		D_WARNED: false, D_DAY: _duty_day, D_CONSEQUENCE: "",
+	}, true)
+	return duty
+
+
+## duty_assigned por deber y, si ya está dentro de la ventana de aviso, duty_deadline_warned en el
+## acto (§15.6: asignar un deber a menos de una hora del plazo sin avisar sería injusto).
+func _announce_duties(duties: Array[Dictionary], now: float) -> void:
+	for duty: Dictionary in duties:
+		if not is_same(duties, _duties):
+			return
+		EventBus.duty_assigned.emit(str(duty[D_ID]), str(duty.get(D_TYPE, "")),
+				int(duty.get(D_DEADLINE, 0)))
+		_warn_if_due(duty, now)
 
 
 func _is_due_today(definition: Dictionary) -> bool:
 	var day: int = GameClock.get_day()
-	match str(definition.get(D_FREQUENCY, FREQ_DAILY)):
+	match get_duty_frequency(definition):
 		FREQ_WEEKLY:
 			return _is_period_end(day, Database.get_balance_int(P_DAYS_WEEK))
 		FREQ_MONTHLY:
@@ -714,29 +857,41 @@ func _deadline_minutes(duty: Dictionary) -> float:
 
 
 func _check_deadlines() -> void:
+	var duties: Array[Dictionary] = _duties
 	var now: float = GameClock.get_day_minutes()
-	var warn_minutes: float = float(Database.get_balance_int(P_WARN_HOURS) * MINUTES_PER_HOUR)
-	for duty: Dictionary in _duties:
+	for duty: Dictionary in duties:
+		if not is_same(duties, _duties):
+			return
 		if duty[D_STATUS] != STATUS_PENDING:
 			continue
-		var deadline: float = _deadline_minutes(duty)
-		if now >= deadline:
-			fail_duty(str(duty[D_ID]))
-		elif not bool(duty[D_WARNED]) and now >= deadline - warn_minutes:
-			duty[D_WARNED] = true
-			EventBus.duty_deadline_warned.emit(str(duty[D_ID]),
-					(deadline - now) / MINUTES_PER_HOUR)
+		if now >= _deadline_minutes(duty):
+			_fail_entry(duty)
+		else:
+			_warn_if_due(duty, now)
+
+
+func _warn_if_due(duty: Dictionary, now: float) -> void:
+	if duty[D_STATUS] != STATUS_PENDING or bool(duty[D_WARNED]):
+		return
+	var deadline: float = _deadline_minutes(duty)
+	var window: float = float(Database.get_balance_int(P_WARN_HOURS) * MINUTES_PER_HOUR)
+	if now >= deadline - window:
+		duty[D_WARNED] = true
+		EventBus.duty_deadline_warned.emit(str(duty[D_ID]), (deadline - now) / MINUTES_PER_HOUR)
 
 
 ## Cierre de la jornada: falla lo que siga pendiente (red de seguridad) y, si la jornada fue
-## limpia (algún deber cumplido y ninguno fallido), reinicia los fallos consecutivos.
+## limpia (algún deber cumplido y ninguno fallido), reinicia la racha de jornadas con fallos.
 func _close_duty_day() -> void:
-	for duty: Dictionary in _duties:
+	var closing: Array[Dictionary] = _duties
+	for duty: Dictionary in closing:
+		if not is_same(closing, _duties):
+			break
 		if duty[D_STATUS] == STATUS_PENDING:
-			fail_duty(str(duty[D_ID]))
+			_fail_entry(duty)
 	var completed: bool = false
 	var failed: bool = false
-	for duty: Dictionary in _duties:
+	for duty: Dictionary in closing:
 		completed = completed or duty[D_STATUS] == STATUS_COMPLETED
 		failed = failed or duty[D_STATUS] == STATUS_FAILED
 	if completed and not failed:
@@ -750,18 +905,74 @@ func _find_pending_duty(duty_id: String) -> Dictionary:
 	return {}
 
 
-func _failure_consequence(fail_penalty: String) -> String:
-	var level: int = 0
-	if _consecutive_failures >= Database.get_balance_int(P_FAILS_EXPULSION):
-		level = CONSEQUENCE_LADDER.find(CONSEQ_EXPULSION)
-	elif _consecutive_failures >= Database.get_balance_int(P_FAILS_DEMOTION):
-		level = CONSEQUENCE_LADDER.find(CONSEQ_DEMOTION)
-	elif _consecutive_failures >= Database.get_balance_int(P_FAILS_WARNING):
-		level = CONSEQUENCE_LADDER.find(CONSEQ_WARNING)
-	var floor_path: String = P_PENALTY_FLOOR_FORMAT % fail_penalty
-	if Database.has_balance(floor_path):
-		level = maxi(level, CONSEQUENCE_LADDER.find(str(Database.get_balance(floor_path))))
+## Marca el deber, actualiza las rachas y decide la consecuencia ANTES de emitir duty_failed (un
+## oyente puede degradar al jugador y reconstruir la lista de deberes).
+func _fail_entry(duty: Dictionary) -> void:
+	var duty_id: String = str(duty[D_ID])
+	var day: int = int(duty.get(D_DAY, GameClock.get_day()))
+	duty[D_STATUS] = STATUS_FAILED
+	var first_today: bool = _count_failed_day(day)
+	_duty_streaks[duty_id] = int(_duty_streaks.get(duty_id, 0)) + 1
+	var consequence: String = _failure_consequence(duty, first_today, day)
+	duty[D_CONSEQUENCE] = consequence
+	EventBus.duty_failed.emit(duty_id, consequence)
+	modify_reputation(Database.get_balance_float(P_FAIL_REPUTATION), REASON_DUTY_FAILED)
+
+
+## Suma una jornada a la racha la primera vez que falla algo en ella. true si es ese primer fallo.
+func _count_failed_day(day: int) -> bool:
+	if _last_failed_day == day:
+		return false
+	_last_failed_day = day
+	_consecutive_failures += 1
+	return true
+
+
+func _failure_consequence(duty: Dictionary, first_today: bool, day: int) -> String:
+	var level: int = maxi(_ladder_level(first_today),
+			_penalty_floor(str(duty.get(D_FAIL_PENALTY, ""))))
+	if _demotion_risk_due(duty):
+		level = maxi(level, LEVEL_DEMOTION)
+	if level == LEVEL_DEMOTION and _severe_day == day:
+		level = LEVEL_WARNING
+	if level >= LEVEL_DEMOTION:
+		_severe_day = day
 	return CONSEQUENCE_LADDER[level]
+
+
+## Escalera por jornadas consecutivas: el descenso se emite al ALCANZAR su umbral (una vez por
+## racha, en el primer fallo de esa jornada); la expulsión, desde su umbral.
+func _ladder_level(first_today: bool) -> int:
+	var streak: int = _consecutive_failures
+	if streak >= Database.get_balance_int(P_FAILS_EXPULSION):
+		return LEVEL_EXPULSION
+	if first_today and streak == Database.get_balance_int(P_FAILS_DEMOTION):
+		return LEVEL_DEMOTION
+	if streak >= Database.get_balance_int(P_FAILS_WARNING):
+		return LEVEL_WARNING
+	return LEVEL_NONE
+
+
+func _penalty_floor(fail_penalty: String) -> int:
+	var path: String = P_PENALTY_FLOOR_FORMAT % fail_penalty
+	if fail_penalty.is_empty() or not Database.has_balance(path):
+		return LEVEL_NONE
+	return maxi(CONSEQUENCE_LADDER.find(str(Database.get_balance(path))), LEVEL_NONE)
+
+
+## demotion_risk: ese mismo deber lleva fallos_para_descenso_riesgo fallos seguidos.
+func _demotion_risk_due(duty: Dictionary) -> bool:
+	if str(duty.get(D_FAIL_PENALTY, "")) != PENALTY_DEMOTION_RISK:
+		return false
+	var streak: int = int(_duty_streaks.get(str(duty[D_ID]), 0))
+	return streak >= Database.get_balance_int(P_FAILS_DEMOTION_RISK)
+
+
+func _reset_failure_state() -> void:
+	_consecutive_failures = 0
+	_last_failed_day = 0
+	_severe_day = 0
+	_duty_streaks.clear()
 
 
 static func _is_period_end(day: int, days_per_period: int) -> bool:
@@ -848,6 +1059,65 @@ func _stash_units(spot_id: String) -> int:
 	return units
 
 
+## Vacía un alijo entero (item_disposed(id, method) por unidad). Devuelve las unidades retiradas.
+func _empty_stash(spot_id: String, method: String) -> Array[String]:
+	var taken: Array[String] = []
+	if not _stashes.has(spot_id):
+		return taken
+	for record: Dictionary in _stashes[spot_id][K_ITEMS]:
+		for _unit: int in maxi(int(record.get("stack", 1)), 1):
+			taken.append(str(record.get("id", "")))
+	_stashes.erase(spot_id)
+	for item_id: String in taken:
+		EventBus.item_disposed.emit(item_id, method)
+	return taken
+
+
+## Retira del alijo todas las unidades de `item_id` (item_disposed por unidad). Devuelve cuántas.
+func _take_from_stash(spot_id: String, item_id: String, method: String) -> int:
+	if not _stashes.has(spot_id):
+		return 0
+	var records: Array = _stashes[spot_id][K_ITEMS]
+	var units: int = 0
+	var index: int = _find_record(records, item_id)
+	while index >= 0:
+		units += maxi(int((records[index] as Dictionary).get("stack", 1)), 1)
+		records.remove_at(index)
+		index = _find_record(records, item_id)
+	if records.is_empty():
+		_stashes.erase(spot_id)
+	for _unit: int in units:
+		EventBus.item_disposed.emit(item_id, method)
+	return units
+
+
+## §11.3 (cuartos de limpieza): cada alijo cuya ubicación tenga prob_hallazgo_diaria > 0 se
+## descubre con esa probabilidad si su descubridor sigue activo, y se vacía entero
+## (item_disposed "found_by_staff" + cuaderno). Orden de escondites estable (reproducible).
+func _roll_stash_discoveries() -> void:
+	var spots: Array = _stashes.keys()
+	spots.sort()
+	for spot_id: Variant in spots:
+		if not _stashes.has(spot_id):
+			continue
+		var location: String = str(_stashes[spot_id][K_LOCATION])
+		var chance: float = InventoryRules.daily_discovery_chance(location)
+		if chance <= 0.0 or not _discoverer_active(location):
+			continue
+		if _rng.randf() < chance:
+			_empty_stash(str(spot_id), METHOD_FOUND_BY_STAFF)
+			EventBus.notebook_entry_added.emit(NOTE_CATEGORY, NOTE_STASH_FOUND, [])
+
+
+## Sin descubridor designado, o sin población simulada (NPCDirector no lo conoce), el riesgo es de
+## la ubicación; si el personaje existe, tiene que seguir activo (vivo y en plantilla).
+func _discoverer_active(location: String) -> bool:
+	var npc_id: String = InventoryRules.daily_discoverer(location)
+	if npc_id.is_empty() or NPCDirector.get_npc(npc_id) == null:
+		return true
+	return NPCDirector.is_active(npc_id)
+
+
 static func _find_record(records: Array, item_id: String) -> int:
 	for index: int in records.size():
 		if str((records[index] as Dictionary).get("id", "")) == item_id:
@@ -878,8 +1148,9 @@ static func _copy_item(item: ItemData) -> ItemData:
 
 ## Reconstruye un ItemData desde ItemData.to_dict() (tras JSON los enteros llegan como float).
 static func _item_from_dict(record: Dictionary) -> ItemData:
+	var category: String = str(record.get("category", ItemData.CATEGORY_ORDINARY))
 	var item: ItemData = ItemData.make(str(record.get("id", "")),
-			str(record.get("name_key", "")), str(record.get("category", ItemData.CATEGORY_ORDINARY)))
+			str(record.get("name_key", "")), category)
 	item.value = int(record.get("value", 0))
 	item.stack = maxi(int(record.get("stack", ItemData.MIN_STACK)), ItemData.MIN_STACK)
 	var extra: Variant = record.get("extra", {})
@@ -901,6 +1172,22 @@ static func _normalize_stashes(raw: Variant) -> Dictionary:
 			K_ROOM: str(entry.get(K_ROOM, "")), K_LOCATION: str(entry.get(K_LOCATION, "")),
 			K_DAY: int(entry.get(K_DAY, 0)), K_ITEMS: records,
 		}
+	return out
+
+
+static func _normalize_int_dict(raw: Variant) -> Dictionary:
+	var out: Dictionary = {}
+	if raw is Dictionary:
+		for key: Variant in raw:
+			out[str(key)] = int(raw[key])
+	return out
+
+
+static func _normalize_strings(raw: Variant) -> Array[String]:
+	var out: Array[String] = []
+	if raw is Array:
+		for value: Variant in raw:
+			out.append(str(value))
 	return out
 
 

@@ -56,11 +56,17 @@ const EV_BODY := "body_found"
 const RECORD_TO_EVIDENCE: Dictionary = {
 	"accounting_entry": "accounting_trail", "stamped_document": "forged_document",
 }
+## Un documento sellado es falsificación solo si lo dejó un delito ("stamped_document:forgery");
+## sin detalle o con este detalle es una nota del expediente (anotación del superior §12.2,
+## nota de DutySystem, acta del interrogatorio) y cuenta como EV_FILE_NOTE con su propio peso.
+const STAMPED_DOCUMENT := "stamped_document"
+const FILE_NOTE_DETAILS: Array[String] = ["", "file_annotation"]
+const EV_FILE_NOTE := "file_annotation"
 const RECORDS_HANDLED_BY_SECURITY: Array[String] = ["footage", "card_log", "body_found"]
 ## Incidentes y registros sin entrada en investigations.json → clave de texto.
 const EXTRA_NAME_KEYS: Dictionary = {
 	"missing_person": "INCIDENT_MISSING_PERSON", "signed_expulsion": "EVIDENCE_SIGNED_EXPULSION",
-	"board_minutes": "EVIDENCE_BOARD_MINUTES",
+	"board_minutes": "EVIDENCE_BOARD_MINUTES", "file_annotation": "EVIDENCE_FILE_ANNOTATION",
 }
 ## Hecho de percepción parcial en BeliefNet ("seen_partially[:detalle]").
 const FACT_SEEN_PARTIALLY := "seen_partially"
@@ -100,6 +106,19 @@ static func find_by_id(entries: Array, id: String) -> Dictionary:
 ## Id base de una sala transversal ("cleaning_closet_low@3" → "cleaning_closet_low").
 static func base_room(room_id: String) -> String:
 	return room_id.get_slice(ROOM_INSTANCE_SEPARATOR, 0)
+
+
+## Id de la copia de una sala transversal en una planta ("corridors_low", 3 → "corridors_low@3").
+static func room_instance(base: String, floor_number: int) -> String:
+	return base + ROOM_INSTANCE_SEPARATOR + str(floor_number)
+
+
+## true si la sala está en la zona: por id exacto (copias transversales de una planta) o, para
+## un id sin sufijo de planta, por su id base.
+static func in_zone(room_id: String, zone: Array[String]) -> bool:
+	if zone.has(room_id):
+		return true
+	return not room_id.contains(ROOM_INSTANCE_SEPARATOR) and zone.has(base_room(room_id))
 
 
 ## true si el sujeto identifica a alguien (no vacío, no un uniforme, no "unknown").
@@ -151,17 +170,21 @@ static func procedure_due_day(index: int, count: int, total_days: int) -> int:
 	return ceili(float((index + 1) * total_days) / float(maxi(count, 1)))
 
 
-## Una creencia es pertinente si se formó en la ventana del incidente y en su ubicación.
-static func is_belief_relevant(b: Belief, location: String, from_day: int, to_day: int) -> bool:
+## Una creencia es pertinente si se formó en la ventana del incidente y en su ubicación (sin
+## ubicación, o con any_location para el rastro contable, basta la ventana).
+static func is_belief_relevant(b: Belief, location: String, from_day: int, to_day: int,
+		any_location: bool = false) -> bool:
 	if b.timestamp < from_day or b.timestamp > to_day:
 		return false
-	return b.location.is_empty() or base_room(b.location) == base_room(location)
+	return any_location or b.location.is_empty() \
+			or base_room(b.location) == base_room(location)
 
 
 ## Pieza de testigo a partir de una creencia del grafo (procedimiento 1, §12.4):
 ## rumor → rumor sin fuente; percepción parcial o certeza baja → testigo parcial; resto →
 ## testigo directo. Los registros usan su propio peso. {} si no aporta nada.
-static func piece_from_belief(b: Belief, weights: Dictionary, direct_min_certainty: float) -> Dictionary:
+static func piece_from_belief(b: Belief, weights: Dictionary,
+		direct_min_certainty: float) -> Dictionary:
 	if b.is_record:
 		return _piece_from_record(b)
 	var kind: String = EV_DIRECT_WITNESS
@@ -174,18 +197,39 @@ static func piece_from_belief(b: Belief, weights: Dictionary, direct_min_certain
 			b.subject, b.id)
 
 
+## Una sola pieza por testigo: guarda en best[holder] la de mayor peso × certeza.
+static func keep_strongest(best: Dictionary, holder: String, piece: Dictionary) -> void:
+	var current: Dictionary = best.get(holder, {})
+	if current.is_empty() or _score(piece) > _score(current):
+		best[holder] = piece
+
+
+static func _score(piece: Dictionary) -> float:
+	return float(piece.get("weight", 0.0)) * float(
+			piece.get("certainty", Investigation.FULL_CERTAINTY))
+
+
 static func _piece_from_record(b: Belief) -> Dictionary:
 	if RECORDS_HANDLED_BY_SECURITY.has(b.record_type) or b.weight <= 0.0:
 		return {}
-	var kind: String = str(RECORD_TO_EVIDENCE.get(b.record_type, b.record_type))
-	return Investigation.make_evidence(kind, b.weight, b.certainty, b.subject, b.id)
+	return Investigation.make_evidence(record_evidence_type(b), b.weight, b.certainty,
+			b.subject, b.id)
 
 
-## Grabación o registro de tarjeta dentro de la zona y franja revisadas (procedimiento 2).
-## hour < 0 → se revisa la jornada entera.
-static func is_record_relevant(entry: Dictionary, location: String, day: int, hour: int,
+## Tipo de pieza de un registro (RECORD_TO_EVIDENCE; notas de expediente aparte).
+static func record_evidence_type(b: Belief) -> String:
+	var detail: String = b.fact.get_slice(FACT_SEPARATOR, 1) \
+			if b.fact.contains(FACT_SEPARATOR) else ""
+	if b.record_type == STAMPED_DOCUMENT and FILE_NOTE_DETAILS.has(detail):
+		return EV_FILE_NOTE
+	return str(RECORD_TO_EVIDENCE.get(b.record_type, b.record_type))
+
+
+## Grabación o registro de tarjeta dentro de la zona (in_zone) y la franja revisadas
+## (procedimiento 2). hour < 0 → se revisa la jornada entera.
+static func is_record_relevant(entry: Dictionary, zone: Array[String], day: int, hour: int,
 		window_hours: int) -> bool:
-	if base_room(str(entry.get("room_id", ""))) != base_room(location):
+	if not in_zone(str(entry.get("room_id", "")), zone):
 		return false
 	if int(entry.get("day", -1)) != day:
 		return false
@@ -193,10 +237,11 @@ static func is_record_relevant(entry: Dictionary, location: String, day: int, ho
 
 
 ## Plan del registro físico (procedimiento 3): la sala del incidente primero y después el orden
-## de room_search.order filtrado por gravedad. forgotten_corridor (never_searched) y trash_dock
-## (irrelevant) no se registran jamás. → [{room, spot, find_chance}]
+## de room_search.order filtrado por gravedad (y sin `order_skip`: sótanos profundos cuando la
+## gravedad no los registra). forgotten_corridor (never_searched) y trash_dock (irrelevant) no
+## se registran jamás. → [{room, spot, find_chance}]
 static func search_plan(location: String, severity: int, room_search: Dictionary,
-		incident_chance: float) -> Array[Dictionary]:
+		incident_chance: float, order_skip: Array[String] = []) -> Array[Dictionary]:
 	var skip: Array = []
 	skip.append_array(room_search.get("never_searched", []))
 	skip.append_array(room_search.get("irrelevant", []))
@@ -210,7 +255,8 @@ static func search_plan(location: String, severity: int, room_search: Dictionary
 				"find_chance": float(own.get("find_chance", incident_chance))})
 	for entry: Variant in order:
 		var room: String = str((entry as Dictionary).get("room", ""))
-		if room == loc or skip.has(room) or int(entry.get("min_severity", 0)) > severity:
+		if room == loc or skip.has(room) or order_skip.has(room) \
+				or int(entry.get("min_severity", 0)) > severity:
 			continue
 		plan.append({"room": room, "spot": str(entry.get("spot", "")),
 				"find_chance": float(entry.get("find_chance", 0.0))})
@@ -276,8 +322,9 @@ static func candidates(inv: Investigation, extra: Array[String]) -> Array[String
 	return out
 
 
-## Sujetos por peso descendente; empate → orden alfabético (determinista).
-static func rank(weights: Dictionary) -> Array[String]:
+## Sujetos por peso descendente. Empate → el que aparece antes en `order` (Security pasa el
+## orden del expediente: a quien señaló antes la evidencia); fuera de `order`, alfabético.
+static func rank(weights: Dictionary, order: Array[String] = []) -> Array[String]:
 	var ids: Array[String] = []
 	for key: Variant in weights:
 		ids.append(str(key))
@@ -286,16 +333,26 @@ static func rank(weights: Dictionary) -> Array[String]:
 		var wb: float = float(weights[b])
 		if not is_equal_approx(wa, wb):
 			return wa > wb
-		return a < b)
+		return _tie_before(a, b, order))
 	return ids
 
 
+static func _tie_before(a: String, b: String, order: Array[String]) -> bool:
+	var ia: int = order.find(a)
+	var ib: int = order.find(b)
+	if ia >= 0 and ib >= 0:
+		return ia < ib
+	if ia >= 0 or ib >= 0:
+		return ia >= 0
+	return a < b
+
+
 ## Lista corta de 1 a `max_count` sospechosos: los que alcanzan su umbral (el del jugador va
-## modulado por su sospecha), ordenados por peso. Vacía si nadie lo alcanza.
+## modulado por su sospecha), ordenados por peso (empates según `order`). Vacía si nadie llega.
 static func form_shortlist(weights: Dictionary, player_threshold: float, npc_threshold: float,
-		max_count: int) -> Array[String]:
+		max_count: int, order: Array[String] = []) -> Array[String]:
 	var out: Array[String] = []
-	for id: String in rank(weights):
+	for id: String in rank(weights, order):
 		var limit: float = player_threshold if id == SUBJECT_PLAYER else npc_threshold
 		var weight: float = float(weights[id])
 		if weight > 0.0 and weight >= limit and out.size() < max_count:
@@ -306,27 +363,28 @@ static func form_shortlist(weights: Dictionary, player_threshold: float, npc_thr
 # ─── Fase 5: veredicto ────────────────────────────────────────
 
 ## §12.3: máximo < 7,0 → frío; encabeza otro con ≥ 7,0 → otro culpable; encabeza el jugador:
-## 7,0–10,0 → leve; > 10,0 → grave. Decide el primero de la lista por peso actual.
+## 7,0–10,0 → leve; > 10,0 → grave. Decide el primero de la lista (empates: orden de la lista).
+## player_shift (−0,03 × sospecha, §12.4) desplaza solo los umbrales del jugador (nunca < 0).
 ## → {verdict, culprit, weight}
 static func decide_verdict(weights: Dictionary, shortlist: Array[String], minor: float,
-		major: float) -> Dictionary:
-	var ranked: Array[String] = []
+		major: float, player_shift: float = 0.0) -> Dictionary:
 	var subset: Dictionary = {}
 	for id: String in shortlist:
 		subset[id] = float(weights.get(id, 0.0))
-	ranked = rank(subset)
-	if ranked.is_empty() or float(subset[ranked[0]]) < minor:
-		return {"verdict": VERDICT_COLD, "culprit": "", "weight": _top_weight(subset, ranked)}
+	var ranked: Array[String] = rank(subset, shortlist)
+	if ranked.is_empty():
+		return {"verdict": VERDICT_COLD, "culprit": "", "weight": 0.0}
 	var top: String = ranked[0]
 	var weight: float = float(subset[top])
-	if top != SUBJECT_PLAYER:
+	var is_player: bool = top == SUBJECT_PLAYER
+	var shift: float = player_shift if is_player else 0.0
+	if weight < maxf(0.0, minor + shift):
+		return {"verdict": VERDICT_COLD, "culprit": "", "weight": weight}
+	if not is_player:
 		return {"verdict": VERDICT_OTHER, "culprit": top, "weight": weight}
-	var verdict: String = VERDICT_PLAYER_MAJOR if weight > major else VERDICT_PLAYER_MINOR
+	var verdict: String = VERDICT_PLAYER_MAJOR if weight > maxf(0.0, major + shift) \
+			else VERDICT_PLAYER_MINOR
 	return {"verdict": verdict, "culprit": SUBJECT_PLAYER, "weight": weight}
-
-
-static func _top_weight(subset: Dictionary, ranked: Array[String]) -> float:
-	return 0.0 if ranked.is_empty() else float(subset[ranked[0]])
 
 
 # ─── Manipulación de piezas ───────────────────────────────────
@@ -356,8 +414,7 @@ static func pieces_against(inv: Investigation, subject: String) -> Array[Diction
 static func total_weight(inv: Investigation) -> float:
 	var total: float = 0.0
 	for piece: Dictionary in inv.evidence:
-		total += float(piece.get("weight", 0.0)) * float(
-				piece.get("certainty", Investigation.FULL_CERTAINTY))
+		total += _score(piece)
 	return total
 
 

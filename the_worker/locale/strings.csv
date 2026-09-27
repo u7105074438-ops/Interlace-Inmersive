@@ -1513,3 +1513,628 @@ ALERT_LEVEL_2,Security alert: watchful,Alerta de seguridad: vigilante
 ALERT_LEVEL_3,Security alert: raised,Alerta de seguridad: elevada
 ALERT_LEVEL_4,Security alert: high,Alerta de seguridad: alta
 ALERT_LEVEL_5,Security alert: lockdown,Alerta de seguridad: máxima
+UI_BACK,Back,Volver
+UI_CANCEL,Cancel,Cancelar
+UI_ON,On,Sí
+UI_OFF,Off,No
+UI_COMPANY_NAME,Stellar Sell,Stellar Sell
+UI_LOGO_THE,THE,THE
+UI_LOGO_WORKER,WORKER,WORKER
+UI_STORE_TAGLINE,You were hired to work. You have other plans.,Te contrataron para trabajar. Tú tienes otros planes.
+UI_MENU_KICKER,Stellar Sell · Careers,Stellar Sell · Empleo
+UI_MENU_NEW_GAME,New game,Nueva partida
+UI_MENU_CONTINUE,Continue,Continuar
+UI_MENU_GALLERY,Endings,Finales
+UI_MENU_SETTINGS,Settings,Ajustes
+UI_MENU_QUIT,Quit,Salir
+UI_MENU_FOOTER,Stellar Sell Inc. — Now hiring. Always hiring.,Stellar Sell S.A. — Buscamos talento. Siempre.
+UI_MEMO_KICKER,Internal memo,Memorándum interno
+UI_BILLBOARD_LINE1,NOW HIRING,SE BUSCA
+UI_BILLBOARD_LINE2,Your future starts on floor 3,Tu futuro empieza en la planta 3
+UI_TOWER_GROUND_SHORT,G,PB
+UI_TOWER_BASEMENT_SHORT,B{n},S{n}
+UI_CONFIRM_ABANDON_TITLE,Abandon the current run?,¿Abandonar la partida en curso?
+UI_CONFIRM_ABANDON_BODY,There is a run in progress. Signing a new contract deletes it forever. There is no going back: permadeath. (You can still change your mind before signing.),Hay una partida en curso. Firmar un contrato nuevo la borra para siempre. No hay vuelta atrás: muerte permanente. (Puedes arrepentirte antes de firmar.)
+UI_CONFIRM_ABANDON_YES,New hire anyway,Nueva alta igualmente
+UI_PLACEHOLDER_TITLE,Building under construction,Edificio en obras
+UI_PLACEHOLDER_BODY,"The game scene is not built yet (scenes/world/game.tscn). Your request was filed anyway — mode: {mode}, name: {name}.","La escena de juego aún no existe (scenes/world/game.tscn). Tu solicitud se ha archivado igualmente — modo: {mode}, nombre: {name}."
+UI_SETTINGS_TITLE,Settings,Ajustes
+UI_SETTINGS_KICKER,Human Resources · Preferences form,Recursos Humanos · Formulario de preferencias
+UI_SET_SECTION_DISPLAY,Display and accessibility,Pantalla y accesibilidad
+UI_SET_LANGUAGE,Language,Idioma
+UI_LANG_EN,English,English
+UI_LANG_ES,Español,Español
+UI_SET_TEXT_SIZE,Text size,Tamaño del texto
+UI_SET_TEXT_SIZE_HINT,Critical on small screens.,Fundamental en pantallas pequeñas.
+UI_SET_TEXT_SMALL,Small,Pequeño
+UI_SET_TEXT_MEDIUM,Medium,Mediano
+UI_SET_TEXT_LARGE,Large,Grande
+UI_SET_HIGH_CONTRAST,High contrast,Alto contraste
+UI_SET_HIGH_CONTRAST_HINT,Solid backgrounds and bolder detection indicators.,Fondos opacos e indicadores de detección más marcados.
+UI_SET_COLORBLIND,Colour-blind safe,Modo daltonismo
+UI_SET_COLORBLIND_HINT,"Critical states change shape, not just colour.","Los estados críticos cambian de forma, no solo de color."
+UI_SET_SUBTITLES,Sound subtitles,Subtítulos de sonido
+UI_SET_SUBTITLES_HINT,Every informative sound gets a caption. Sound carries stealth information.,Cada sonido informativo lleva su subtítulo. El sonido transmite información de sigilo.
+UI_SET_SECTION_GAME,Game,Partida
+UI_SET_DIFFICULTY,Contract type (new runs),Tipo de contrato (partidas nuevas)
+UI_SET_DIFFICULTY_HINT,"Suspicion decay, bribe prices and duty deadlines, for the next contract you sign. Permadeath never changes.","Decaimiento de la sospecha, precio de los sobornos y margen de los deberes, para el próximo contrato que firmes. La muerte permanente no cambia nunca."
+UI_PRESET_INTERNO,Internal,Interno
+UI_PRESET_ESTANDAR,Standard,Estándar
+UI_PRESET_AUDITORIA,Audit,Auditoría
+UI_SET_CLOCK_SPEED,Clock speed,Velocidad del reloj
+UI_SET_CLOCK_SPEED_HINT,Independent of difficulty.,Independiente de la dificultad.
+UI_SET_MULTIPLIER_FMT,×{value},×{value}
+UI_SET_MAX_AGENTS,Simulated employees,Empleados simulados
+UI_SET_MAX_AGENTS_HINT,Lower it on slower devices.,Redúcelo en dispositivos modestos.
+UI_SET_COUNT_FMT,{value},{value}
+UI_SET_SKIP_INTRO,Skip the opening once seen,Omitir la apertura ya vista
+UI_SET_SKIP_INTRO_HINT,The graduation plays only on your first run.,La graduación solo se reproduce en tu primera partida.
+UI_SET_SECTION_AUDIO,Sound,Sonido
+UI_SET_MUSIC_VOLUME,Music,Música
+UI_SET_SFX_VOLUME,Effects,Efectos
+UI_SET_PERCENT_FMT,{value}%,{value} %
+UI_SET_PERMADEATH_NOTE,"Not negotiable in any contract: permadeath and the terminal rules (an elimination with witnesses, a reported bribe, a conclusive investigation). The harshness is the job.","No negociable en ningún contrato: la muerte permanente y las reglas terminales (eliminación ante testigos, soborno denunciado, investigación concluyente). La dureza es el trabajo."
+UI_NEWHIRE_KICKER,Human Resources · Form HR-01,Recursos Humanos · Formulario RH-01
+UI_NEWHIRE_TITLE,New hire,Alta de personal
+UI_NEWHIRE_NAME_LABEL,Full name,Nombre completo
+UI_NEWHIRE_NAME_PLACEHOLDER,Type your name,Escribe tu nombre
+UI_NEWHIRE_NAME_HINT,Stellar Sell values every employee as equally replaceable. Choose a name anyway.,Stellar Sell valora a cada empleado como igualmente sustituible. Elige un nombre de todos modos.
+UI_NEWHIRE_NAME_ERROR,The form cannot be processed without a name.,El formulario no se puede tramitar sin un nombre.
+UI_NEWHIRE_SUGGEST,Suggest a name,Sugerir un nombre
+UI_NEWHIRE_NEXT,Next,Siguiente
+UI_CONTRACT_TITLE,Contract type,Tipo de contrato
+UI_CONTRACT_INTRO,"{name}, please choose one of the contracts below. All of them are standard.","{name}, elige uno de los contratos. Todos son estándar."
+UI_CONTRACT_DESC_INTERNO,Friendly auditors and forgetful colleagues. The company looks after its own.,Auditores amables y compañeros olvidadizos. La casa cuida de los suyos.
+UI_CONTRACT_DESC_ESTANDAR,The company as designed. Nobody is looking. Everybody is watching.,La empresa tal como se diseñó. Nadie mira. Todos vigilan.
+UI_CONTRACT_DESC_AUDITORIA,"Long memories, expensive silence, tight deadlines. Welcome to compliance.","Memoria larga, silencio caro y plazos justos. Bienvenido a cumplimiento normativo."
+UI_CONTRACT_MOD_SUSPICION,Suspicion fades {value},La sospecha se disipa {value}
+UI_CONTRACT_MOD_BRIBES,Bribe prices {value},Precio de los sobornos {value}
+UI_CONTRACT_MOD_DEADLINES,Duty deadlines {value},Margen de los deberes {value}
+UI_CONTRACT_PERMADEATH,Clause 14 (every contract): permadeath. Getting caught ends the run. There is no earlier save.,Cláusula 14 (todos los contratos): muerte permanente. Si te descubren
+UI_CONTRACT_SIGN,Sign the contract,Firmar el contrato
+UI_GALLERY_TITLE,Endings,Finales
+UI_GALLERY_KICKER,Personnel archive · Exit interviews,Archivo de personal · Entrevistas de salida
+UI_GALLERY_COUNTER,Unlocked: {n} of {total},Desbloqueados: {n} de {total}
+UI_GALLERY_CAT_FULL,Full victory,Victoria plena
+UI_GALLERY_CAT_PARTIAL,Partial victory,Victoria parcial
+UI_GALLERY_CAT_DEFEAT,Defeat,Derrota
+UI_GALLERY_LOCKED_NAME,Classified,Clasificado
+UI_GALLERY_LOCKED_HINT_FULL_VICTORY,Own the company from the top floor. How you got there decides which.,Sé propietario de la compañía desde la última planta. Cómo llegaste decide cuál.
+UI_GALLERY_LOCKED_HINT_PARTIAL_VICTORY,The chair or the papers. Not both.,La silla o los papeles. No ambas cosas.
+UI_GALLERY_LOCKED_HINT_DEFEAT,"Sooner or later, everybody gets one of these.","Tarde o temprano, a todo el mundo le toca uno."
+UI_BOOT_ERROR_TITLE,Startup halted,Arranque detenido
+UI_BOOT_ERROR_KICKER,Data validation,Validación de datos
+UI_BOOT_ERROR_BODY,The game data in data/ failed validation. Fix the errors below and restart the game.,Los datos del juego en data/ no superan la validación. Corrige los errores siguientes y reinicia el juego.
+UI_BOOT_ERROR_UNKNOWN,Database.load_all() reported a failure without details.,Database.load_all() informó de un fallo sin detalles.
+UI_BOOT_ERROR_CONTINUE,Continue anyway (debug build),Continuar de todos modos (depuración)
+UI_EPILOGUE_KICKER,Epilogue,Epílogo
+UI_EPILOGUE_GAME_OVER,Game over,Fin de la partida
+UI_EPILOGUE_RUIN_FMT,The company was left: {tier},Estado de la compañía: {tier}
+UI_EPILOGUE_CAUSE_FMT,Cause: {cause},Causa: {cause}
+UI_EPILOGUE_TO_MENU,Main menu,Menú principal
+UI_EPILOGUE_START_OVER,New hire,Nueva contratación
+UI_EPILOGUE_REDACTED,[redacted],[censurado]
+UI_EPILOGUE_MISSING,No record of this ending exists.,No consta ningún registro de este final.
+PROMO_KICKER,Human Resources · Change of position,Recursos Humanos · Cambio de puesto
+PROMO_TITLE_UP,Promoted,Ascenso
+PROMO_TITLE_DOWN,Reassigned,Reubicación
+PROMO_RANK_FMT,Rank R{from} → R{to},Rango R{from} → R{to}
+PROMO_CONTINUE,Back to work,Volver al trabajo
+PROMO_FACTORY_SHORT,FAC,NAVE
+PROMO_QUIP_UP_1,Congratulations. Your new chair is slightly more comfortable.,Enhorabuena. Tu nueva silla es ligeramente más cómoda.
+PROMO_QUIP_UP_2,Your predecessor's mug has been removed. Mostly.,La taza de tu predecesor ya no está. Casi toda.
+PROMO_QUIP_UP_3,"More responsibility, same coffee.","Más responsabilidad, el mismo café."
+PROMO_QUIP_DOWN_1,The company thanks you for your flexibility.,La empresa agradece tu flexibilidad.
+PROMO_QUIP_DOWN_2,Please return your stapler to the previous floor.,Devuelve la grapadora a la planta anterior.
+OPENING_SKIP,Skip ▸▸,Saltar ▸▸
+OPENING_CHOICE_HINT,Choose your future.,Elige tu futuro.
+OPENING_M1_CAPTION_1,"Graduation day. Four years, one degree, zero experience.","Día de la graduación. Cuatro años, un título, cero experiencia."
+OPENING_SFX_CHEER,[Cheering. Caps fly.],[Vítores. Vuelan los birretes.]
+OPENING_M1_CAPTION_2,Then the job offers arrived.,Entonces llegaron las ofertas de empleo.
+OPENING_M1_CAPTION_3,Excellent choice.,Excelente elección.
+OPENING_M1_CAPTION_4,It was the only one.,Era la única.
+OPENING_M2_CAPTION_1,"Monday, 07:42. The number 20 bus.","Lunes, 07:42. El autobús de la línea 20."
+OPENING_SFX_BUS,[Bus engine. Nobody talks.],[Motor del autobús. Nadie habla.]
+OPENING_SFX_BRAKES,[Brakes hiss],[Silbido de frenos]
+OPENING_M2_CAPTION_2,Stellar Sell headquarters.,Sede central de Stellar Sell.
+OPENING_M2_CAPTION_3,Twenty floors of hierarchy.,Veinte plantas de jerarquía.
+OPENING_M3_CAPTION_1,08:00. Day one.,08:00. Primer día.
+OPENING_SFX_BEEP,[Turnstile beeps: access granted],[Pitido del torniquete: acceso concedido]
+OPENING_M3_CAPTION_2,"Welcome to Stellar Sell, {name}.","Bienvenido a Stellar Sell, {name}."
+OPENING_M3_CAPTION_2_ANON,Welcome to Stellar Sell.,Bienvenido a Stellar Sell.
+OPENING_BANNER_1,GRADUATION DAY,GRADUACIÓN
+OPENING_BANNER_2,"Congratulations, class!","¡Enhorabuena, promoción!"
+OPENING_OFFER_0,Nimbus Logistics,Nimbus Logistics
+OPENING_OFFER_1,Orchard Analytics,Orchard Analytics
+OPENING_OFFER_2,Brightline Media,Brightline Media
+OPENING_OFFER_4,Harbor & Finch,Harbor & Finch
+OPENING_OFFER_5,Quantix Group,Quantix Group
+OPENING_OFFER_ROLE,Junior Associate,Asociado júnior
+OPENING_STAMP_0,POSITION FILLED,PUESTO CUBIERTO
+OPENING_STAMP_1,UNPAID,SIN SUELDO
+OPENING_STAMP_2,10 YEARS' EXP.,10 AÑOS DE EXP.
+OPENING_STAMP_4,WE'LL CALL YOU,YA TE LLAMAREMOS
+OPENING_STAMP_5,REJECTED,RECHAZADO
+OPENING_OFFER_SS_PLACE,Floor 3 · Salary: competitive*,Planta 3 · Sueldo: competitivo*
+OPENING_OFFER_SS_START,"Starts Monday, 08:00","Empieza el lunes, 08:00"
+OPENING_STAMP_HIRED,HIRED,CONTRATADO
+OPENING_BUS_SIGN,20 · STELLAR HQ,20 · SEDE STELLAR
+OPENING_BUS_STOP,Stellar Sell HQ,Sede Stellar Sell
+OPENING_FLOOR_LABEL,FLOOR,PLANTA
+OPENING_POSTER_1,EVERY CONTRIBUTION,CADA CONTRIBUCIÓN
+OPENING_POSTER_2,COUNTS,CUENTA
+ANIM_IDLE,Idle,En reposo
+ANIM_WALK,Walk,Caminar
+ANIM_SPRINT,Sprint,Esprintar
+ANIM_SNEAK,Sneak,Sigilo
+ANIM_CROUCH,Crouch walk,Andar agachado
+ANIM_CROUCH_IDLE,Crouch,Agachado
+ANIM_SIT,Sit,Sentado
+ANIM_SIT_TYPE,Sit and type,Sentarse y teclear
+ANIM_DRAWER,Open drawer and inspect,Abrir cajón e inspeccionar
+ANIM_STEAL,Steal,Sustraer
+ANIM_HIDE,Hide,Ocultarse
+ANIM_DRAG,Drag a body,Arrastrar un cuerpo
+ANIM_PHONE,Check phone,Consultar el móvil
+ANIM_BRIBE,Bribe handshake,Apretón del soborno
+ANIM_CAUGHT,Caught,Descubierto
+ANIM_CLOCK_IN,Clock in,Fichar
+ANIM_CHECK_WATCH,Check watch,Consultar el reloj
+ANIM_YAWN,Yawn,Bostezar
+ANIM_CHAT,Chat,Conversar
+ANIM_TYPE_INTENSE,Type intensely,Teclear con intensidad
+ANIM_PHONE_SNEAK,Sneaky phone look,Mirar el móvil a escondidas
+ANIM_STARTLE,Startle,Sobresalto
+ANIM_SUSPICION,Suspicion,Sospecha
+ANIM_POINT,Point,Señalar
+ANIM_WALK_REPORT,Walk to Security,Ir a Security
+MOVE_MODE_STILL,Still,Quieto
+MOVE_MODE_WALK,Walking,Caminando
+MOVE_MODE_SNEAK,Sneaking,Sigilo
+MOVE_MODE_SPRINT,Sprinting,Esprintando
+MOVE_MODE_CROUCH,Crouching,Agachado
+QA_CHAR_TIER,Tier %d,Escalón %d
+QA_CHAR_TIERS_TITLE,Silhouette by tier,Silueta por escalón
+QA_CHAR_ARCHETYPES_TITLE,Archetype tics,Tics de arquetipo
+QA_CHAR_NAMED_TITLE,Named characters,Personajes nominados
+QA_CHAR_PORTRAITS_TITLE,Personnel photos,Fotos de personal
+QA_CHAR_ANIMS_TITLE,Animation catalogue,Catálogo de animaciones
+QA_CHAR_DIRECTIONS_TITLE,Eight directions,Ocho direcciones
+QA_CHAR_INGAME_TITLE,In-game scale,Escala de juego
+QA_CHAR_UNIFORMS_TITLE,Uniforms and disguises,Uniformes y disfraces
+QA_PLAYER_TITLE,The player,El jugador
+QA_PLAYER_NOISE,Noise radius %.1f m,Radio de ruido %.1f m
+UI_MONEY_FMT,€%s,%s €
+UI_THOUSANDS_SEP,",",.
+UI_COMPUTER_UNAVAILABLE,The computer is not responding.,El ordenador no responde.
+UI_PHONE_UNAVAILABLE,No signal.,Sin cobertura.
+UI_MAP_UNAVAILABLE,The evacuation plan is missing from its frame.,Falta el plano de evacuación de su marco.
+UI_COMPUTER_ONLY_AT_DESK,Your computer is at your own desk.,Tu ordenador está en tu propio puesto.
+HUD_KEY_INTERACT,E,E
+HUD_SUBTITLE_FMT,[%s],[%s]
+HUD_SUBTITLE_REPEAT,%s ×%d,%s ×%d
+HUD_WEEKDAY_0,Monday,Lunes
+HUD_WEEKDAY_1,Tuesday,Martes
+HUD_WEEKDAY_2,Wednesday,Miércoles
+HUD_WEEKDAY_3,Thursday,Jueves
+HUD_WEEKDAY_4,Friday,Viernes
+HUD_DAY_FMT,Day %d · %s,Jornada %d · %s
+HUD_TIMEBAND_ARRIVAL,Arrival,Llegada
+HUD_TIMEBAND_WORK_MORNING,Work · morning,Trabajo · mañana
+HUD_TIMEBAND_LUNCH,Lunch break,Hora de comer
+HUD_TIMEBAND_WORK_AFTERNOON,Work · afternoon,Trabajo · tarde
+HUD_TIMEBAND_EXIT,Clock-out,Salida
+HUD_TIMEBAND_NIGHT,Night,Noche
+HUD_RANK_FMT,R%d,R%d
+HUD_REPUTATION,Reputation,Reputación
+HUD_SUSPICION,Suspicion,Sospecha
+HUD_DUTIES,Today's duties,Deberes de hoy
+HUD_NO_DUTIES,No duties today.,Hoy no hay deberes.
+HUD_RESTRICTED,Restricted area,Zona restringida
+HUD_CLEARANCE_REQUIRED,Clearance %d required,Requiere acreditación %d
+HUD_ON_CAMERA,On camera,En cámara
+HUD_REASON_WAGE,Daily wage,Salario diario
+HUD_REASON_RENT,Rent,Alquiler
+HUD_REASON_FOOD,Food,Comida
+HUD_REASON_BREAKFAST,Breakfast,Desayuno
+HUD_REASON_DINNER,Dinner,Cena
+HUD_REASON_BRIBE,Bribes,Sobornos
+HUD_REASON_SALE,Sales,Ventas
+HUD_REASON_PURCHASE,Purchases,Compras
+HUD_REASON_FINE,Fines,Multas
+HUD_REASON_STATUS,Status expenses,Gastos de estatus
+HUD_REASON_DIVIDEND,Dividends,Dividendos
+HUD_REASON_DEBUG,Debug,Depuración
+HUD_REASON_OTHER,Other,Otros
+HUD_TOAST_DUTY_PENDING,Pending duty: %s — %d min to closing,Deber pendiente: %s — faltan %d min para el cierre
+HUD_TOAST_DUTIES_PENDING,%d duties still pending before closing,Quedan %d deberes pendientes antes del cierre
+HUD_TOAST_ITEM_ADDED,Picked up: %s,Recogido: %s
+HUD_TOAST_DUTY_DONE,Duty done: %s,Deber cumplido: %s
+HUD_TOAST_DUTY_FAILED,Duty failed: %s,Deber incumplido: %s
+HUD_TOAST_ALERT_UP,Security alert raised to level %d,La alerta de seguridad sube a nivel %d
+HUD_TOAST_CLEARANCE_UP,New clearance: level %d,Nueva acreditación: nivel %d
+INVUI_TITLE,Inventory,Inventario
+INVUI_CLOSE,Close,Cerrar
+INVUI_COUNT,%d/%d,%d/%d
+INVUI_DROP,Drop,Soltar
+INVUI_HIDE,Hide,Esconder
+INVUI_DISPOSE,Dispose,Deshacerse
+INVUI_EMPTY,Empty slot,Posición vacía
+INVUI_EMPTY_HINT,Eight slots. You cannot carry everything you take.,Ocho posiciones. No puedes llevar encima todo lo que te llevas.
+INVUI_CAT_ORDINARY,Ordinary,Ordinario
+INVUI_CAT_COMPROMISING,Compromising,Comprometedor
+INVUI_ORDINARY_DESC,Nothing to explain if Security searches you.,Nada que explicar si Seguridad te registra.
+INVUI_COMPROMISING_DESC,"If a body search finds this, it is definitive evidence: the case closes against you.","Si un registro corporal lo encuentra, es evidencia definitiva: el caso se cierra en tu contra."
+INVUI_VALUE,Value %s,Valor %s
+INVUI_STACK,×%d,×%d
+INVUI_HINT_NO_SPOT,Hide: no hiding place within reach.,Esconder: no hay escondite al alcance.
+INVUI_HINT_DISPOSE_ONLY_DOCK,Dispose: only at the trash dock (B1).,Deshacerse: solo en el muelle de basuras (S1).
+INVUI_WARNING_HOT,You are carrying %d compromising item(s). A body search would end your career.,Llevas %d objeto(s) comprometedor(es). Un registro corporal acabaría con tu carrera.
+INVUI_WARNING_SEARCH,%d compromising item(s) — and Security can search you right now.,%d objeto(s) comprometedor(es) — y Seguridad ya puede registrarte.
+INVUI_CONFIRM_TITLE,Dispose for good?,¿Deshacerse para siempre?
+INVUI_CONFIRM_BODY,%s goes into the compactor. It leaves the game and cannot be recovered.,%s irá a la compactadora. Sale del juego y no se puede recuperar.
+INVUI_TOAST_DROP,Dropped: %s,Soltado: %s
+INVUI_TOAST_HIDE,Hidden: %s,Escondido: %s
+INVUI_TOAST_DISPOSE,Gone for good: %s,Eliminado para siempre: %s
+INVUI_TOAST_FAILED,Could not do that with %s.,No se pudo hacer eso con %s.
+DAYSUM_TITLE,End of day %d,Fin de la jornada %d
+DAYSUM_SUBTITLE,%s. You clock out; the building keeps working.,%s. Fichas la salida; el edificio sigue trabajando.
+DAYSUM_INCOME,Income,Ingresos
+DAYSUM_EXPENSES,Expenses,Gastos
+DAYSUM_NET,Net,Neto
+DAYSUM_METERS,Meters,Medidores
+DAYSUM_DUTIES,Duties,Deberes
+DAYSUM_ALL_DUTIES_MET,No missed duties.,Ningún deber incumplido.
+DAYSUM_NONE,—,—
+DAYSUM_CONTINUE,Next day,Siguiente jornada
+VC_MAP,Map,Mapa
+VC_COMPUTER,Computer,Ordenador
+VC_PHONE,Phone,Móvil
+VC_INVENTORY,Items,Objetos
+DEBUG_TITLE,Debug panel · F1,Panel de depuración · F1
+DEBUG_FPS,%d FPS,%d FPS
+DEBUG_RANK_DOWN,Rank −,Rango −
+DEBUG_RANK_UP,Rank +,Rango +
+DEBUG_ADD_MONEY,+ Money,+ Dinero
+DEBUG_CONES,Vision cones,Conos de visión
+DEBUG_HOUR,+1 hour,+1 hora
+DEBUG_BAND,Next band,Franja sig.
+DEBUG_DAY,Next day,Día sig.
+DEBUG_NPC_NEXT,Next NPC ],PNJ sig. ]
+DEBUG_FLOOR_DOWN,Floor −,Planta −
+DEBUG_FLOOR_UP,Floor +,Planta +
+DEBUG_ADD_BELIEF,+ Belief,+ Creencia
+DEBUG_ADD_RECORD,+ Record,+ Registro
+DEBUG_SEC_PLAYER,Player,Jugador
+DEBUG_SUSPICION,Suspicion,Sospecha
+DEBUG_REPUTATION,Reputation,Reputación
+DEBUG_MONEY,Money,Dinero
+DEBUG_RANK,Rank,Rango
+DEBUG_WHERE,Room · floor,Sala · planta
+DEBUG_TIME,Time,Hora
+DEBUG_INVENTORY,Items (hot),Objetos (comprom.)
+DEBUG_SEC_BREAKDOWN,Suspicion breakdown,Desglose de sospecha
+DEBUG_NONE,(none),(nada)
+DEBUG_SEC_BELIEFS,Beliefs about the player,Creencias sobre el jugador
+DEBUG_LIVE_BELIEFS,Live,Vivas
+DEBUG_RECORDS,records,registros
+DEBUG_SEC_NPC,Selected character,Personaje seleccionado
+DEBUG_SELECT_HINT,Click a character or press [ / ],Haz clic en un personaje o pulsa [ / ]
+DEBUG_AFFECTION,affection,afecto
+DEBUG_FEAR,fear,miedo
+DEBUG_DEBT,debt,deuda
+DEBUG_GRIEVANCES,grievances,agravios
+DEBUG_FAVOURS,favours,favores
+DEBUG_SEC_SECURITY,Security,Seguridad
+DEBUG_ALERT,Alert,Alerta
+DEBUG_CAN_SEARCH,body search:,registro corporal:
+DEBUG_SHORTLIST,SHORTLIST,LISTA CORTA
+DEBUG_COLD_CASES,Cold cases,Casos fríos
+DEBUG_SEC_COMPANY,Company,Compañía
+DEBUG_DISCONTENT,Discontent,Descontento
+DEBUG_PRICE,Share price,Cotización
+HUDQA_PROMPT_DRAWER,Open drawer,Abrir cajón
+HUDQA_SUB_FOOTSTEPS,Footsteps approaching,Pasos que se acercan
+HUDQA_SUB_ELEVATOR,Elevator bell,Campanilla del ascensor
+HUDQA_SUB_RADIO,Guard radio crackles,Crepita la radio de un vigilante
+HUDQA_SUB_HUM,Photocopier humming,Zumbido de fotocopiadora
+LEDGER_AFFECTION,Affection,Afecto
+LEDGER_FEAR,Fear,Temor
+LEDGER_DEBT,Debt,Deuda
+LEDGER_GRIEVANCES,Grievances,Agravios
+LEDGER_FAVOURS,Favours,Favores
+LEDGER_GRIEVANCE_SEAT_LOST,Lost their seat because of you,Perdió su silla por tu culpa
+LEDGER_GRIEVANCE_PROMOTION_STOLEN,You took the promotion they expected,Le arrebataste el ascenso que esperaba
+LEDGER_GRIEVANCE_WRONGFUL_CONVICTION,Convicted for something you did,Condenado por algo que hiciste tú
+LEDGER_GRIEVANCE_FRIEND_SUNK,You sank a friend of theirs,Hundiste a un amigo suyo
+LEDGER_GRIEVANCE_IDEA_STOLEN,You stole their idea,Le robaste una idea
+LEDGER_GRIEVANCE_BLACKMAILED,You blackmailed them,Le hiciste chantaje
+LEDGER_GRIEVANCE_BRIBE_OFFENCE,Offended by your bribe,Ofendido por tu soborno
+LEDGER_FAVOUR_PROMOTION,Promoted thanks to you,Ascendió gracias a ti
+LEDGER_FAVOUR_BRIBE_PAID,You paid them,Le pagaste
+UTILITY_ACTION_WORK,Work,Trabajar
+UTILITY_ACTION_GOSSIP,Gossip,Cotillear
+UTILITY_ACTION_REPORT_TO_SECURITY,Report to Security,Denunciar en Seguridad
+UTILITY_ACTION_REPORT_TO_SUPERIOR,Tell their superior,Informar a su superior
+UTILITY_ACTION_STAY_SILENT,Keep quiet out of fear,Callar por temor
+UTILITY_ACTION_CONFRONT_PLAYER,Confront you,Confrontarte
+UTILITY_ACTION_ACCEPT_BRIBE,Accept the bribe,Aceptar el soborno
+UTILITY_ACTION_REFUSE_BRIBE,Refuse the bribe,Rechazar el soborno
+UTILITY_ACTION_GENERATE_IDEA,Come up with an idea,Generar una idea propia
+UTILITY_ACTION_REST,Rest,Descansar
+UTILITY_ACTION_FLEE,Flee,Huir
+UTILITY_ACTION_BLACKMAIL_PLAYER,Blackmail you,Chantajearte
+UTILITY_ACTION_SABOTAGE_RIVAL,Sabotage a rival,Sabotear a un rival
+NPC_LOD_0,Full,Completo
+NPC_LOD_1,Medium,Medio
+NPC_LOD_2,Statistical,Estadístico
+NPC_STATE_IDLE,Idle,Libre
+NPC_STATE_WORKING,Working,Trabajando
+NPC_STATE_RESTING,Resting,Descansando
+NPC_STATE_GOSSIPING,Gossiping,Cotilleando
+NPC_STATE_THINKING,Thinking,Pensando
+NPC_STATE_SABOTAGING,Sabotaging,Saboteando
+NPC_STATE_BLACKMAILING,Blackmailing,Chantajeando
+NPC_STATE_REPORTING,Reporting,Denunciando
+NPC_STATE_CONFRONTING,Confronting,Confrontando
+NPC_STATE_FLEEING,Fleeing,Huyendo
+NPC_STATE_ABSENT,Out of the building,Fuera del edificio
+NPC_STATE_SLACKING,Slacking off,Escaqueándose
+NPC_STATE_REMOVED,No longer on staff,Fuera de la plantilla
+UI_CONTRACT_SIGNATURE,Signature,Firma
+UI_BADGE_NAME_EMPTY,YOUR NAME,TU NOMBRE
+UI_BADGE_ROLE_FMT,R{rank} · {role},R{rank} · {role}
+UI_BADGE_NUMBER_FMT,Employee no. {n},Empleado n.º {n}
+SUB_OWN_STEPS_WALK,Your footsteps,Tus pasos
+SUB_OWN_STEPS_SPRINT,Your running echoes through the room,Tu carrera retumba en la sala
+SUB_DRAWER,A drawer slides open,Se abre un cajón
+SUB_LOCK_FORCING,Metal scraping inside a lock,Chirrido metálico en la cerradura
+SUB_BREAK,Something shatters loudly,Algo se hace añicos con estrépito
+SUB_CARD_BEEP,Card reader beeps — access logged,Pita el lector de tarjetas: acceso registrado
+SUB_CARD_DENIED,Card reader buzzes: access denied,Zumba el lector de tarjetas: acceso denegado
+SUB_FREIGHT,The freight elevator grinds,Rechina el montacargas
+SUB_STEPS_APPROACHING,"Footsteps approaching, out of sight","Pasos que se acercan, fuera de la vista"
+SUB_STEPS_RECEDING,Footsteps moving away,Pasos que se alejan
+SUB_CHATTER,Muffled conversation through the wall,Conversación amortiguada tras el tabique
+SUB_CONVERSATION,People talking nearby,Gente hablando cerca
+SUB_CHAIR_CREAK,A chair creaks: someone stands up,Cruje una silla: alguien se levanta
+SUB_GUARD_RADIO,A guard's radio crackles,Crepita la radio de un vigilante
+SUB_ELEVATOR_CHIME,Elevator chime,Campanilla del ascensor
+SUB_CAUGHT,THUD — the music stops dead,GOLPE SECO — la música se detiene en seco
+SUB_PHONE_BUZZ,Your phone vibrates,Vibra tu móvil
+SUB_ALARM_THE_GUTS,Alarm: a rusty klaxon wails,Alarma: aúlla una bocina oxidada
+SUB_ALARM_THE_PIT,Alarm: the fire bell rings,Alarma: suena el timbre de incendios
+SUB_ALARM_THE_SPECIALISTS,Alarm: electronic whooping,Alarma: ululato electrónico
+SUB_ALARM_THE_POWER,"Alarm: discreet chimes, over and over","Alarma: campanillas discretas, una y otra vez"
+SUB_ALARM_THE_THRONE,"Alarm: a harp, urgently","Alarma: un arpa, con urgencia"
+SUB_ALARM_FACTORY,Alarm: the factory siren,Alarma: la sirena de la fábrica
+SUB_ALARM_EXTERIOR,Alarm: a burglar siren outside,Alarma: una sirena antirrobo en la calle
+SUB_MASK_ON,Background noise masks your sounds,El ruido de fondo tapa tus sonidos
+SUB_MASK_OFF,Quiet again: your sounds carry,Silencio otra vez: tus sonidos se oyen
+SUB_MUZAK_NORMAL,Music: cheerful elevator saxophone,Música: alegre saxofón de ascensor
+SUB_MUZAK_SLOW,"Music: the tune drags, slightly off-key","Música: la melodía se arrastra, algo desafinada"
+SUB_MUZAK_WORN,Music: warbling like a worn-out tape,Música: ondula como una cinta gastada
+SUB_MUZAK_ATONAL,Music: the tune is falling apart,Música: la melodía se está desmoronando
+SUB_MUZAK_CUT,The music cuts out,La música se corta
+SUB_MUZAK_DROPOUT,The music skips,La música da un salto
+SUB_FACTORY_RHYTHM,No music here: only the machines keep time,Aquí no hay hilo musical: solo las máquinas marcan el ritmo
+SUB_NIGHT_STREET,Distant traffic. No music.,Tráfico lejano. Sin música.
+OPENING_M2_CAPTION_4,You start near the bottom.,Empiezas cerca del fondo.
+UI_STAMP_CASE_CLOSED,CASE CLOSED,CASO CERRADO
+UI_STAMP_POSITION_FILLED,POSITION FILLED,PUESTO CUBIERTO
+UI_STAMP_ACCESS_DENIED,ACCESS DENIED,ACCESO DENEGADO
+UI_STAMP_BOARD_APPROVED,BOARD APPROVED,APROBADO POR EL CONSEJO
+UI_STAMP_NOTARISED,NOTARISED,PROTOCOLIZADO
+HUD_REASON_CASH_PICKUP,Cash found,Efectivo encontrado
+HUD_REASON_SHARES,Shares,Acciones
+PROMO_MISSING_PATH,Not reachable from your current post,No es accesible desde tu puesto actual
+PROMO_MISSING_REPUTATION,Your reputation is below the post's minimum,Tu reputación no alcanza el mínimo del puesto
+PROMO_MISSING_MERIT,"You need recent merit: an idea, a visible success, a recommendation","Te falta mérito reciente: una idea, un éxito visible, una recomendación"
+PROMO_MISSING_VACANCY,The chair is occupied. Somebody would have to leave it,La silla está ocupada. Alguien tendría que dejarla libre
+NOTE_PROMOTION_AVAILABLE,HR: %d post(s) within your reach. The chair will not wait for ever.,RR. HH.: %d puesto(s) a tu alcance. La silla no esperará eternamente.
+NOTE_CAREER_PROMOTED,Promoted to %s. Try to look as if you deserved it.,Ascenso a %s. Procura parecer que lo merecías.
+NOTE_CAREER_LATERAL,"Moved sideways to %s. Same rank, different keys.","Traslado lateral a %s. Mismo rango, otras llaves."
+NOTE_CAREER_CREATED_POST,Management created a post just for you: %s.,La dirección ha creado un puesto a tu medida: %s.
+NOTE_CAREER_DEMOTED,Demoted to %s. Your old chair has already been assigned.,Descenso a %s. Tu antigua silla ya tiene dueño.
+NOTE_CAREER_DECLINED,You turned down %s. Somebody else said yes.,Rechazaste %s. Otro dijo que sí.
+NOTE_AUDIT_FUSE_LIT,The figures no longer match. Internal Audit checks in %d week(s).,Las cifras ya no cuadran. Auditoría interna revisa dentro de %d semana(s).
+INTERROGATION_OUTCOME_NO_PIECE,There is nothing left on the table.,Ya no queda nada sobre la mesa.
+UI_DECIMAL_SEP,.,","
+UI_LIST_SEPARATOR,", ",", "
+QA_PLAYER_ACT,Illegal act: %s,Acto ilegal: %s
+QA_UNIFORM_NONE,Office clothes,Ropa de oficina
+QA_UNIFORM_SECURITY,Security uniform,Uniforme de vigilante
+QA_UNIFORM_CLEANING,Cleaning uniform,Uniforme de limpieza
+QA_UNIFORM_MAINTENANCE,Maintenance uniform,Uniforme de mantenimiento
+QA_UNIFORM_FACTORY,Factory workwear,Ropa de fábrica
+UI_INTERACT_GENERIC,Interact,Interactuar
+UI_INTERACT_EXIT,Leave,Salir
+UI_INTERACT_HIDING_SPOT,Hide,Esconderse
+UI_INTERACT_ACCOUNTING_TERMINAL,Use accounting terminal,Usar terminal de contabilidad
+UI_INTERACT_ALARM_PANEL,Check alarm panel,Revisar panel de alarma
+UI_INTERACT_ARCHIVE_FILES,Search the files,Registrar los archivos
+UI_INTERACT_AURORA_PODIUM,Step up to the podium,Subir al atril
+UI_INTERACT_BACKUP_UNIT,Access backup unit,Acceder a las copias de seguridad
+UI_INTERACT_BED,Lie down,Tumbarse
+UI_INTERACT_BOARD_TABLE,Examine board table,Examinar la mesa del consejo
+UI_INTERACT_BUS_STOP,Wait for the bus,Esperar el autobús
+UI_INTERACT_CAMPAIGN_TERMINAL,Use campaign terminal,Usar terminal de campañas
+UI_INTERACT_CAR_SABOTAGE,Inspect car,Inspeccionar coche
+UI_INTERACT_CARRIER_BAY,Use loading bay,Usar muelle de carga
+UI_INTERACT_CEO_SAFE,Open the CEO's safe,Abrir la caja fuerte del consejero delegado
+UI_INTERACT_CHEMICAL_STATION,Handle chemicals,Manipular productos químicos
+UI_INTERACT_CLEANING_CART,Take cleaning cart,Coger el carrito de limpieza
+UI_INTERACT_CLEANING_SUPPLIES,Take cleaning supplies,Coger productos de limpieza
+UI_INTERACT_COFFEE_MACHINE_USE,Make coffee,Hacer café
+UI_INTERACT_COMPUTER,Use computer,Usar ordenador
+UI_INTERACT_COPIER_MEMORY,Check copier memory,Revisar la memoria de la fotocopiadora
+UI_INTERACT_DELIVERY_NOTES,Read delivery notes,Leer albaranes
+UI_INTERACT_DEMO_TABLE,Examine demo table,Examinar mesa de demostración
+UI_INTERACT_DESIGN_ARCHIVE,Browse design archive,Consultar archivo de diseños
+UI_INTERACT_DESK,Use desk,Usar escritorio
+UI_INTERACT_DRAWER,Search drawer,Registrar cajón
+UI_INTERACT_EAVESDROP_POINT,Eavesdrop,Escuchar a escondidas
+UI_INTERACT_ELECTRICAL_BREAKER,Open breaker panel,Abrir cuadro eléctrico
+UI_INTERACT_ELEVATOR_PANEL,Call elevator,Llamar al ascensor
+UI_INTERACT_FLOOR_SAFE,Open floor safe,Abrir caja fuerte de suelo
+UI_INTERACT_FOOD_FRIDGE,Open fridge,Abrir nevera
+UI_INTERACT_FORGERY_STATION,Use forgery station,Usar puesto de falsificación
+UI_INTERACT_FREIGHT_PANEL,Use freight elevator,Usar montacargas
+UI_INTERACT_INTERROGATION_TABLE,Sit at the table,Sentarse a la mesa
+UI_INTERACT_KITCHEN_FOOD,Take food,Coger comida
+UI_INTERACT_LOCK_OLD,Try the old lock,Probar la cerradura antigua
+UI_INTERACT_LUNCH_COUNTER,Buy lunch,Comprar comida
+UI_INTERACT_MACHINE_CONTROLS,Use machine controls,Usar controles de la máquina
+UI_INTERACT_MAIL_SORTING,Sort the mail,Clasificar el correo
+UI_INTERACT_MEDICAL_CABINET,Open medical cabinet,Abrir botiquín
+UI_INTERACT_MOLD_STATION,Inspect molds,Inspeccionar moldes
+UI_INTERACT_MONITOR_CONSOLE,Use monitor console,Usar consola de monitores
+UI_INTERACT_NOTARY_DESK,Use notary desk,Usar mesa de notaría
+UI_INTERACT_NPC_COMPUTER,Use colleague's computer,Usar ordenador ajeno
+UI_INTERACT_PAYROLL_TERMINAL,Use payroll terminal,Usar terminal de nóminas
+UI_INTERACT_PERSONNEL_FILES,Search personnel files,Registrar expedientes de personal
+UI_INTERACT_POLICE_DESK,Approach front desk,Acercarse al mostrador
+UI_INTERACT_PRESS_TERMINAL,Use press terminal,Usar terminal de prensa
+UI_INTERACT_PRODUCT_SHELF,Check product shelf,Revisar estante de producto
+UI_INTERACT_QC_TERMINAL,Use quality control terminal,Usar terminal de control de calidad
+UI_INTERACT_REPAIR_BENCH,Use repair bench,Usar banco de reparación
+UI_INTERACT_RESULTS_STAGE,Take the stage,Subir al escenario
+UI_INTERACT_ROOF_LEDGE,Climb onto the ledge,Salir a la cornisa
+UI_INTERACT_SAFE,Open safe,Abrir caja fuerte
+UI_INTERACT_SERVER_TERMINAL,Use server terminal,Usar terminal del servidor
+UI_INTERACT_SERVICE_STAIRS_DOOR,Take service stairs,Usar escalera de servicio
+UI_INTERACT_SHOP_COUNTER,Go to the till,Ir a la caja
+UI_INTERACT_SMOKING_SPOT,Join the smokers,Unirse a los fumadores
+UI_INTERACT_STAIRS_DOOR,Take the stairs,Usar las escaleras
+UI_INTERACT_SUPPLY_SHELF,Take supplies,Coger material
+UI_INTERACT_TOOL_RACK,Take tools,Coger herramientas
+UI_INTERACT_TRADING_TERMINAL,Use trading terminal,Usar terminal de bolsa
+UI_INTERACT_TRAINING_SCREEN,Watch training video,Ver vídeo de formación
+UI_INTERACT_TRASH_CHUTE,Use trash compactor,Usar compactadora
+UI_INTERACT_TURNSTILE,Clock in,Fichar
+UI_INTERACT_UNIFORM_LOCKER,Open uniform locker,Abrir taquilla de uniformes
+UI_INTERACT_VENDING,Use vending machine,Usar máquina expendedora
+UI_INTERACT_VENT_HATCH,Enter the vent,Entrar en el conducto
+QA_AUDIO_KICKER,THE WORKER · AUDIO QA,THE WORKER · QA DE AUDIO
+QA_AUDIO_TITLE,Corporate muzak: the building is listening,Hilo musical: el edificio te escucha
+QA_AUDIO_SUBTITLE,"The same 20 s of tape at four suspicion levels. Tempo, pitch and silences are measured from the render, not drawn by hand.","Los mismos 20 s de cinta con cuatro niveles de sospecha. Tempo, tono y silencios medidos sobre el render, no dibujados a mano."
+QA_AUDIO_BAND_0,Normal,Normal
+QA_AUDIO_BAND_0_DESC,"Cheerful, bland and slightly annoying.","Alegre, anodino y algo molesto."
+QA_AUDIO_BAND_1,Slightly off,Algo raro
+QA_AUDIO_BAND_1_DESC,"A touch slower, same key. The odd sour note.","Un poco más lento, mismo tono. Alguna nota desafinada."
+QA_AUDIO_BAND_2,Worn tape,Cinta gastada
+QA_AUDIO_BAND_2_DESC,"Irregular tempo, wow and flutter on the pitch, strange silences.","Tempo irregular, el tono oscila, silencios anómalos."
+QA_AUDIO_BAND_3,Falling apart,Desmoronándose
+QA_AUDIO_BAND_3_DESC,Nearly atonal: recognisable but deformed. Cuts out.,Casi atonal: reconocible pero deformado. Se corta.
+QA_AUDIO_STATS_TEMPO_FMT,%d bpm   pitch ±%d ¢,%d ppm   tono ±%d ¢
+QA_AUDIO_STATS_NOTES_FMT,silence %d%% · sour %d%% · atonal %d%%,silencio %d%% · desafinado %d%% · atonal %d%%
+QA_AUDIO_LEGEND_SPEED,Tempo,Tempo
+QA_AUDIO_LEGEND_CLEAN,Clean note,Nota limpia
+QA_AUDIO_LEGEND_SOUR,Sour note,Nota desafinada
+QA_AUDIO_LEGEND_ATONAL,Atonal note,Nota atonal
+QA_AUDIO_LEGEND_SILENCE,Silence,Silencio
+QA_AUDIO_ARRANGEMENTS,Arrangement by floor band,Arreglo por banda de plantas
+QA_AUDIO_SUBTITLES,Subtitles posted by real events,Subtítulos de eventos reales
+QA_AUDIO_ARR_MUFFLED,Muffled: heard through the ceiling,Amortiguado: se oye a través del techo
+QA_AUDIO_ARR_COMPRESSED,Compressed: cheap ceiling speakers,Comprimido: altavoces de techo baratos
+QA_AUDIO_ARR_STANDARD,"Standard: sax, electric piano, brushes","Estándar: saxo, piano eléctrico, escobillas"
+QA_AUDIO_ARR_STRINGS,Strings: a warm pad for directors,Cuerdas: un colchón cálido para directivos
+QA_AUDIO_ARR_ORCHESTRAL,"Orchestral: harp, flute and strings","Orquestal: arpa, flauta y cuerdas"
+QA_AUDIO_ARR_NONE_FACTORY,No muzak: the machines keep time,Sin hilo musical: las máquinas marcan el ritmo
+QA_AUDIO_ARR_NONE_EXTERIOR,No muzak: night traffic and silence,Sin hilo musical: tráfico nocturno y silencio
+QA_AUDIO_FLOOR_BASEMENT_FMT,B%d,S%d
+QA_AUDIO_FLOOR_GROUND,GF,PB
+QA_AUDIO_FLOOR_ROOF,Roof,Azotea
+QA_AUDIO_FLOOR_FMT,F%d,P%d
+VC_SNEAK,Sneak,Sigilo
+VC_CROUCH,Crouch,Agachar
+INVUI_DISCARD,Throw away,Tirar
+INVUI_DISCARD_TITLE,Throw it away?,¿Tirarlo?
+INVUI_DISCARD_BODY,There is nowhere to leave %s here: it goes in the bin and cannot be recovered.,Aquí no hay dónde dejar %s: irá a la papelera y no podrás recuperarlo.
+INVUI_TOAST_DISCARD,Thrown away: %s,Tirado: %s
+INVUI_HINT_NO_DROP_HOT,Throw away: compromising items don't just vanish. Hide them or take them to the trash dock.,Tirar: lo comprometedor no desaparece sin más. Escóndelo o llévalo al muelle de basuras.
+INVUI_HINT_SPOT_REFUSES,Hide: this item does not fit in that hiding place.,Esconder: este objeto no cabe en ese escondite.
+INVUI_HINT_SPOT_IRREVERSIBLE,Hide: this spot destroys the item for good.,Esconder: este escondite lo destruye para siempre.
+DEBUG_RANK_FMT,R%d %s · clearance %d,R%d %s · acreditación %d
+DEBUG_TOP_BELIEF_FMT,%d. [b]%s[/b] ← %s · adds %.2f · certainty %.2f,%d. [b]%s[/b] ← %s · aporta %.2f · certeza %.2f
+DEBUG_NPC_STATE_FMT,%s · %s · LOD %d · mood %.1f,%s · %s · LOD %d · ánimo %.1f
+DEBUG_TRAIT_AMBITION,Ambition,Ambición
+DEBUG_TRAIT_LOYALTY,Loyalty,Lealtad
+DEBUG_TRAIT_GREED,Greed,Codicia
+DEBUG_TRAIT_COURAGE,Courage,Valentía
+DEBUG_TRAIT_PERCEPTION,Perception,Percepción
+DEBUG_TRAIT_SOCIABILITY,Sociability,Sociabilidad
+DEBUG_YES,yes,sí
+DEBUG_NO,no,no
+DEBUG_CASE_FMT,%s %s · phase %d · weight %.1f,%s %s · fase %d · peso %.1f
+DEBUG_RECORD_FMT,# %s · weight %.1f · %s,# %s · peso %.1f · %s
+DEBUG_THEFT_LOSSES,Theft losses,Pérdidas por robo
+DEBUG_BREAKDOWN_FMT,%s ← %s · cert. %.2f · cred. %.2f · weight %.2f,%s ← %s · cert. %.2f · cred. %.2f · peso %.2f
+DEBUG_RECORD_TAG,record,registro
+INVUI_HINT_NO_DROP_HOT_DOCK,Throw away: never for compromising items. Dispose of it here instead.,Tirar: nunca con lo comprometedor. Aquí puedes deshacerte de ello.
+NOTE_STASH_FOUND_BY_STAFF,The cleaning staff went through one of your hiding places. Whatever you left there is gone.,El personal de limpieza pasó por uno de tus escondites. Lo que dejaste allí ha desaparecido.
+NOTE_STASH_SEIZED,Security searched one of your hiding places and took what was inside.,Seguridad registró uno de tus escondites y se llevó lo que había dentro.
+NEWS_ACTIVIST_CAMPAIGN,Activist shareholder launches a campaign against a Stellar Sell executive,Una accionista activista lanza una campaña contra un directivo de Stellar Sell
+EVIDENCE_FILE_ANNOTATION,Note in the personnel file,Anotación en el expediente
+UI_SCROLL_MORE,More,Más
+UI_CONTINUE_GONE_TITLE,File not found,Expediente no encontrado
+UI_CONTINUE_GONE_BODY,Human Resources cannot find your saved run. It may have been closed. Permanently.,Recursos Humanos no encuentra tu partida guardada. Puede que se haya cerrado. Para siempre.
+PROMO_TITLE_SAME,Transferred,Traslado
+PROMO_QUIP_SAME_1,"Same rank, new desk. The plant stays.","Mismo rango, mesa nueva. La planta se queda."
+PROMO_QUIP_SAME_2,A lateral move. HR calls it growth.,Un movimiento lateral. RR. HH. lo llama crecimiento.
+OPENING_SFX_CHIME,[Elevator chime],[Campanilla del ascensor]
+DUTY_ERR_NOT_DELIVERY,"Source material only feeds deliverables: reports, campaigns, designs.","El material de origen solo sirve para entregas: informes, campañas, diseños."
+IDEA_BLOCK_NOT_FOUND,That idea does not exist (any more).,Esa idea no existe (ya).
+IDEA_BLOCK_UNKNOWN_METHOD,That is not a way to get an idea.,Esa no es forma de conseguir una idea.
+IDEA_BLOCK_NOT_LIVE,Too late: the idea is stale or already presented.,Demasiado tarde: la idea caducó o ya se presentó.
+IDEA_BLOCK_ALREADY_ACQUIRED,You already have that idea.,Esa idea ya es tuya.
+IDEA_BLOCK_OWNER_STILL_HERE,Its owner is still around to present it.,Su dueño sigue aquí para presentarla.
+IDEA_BLOCK_OWNER_GONE,Its owner is gone. Only inheritance is left.,Su dueño ya no está. Solo queda heredarla.
+IDEA_BLOCK_NOT_TELLING,Nobody is talking about it right now.,Ahora mismo nadie está hablando de ella.
+IDEA_BLOCK_TOO_FAR,You are too far away to overhear it.,Estás demasiado lejos para oírla.
+IDEA_BLOCK_OWNER_AT_DESK,The owner is sitting at that computer.,El dueño está sentado frente a ese ordenador.
+IDEA_BLOCK_NOT_AT_DESK,You need to be at the owner's computer.,Tienes que estar en el ordenador del dueño.
+IDEA_BLOCK_LOW_DEBT,They do not owe you nearly enough to give it away.,No te deben ni de lejos lo suficiente para regalártela.
+ACCESSORY_OVERSIZED_MUG,Oversized mug,Taza gigante
+ACCESSORY_EMPLOYEE_OF_MONTH_PIN,Employee of the Month pin,Insignia de Empleado del Mes
+ACCESSORY_NOISE_CANCELLING_HEADPHONES,Noise-cancelling headphones,Auriculares con cancelación de ruido
+ACCESSORY_COLOUR_CODED_PLANNER,Colour-coded planner,Agenda con código de colores
+ACCESSORY_THIRTY_YEAR_PIN,Thirty-year service pin,Insignia de treinta años de servicio
+ACCESSORY_VISITOR_LANYARD,Visitor lanyard,Acreditación de visitante
+ACCESSORY_STOPWATCH,Stopwatch,Cronómetro
+ACCESSORY_GLASSES_CHAIN,Glasses on a chain,Gafas con cadena
+ACCESSORY_PAPERBACK_NOVEL,Paperback novel,Novela de bolsillo
+ACCESSORY_HEAVY_FLASHLIGHT,Heavy flashlight,Linterna pesada
+ACCESSORY_CLEANING_CART,Cleaning cart,Carro de limpieza
+ACCESSORY_TOOL_BELT,Tool belt,Cinturón de herramientas
+ACCESSORY_HARD_HAT,Hard hat,Casco de obra
+ACCESSORY_DESIGNER_SUNGLASSES,Designer sunglasses,Gafas de sol de diseño
+ACCESSORY_POCKET_LEDGER,Pocket ledger,Libreta de bolsillo
+ACCESSORY_RED_PEN,Red pen,Bolígrafo rojo
+ACCESSORY_CLUTCHED_LAPTOP,Clutched laptop,Portátil abrazado
+ACCESSORY_TWIN_PHONES,Two phones,Dos móviles
+ACCESSORY_GOLD_WATCH,Gold watch,Reloj de oro
+ACCESSORY_STATEMENT_NECKLACE,Statement necklace,Collar llamativo
+ACCESSORY_SIGNET_RING,Signet ring,Anillo de sello
+ACCESSORY_GOLD_LAPEL_PIN,Gold lapel pin,Insignia de solapa de oro
+ACCESSORY_STENO_PAD,Steno pad,Bloc de taquigrafía
+ARCH_TIC_RUSHES_TO_SUPERIORS_OFFICES,Hurries to superiors' offices,Corre a los despachos de sus superiores
+ARCH_TIC_CHECKS_SIDES_BEFORE_TALKING,Checks both sides before talking,Mira a los lados antes de hablar
+ARCH_TIC_RUBS_FINGERS,Rubs fingers together,Se frota los dedos
+ARCH_TIC_STRAIGHTENS_TIE,Straightens tie,Se ajusta la corbata
+ARCH_TIC_HEADPHONES_NEVER_TURNS_HEAD,Headphones on; never turns head,Auriculares puestos; nunca gira la cabeza
+ARCH_TIC_LEANS_TOWARD_INTERLOCUTOR,Leans toward whoever is talking,Se inclina hacia su interlocutor
+ARCH_TIC_LEANS_ON_WALLS,Leans on walls,Se apoya en las paredes
+ARCH_TIC_STARES_AT_ANOMALIES,Stares at anything unusual,Se queda mirando lo que no encaja
+ARCH_TIC_LOOKS_AROUND_LOST,Looks around lost,Mira a su alrededor perdido
+ARCH_TIC_SLOW_WIDE_GAZE_SWEEP,Slow wide sweep of the gaze,Barre la sala con la mirada lentamente
+ARCH_TIC_STEPS_BACK_HALF_PACE,Steps back half a pace,Retrocede medio paso
+ARCH_TIC_STATIC_FRONTAL_STANCE,Stands still and square-on,Postura quieta y de frente
+QA_CHAR_PHONE_TITLE,Phone screen,Pantalla de móvil
+QA_CHAR_MODES_TITLE,Player movement modes at game zoom,Modos de desplazamiento del jugador a zoom de juego
+SUB_STEPS_NEARBY,Footsteps nearby,Pasos cerca
+SUB_PA_SECURITY,PA chime: security raises the alert,Megafonía: seguridad sube la alerta
+QA_AUDIO_LEGEND_PITCH,Pitch,Tono
+BLACKMAIL_FACE_MONEY,"Nice little scene. Silence costs money, and you are paying.","Bonita escena. El silencio cuesta dinero, y lo vas a pagar tú."
+BLACKMAIL_FACE_PROMOTION,"I saw that. Next vacancy, you back me. Understood?","Lo he visto. En la próxima vacante, me apoyas tú. ¿Entendido?"
+BLACKMAIL_FACE_FAVOUR,I saw that. You owe me one now. A big one.,Lo he visto. Ahora me debes una. Y gorda.

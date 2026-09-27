@@ -5,10 +5,16 @@ class_name InventoryUI
 extends PanelContainer
 
 ## Comprometedor = color (rojo/ámbar) Y forma (marco de cinta de peligro + triángulo de aviso).
-## Acciones según contexto: soltar (siempre), esconder (si hay escondite al alcance, context
-## "hide_spot_id"), deshacerse (solo en el muelle de basuras, irreversible → UIRoot pide confirmación).
-## setup(context): {room_id?: String, hide_spot_id?: String}. Emite action_requested(acción, item_id);
-## UIRoot ejecuta la acción sobre PlayerState. set_items() sustituye la lectura de PlayerState.
+## Acciones según contexto (UIRoot las ejecuta sobre PlayerState y confirma las irreversibles):
+##  · Soltar: si el mundo tiene un nodo del grupo DROP_HANDLER_GROUP con DROP_HANDLER_METHOD
+##    (item_id) -> bool, el objeto se deja en el suelo (el mundo crea la recogida y las pruebas).
+##    Sin él no hay dónde dejarlo: el botón pasa a "Tirar" (ordinarios, con confirmación) y queda
+##    desactivado para lo comprometedor (solo esconder o el muelle de basuras lo sacan de encima).
+##  · Esconder: si context.hide_spot_id es un escondite real de context.room_id que admite el objeto
+##    (InventoryRules); si la ubicación es irreversible (vertedero) se marca como peligrosa.
+##  · Deshacerse: solo en el muelle de basuras (irreversible).
+## setup(context): {room_id?: String, hide_spot_id?: String}. Emite action_requested(acción, item_id).
+## set_items() sustituye la lectura de PlayerState (modo inyectado: pruebas y capturas).
 
 signal action_requested(action: String, item_id: String)
 signal close_requested()
@@ -20,10 +26,13 @@ const ACTION_DROP := "drop"
 const ACTION_HIDE := "hide"
 const ACTION_DISPOSE := "dispose"
 const DETAIL_WIDTH_EMS := 15.0
+const DROP_HANDLER_GROUP := "item_drop_handlers"
+const DROP_HANDLER_METHOD := "drop_player_item"
 
 var _items: Array[ItemData] = []
 var _injected: bool = false
 var _context: Dictionary = {}
+var _spot: Dictionary = {}
 var _selected: int = -1
 var _slots: Array[ItemSlot] = []
 var _count_label: Label
@@ -60,9 +69,7 @@ func _ready() -> void:
 	if not _injected:
 		_items = PlayerState.get_inventory()
 	_refresh()
-	grow_horizontal = Control.GROW_DIRECTION_BOTH
-	grow_vertical = Control.GROW_DIRECTION_BOTH
-	set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	UITheme.center_fitted(self)
 	_focus_first.call_deferred()
 
 
@@ -73,6 +80,8 @@ func _notification(what: int) -> void:
 
 func setup(context: Dictionary) -> void:
 	_context = context.duplicate()
+	var spot_id: String = str(_context.get("hide_spot_id", ""))
+	_spot = {} if spot_id.is_empty() else InventoryRules.find_spot(_context_room(), spot_id)
 	if is_inside_tree():
 		_refresh()
 
@@ -108,12 +117,49 @@ func get_selected_item_id() -> String:
 	return _items[_selected].id if _selected >= 0 and _selected < _items.size() else ""
 
 
+## Hay un escondite real al alcance (context.hide_spot_id resuelto en los datos de la sala).
 func can_hide() -> bool:
-	return not str(_context.get("hide_spot_id", "")).is_empty()
+	return not _spot.is_empty()
+
+
+## El escondite al alcance admite este objeto.
+func can_hide_item(item: ItemData) -> bool:
+	return can_hide() and item != null \
+			and InventoryRules.can_hide_in(str(_spot[InventoryRules.SPOT_LOCATION]), item.id)
+
+
+## Esconder aquí destruye el objeto (ubicación irreversible, p. ej. la bajante del muelle).
+func is_hide_irreversible() -> bool:
+	return can_hide() and InventoryRules.is_irreversible(str(_spot[InventoryRules.SPOT_LOCATION]))
 
 
 func can_dispose() -> bool:
-	return _base_room(str(_context.get("room_id", _player_room()))) == DISPOSAL_ROOM
+	return base_room_id(_context_room()) == DISPOSAL_ROOM
+
+
+## Nodo del mundo que sabe dejar objetos en el suelo (o null).
+static func find_drop_handler(tree: SceneTree) -> Node:
+	if tree == null:
+		return null
+	for node: Node in tree.get_nodes_in_group(DROP_HANDLER_GROUP):
+		if node.has_method(DROP_HANDLER_METHOD):
+			return node
+	return null
+
+
+## Soltar es posible: con manejador del mundo, cualquier objeto; sin él, solo tirar lo ordinario.
+func can_drop_item(item: ItemData) -> bool:
+	if item == null:
+		return false
+	return _has_drop_handler() or not item.is_compromising()
+
+
+func can_drop_selected() -> bool:
+	return can_drop_item(_selected_item())
+
+
+func is_injected() -> bool:
+	return _injected
 
 
 ## Esc: pide el cierre a UIRoot.
@@ -136,7 +182,7 @@ func _build_header() -> HBoxContainer:
 	header.add_child(_count_label)
 	var close: Button = Button.new()
 	close.theme_type_variation = UITheme.V_FLAT
-	close.text = UITheme.trf("UI_CLOSE")
+	close.text = UITheme.trf("INVUI_CLOSE")
 	close.pressed.connect(request_close)
 	header.add_child(close)
 	return header
@@ -231,8 +277,12 @@ func _refresh() -> void:
 	_refresh_warning()
 
 
+func _selected_item() -> ItemData:
+	return _items[_selected] if _selected >= 0 and _selected < _items.size() else null
+
+
 func _refresh_details() -> void:
-	var item: ItemData = _items[_selected] if _selected >= 0 and _selected < _items.size() else null
+	var item: ItemData = _selected_item()
 	_detail_box.modulate.a = 1.0 if item != null else 0.5
 	if item == null:
 		_name_label.text = UITheme.trf("INVUI_EMPTY")
@@ -240,7 +290,7 @@ func _refresh_details() -> void:
 		_category_icon.visible = false
 		_desc_label.text = UITheme.trf("INVUI_EMPTY_HINT")
 		_value_label.text = ""
-		_set_actions_enabled(false)
+		_set_actions(null)
 		return
 	var hot: bool = item.is_compromising()
 	_name_label.text = UITheme.trf(item.name_key)
@@ -251,7 +301,7 @@ func _refresh_details() -> void:
 	_category_label.add_theme_color_override("font_color", UITheme.color("warn" if hot else "gain"))
 	_desc_label.text = UITheme.trf("INVUI_COMPROMISING_DESC" if hot else "INVUI_ORDINARY_DESC")
 	_value_label.text = _value_text(item)
-	_set_actions_enabled(true)
+	_set_actions(item)
 
 
 func _value_text(item: ItemData) -> String:
@@ -263,16 +313,29 @@ func _value_text(item: ItemData) -> String:
 	return " · ".join(parts).to_upper()
 
 
-func _set_actions_enabled(has_item: bool) -> void:
-	_drop_button.disabled = not has_item
-	_hide_button.disabled = not (has_item and can_hide())
+func _set_actions(item: ItemData) -> void:
+	var has_item: bool = item != null
+	_drop_button.text = UITheme.trf("INVUI_DROP" if _has_drop_handler() else "INVUI_DISCARD")
+	_drop_button.disabled = not can_drop_item(item)
+	_hide_button.disabled = not can_hide_item(item)
+	_hide_button.theme_type_variation = UITheme.V_DANGER if is_hide_irreversible() else ""
 	_dispose_button.disabled = not (has_item and can_dispose())
+	_hint_label.text = "\n".join(_hints(item)) if has_item else ""
+
+
+func _hints(item: ItemData) -> Array[String]:
 	var hints: Array[String] = []
-	if has_item and not can_hide():
+	if not can_drop_item(item):
+		hints.append(UITheme.trf("INVUI_HINT_NO_DROP_HOT_DOCK" if can_dispose() else "INVUI_HINT_NO_DROP_HOT"))
+	if not can_hide():
 		hints.append(UITheme.trf("INVUI_HINT_NO_SPOT"))
-	if has_item and not can_dispose():
+	elif not can_hide_item(item):
+		hints.append(UITheme.trf("INVUI_HINT_SPOT_REFUSES"))
+	elif is_hide_irreversible():
+		hints.append(UITheme.trf("INVUI_HINT_SPOT_IRREVERSIBLE"))
+	if not can_dispose():
 		hints.append(UITheme.trf("INVUI_HINT_DISPOSE_ONLY_DOCK"))
-	_hint_label.text = "\n".join(hints)
+	return hints
 
 
 func _refresh_warning() -> void:
@@ -309,11 +372,16 @@ func _on_inventory_changed(_item_id: String, _added: bool) -> void:
 		_refresh()
 
 
-## Quita un objeto de la vista (modo inyectado, tras una acción confirmada).
-func remove_local(item_id: String) -> void:
+## Tras una acción que retiró UNA unidad: en modo inyectado descuenta esa unidad de la vista; en
+## modo normal no hace nada (inventory_changed ya releyó PlayerState).
+func note_unit_removed(item_id: String) -> void:
+	if not _injected:
+		return
 	for i: int in _items.size():
 		if _items[i].id == item_id:
-			_items.remove_at(i)
+			_items[i].stack -= 1
+			if _items[i].stack <= 0:
+				_items.remove_at(i)
 			break
 	_refresh()
 
@@ -331,7 +399,16 @@ func _player_room() -> String:
 	return str(PlayerState.call("get_room")) if PlayerState.has_method("get_room") else ""
 
 
-static func _base_room(room_id: String) -> String:
+func _context_room() -> String:
+	return str(_context.get("room_id", _player_room()))
+
+
+func _has_drop_handler() -> bool:
+	return is_inside_tree() and find_drop_handler(get_tree()) != null
+
+
+## Id base de una sala ("corridors_low@3" → "corridors_low").
+static func base_room_id(room_id: String) -> String:
 	var at: int = room_id.find("@")
 	return room_id.substr(0, at) if at >= 0 else room_id
 
@@ -367,10 +444,7 @@ class ItemSlot extends Control:
 		queue_redraw()
 
 	func _gui_input(event: InputEvent) -> void:
-		var click: bool = event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
-				and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
-		var tap: bool = event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed
-		if click or tap or event.is_action_pressed("ui_accept"):
+		if UITheme.is_primary_press(event) or event.is_action_pressed("ui_accept"):
 			pressed.emit()
 			accept_event()
 
@@ -386,9 +460,7 @@ class ItemSlot extends Control:
 		if item != null and item.stack > 1:
 			_draw_stack(r)
 		if selected or has_focus():
-			var ring: PackedVector2Array = UITheme.rounded_rect_points(r.grow(4), radius + 4)
-			ring.append(ring[0])
-			draw_polyline(ring, get_theme_color("focus", UITheme.HUD_TYPE), 3.0, true)
+			_draw_selection(r, radius)
 
 	func _draw_empty(r: Rect2, radius: float) -> void:
 		draw_colored_polygon(UITheme.rounded_rect_points(r, radius), Color(get_theme_color("slot", UITheme.HUD_TYPE), 0.5))
@@ -410,14 +482,32 @@ class ItemSlot extends Control:
 		draw_colored_polygon(UITheme.rounded_rect_points(r.grow(-ring_w), radius - ring_w * 0.5),
 				get_theme_color("slot_hot", UITheme.HUD_TYPE))
 		_draw_item_icon(r, get_theme_color("warn", UITheme.HUD_TYPE))
-		var badge: float = size.x * 0.34
-		UITheme.draw_hazard_badge(self, Rect2(Vector2(size.x - badge * 0.92, -badge * 0.12), Vector2(badge, badge)),
-				get_theme_color("hazard", UITheme.HUD_TYPE), get_theme_color("hazard_ink", UITheme.HUD_TYPE))
+		_draw_badge()
+
+	## Medallón oscuro en la esquina (tapa las rayas) con el triángulo de aviso encima.
+	func _draw_badge() -> void:
+		var badge: float = size.x * 0.36
+		var center: Vector2 = Vector2(size.x - badge * 0.34, badge * 0.34)
+		var ink: Color = get_theme_color("hazard_ink", UITheme.HUD_TYPE)
+		draw_circle(center, badge * 0.62, get_theme_color("hazard", UITheme.HUD_TYPE), true, -1.0, true)
+		draw_circle(center, badge * 0.54, ink, true, -1.0, true)
+		UITheme.draw_hazard_badge(self, Rect2(center - Vector2(badge, badge) * 0.4, Vector2(badge, badge) * 0.8),
+				get_theme_color("hazard", UITheme.HUD_TYPE), ink)
+
+	## Anillo de selección de doble trazo (tinta fuera, papel dentro): se lee sobre la cinta amarilla
+	## y sobre el fondo oscuro.
+	func _draw_selection(r: Rect2, radius: float) -> void:
+		var outer: PackedVector2Array = UITheme.rounded_rect_points(r.grow(6), radius + 6)
+		outer.append(outer[0])
+		draw_polyline(outer, Color(get_theme_color("paper", UITheme.HUD_TYPE), 0.25), 9.0, true)
+		draw_polyline(outer, get_theme_color("ink", UITheme.HUD_TYPE), 5.0, true)
+		draw_polyline(outer, get_theme_color("paper", UITheme.HUD_TYPE), 2.5, true)
 
 	func _draw_item_icon(r: Rect2, col: Color) -> void:
 		var side: float = size.x * 0.52
 		var icon_rect: Rect2 = Rect2(r.get_center() - Vector2(side, side) * 0.5, Vector2(side, side))
-		UITheme.draw_icon(self, UITheme.icon_for_item_kind(kind), icon_rect, col, maxf(side * 0.09, 2.0))
+		var item_id: String = item.id if item != null else ""
+		UITheme.draw_icon(self, UITheme.icon_for_item(item_id, kind), icon_rect, col, maxf(side * 0.09, 2.0))
 
 	func _draw_stack(r: Rect2) -> void:
 		var f: Font = get_theme_font("font", UITheme.V_STRONG)

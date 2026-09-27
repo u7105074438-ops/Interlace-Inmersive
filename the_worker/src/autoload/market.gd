@@ -1,34 +1,60 @@
 # market.gd — Cotización (§9.3), calendario (§9.4), inversores (§9.6-9.7), presentación (§9.5), cartera (§9.11) e información privilegiada (§9.8).
-# PROPIETARIO DE: cotización, histórico, sentimiento inversor propio, confianza de cada inversor, racha de trimestres malos, cartera del jugador y patrón insider (§19.9).
-# ESCUCHA: hour_passed, day_advanced, quarter_closed, news_published, audit_triggered
+# PROPIETARIO DE: cotización, histórico, sentimiento inversor propio, confianza de cada inversor, aliados/coaccionados y campañas activistas, racha de trimestres malos, cifras acumuladas del trimestre, cartera del jugador (acciones, cuenta de valores, dividendos), testaferros y patrón insider (§19.9).
+# ESCUCHA: hour_passed, day_advanced, quarter_closed, news_published, audit_triggered, bribe_offered, bribe_result, blackmail_initiated, npc_removed
 class_name MarketSystem
 extends Node
 
-## DECISIONES (BUILD_NOTES §6/§13; ver también el informe del constructor):
-## - La fórmula DIARIA de §9.3 se aplica en N pasos horarios de 1/N, N = hora_fin_jornada −
-##   hora_inicio_jornada (11). Un paso por `hour_passed` de hora de mercado (hora ∈ (inicio, fin]);
-##   al llegar `day_advanced` se completan los pasos que falten, de modo que cada jornada aplica
-##   exactamente un paso diario completo aunque se salten horas. Nunca por fotograma.
-## - β·sentimiento se aplica como β × sentimiento × P (sentimiento adimensional, acotado a
-##   ±mercado.sentimiento_max); el ruido ∈ [−ruido_diario_max, +ruido_diario_max] × P se sortea
-##   una vez por jornada con el RNG del sistema; momentum = media de la variación diaria (en €)
-##   de los últimos `dias_momentum` cierres.
-## - Sentimiento = NewsFeed.get_sentiment_contribution() + sentimiento inversor propio (reacción
-##   de la presentación y de las pérdidas de confianza), que decae a diario.
-## - V usa los fundamentales REALES de Company (valores POR JORNADA; beneficio anual =
-##   profit × jornadas del año fiscal). Si Company aún no da cifras, usa market.json
-##   starting_fundamentals. La presentación usa las cifras REPORTADAS (§9.5: inflar mejora la
-##   reacción; el inversor de valor solo es engañado por la contabilidad falsificada).
-## - Market es el ÚNICO emisor de `quarter_reported` (al cerrar cada trimestre, tras la reacción
-##   y la actualización de la racha). La degradación R28+ NO la ejecuta Market: expone
-##   get_bad_quarters_streak() / is_board_pressure_triggered() y quien escuche quarter_reported
-##   (Company / capa mundo) actúa.
-## - El dinero del jugador es de PlayerState: comprar/vender/paquete/dividendos solo comprueban
-##   can_afford() y emiten la señal EXT `portfolio_cash_settled(amount, reason)` (pendiente de
-##   declarar en EventBus; ver informe) para que PlayerState ajuste el capital.
-## - Una operación de bolsa del jugador cuenta como operación con información privilegiada si en
-##   ese momento get_upcoming_news() no está vacío. register_insider_operation() emite
-##   crime_committed("insider_trade") (quien llame no debe emitirlo otra vez).
+## DECISIONES (BUILD_NOTES §6/§13; contrato para el resto de constructores):
+## - PASO HORARIO. La fórmula DIARIA de §9.3 se aplica en N pasos de 1/N, N = hora_fin_jornada −
+##   hora_inicio_jornada (11): un paso por `hour_passed` de hora de mercado (hora ∈ (inicio, fin]);
+##   `day_advanced` completa los pasos que falten (cada jornada aplica exactamente un paso diario
+##   completo aunque se salten horas). Nunca por fotograma (sin _process).
+## - β·sentimiento se aplica como β × sentimiento × P (sentimiento adimensional acotado a
+##   ±mercado.sentimiento_max = 0,5: como mucho ±15 % diario por sentimiento). Ruido ∈ ±3 % × P,
+##   sorteado una vez por jornada con el RNG del sistema. Momentum = media de la variación diaria
+##   (€) de los últimos cinco cierres. Sentimiento = NewsFeed.get_sentiment_contribution() +
+##   sentimiento inversor propio (reacciones a la presentación, desbandadas), que decae a diario.
+## - V usa los fundamentales REALES de Company (por jornada; beneficio anual = profit × jornadas del
+##   año fiscal). Si Company aún no da cifras, usa market.json starting_fundamentals.
+## - CIFRAS DEL TRIMESTRE. Market acumula el beneficio real de cada jornada al completar su último
+##   paso de mercado. Reales del trimestre = acumulado + jornada abierta (+ proyección de las que
+##   falten); reportadas = reales + (reportado − real de Company hoy) × jornadas del trimestre (el
+##   CFO reexpresa el trimestre entero). quarter_reported(reales, reportadas) lleva esos TOTALES
+##   {revenue, costs, profit, days}. La puntuación de cifras compara el beneficio reportado del
+##   trimestre con lo esperado (lo reportado el trimestre anterior).
+## - PRESENTACIÓN (§9.5). Una por trimestre y solo el día de resultados (can_present_results()).
+##   resultado = 0,6 × calidad + 0,4 × cifras. Cada estrategia lo lee con su lente: el inversor de
+##   VALOR solo ve las cifras (inmune al marketing); el resto oye la calidad con el peso
+##   W = mín(1, 0,6 × Σcapital ÷ Σcapital de quienes la escuchan), de modo que la media ponderada
+##   por capital de lo percibido es EXACTAMENTE 0,6 × calidad + 0,4 × cifras; el pasivo solo
+##   reacciona si la desviación alcanza su reaction_threshold. allies_present se acota a los
+##   inversores aliados de verdad este trimestre (sobornados con mercado.favor_pregunta_favorable o
+##   chantajeados). Sin presentación del jugador, al cerrar el trimestre presenta un NPC (neutro)
+##   o, si el jugador es R28+, cuenta como INCOMPARECENCIA (sin preparar, sin aliados).
+## - VENALIDAD. Los inversores no son personajes de NPCDirector: ResultsPresentation.bribe_investor
+##   soborna a un sustituto con Bribery (bribe_offered / crime_committed / bribe_result) y Market
+##   marca el aliado al oír bribe_result. Chantaje: ResultsPresentation.blackmail_investor emite
+##   blackmail_initiated(inversor, inversor, material); Market marca al inversor coaccionado
+##   (aliado del trimestre; al activista coaccionado se le dirige con direct_activist()).
+## - PRENSA: reaccionan según su estrategia (valor nunca; pasivo solo a desastres). Quien tiene
+##   reaction_delay_hours (Tania Brekke, 3 h) reacciona al pasar esas horas de juego (hour_passed).
+## - CAMPAÑA ACTIVISTA. Automática contra el jugador al perder la confianza, o dirigida contra un
+##   rival. Dura mercado.dias_campana_activista jornadas o hasta que su objetivo sale (npc_removed).
+##   Contra el jugador resta mercado.trimestres_perdonados_campana a los trimestres malos que
+##   disparan la presión del consejo. NewsFeed la publica como escándalo sobre su objetivo.
+## - Market es el ÚNICO emisor de `quarter_reported`. La degradación R28+ NO la ejecuta Market:
+##   Company la aplica al oír quarter_reported y leer is_board_pressure_triggered().
+## - DINERO. El efectivo es de PlayerState y Market (autoload) no lo toca. La cartera tiene una
+##   CUENTA DE VALORES propia (get_broker_cash): comprar la carga; vender y los dividendos (junta
+##   anual) la abonan. Las "manos" (MarketTrading, la UI) llevan el efectivo de PlayerState a la
+##   cuenta y de vuelta (deposit_cash / withdraw_cash). Sin fondos en la cuenta, buy_shares falla.
+## - INSIDER. Una operación del jugador es privilegiada si su SENTIDO coincide con el de una noticia
+##   que ya conoce (comprar ante una positiva, vender ante una negativa). register_insider_operation
+##   emite crime_committed("insider_trade"); quien llame no debe emitirlo otra vez. Operar mediante
+##   un testaferro sobornado (favor mercado.favor_testaferro) no suma al patrón del jugador: emite
+##   crime_committed con subject = testaferro (MarketTrading lo convierte en testigo). Enterrar la
+##   noticia en la que se operó NO borra el patrón (el registro de la bolsa ya existe): la
+##   contramedida "enterrar" actúa sobre el escándalo insider una vez publicado.
 
 const PLAYER_ID := "player"
 const RNG_SALT := "market"
@@ -36,6 +62,7 @@ const RNG_SALT := "market"
 const OUTCOME_NEUTRAL := 0.5
 ## Escala 0-100 de reputación, sospecha y perspicacia (estructural).
 const PERCENT_SCALE := 100.0
+const NEUTRAL_MULTIPLIER := 1.0
 
 const FACTOR_ABOVE := "results_above_expected"
 const FACTOR_BELOW := "results_below_expected"
@@ -49,17 +76,44 @@ const REASON_TREND := "price_trend"
 const STRATEGY_MOMENTUM := "momentum"
 const STRATEGY_ACTIVIST := "activist"
 const BEHAVIOUR_CAMPAIGN := "campaign_against_management"
+const LEVEL_NONE := "none"
+const PRESENTER_PLAYER := "player"
+const PRESENTER_NPC := "npc"
+const PRESENTER_NO_SHOW := "no_show"
+
+const INVESTORS_FILE := "investors"
+const BRIBE_REFERENCE_KEY := "bribe_reference_daily"
+const BRIBE_TIER_KEY := "bribe_price_tier"
+const PAYS_FOR_TIPS_KEY := "pays_for_tips"
+const SOCIAL_REACH_KEY := "social_reach"
+const REACTION_DELAY_KEY := "reaction_delay_hours"
+const MINUTES_PER_HOUR := 60.0
 
 const CRIME_INSIDER := "insider_trade"
-const CASH_SIGNAL := &"portfolio_cash_settled"
-const CASH_REASON_BUY := "shares_bought"
-const CASH_REASON_SELL := "shares_sold"
-const CASH_REASON_STAKE := "board_stake_bought"
-const CASH_REASON_DIVIDENDS := "dividends"
+const DETAIL_VOLUME := "volume"
+const DETAIL_PROXY := "proxy"
+const DETAIL_SUBJECT := "subject"
+const DETAIL_TIP := "tip_to"
+const TRADE_BUY := 1
+const TRADE_SELL := -1
+const TRADE_ANY := 0
 
 const HEADLINE_RESULTS_BEAT := "NEWS_RESULTS_BEAT"
 const HEADLINE_RESULTS_MISS := "NEWS_RESULTS_MISS"
 const HEADLINE_RESULTS_INLINE := "NEWS_RESULTS_INLINE"
+const RESULTS_DIRECTIONS: Dictionary = {
+	HEADLINE_RESULTS_BEAT: TRADE_BUY, HEADLINE_RESULTS_MISS: TRADE_SELL,
+	HEADLINE_RESULTS_INLINE: TRADE_ANY,
+}
+const REVENUE_EFFECT := "revenue_multiplier"
+
+const CAMPAIGN_INVESTOR := "investor_id"
+const CAMPAIGN_TARGET := "target"
+const CAMPAIGN_SINCE := "since_day"
+const CAMPAIGN_UNTIL := "until_day"
+
+const FIGURE_KEYS: Array[String] = ["revenue", "costs", "profit"]
+const DAYS_KEY := "days"
 
 const PERIOD_DAILY := "daily"
 const PERIOD_WEEKLY := "weekly"
@@ -67,11 +121,27 @@ const PERIOD_MONTHLY := "monthly"
 const PERIOD_QUARTERLY := "quarterly"
 const PERIOD_ANNUAL := "annual"
 
+## Claves que market.json duplica de balance.json (§32.5): deben coincidir (get_config_mismatches).
+## Además, cada clave de market.json `simulation` debe coincidir con balance `mercado.<clave>`.
+const SIMULATION_SECTION := "simulation"
+const BALANCE_MARKET_SECTION := "mercado"
+const DUPLICATED_KEYS: Dictionary = {
+	"insider_detection.pattern_threshold": "mercado.umbral_patron_insider",
+	"board_pressure.bad_quarters_to_degrade": "mercado.trimestres_malos_para_degradar",
+	"presentation.weight_quality": "mercado.peso_presentacion_calidad",
+	"presentation.weight_figures": "mercado.peso_presentacion_cifras",
+	"shares.share_package_price": "economia.precio_paquete_accionarial",
+	"calendar.days_per_week": "tiempo.jornadas_por_semana",
+	"calendar.days_per_month": "tiempo.jornadas_por_mes",
+	"calendar.days_per_quarter": "tiempo.jornadas_por_trimestre",
+}
+
 # ─── Datos estáticos (caché de Database; no se guardan) ───────────────
 var _cfg: Dictionary = {}
 var _strategies: Dictionary = {}
 var _investors: Array[InvestorData] = []
 var _starting_fundamentals: Dictionary = {}
+var _bribe_references: Dictionary = {}
 
 # ─── Estado propio (se guarda) ─────────────────────────────────────────
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -85,19 +155,31 @@ var _fraud_multiple_penalty: float = 0.0
 var _confidence: Dictionary = {}
 var _last_reason: Dictionary = {}
 var _credibility_lost: bool = false
-var _activist_targets: Dictionary = {}
 var _loss_spent: Dictionary = {}
+var _campaigns: Dictionary = {}
+var _allies: Dictionary = {}
+var _coerced: Dictionary = {}
 var _bad_quarters_streak: int = 0
 var _presented_quarter: int = 0
 var _due_emitted_quarter: int = 0
 var _expected_quarter_profit: float = 0.0
 var _last_presentation: Dictionary = {}
+var _q_real: Dictionary = {}
+var _q_days: int = 0
+var _q_last_day: int = 0
 var _player_shares: int = 0
 var _stake_shares: int = 0
 var _invested: float = 0.0
+var _broker_cash: int = 0
 var _dividends_paid: int = 0
 var _insider_ops: Array[Dictionary] = []
 var _insider_detections: int = 0
+var _proxies: Dictionary = {}
+var _proxy_ops: Array[Dictionary] = []
+## Reacciones a la prensa con retraso: [{investor_id, factor, severity, news_id, due_minute}].
+var _pending_reactions: Array[Dictionary] = []
+## Transitorio: favor del último bribe_offered por personaje (Bribery emite offered y result seguidos).
+var _pending_bribes: Dictionary = {}
 
 
 func _ready() -> void:
@@ -108,6 +190,10 @@ func _ready() -> void:
 	EventBus.quarter_closed.connect(_on_quarter_closed)
 	EventBus.news_published.connect(_on_news_published)
 	EventBus.audit_triggered.connect(_on_audit_triggered)
+	EventBus.bribe_offered.connect(_on_bribe_offered)
+	EventBus.bribe_result.connect(_on_bribe_result)
+	EventBus.blackmail_initiated.connect(_on_blackmail_initiated)
+	EventBus.npc_removed.connect(_on_npc_removed)
 
 
 func reset_for_new_run() -> void:
@@ -194,7 +280,7 @@ func get_investor_sentiment() -> float:
 	return _own_sentiment
 
 
-## Aplica 1/N del paso diario. Como mucho N pasos por jornada; el resto se ignora.
+## Aplica 1/N del paso diario. Como mucho N pasos por jornada; el último cierra las cifras del día.
 func tick_hourly() -> void:
 	var steps: int = get_steps_per_day()
 	if _steps_today >= steps:
@@ -203,6 +289,8 @@ func tick_hourly() -> void:
 			get_momentum(), _noise_today)
 	_price = maxf(_price + delta / float(steps), _bf("mercado.precio_minimo"))
 	_steps_today += 1
+	if _steps_today == steps:
+		_accumulate_day(_today)
 	EventBus.stock_price_updated.emit(_price, _percent_change(_last_close(), _price))
 
 
@@ -229,13 +317,35 @@ func advance_day(day_number: int) -> void:
 		return
 	while _steps_today < get_steps_per_day():
 		tick_hourly()
+	_accumulate_day(_today)
 	_push_close(_price)
 	_apply_trend_drift()
 	_own_sentiment *= _bf("mercado.decaimiento_sentimiento_inversor")
 	_today = day_number
 	_steps_today = 0
+	_expire_campaigns()
 	_prune_insider_ops()
 	_roll_daily_noise()
+
+
+## Coincidencia de las claves que market.json duplica de balance.json ([] = todo coincide).
+func get_config_mismatches() -> Array[String]:
+	var pairs: Dictionary = DUPLICATED_KEYS.duplicate()
+	for key: Variant in _cfg_dict(SIMULATION_SECTION).keys():
+		if not str(key).begins_with("_"):
+			pairs[SIMULATION_SECTION + "." + str(key)] = BALANCE_MARKET_SECTION + "." + str(key)
+	var out: Array[String] = []
+	for market_key: Variant in pairs.keys():
+		var local: Variant = _cfg_value(str(market_key))
+		var balance_path: String = str(pairs[market_key])
+		if not (local is float or local is int) or not Database.has_balance(balance_path):
+			out.append("%s <> %s: missing" % [market_key, balance_path])
+		elif not is_equal_approx(float(local), Database.get_balance_float(balance_path)):
+			out.append("%s = %s <> %s = %s" % [market_key, str(local), balance_path,
+					str(Database.get_balance(balance_path))])
+	if _cfg_int("calendar.days_per_fiscal_year") != _days_per_year():
+		out.append("calendar.days_per_fiscal_year <> days_per_quarter × quarters_per_year")
+	return out
 
 
 # ═══ Calendario (§9.4) ════════════════════════════════════════════════
@@ -260,6 +370,10 @@ func get_presentation_day() -> int:
 	return (quarter - 1) * _days_per_quarter() + _cfg_int("calendar.results_presentation.day_of_quarter")
 
 
+func get_presentation_room() -> String:
+	return _cfg_string("calendar.results_presentation.room")
+
+
 @warning_ignore("integer_division")
 func quarter_of(day_number: int) -> int:
 	return maxi(day_number - 1, 0) / _days_per_quarter() + 1
@@ -273,6 +387,10 @@ func day_in_quarter(day_number: int) -> int:
 
 func get_investors() -> Array[InvestorData]:
 	return _investors.duplicate()
+
+
+func get_investor(investor_id: String) -> InvestorData:
+	return _investor(investor_id)
 
 
 func get_investor_confidence(investor_id: String) -> int:
@@ -294,6 +412,11 @@ func modify_investor_confidence(investor_id: String, delta: int, reason: String)
 	_last_reason[investor_id] = reason
 	EventBus.investor_confidence_changed.emit(investor_id, old_value, new_value)
 	_check_confidence_loss(investor_id, old_value, new_value)
+
+
+## true tras descubrirse una falsificación: los aumentos de confianza se reducen para siempre.
+func is_credibility_lost() -> bool:
+	return _credibility_lost
 
 
 ## Motivo del último cambio de confianza (id de factor de §9.7) para la UI.
@@ -332,9 +455,18 @@ func get_bad_quarters_streak() -> int:
 	return _bad_quarters_streak
 
 
-## true si la racha alcanza mercado.trimestres_malos_para_degradar: degradación o expulsión.
+## Trimestres malos que disparan la presión del consejo (una campaña activista contra el jugador
+## perdona mercado.trimestres_perdonados_campana; nunca menos de uno).
+func get_required_bad_quarters() -> int:
+	var required: int = _bi("mercado.trimestres_malos_para_degradar")
+	if is_player_under_campaign():
+		required -= _bi("mercado.trimestres_perdonados_campana")
+	return maxi(required, 1)
+
+
+## true si la racha alcanza get_required_bad_quarters(): degradación o expulsión (Company actúa).
 func is_board_pressure_triggered() -> bool:
-	return _bad_quarters_streak >= _bi("mercado.trimestres_malos_para_degradar")
+	return _bad_quarters_streak >= get_required_bad_quarters()
 
 
 ## Delta de la tabla §9.7 (market.json confidence_factors). severity ∈ [0,1] va del efecto
@@ -372,29 +504,118 @@ func record_lounge_contact(investor_id: String) -> int:
 	return int(apply_confidence_factor(FACTOR_LOUNGE, 1.0, ids).get(investor_id, 0))
 
 
-## Soplo privilegiado: +12 solo al cazador de información. Cada soplo es una prueba:
-## emite crime_committed("insider_trade"). Devuelve el delta aplicado.
-func give_insider_tip(investor_id: String) -> int:
+## true si la estrategia del inversor compra soplos (cazador de información).
+func accepts_tips(investor_id: String) -> bool:
 	var inv: InvestorData = _investor(investor_id)
-	if inv == null or _strategy_float(inv, "weight_tips") <= 0.0:
+	return inv != null and _strategy_float(inv, "weight_tips") > 0.0
+
+
+## Soplo privilegiado: +12 solo al cazador de información. Cada soplo es una prueba:
+## emite crime_committed("insider_trade"). Devuelve el delta aplicado. El pago lo cobra
+## MarketTrading.sell_tip (get_tip_payment).
+func give_insider_tip(investor_id: String) -> int:
+	if not accepts_tips(investor_id):
 		return 0
 	var ids: Array[String] = [investor_id]
 	var delta: int = int(apply_confidence_factor(FACTOR_TIP, 1.0, ids).get(investor_id, 0))
-	EventBus.crime_committed.emit(CRIME_INSIDER, "", {"tip_to": investor_id})
+	EventBus.crime_committed.emit(CRIME_INSIDER, "", {DETAIL_TIP: investor_id})
 	return delta
 
 
-## Dirige al inversor activista contra un objetivo (rival o jugador). Solo estrategia activista.
+## Lo que paga el inversor por un soplo (pays_for_tips en investors.json; 0 si no paga).
+func get_tip_payment(investor_id: String) -> int:
+	var inv: InvestorData = _investor(investor_id)
+	if inv == null or not accepts_tips(investor_id) or not bool(inv.extra.get(PAYS_FOR_TIPS_KEY, false)):
+		return 0
+	return _bi("mercado.pago_por_soplo")
+
+
+# ─── Venalidad (§9.5, §9.6, §24.4) ────────────────────────────────────
+
+## Sobornable según investors.json (bribable y un bribe_price_tier con referencia > 0).
+func is_investor_bribable(investor_id: String) -> bool:
+	var inv: InvestorData = _investor(investor_id)
+	return inv != null and inv.bribable and get_investor_bribe_reference(investor_id) > 0
+
+
+func is_investor_blackmailable(investor_id: String) -> bool:
+	var inv: InvestorData = _investor(investor_id)
+	return inv != null and inv.blackmailable
+
+
+## Referencia diaria del soborno (los inversores no tienen salario): bribe_reference_daily del tier.
+func get_investor_bribe_reference(investor_id: String) -> int:
+	var inv: InvestorData = _investor(investor_id)
+	if inv == null:
+		return 0
+	return int(_bribe_references.get(str(inv.extra.get(BRIBE_TIER_KEY, "")), 0))
+
+
+## §8.2 paso primero, sin modificadores: referencia diaria × multiplicador del favor (0 =
+## insobornable). El precio justo aplicado (dificultad, sospecha) lo da Bribery vía
+## ResultsPresentation.investor_bribe_price().
+func get_investor_base_bribe_price(investor_id: String, favour_id: String) -> int:
+	if not is_investor_bribable(investor_id):
+		return 0
+	var multiplier: float = float(Database.get_bribe_favour(favour_id).get("multiplier", 0.0))
+	return roundi(float(get_investor_bribe_reference(investor_id)) * multiplier)
+
+
+## Favor con el que un inversor sobornado formula una pregunta favorable en la presentación.
+func get_favourable_question_favour() -> String:
+	return str(Database.get_balance("mercado.favor_pregunta_favorable"))
+
+
+## Inversores aliados en la sala de este trimestre (sobornados o chantajeados).
+func get_investor_allies() -> Array[String]:
+	var out: Array[String] = []
+	var quarter: int = quarter_of(_today)
+	for inv: InvestorData in _investors:
+		if int(_allies.get(inv.id, 0)) == quarter:
+			out.append(inv.id)
+	return out
+
+
+func is_investor_ally(investor_id: String) -> bool:
+	return get_investor_allies().has(investor_id)
+
+
+## Chantajeado este trimestre (blackmail_initiated sobre un inversor chantajeable).
+func is_investor_coerced(investor_id: String) -> bool:
+	return int(_coerced.get(investor_id, 0)) == quarter_of(_today)
+
+
+# ─── Campañas activistas (§9.6) ───────────────────────────────────────
+
+## Dirige al activista COACCIONADO contra un objetivo (id de rival o "player"). Devuelve si pudo.
 func direct_activist(investor_id: String, target: String) -> bool:
 	var inv: InvestorData = _investor(investor_id)
-	if inv == null or inv.strategy != STRATEGY_ACTIVIST:
+	if inv == null or inv.strategy != STRATEGY_ACTIVIST or target.is_empty() or target == investor_id:
 		return false
-	_activist_targets[investor_id] = target
+	if not is_investor_coerced(investor_id):
+		return false
+	_start_campaign(investor_id, target)
 	return true
 
 
 func get_activist_target(investor_id: String) -> String:
-	return str(_activist_targets.get(investor_id, ""))
+	var campaign: Dictionary = _campaigns.get(investor_id, {})
+	return str(campaign.get(CAMPAIGN_TARGET, ""))
+
+
+## Campañas vivas: [{investor_id, target, since_day, until_day}] (copias).
+func get_activist_campaigns() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for investor_id: Variant in _campaigns.keys():
+		out.append((_campaigns[investor_id] as Dictionary).duplicate())
+	return out
+
+
+func is_player_under_campaign() -> bool:
+	for campaign: Dictionary in get_activist_campaigns():
+		if str(campaign[CAMPAIGN_TARGET]) == PLAYER_ID:
+			return true
+	return false
 
 
 # ═══ Presentación de resultados (§9.5) ════════════════════════════════
@@ -415,9 +636,47 @@ func compute_presentation_quality(preparation: float, allies_present: int) -> fl
 	return _presentation_quality(preparation, allies_present, PlayerState.get_reputation())
 
 
-## Puntuación [0,1] de las cifras reportadas frente a lo esperado (0,5 = en línea).
+## §9.5: la calidad pesa el 60 % y las cifras el 40 %.
+func compute_presentation_outcome(quality: float, figures: float) -> float:
+	return _bf("mercado.peso_presentacion_calidad") * quality \
+			+ _bf("mercado.peso_presentacion_cifras") * figures
+
+
+## Peso de la calidad en lo que percibe el inversor: 0 si su estrategia solo lee fundamentales
+## (valor); si no, W = mín(1, peso_calidad × Σcapital ÷ Σcapital de quienes escuchan).
+func get_presentation_quality_share(investor_id: String) -> float:
+	var inv: InvestorData = _investor(investor_id)
+	if inv == null or not _listens_to_presentation(inv):
+		return 0.0
+	var total: float = 0.0
+	var listeners: float = 0.0
+	for other: InvestorData in _investors:
+		total += float(other.capital)
+		if _listens_to_presentation(other):
+			listeners += float(other.capital)
+	if listeners <= 0.0:
+		return 0.0
+	return minf(_bf("mercado.peso_presentacion_calidad") * total / listeners, 1.0)
+
+
+## Resultado percibido [0,1] por un inversor: W × calidad + (1 − W) × cifras.
+func get_perceived_outcome(investor_id: String, quality: float, figures: float) -> float:
+	var share: float = get_presentation_quality_share(investor_id)
+	return share * quality + (1.0 - share) * figures
+
+
+## Reacción de cada inversor (§9.7, sin aplicarla): {investor_id: delta de confianza}.
+func compute_presentation_reaction(quality: float, figures: float) -> Dictionary:
+	var out: Dictionary = {}
+	for inv: InvestorData in _investors:
+		out[inv.id] = _outcome_delta(inv, get_perceived_outcome(inv.id, quality, figures))
+	return out
+
+
+## Puntuación [0,1] de las cifras reportadas del trimestre frente a lo esperado (0,5 = en línea).
 func get_figures_score() -> float:
-	return figures_score_for(_reported_quarter_profit(), _expected_quarter_profit)
+	return figures_score_for(float(get_quarter_reported_figures(true)["profit"]),
+			_expected_quarter_profit)
 
 
 func figures_score_for(reported_profit: float, expected_profit: float) -> float:
@@ -430,13 +689,50 @@ func get_expected_quarter_profit() -> float:
 	return _expected_quarter_profit
 
 
+## Totales reales del trimestre: acumulado + jornada abierta; con `projected`, + las que falten.
+func get_quarter_real_figures(projected: bool) -> Dictionary:
+	var today: Dictionary = _fundamentals()
+	var extra_days: int = 1 if _today > _q_last_day else 0
+	if projected:
+		extra_days = maxi(_days_per_quarter() - _q_days, 0)
+	var out: Dictionary = {DAYS_KEY: _q_days + extra_days}
+	for key: String in FIGURE_KEYS:
+		out[key] = float(_q_real.get(key, 0.0)) + float(today.get(key, 0.0)) * float(extra_days)
+	return out
+
+
+## Totales reportados: reales + (reportado − real de hoy) × jornadas del trimestre.
+func get_quarter_reported_figures(projected: bool) -> Dictionary:
+	var out: Dictionary = get_quarter_real_figures(projected)
+	var real: Dictionary = _fundamentals()
+	var reported: Dictionary = _reported_figures()
+	for key: String in FIGURE_KEYS:
+		out[key] = float(out[key]) + (float(reported.get(key, 0.0)) - float(real.get(key, 0.0))) \
+				* float(_days_per_quarter())
+	return out
+
+
+## Solo el día de resultados y una vez por trimestre.
+func can_present_results() -> bool:
+	return _presented_quarter != quarter_of(_today) \
+			and day_in_quarter(_today) == _cfg_int("calendar.results_presentation.day_of_quarter")
+
+
 ## Devuelve { quality, confidence_changes, sentiment_delta } (+ outcome, figures_score,
-## aggregate_before, aggregate_after). La calidad pesa el 60 % y las cifras el 40 %.
+## aggregate_before, aggregate_after, quarter, presenter, allies_counted), o {} si hoy no se
+## puede presentar (can_present_results). allies_present se acota a get_investor_allies().
 func conduct_quarterly_presentation(preparation: float, allies_present: int) -> Dictionary:
-	var result: Dictionary = _run_presentation(
-			compute_presentation_quality(preparation, allies_present))
+	if not can_present_results():
+		return {}
+	var allies: int = mini(maxi(allies_present, 0), get_investor_allies().size())
 	_presented_quarter = quarter_of(_today)
-	return result
+	_run_presentation(compute_presentation_quality(preparation, allies), PRESENTER_PLAYER)
+	_last_presentation["allies_counted"] = allies
+	return _last_presentation.duplicate(true)
+
+
+func has_presented_this_quarter() -> bool:
+	return _presented_quarter == quarter_of(_today)
 
 
 func get_last_presentation() -> Dictionary:
@@ -453,49 +749,60 @@ func can_trade() -> bool:
 	return PlayerState.get_rank() >= _cfg_int("shares.player_trading_min_rank")
 
 
-func buy_shares(quantity: int) -> bool:
-	if quantity <= 0 or not can_trade():
+## Efectivo en la cuenta de valores (lo mueven las manos con deposit_cash / withdraw_cash).
+func get_broker_cash() -> int:
+	return _broker_cash
+
+
+func deposit_cash(amount: int) -> bool:
+	if amount <= 0:
 		return false
-	var cost: int = ceili(_price * float(quantity))
-	if not PlayerState.can_afford(cost):
-		return false
-	var informed: bool = is_trade_informed()
-	_player_shares += quantity
-	_invested += float(cost)
-	_settle_cash(-cost, CASH_REASON_BUY)
-	if informed:
-		register_insider_operation(cost)
+	_broker_cash += amount
 	return true
+
+
+func withdraw_cash(amount: int) -> bool:
+	if amount <= 0 or amount > _broker_cash:
+		return false
+	_broker_cash -= amount
+	return true
+
+
+func get_buy_cost(quantity: int) -> int:
+	return ceili(_price * float(maxi(quantity, 0)))
+
+
+func get_sell_proceeds(quantity: int) -> int:
+	return floori(_price * float(maxi(quantity, 0)))
+
+
+## Compra con la cuenta de valores. Privilegiada si el jugador conoce una noticia positiva.
+func buy_shares(quantity: int) -> bool:
+	return _buy(quantity, "")
 
 
 func sell_shares(quantity: int) -> bool:
-	if quantity <= 0 or quantity > _player_shares or not can_trade():
-		return false
-	var proceeds: int = floori(_price * float(quantity))
-	var informed: bool = is_trade_informed()
-	_invested -= _invested * float(quantity) / float(_player_shares)
-	_player_shares -= quantity
-	if _player_shares < _stake_shares:
-		_stake_shares = 0
-	_settle_cash(proceeds, CASH_REASON_SELL)
-	if informed:
-		register_insider_operation(proceeds)
-	return true
+	return _sell(quantity, "")
 
 
 ## R30: paquete accionarial por economia.precio_paquete_accionarial; concede voto en el consejo.
 func buy_board_stake() -> bool:
 	if has_board_stake() or PlayerState.get_rank() < _cfg_int("shares.share_package_min_rank"):
 		return false
-	var cost: int = _bi("economia.precio_paquete_accionarial")
-	if not PlayerState.can_afford(cost):
+	var cost: int = get_board_stake_price()
+	if cost > _broker_cash:
 		return false
+	var informed: bool = is_trade_informed(TRADE_BUY)
 	var quantity: int = floori(float(cost) / _price)
-	_player_shares += quantity
+	_add_shares(quantity, cost)
 	_stake_shares = quantity
-	_invested += float(cost)
-	_settle_cash(-cost, CASH_REASON_STAKE)
+	if informed:
+		register_insider_operation(cost)
 	return true
+
+
+func get_board_stake_price() -> int:
+	return _bi("economia.precio_paquete_accionarial")
 
 
 func has_board_stake() -> bool:
@@ -512,7 +819,7 @@ func get_invested_capital() -> float:
 
 
 ## Dividendo anual previsto de la cartera: acciones × beneficio anual × payout ÷ acciones totales.
-## Se cobra en la junta anual (§9.4).
+## Se abona en la cuenta de valores en la junta anual (§9.4).
 func get_dividend_income() -> int:
 	var annual: float = float(_fundamentals().get("profit", 0.0)) * float(_days_per_year())
 	var per_share: float = annual * _cfg_float("shares.dividend_payout_ratio") / float(_share_count())
@@ -523,19 +830,21 @@ func get_dividends_paid() -> int:
 	return _dividends_paid
 
 
+## DECISIÓN (§9.11): el derecho de voto en el consejo lo da el paquete R30; sin paquete, 0 votos.
 func get_board_votes() -> int:
-	var votes: int = floori(float(_player_shares) / float(maxi(_cfg_int("shares.shares_per_board_vote"), 1)))
-	if has_board_stake():
-		votes = maxi(votes, _bi("mercado.votos_minimos_paquete"))
-	return votes
+	if not has_board_stake():
+		return 0
+	var per_vote: int = maxi(_cfg_int("shares.shares_per_board_vote"), 1)
+	return maxi(floori(float(_player_shares) / float(per_vote)), _bi("mercado.votos_minimos_paquete"))
 
 
 # ═══ Información privilegiada (§9.8) ══════════════════════════════════
 
 ## Registra una operación con información privilegiada (volumen en €). Emite crime_committed.
-## Contramedidas: menos volumen, espaciar (ventana de jornadas), enterrar la noticia, ser Auditor Jefe.
+## Contramedidas: menos volumen, espaciar (ventana de jornadas), testaferros
+## (register_proxy_operation), enterrar el escándalo, ser Auditor Jefe.
 func register_insider_operation(volume: int) -> void:
-	EventBus.crime_committed.emit(CRIME_INSIDER, "", {"volume": volume})
+	EventBus.crime_committed.emit(CRIME_INSIDER, "", {DETAIL_VOLUME: volume})
 	if _insider_detection_disabled():
 		return
 	_insider_ops.append({"day": _today, "volume": maxi(volume, 0)})
@@ -575,6 +884,35 @@ func get_insider_detections() -> int:
 	return _insider_detections
 
 
+## Contramedida §9.8: operación a nombre de un testaferro sobornado. No suma al patrón del
+## jugador; es delito con subject = testaferro (el rastro contable lo señala a él) y el testaferro
+## pasa a ser testigo (MarketTrading crea su creencia).
+func register_proxy_operation(npc_id: String, volume: int) -> void:
+	EventBus.crime_committed.emit(CRIME_INSIDER, "",
+			{DETAIL_VOLUME: volume, DETAIL_PROXY: npc_id, DETAIL_SUBJECT: npc_id})
+	_proxy_ops.append({"day": _today, "npc_id": npc_id, "volume": maxi(volume, 0)})
+
+
+## Personajes que aceptaron el soborno de testaferro (favor mercado.favor_testaferro).
+func is_proxy(npc_id: String) -> bool:
+	return _proxies.has(npc_id)
+
+
+func get_proxy_operations() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for op: Dictionary in _proxy_ops:
+		out.append(op.duplicate())
+	return out
+
+
+func buy_shares_via_proxy(npc_id: String, quantity: int) -> bool:
+	return is_proxy(npc_id) and not npc_id.is_empty() and _buy(quantity, npc_id)
+
+
+func sell_shares_via_proxy(npc_id: String, quantity: int) -> bool:
+	return is_proxy(npc_id) and not npc_id.is_empty() and _sell(quantity, npc_id)
+
+
 ## Perspicacia del ocupante de Auditoría Jefe (0 si vacante o si es el jugador).
 func get_chief_auditor_perception() -> float:
 	var auditor: String = _cfg_string("insider_detection.auditor_occupation")
@@ -590,20 +928,26 @@ func get_chief_auditor_perception() -> float:
 ## R28+ ve además el sentido de los resultados del trimestre antes de la presentación.
 func get_upcoming_news(days_ahead: int) -> Array[String]:
 	var out: Array[String] = []
-	var rank: int = PlayerState.get_rank()
-	if rank < _cfg_int("insider_detection.upcoming_news_min_rank"):
-		return out
-	for item: Dictionary in NewsFeed.get_scheduled_news(days_ahead):
-		if rank >= int(item.get("min_rank", 0)):
-			out.append(str(item.get("headline_id", "")))
-	if rank >= _cfg_int("shares.insider_information_min_rank"):
-		_append_results_preview(out, days_ahead)
+	for item: Dictionary in _known_upcoming(days_ahead):
+		out.append(str(item["headline_id"]))
 	return out
 
 
-## true si operar ahora sería operar con información privilegiada.
-func is_trade_informed() -> bool:
-	return not get_upcoming_news(_cfg_int("insider_detection.news_lead_days_max")).is_empty()
+## Sentido de cada noticia conocida (+1 positiva, −1 negativa, 0 neutra), en el orden de arriba.
+func get_upcoming_news_directions(days_ahead: int) -> Array[int]:
+	var out: Array[int] = []
+	for item: Dictionary in _known_upcoming(days_ahead):
+		out.append(int(item["direction"]))
+	return out
+
+
+## true si operar ahora en `direction` (TRADE_BUY / TRADE_SELL; TRADE_ANY = cualquiera) sería
+## aprovechar una noticia conocida de ese mismo sentido.
+func is_trade_informed(direction: int = TRADE_ANY) -> bool:
+	for known: int in get_upcoming_news_directions(_cfg_int("insider_detection.news_lead_days_max")):
+		if known != TRADE_ANY and (direction == TRADE_ANY or known == direction):
+			return true
+	return false
 
 
 # ═══ Persistencia ═════════════════════════════════════════════════════
@@ -614,15 +958,17 @@ func save_state() -> Dictionary:
 		"steps_today": _steps_today, "noise_today": _noise_today,
 		"own_sentiment": _own_sentiment, "fraud_penalty": _fraud_multiple_penalty,
 		"confidence": _confidence.duplicate(), "last_reason": _last_reason.duplicate(),
-		"credibility_lost": _credibility_lost, "activist_targets": _activist_targets.duplicate(),
-		"loss_spent": _loss_spent.keys(),
+		"credibility_lost": _credibility_lost, "loss_spent": _loss_spent.keys(),
+		"campaigns": _campaigns.duplicate(true), "allies": _allies.duplicate(),
+		"coerced": _coerced.duplicate(), "pending_reactions": _pending_reactions.duplicate(true),
 		"bad_streak": _bad_quarters_streak, "presented_quarter": _presented_quarter,
-		"due_emitted_quarter": _due_emitted_quarter,
-		"expected_profit": _expected_quarter_profit,
+		"due_emitted_quarter": _due_emitted_quarter, "expected_profit": _expected_quarter_profit,
 		"last_presentation": _last_presentation.duplicate(true),
+		"q_real": _q_real.duplicate(), "q_days": _q_days, "q_last_day": _q_last_day,
 		"shares": _player_shares, "stake_shares": _stake_shares, "invested": _invested,
-		"dividends_paid": _dividends_paid, "insider_ops": _insider_ops.duplicate(true),
-		"insider_detections": _insider_detections,
+		"broker_cash": _broker_cash, "dividends_paid": _dividends_paid,
+		"insider_ops": _insider_ops.duplicate(true), "insider_detections": _insider_detections,
+		"proxies": _proxies.duplicate(), "proxy_ops": _proxy_ops.duplicate(true),
 		"rng_seed": str(_rng.seed), "rng_state": str(_rng.state),
 	}
 
@@ -638,6 +984,7 @@ func load_state(data: Dictionary) -> void:
 	_noise_today = float(data.get("noise_today", 0.0))
 	_own_sentiment = float(data.get("own_sentiment", 0.0))
 	_fraud_multiple_penalty = float(data.get("fraud_penalty", 0.0))
+	_pending_bribes.clear()
 	_load_investor_state(data)
 	_load_quarter_state(data)
 	_load_portfolio_state(data)
@@ -655,6 +1002,8 @@ func _load_static_data() -> void:
 		if not _strategies.has(inv.strategy):
 			_strategies[inv.strategy] = Database.get_investor_strategy(inv.strategy)
 	_starting_fundamentals = _build_starting_fundamentals()
+	var references: Variant = Database.get_raw(INVESTORS_FILE).get(BRIBE_REFERENCE_KEY, {})
+	_bribe_references = (references as Dictionary).duplicate() if references is Dictionary else {}
 
 
 func _build_starting_fundamentals() -> Dictionary:
@@ -745,10 +1094,6 @@ func _reported_figures() -> Dictionary:
 	return _fundamentals() if _is_blank_figures(reported) else reported
 
 
-func _reported_quarter_profit() -> float:
-	return float(_reported_figures().get("profit", 0.0)) * float(_days_per_quarter())
-
-
 func _player_occupation_id() -> String:
 	var occupation: OccupationData = PlayerState.get_occupation()
 	return occupation.id if occupation != null else ""
@@ -792,6 +1137,7 @@ func _apply_trend_drift() -> void:
 func _on_hour_passed(hour: int, day_number: int) -> void:
 	if hour > _bi("tiempo.hora_inicio_jornada") and hour <= _bi("tiempo.hora_fin_jornada"):
 		tick_hourly()
+	_apply_due_reactions()
 	_check_presentation_due(hour, day_number)
 
 
@@ -799,9 +1145,10 @@ func _on_day_advanced(day_number: int) -> void:
 	advance_day(day_number)
 
 
+## results_presentation_due una vez por trimestre (no si el jugador ya presentó).
 func _check_presentation_due(hour: int, day_number: int) -> void:
 	var quarter: int = quarter_of(day_number)
-	if quarter == _due_emitted_quarter:
+	if quarter == _due_emitted_quarter or quarter == _presented_quarter:
 		return
 	if hour != _cfg_int("calendar.results_presentation.hour"):
 		return
@@ -831,8 +1178,12 @@ func _calendar_event_on(periodicity: String, day_number: int) -> bool:
 func _reset_investors() -> void:
 	_confidence.clear()
 	_last_reason.clear()
-	_activist_targets.clear()
+	_campaigns.clear()
+	_allies.clear()
+	_coerced.clear()
 	_loss_spent.clear()
+	_pending_bribes.clear()
+	_pending_reactions.clear()
 	_credibility_lost = false
 	for inv: InvestorData in _investors:
 		_confidence[inv.id] = inv.initial_confidence
@@ -863,6 +1214,11 @@ func _soft_weight(inv: InvestorData) -> float:
 			+ _strategy_float(inv, "weight_tips")
 
 
+## Escucha la presentación quien no lee SOLO fundamentales (el inversor de valor no).
+func _listens_to_presentation(inv: InvestorData) -> bool:
+	return _soft_weight(inv) > 0.0
+
+
 ## Quién reacciona a prensa (§9.6): valor ignora el sentimiento; momentum y cazador leen titulares;
 ## el activista reacciona a escándalos (dirección); el pasivo solo a desastres (≥ reaction_threshold).
 func _reacts_to_press(inv: InvestorData, magnitude: float, is_scandal: bool) -> bool:
@@ -884,12 +1240,43 @@ func _on_news_published(headline_id: String, sentiment_delta: float, is_scandal:
 	if not is_scandal and sentiment_delta <= 0.0:
 		return
 	var magnitude: float = absf(sentiment_delta)
-	var reactors: Array[String] = []
-	for inv: InvestorData in _investors:
-		if _reacts_to_press(inv, magnitude, is_scandal):
-			reactors.append(inv.id)
+	var factor: String = FACTOR_SCANDAL if is_scandal else FACTOR_PRESS
 	var severity: float = clampf(magnitude / _bf("mercado.sentimiento_referencia_prensa"), 0.0, 1.0)
-	apply_confidence_factor(FACTOR_SCANDAL if is_scandal else FACTOR_PRESS, severity, reactors)
+	var now: Array[String] = []
+	for inv: InvestorData in _investors:
+		if not _reacts_to_press(inv, magnitude, is_scandal):
+			continue
+		var delay: float = float(inv.extra.get(REACTION_DELAY_KEY, 0))
+		if delay <= 0.0:
+			now.append(inv.id)
+			continue
+		_pending_reactions.append({"investor_id": inv.id, "factor": factor, "severity": severity,
+				"news_id": headline_id,
+				"due_minute": GameClock.get_total_minutes() + delay * MINUTES_PER_HOUR})
+	apply_confidence_factor(factor, severity, now)
+
+
+## Reacciones pendientes cuyo plazo (reaction_delay_hours, §24.4 "reacciona en horas") ya venció.
+## Si la noticia se enterró antes, no hay reacción (enterrar también llega a los inversores).
+func _apply_due_reactions() -> void:
+	var now: float = GameClock.get_total_minutes()
+	var due: Array[Dictionary] = []
+	var kept: Array[Dictionary] = []
+	for reaction: Dictionary in _pending_reactions:
+		if float(reaction["due_minute"]) <= now:
+			due.append(reaction)
+		else:
+			kept.append(reaction)
+	_pending_reactions = kept
+	for reaction: Dictionary in due:
+		if bool(NewsFeed.get_news(str(reaction.get("news_id", ""))).get("buried", false)):
+			continue
+		var ids: Array[String] = [str(reaction["investor_id"])]
+		apply_confidence_factor(str(reaction["factor"]), float(reaction["severity"]), ids)
+
+
+func get_pending_reactions() -> Array[Dictionary]:
+	return _pending_reactions.duplicate(true)
 
 
 ## Falsificación descubierta: −25 a −40 a todos, pérdida permanente de credibilidad y del múltiplo.
@@ -902,15 +1289,15 @@ func _on_audit_triggered(discrepancy_found: bool) -> void:
 	_fraud_multiple_penalty += _bf("mercado.penalizacion_multiplo_fraude")
 
 
+## Magnitud auditada (Company.get_last_audit; si no, reportado frente a real hoy) sobre el rango.
 func _figures_divergence_severity() -> float:
-	var real: float = float(_fundamentals().get("profit", 0.0))
-	var reported: float = float(_reported_figures().get("profit", 0.0))
-	var divergence: float = absf(reported - real) / maxf(absf(real), 1.0)
+	var audit: Dictionary = Company.get_last_audit()
+	var divergence: float = float(audit.get("divergence", -1.0))
+	if divergence < 0.0:
+		var real: float = float(_fundamentals().get("profit", 0.0))
+		var reported: float = float(_reported_figures().get("profit", 0.0))
+		divergence = absf(reported - real) / maxf(absf(real), 1.0)
 	return clampf(divergence / _bf("mercado.presentacion_rango_sorpresa"), 0.0, 1.0)
-
-
-func is_credibility_lost() -> bool:
-	return _credibility_lost
 
 
 ## Al cruzar a la baja umbral_perdida_confianza, el inversor ejecuta su on_confidence_loss:
@@ -926,16 +1313,64 @@ func _check_confidence_loss(investor_id: String, old_value: int, new_value: int)
 	if inv == null or inv.on_confidence_loss.is_empty():
 		return
 	_loss_spent[investor_id] = true
-	var reach: float = float(inv.extra.get("social_reach", 1.0))
+	var reach: float = float(inv.extra.get(SOCIAL_REACH_KEY, NEUTRAL_MULTIPLIER))
 	var impulse: float = _bf("mercado.impulsos_perdida_confianza." + inv.on_confidence_loss)
 	_add_own_sentiment(impulse * reach)
 	if inv.on_confidence_loss == BEHAVIOUR_CAMPAIGN and get_activist_target(investor_id).is_empty():
-		_activist_targets[investor_id] = PLAYER_ID
+		_start_campaign(investor_id, PLAYER_ID)
 
 
 func _add_own_sentiment(delta: float) -> void:
 	var cap: float = _bf("mercado.sentimiento_max")
 	_own_sentiment = clampf(_own_sentiment + delta, -cap, cap)
+
+
+func _start_campaign(investor_id: String, target: String) -> void:
+	_campaigns[investor_id] = {
+		CAMPAIGN_INVESTOR: investor_id, CAMPAIGN_TARGET: target, CAMPAIGN_SINCE: _today,
+		CAMPAIGN_UNTIL: _today + _bi("mercado.dias_campana_activista"),
+	}
+
+
+func _expire_campaigns() -> void:
+	for investor_id: Variant in _campaigns.keys():
+		if int((_campaigns[investor_id] as Dictionary)[CAMPAIGN_UNTIL]) < _today:
+			_campaigns.erase(investor_id)
+
+
+func _on_bribe_offered(npc_id: String, _amount: int, favour_type: String) -> void:
+	_pending_bribes[npc_id] = favour_type
+
+
+## Soborno aceptado: el inversor con el favor de pregunta favorable es aliado del trimestre; un
+## personaje con el favor de testaferro puede operar en nombre del jugador.
+func _on_bribe_result(npc_id: String, accepted: bool, _outcome: String) -> void:
+	var favour: String = str(_pending_bribes.get(npc_id, ""))
+	_pending_bribes.erase(npc_id)
+	if not accepted or favour.is_empty():
+		return
+	if _investor(npc_id) != null:
+		if favour == get_favourable_question_favour() and is_investor_bribable(npc_id):
+			_allies[npc_id] = quarter_of(_today)
+	elif favour == str(Database.get_balance("mercado.favor_testaferro")):
+		_proxies[npc_id] = _today
+
+
+## El jugador chantajea a un inversor chantajeable: coaccionado y aliado este trimestre.
+func _on_blackmail_initiated(npc_id: String, _target: String, _leverage: String) -> void:
+	if not is_investor_blackmailable(npc_id):
+		return
+	var quarter: int = quarter_of(_today)
+	_coerced[npc_id] = quarter
+	_allies[npc_id] = quarter
+
+
+## Un testaferro o el objetivo de una campaña que sale de la empresa.
+func _on_npc_removed(npc_id: String, _cause: String) -> void:
+	_proxies.erase(npc_id)
+	for investor_id: Variant in _campaigns.keys():
+		if str((_campaigns[investor_id] as Dictionary)[CAMPAIGN_TARGET]) == npc_id:
+			_campaigns.erase(investor_id)
 
 
 func _load_investor_state(data: Dictionary) -> void:
@@ -945,11 +1380,38 @@ func _load_investor_state(data: Dictionary) -> void:
 		for key: Variant in (saved as Dictionary).keys():
 			if _confidence.has(str(key)):
 				_confidence[str(key)] = int((saved as Dictionary)[key])
-	_last_reason = (data.get("last_reason", {}) as Dictionary).duplicate()
-	_activist_targets = (data.get("activist_targets", {}) as Dictionary).duplicate()
+	_last_reason = _as_dict(data.get("last_reason", {}))
 	for investor_id: Variant in data.get("loss_spent", []):
 		_loss_spent[str(investor_id)] = true
 	_credibility_lost = bool(data.get("credibility_lost", false))
+	_allies = _int_values(data.get("allies", {}))
+	_coerced = _int_values(data.get("coerced", {}))
+	for entry: Variant in data.get("pending_reactions", []):
+		var r: Dictionary = _as_dict(entry)
+		_pending_reactions.append({"investor_id": str(r.get("investor_id", "")),
+				"factor": str(r.get("factor", "")), "severity": float(r.get("severity", 0.0)),
+				"news_id": str(r.get("news_id", "")), "due_minute": float(r.get("due_minute", 0.0))})
+	_load_campaigns(_as_dict(data.get("campaigns", {})))
+
+
+func _load_campaigns(campaigns: Dictionary) -> void:
+	for investor_id: Variant in campaigns.keys():
+		var c: Dictionary = _as_dict(campaigns[investor_id])
+		_campaigns[str(investor_id)] = {
+			CAMPAIGN_INVESTOR: str(investor_id), CAMPAIGN_TARGET: str(c.get(CAMPAIGN_TARGET, "")),
+			CAMPAIGN_SINCE: int(c.get(CAMPAIGN_SINCE, 0)), CAMPAIGN_UNTIL: int(c.get(CAMPAIGN_UNTIL, 0)),
+		}
+
+
+static func _as_dict(value: Variant) -> Dictionary:
+	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+
+
+static func _int_values(value: Variant) -> Dictionary:
+	var out: Dictionary = {}
+	for key: Variant in _as_dict(value).keys():
+		out[str(key)] = int((value as Dictionary)[key])
+	return out
 
 
 # ═══ Privado: presentación y trimestre ════════════════════════════════
@@ -959,6 +1421,9 @@ func _reset_quarter_state() -> void:
 	_presented_quarter = 0
 	_due_emitted_quarter = 0
 	_last_presentation = {}
+	_q_real = {}
+	_q_days = 0
+	_q_last_day = _today - 1
 	_expected_quarter_profit = float(_fundamentals().get("profit", 0.0)) * float(_days_per_quarter())
 
 
@@ -969,39 +1434,30 @@ func _presentation_quality(preparation: float, allies_present: int, reputation: 
 			+ _cfg_float("presentation.weight_allies") * get_allies_ratio(allies_present)
 
 
-## Fase de reacción: cada inversor pondera calidad (60 %) y cifras (40 %) según su estrategia.
-func _run_presentation(quality: float) -> Dictionary:
+## Fase de reacción: aplica compute_presentation_reaction y convierte el cambio en sentimiento.
+func _run_presentation(quality: float, presenter: String) -> Dictionary:
 	var figures: float = get_figures_score()
 	var before: float = get_aggregate_confidence()
+	var reaction: Dictionary = compute_presentation_reaction(quality, figures)
 	var changes: Dictionary = {}
 	for inv: InvestorData in _investors:
-		var delta: int = _outcome_delta(inv, _perceived_outcome(inv, quality, figures))
+		var delta: int = int(reaction[inv.id])
 		var old_value: int = get_investor_confidence(inv.id)
 		modify_investor_confidence(inv.id, delta, FACTOR_ABOVE if delta > 0 else FACTOR_BELOW)
 		changes[inv.id] = get_investor_confidence(inv.id) - old_value
 	var sentiment_delta: float = _sentiment_from_changes(changes)
 	_add_own_sentiment(sentiment_delta)
-	_expected_quarter_profit = _reported_quarter_profit()
+	_expected_quarter_profit = float(get_quarter_reported_figures(true)["profit"])
 	_last_presentation = {
 		"quality": quality, "confidence_changes": changes, "sentiment_delta": sentiment_delta,
-		"outcome": _bf("mercado.peso_presentacion_calidad") * quality
-				+ _bf("mercado.peso_presentacion_cifras") * figures,
-		"figures_score": figures, "aggregate_before": before,
-		"aggregate_after": get_aggregate_confidence(), "quarter": quarter_of(_today),
+		"outcome": compute_presentation_outcome(quality, figures), "figures_score": figures,
+		"aggregate_before": before, "aggregate_after": get_aggregate_confidence(),
+		"quarter": quarter_of(_today), "presenter": presenter,
 	}
 	return _last_presentation.duplicate(true)
 
 
-## Resultado percibido por un inversor: (wq·s·calidad + wf·f·cifras) ÷ (wq·s + wf·f), con
-## wq/wf = 0,6/0,4 y s/f = atención no fundamental/fundamental de su estrategia.
-func _perceived_outcome(inv: InvestorData, quality: float, figures: float) -> float:
-	var wq: float = _bf("mercado.peso_presentacion_calidad") * _soft_weight(inv)
-	var wf: float = _bf("mercado.peso_presentacion_cifras") * _strategy_float(inv, "weight_fundamentals")
-	if wq + wf <= 0.0:
-		return figures
-	return (wq * quality + wf * figures) / (wq + wf)
-
-
+## Desviación del resultado percibido sobre 0,5: banda neutra, umbral propio (pasivo) y tabla §9.7.
 func _outcome_delta(inv: InvestorData, perceived: float) -> int:
 	var deviation: float = perceived - OUTCOME_NEUTRAL
 	var magnitude: float = absf(deviation)
@@ -1023,21 +1479,38 @@ func _sentiment_from_changes(changes: Dictionary) -> float:
 		return 0.0
 	var total: float = 0.0
 	for inv: InvestorData in _investors:
+		var reach: float = float(inv.extra.get(SOCIAL_REACH_KEY, NEUTRAL_MULTIPLIER))
 		var voice: float = float(inv.capital) / capital \
-				+ (float(inv.extra.get("social_reach", 1.0)) - 1.0) * _bf("mercado.peso_alcance_social")
+				+ (reach - NEUTRAL_MULTIPLIER) * _bf("mercado.peso_alcance_social")
 		total += float(changes.get(inv.id, 0)) * voice
 	return total / PERCENT_SCALE * _bf("mercado.sentimiento_por_confianza")
 
 
 func _on_quarter_closed(quarter_number: int) -> void:
 	if _presented_quarter != quarter_number:
-		_run_presentation(_presentation_quality(_bf("mercado.preparacion_presentador_npc"),
-				_bi("mercado.aliados_presentador_npc"), _bf("mercado.reputacion_presentador_npc")))
+		_present_without_player()
 		_presented_quarter = quarter_number
 	_update_bad_quarter_streak(quarter_number)
 	if quarter_number % maxi(_cfg_int("calendar.quarters_per_year"), 1) == 0:
 		_pay_dividends()
-	EventBus.quarter_reported.emit(_fundamentals().duplicate(), _reported_figures().duplicate())
+	var real: Dictionary = get_quarter_real_figures(false)
+	var reported: Dictionary = get_quarter_reported_figures(false)
+	_q_real = {}
+	_q_days = 0
+	_q_last_day = maxi(_q_last_day, _today)
+	EventBus.quarter_reported.emit(real, reported)
+
+
+## Sin presentación del jugador: un NPC presenta (neutro) o, si el jugador es R28+, incomparecencia.
+func _present_without_player() -> void:
+	if PlayerState.get_rank() >= _cfg_int("board_pressure.applies_from_rank"):
+		var unprepared: float = float(get_preparation_levels().get(LEVEL_NONE, 0.0))
+		_run_presentation(_presentation_quality(unprepared, 0, PlayerState.get_reputation()),
+				PRESENTER_NO_SHOW)
+		return
+	_run_presentation(_presentation_quality(_bf("mercado.preparacion_presentador_npc"),
+			_bi("mercado.aliados_presentador_npc"), _bf("mercado.reputacion_presentador_npc")),
+			PRESENTER_NPC)
 
 
 func _update_bad_quarter_streak(quarter_number: int) -> void:
@@ -1049,16 +1522,57 @@ func _update_bad_quarter_streak(quarter_number: int) -> void:
 		_bad_quarters_streak += 1
 
 
-func _append_results_preview(out: Array[String], days_ahead: int) -> void:
+## Suma el beneficio real de la jornada a las cifras del trimestre (una vez por jornada).
+func _accumulate_day(day_number: int) -> void:
+	if day_number <= _q_last_day:
+		return
+	var f: Dictionary = _fundamentals()
+	for key: String in FIGURE_KEYS:
+		_q_real[key] = float(_q_real.get(key, 0.0)) + float(f.get(key, 0.0))
+	_q_days += 1
+	_q_last_day = day_number
+
+
+## Noticias conocidas por el jugador: [{headline_id, direction}] (R25 programadas; R28 resultados).
+func _known_upcoming(days_ahead: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var rank: int = PlayerState.get_rank()
+	if rank < _cfg_int("insider_detection.upcoming_news_min_rank"):
+		return out
+	for item: Dictionary in NewsFeed.get_scheduled_news(days_ahead):
+		if rank >= int(item.get("min_rank", 0)):
+			out.append({"headline_id": str(item.get("headline_id", "")),
+					"direction": _news_direction(item)})
+	if rank >= _cfg_int("shares.insider_information_min_rank"):
+		var preview: String = _results_preview(days_ahead)
+		if not preview.is_empty():
+			out.append({"headline_id": preview, "direction": int(RESULTS_DIRECTIONS[preview])})
+	return out
+
+
+## Sentido de una noticia programada: signo del sentimiento; si es neutro, del efecto en ingresos.
+static func _news_direction(item: Dictionary) -> int:
+	var sentiment: float = float(item.get("sentiment", 0.0))
+	if not is_zero_approx(sentiment):
+		return TRADE_BUY if sentiment > 0.0 else TRADE_SELL
+	var effects: Variant = item.get("effects", {})
+	var revenue: float = float((effects as Dictionary).get(REVENUE_EFFECT, NEUTRAL_MULTIPLIER)) \
+			if effects is Dictionary else NEUTRAL_MULTIPLIER
+	if is_equal_approx(revenue, NEUTRAL_MULTIPLIER):
+		return TRADE_ANY
+	return TRADE_BUY if revenue > NEUTRAL_MULTIPLIER else TRADE_SELL
+
+
+## Titular del sentido de los resultados si la presentación está a la vista (R28+).
+func _results_preview(days_ahead: int) -> String:
 	var days_left: int = get_presentation_day() - _today
 	var horizon: int = mini(days_ahead, _cfg_int("insider_detection.news_lead_days_max"))
 	if days_left < 0 or days_left > horizon or _presented_quarter == quarter_of(_today):
-		return
+		return ""
 	var deviation: float = get_figures_score() - OUTCOME_NEUTRAL
 	if absf(deviation) <= _bf("mercado.presentacion_banda_neutra"):
-		out.append(HEADLINE_RESULTS_INLINE)
-	else:
-		out.append(HEADLINE_RESULTS_BEAT if deviation > 0.0 else HEADLINE_RESULTS_MISS)
+		return HEADLINE_RESULTS_INLINE
+	return HEADLINE_RESULTS_BEAT if deviation > 0.0 else HEADLINE_RESULTS_MISS
 
 
 func _load_quarter_state(data: Dictionary) -> void:
@@ -1066,8 +1580,14 @@ func _load_quarter_state(data: Dictionary) -> void:
 	_presented_quarter = int(data.get("presented_quarter", 0))
 	_due_emitted_quarter = int(data.get("due_emitted_quarter", 0))
 	_expected_quarter_profit = float(data.get("expected_profit", 0.0))
-	var last: Variant = data.get("last_presentation", {})
-	_last_presentation = (last as Dictionary).duplicate(true) if last is Dictionary else {}
+	_last_presentation = _as_dict(data.get("last_presentation", {}))
+	_q_real = {}
+	var sums: Dictionary = _as_dict(data.get("q_real", {}))
+	for key: String in FIGURE_KEYS:
+		if sums.has(key):
+			_q_real[key] = float(sums[key])
+	_q_days = int(data.get("q_days", 0))
+	_q_last_day = int(data.get("q_last_day", _today - 1))
 
 
 # ═══ Privado: cartera e insider ═══════════════════════════════════════
@@ -1076,23 +1596,62 @@ func _reset_portfolio() -> void:
 	_player_shares = 0
 	_stake_shares = 0
 	_invested = 0.0
+	_broker_cash = 0
 	_dividends_paid = 0
 	_insider_ops.clear()
 	_insider_detections = 0
+	_proxies.clear()
+	_proxy_ops.clear()
 
 
+## Compra (proxy_id "" = a nombre del jugador). La operación informada se registra DESPUÉS de
+## ejecutarse (el volumen es el coste).
+func _buy(quantity: int, proxy_id: String) -> bool:
+	if quantity <= 0 or not can_trade() or get_buy_cost(quantity) > _broker_cash:
+		return false
+	var cost: int = get_buy_cost(quantity)
+	var informed: bool = is_trade_informed(TRADE_BUY)
+	_add_shares(quantity, cost)
+	if informed:
+		_register_informed(cost, proxy_id)
+	return true
+
+
+func _sell(quantity: int, proxy_id: String) -> bool:
+	if quantity <= 0 or quantity > _player_shares or not can_trade():
+		return false
+	var proceeds: int = get_sell_proceeds(quantity)
+	var informed: bool = is_trade_informed(TRADE_SELL)
+	_invested -= _invested * float(quantity) / float(_player_shares)
+	_player_shares -= quantity
+	if _player_shares < _stake_shares:
+		_stake_shares = 0
+	_broker_cash += proceeds
+	if informed:
+		_register_informed(proceeds, proxy_id)
+	return true
+
+
+func _add_shares(quantity: int, cost: int) -> void:
+	_broker_cash -= cost
+	_player_shares += quantity
+	_invested += float(cost)
+
+
+func _register_informed(volume: int, proxy_id: String) -> void:
+	if proxy_id.is_empty():
+		register_insider_operation(volume)
+	else:
+		register_proxy_operation(proxy_id, volume)
+
+
+## Junta anual: el dividendo se abona en la cuenta de valores.
 func _pay_dividends() -> void:
 	var amount: int = get_dividend_income()
 	if amount <= 0:
 		return
 	_dividends_paid += amount
-	_settle_cash(amount, CASH_REASON_DIVIDENDS)
-
-
-## El capital es de PlayerState: se comunica el movimiento por la señal EXT (si existe).
-func _settle_cash(amount: int, reason: String) -> void:
-	if amount != 0 and EventBus.has_signal(CASH_SIGNAL):
-		EventBus.emit_signal(CASH_SIGNAL, amount, reason)
+	_broker_cash += amount
 
 
 func _insider_detection_disabled() -> bool:
@@ -1111,13 +1670,20 @@ func _prune_insider_ops() -> void:
 
 
 func _load_portfolio_state(data: Dictionary) -> void:
+	_reset_portfolio()
 	_player_shares = int(data.get("shares", 0))
 	_stake_shares = int(data.get("stake_shares", 0))
 	_invested = float(data.get("invested", 0.0))
+	_broker_cash = int(data.get("broker_cash", 0))
 	_dividends_paid = int(data.get("dividends_paid", 0))
 	_insider_detections = int(data.get("insider_detections", 0))
-	_insider_ops.clear()
 	for entry: Variant in data.get("insider_ops", []):
 		if entry is Dictionary:
 			_insider_ops.append({"day": int((entry as Dictionary).get("day", 0)),
 					"volume": int((entry as Dictionary).get("volume", 0))})
+	_proxies = _int_values(data.get("proxies", {}))
+	for entry: Variant in data.get("proxy_ops", []):
+		if entry is Dictionary:
+			var op: Dictionary = entry as Dictionary
+			_proxy_ops.append({"day": int(op.get("day", 0)), "npc_id": str(op.get("npc_id", "")),
+					"volume": int(op.get("volume", 0))})

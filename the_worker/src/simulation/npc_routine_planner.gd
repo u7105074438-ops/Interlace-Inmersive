@@ -256,13 +256,13 @@ func _add_random_trips(plan: Array, rule: Dictionary, activity: String, ctx: Dic
 	if rule.is_empty():
 		return
 	var rng: RandomNumberGenerator = ctx["rng"]
-	var work: Vector2i = _work_window(plan)
+	var work: Array[Vector2i] = _work_segments(plan)
 	var count: Array = rule.get("count", [0, 0])
 	var dur: Array = rule.get("duration_minutes", [0, 0])
 	for _i: int in rng.randi_range(int(count[0]), int(count[1])):
 		var length: int = rng.randi_range(int(dur[0]), int(dur[1]))
-		var start: int = rng.randi_range(work.x, maxi(work.x, work.y - length))
-		if work.y > work.x and _is_present(plan, start):
+		var start: int = _random_work_start(work, length, rng)
+		if start >= 0 and _is_present(plan, start):
 			_add_resolved(plan, start, start + length, str(rule.get("location", "")), activity,
 					KIND_MODIFIER, ctx, [])
 
@@ -271,16 +271,16 @@ func _add_random_trips(plan: Array, rule: Dictionary, activity: String, ctx: Dic
 func _add_slacking(plan: Array, ctx: Dictionary) -> void:
 	var rule: Dictionary = _modifiers.get("slacker", {})
 	var rng: RandomNumberGenerator = ctx["rng"]
-	var work: Vector2i = _work_window(plan)
+	var work: Array[Vector2i] = _work_segments(plan)
 	var hideouts: Array = rule.get("hideouts", [])
 	var per_day: Array = rule.get("absences_per_day", [0, 0])
 	var minutes: Array = rule.get("absence_minutes", [0, 0])
 	for _i: int in rng.randi_range(int(per_day[0]), int(per_day[1])):
 		var length: int = rng.randi_range(int(minutes[0]), int(minutes[1]))
-		var start: int = rng.randi_range(work.x, maxi(work.x, work.y - length))
+		var start: int = _random_work_start(work, length, rng)
 		var room: String = str(hideouts[rng.randi_range(0, hideouts.size() - 1)]) \
 				if not hideouts.is_empty() else ABSENT
-		if work.y > work.x and not room.is_empty() and _is_present(plan, start):
+		if start >= 0 and not room.is_empty() and _is_present(plan, start):
 			_add(plan, start, start + length, room, ACTIVITY_SLACKING, KIND_SLACK)
 
 
@@ -422,15 +422,24 @@ func _is_present(plan: Array, minute: int) -> bool:
 	return not iv.is_empty() and not str(iv["room"]).is_empty()
 
 
-## Ventana [primer inicio, último final] de los tramos de trabajo de la plantilla.
-func _work_window(plan: Array) -> Vector2i:
-	var window: Vector2i = Vector2i(MINUTES_PER_DAY, 0)
+## Tramos de trabajo de la plantilla (activity "work"): [inicio, fin) de cada uno.
+func _work_segments(plan: Array) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
 	for entry: Variant in plan:
 		var iv: Dictionary = entry
-		if str(iv["kind"]) == KIND_SEGMENT and str(iv["activity"]) == ACTIVITY_WORK:
-			window.x = mini(window.x, int(iv["start"]))
-			window.y = maxi(window.y, int(iv["end"]))
-	return window
+		if str(iv["kind"]) == KIND_SEGMENT and str(iv["activity"]) == ACTIVITY_WORK \
+				and int(iv["end"]) > int(iv["start"]):
+			out.append(Vector2i(int(iv["start"]), int(iv["end"])))
+	return out
+
+
+## Inicio al azar dentro de un tramo de trabajo para una salida de `length` minutos; -1 si no hay.
+static func _random_work_start(work: Array[Vector2i], length: int,
+		rng: RandomNumberGenerator) -> int:
+	if work.is_empty():
+		return -1
+	var seg: Vector2i = work[rng.randi_range(0, work.size() - 1)]
+	return rng.randi_range(seg.x, maxi(seg.x, seg.y - length))
 
 
 # ─── Índices ──────────────────────────────────────────────────

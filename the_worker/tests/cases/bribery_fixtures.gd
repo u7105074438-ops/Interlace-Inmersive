@@ -11,9 +11,9 @@ const DEFAULT_OCCUPATION := "email_worker_3b"
 const DEFAULT_ROOM := "wing_3b"
 
 
-## Monedero de prueba con la interfaz de PlayerState que usan Bribery, CaughtHandler y Blackmail.
+## Monedero de prueba (Bribery.Wallet) que usan Bribery, CaughtHandler y Blackmail.
 class FakeWallet:
-	extends RefCounted
+	extends Bribery.Wallet
 	var money: int = 0
 	var spent: Array[Dictionary] = []
 

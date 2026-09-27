@@ -9,7 +9,10 @@ extends Control
 ##   clock_speed float (multiplicador del reloj) · difficulty "interno"|"estandar"|"auditoria"
 ##   max_agents int · subtitles bool · music_volume 0..1 · sfx_volume 0..1
 ##   skip_seen_intro bool · opening_seen bool (bandera del perfil)
+##   run_difficulty "interno"|"estandar"|"auditoria" (bandera del perfil: preset de la partida en
+##   curso, lo escribe GameLaunch al empezarla; «difficulty» solo es el valor para la próxima)
 ## Valores por defecto: balance `menus.ajustes_por_defecto`. Lectura: SettingsMenu.get_value(key).
+## Volúmenes: además de fijar los buses, piden a AudioDirector refresh_settings() (Ambience y su caché).
 
 signal setting_changed(key: String, value: Variant)
 signal closed()
@@ -21,6 +24,8 @@ const PRESET_NAME_KEYS: Dictionary = {
 }
 const MUSIC_BUS := "Music"
 const SFX_BUS := "SFX"
+const AMBIENCE_BUS := "Ambience"
+const AUDIO_GROUP := "audio_director"
 const ROWS: Array[Dictionary] = [
 	{"section": "UI_SET_SECTION_DISPLAY"},
 	{"key": "language", "kind": "choice", "label": "UI_SET_LANGUAGE", "options": ["en", "es"],
@@ -98,6 +103,12 @@ static func get_string(key: String) -> String:
 	return str(v) if v != null else ""
 
 
+## Olvida la caché de sesión (tests: tras redirigir el almacenamiento de SaveSystem).
+static func clear_session_cache() -> void:
+	_session.clear()
+	MenuKit.invalidate_cache()
+
+
 ## Guarda un ajuste (sesión + SaveSystem) y lo aplica. Devuelve true si el perfil se escribió.
 static func set_value(key: String, value: Variant, persist: bool = true) -> bool:
 	_session[key] = value
@@ -121,6 +132,7 @@ static func load_and_apply() -> void:
 
 ## Efectos inmediatos de un ajuste. El resto (reloj, agentes, subtítulos...) lo leen sus sistemas.
 static func apply_setting(key: String, value: Variant) -> void:
+	MenuKit.invalidate_cache()
 	match key:
 		"language":
 			var locale: String = str(value) if LANGUAGES.has(str(value)) else LANGUAGES[0]
@@ -128,8 +140,19 @@ static func apply_setting(key: String, value: Variant) -> void:
 				TranslationServer.set_locale(locale)
 		"music_volume":
 			_set_bus_volume(MUSIC_BUS, value)
+			_refresh_audio_director()
 		"sfx_volume":
 			_set_bus_volume(SFX_BUS, value)
+			_set_bus_volume(AMBIENCE_BUS, value)
+			_refresh_audio_director()
+
+
+## AudioDirector cachea los volúmenes y gobierna el bus Ambience: que los relea ya.
+static func _refresh_audio_director() -> void:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	var director: Node = tree.get_first_node_in_group(AUDIO_GROUP) if tree != null else null
+	if director != null and director.has_method("refresh_settings"):
+		director.call("refresh_settings")
 
 
 static func _set_bus_volume(bus_name: String, value: Variant) -> void:
@@ -161,8 +184,10 @@ func _ready() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready() and _built_locale != TranslationServer.get_locale():
+	if what == NOTIFICATION_TRANSLATION_CHANGED and MenuKit.locale_outdated(self, _built_locale):
 		_rebuild.call_deferred()
+	elif what == NOTIFICATION_EXIT_TREE and SaveSystem.has_method("save_profile"):
+		SaveSystem.save_profile()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -171,7 +196,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		closed.emit()
 
 
+## Atrás (Esc o botón de Android, vía MainMenu).
+func go_back() -> void:
+	closed.emit()
+
+
 func _rebuild() -> void:
+	if not is_inside_tree():
+		return
 	for child: Node in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -195,7 +227,7 @@ func _build() -> void:
 func _restore_focus(fallback: Button) -> void:
 	var target: Control = find_child("Row_" + _focus_key, true, false) as Control
 	var first: Control = _first_focusable(target) if target != null else null
-	(first if first != null else fallback).grab_focus.call_deferred()
+	MenuKit.focus_later(first if first != null else fallback)
 
 
 func _first_focusable(node: Node) -> Control:
@@ -209,7 +241,7 @@ func _first_focusable(node: Node) -> Control:
 func _make_row(row: Dictionary) -> Control:
 	if row.has("section"):
 		var header: Label = MenuKit.label(tr(str(row["section"])).to_upper(), "TWSmall")
-		header.add_theme_color_override("font_color", MenuKit.color("gold").darkened(0.3))
+		header.add_theme_color_override("font_color", MenuKit.heading_color(MenuKit.color("gold").darkened(0.3)))
 		header.add_theme_font_override("font", MenuKit.font("bold"))
 		return header
 	var line: HBoxContainer = HBoxContainer.new()
@@ -247,7 +279,7 @@ func _segmented(key: String, options: Array, option_keys: Array) -> Control:
 	var group: ButtonGroup = ButtonGroup.new()
 	var current: Variant = get_value(key)
 	for i: int in options.size():
-		var b: Button = MenuKit.button(tr(str(option_keys[i])))
+		var b: Button = MenuKit.button(tr(str(option_keys[i])), "TWToggle")
 		b.name = "Opt_%d" % i
 		b.toggle_mode = true
 		b.button_group = group

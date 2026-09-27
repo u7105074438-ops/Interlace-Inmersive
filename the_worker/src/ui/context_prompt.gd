@@ -1,11 +1,11 @@
 # context_prompt.gd — Indicación contextual de acción en el centro inferior del HUD (§13.1).
-# PROPIETARIO DE: la acción contextual mostrada (clave de texto, argumentos e icono).
+# PROPIETARIO DE: la acción contextual mostrada (clave de texto, argumentos e icono) y su ocultación temporal.
 # ESCUCHA: nada.
 class_name ContextPrompt
 extends PanelContainer
 
-## Solo es visible cuando existe una acción disponible. En modo táctil se oculta la tecla
-## (el botón contextual grande de VirtualControls lleva el icono).
+## Solo es visible cuando existe una acción disponible (y nada la tapa: set_suppressed). En modo
+## táctil se oculta la tecla (el botón contextual grande de VirtualControls lleva el icono).
 
 const ACTION := "interact"
 
@@ -13,6 +13,7 @@ var _prompt_key: String = ""
 var _icon_id: String = "target"
 var _args: Array = []
 var _touch_mode: bool = false
+var _suppressed: bool = false
 var _keycap: PanelContainer
 var _key_label: Label
 var _icon: UITheme.IconView
@@ -44,6 +45,7 @@ func _build() -> void:
 	row.add_child(_icon)
 	_label = Label.new()
 	_label.theme_type_variation = UITheme.V_STRONG
+	_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	row.add_child(_label)
 
 
@@ -61,9 +63,7 @@ func show_action(prompt_key: String, icon_id: String = "target", args: Array = [
 	_key_label.text = key_text(ACTION)
 	_icon.set_icon(_icon_id)
 	_label.text = UITheme.trf(_prompt_key, _args)
-	visible = not _prompt_key.is_empty()
-	if visible and not was_visible:
-		_animate_in()
+	_update_visibility(was_visible)
 
 
 func hide_action() -> void:
@@ -71,8 +71,27 @@ func hide_action() -> void:
 	visible = false
 
 
+## Hay una acción disponible (aunque esté oculta temporalmente por set_suppressed).
 func has_action() -> bool:
-	return visible and not _prompt_key.is_empty()
+	return not _prompt_key.is_empty()
+
+
+## Visible en pantalla ahora mismo.
+func is_shown() -> bool:
+	return visible
+
+
+## Oculta la indicación mientras otro elemento ocupa su sitio (barra inferior táctil abierta).
+func set_suppressed(on: bool) -> void:
+	var was_visible: bool = visible
+	_suppressed = on
+	_update_visibility(was_visible)
+
+
+func _update_visibility(was_visible: bool) -> void:
+	visible = not _prompt_key.is_empty() and not _suppressed
+	if visible and not was_visible:
+		_animate_in()
 
 
 func get_prompt_key() -> String:
@@ -85,6 +104,10 @@ func get_icon_id() -> String:
 
 func get_text() -> String:
 	return _label.text
+
+
+func get_args() -> Array:
+	return _args.duplicate()
 
 
 func set_touch_mode(on: bool) -> void:

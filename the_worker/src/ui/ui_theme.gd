@@ -52,7 +52,7 @@ const RATIO_CLOCK := 2.1
 const RATIO_NUMBER := 1.55
 const RATIO_TITLE := 1.45
 const RATIO_HEADING := 1.12
-const RATIO_CAPTION := 0.72
+const RATIO_CAPTION := 0.78
 const RATIO_SMALL := 0.84
 const RATIO_MONO := 0.72
 const RATIO_ICON := 1.15
@@ -60,10 +60,18 @@ const RATIO_BAR_W := 11.0
 const RATIO_BAR_H := 0.5
 const RATIO_SLOT := 4.4
 const RATIO_GAP := 0.5
+## Acento de banda sobre paneles oscuros: brillo mínimo (HSV), realce de saturación y luminancia mínima.
+const ACCENT_MIN_VALUE := 0.82
+const ACCENT_SATURATION_BOOST := 1.35
+const ACCENT_MIN_LUMINANCE := 0.55
+## Inclinación de la cursiva sintética (subtítulos de ambiente).
+const ITALIC_SKEW := 0.2
 
 ## Tamaño de texto y contraste vigentes (los fija build(); otras piezas pueden consultarlos).
 static var current_text_size: int = TEXT_MEDIUM
 static var current_high_contrast: bool = false
+## Modo táctil activo: el tamaño base se multiplica por interfaz.escala_texto_tactil (pantalla móvil).
+static var touch_scale_active: bool = false
 static var _fonts: Dictionary = {}
 static var _json_cache: Dictionary = {}
 
@@ -123,7 +131,10 @@ static func base_font_size(text_size: int) -> int:
 	var sizes: Array = tune_array("interfaz.texto_base_por_nivel")
 	if sizes.is_empty():
 		return ThemeDB.fallback_font_size
-	return int(sizes[clampi(text_size, 0, sizes.size() - 1)])
+	var base: float = float(sizes[clampi(text_size, 0, sizes.size() - 1)])
+	if touch_scale_active:
+		base *= maxf(tune("interfaz.escala_texto_tactil"), 1.0)
+	return roundi(base)
 
 
 ## Nivel de texto por defecto: grande en móvil (crítico en pantalla reducida, §13.10).
@@ -241,8 +252,10 @@ static func _button_styles(t: Theme, type_name: String, bg: Color, hover: Color,
 	t.set_stylebox("hover", type_name, _box(hover, pal["paper"], border, 9, pad_h, pad_v, Color.TRANSPARENT))
 	t.set_stylebox("pressed", type_name, _box(bg.darkened(0.2), pal["paper"], border, 9, pad_h, pad_v,
 			Color.TRANSPARENT))
-	var disabled_bg: Color = Color(bg, bg.a * 0.45)
-	t.set_stylebox("disabled", type_name, _box(disabled_bg, Color(border_color, 0.4), border, 9, pad_h, pad_v,
+	# Desactivado siempre neutro (gris): un botón peligroso apagado no debe seguir pareciendo rojo.
+	var disabled_bg: Color = Color(pal["button"], 0.5) if bg.a > 0.0 else bg
+	var disabled_line: Color = Color(pal["faint"], 0.5) if border > 0 else border_color
+	t.set_stylebox("disabled", type_name, _box(disabled_bg, disabled_line, border, 9, pad_h, pad_v,
 			Color.TRANSPARENT))
 	var focus: StyleBoxFlat = _box(Color.TRANSPARENT, pal["focus"], 3, 10, pad_h, pad_v, Color.TRANSPARENT)
 	focus.draw_center = false
@@ -289,6 +302,58 @@ static func _box(bg: Color, border: Color, border_w: int, radius: int, pad_h: fl
 	return sb
 
 
+# ─── Ajuste de tamaño de controles anclados ───────────────────────
+
+## Ajusta los offsets de un control anclado a su tamaño mínimo respetando su dirección de
+## crecimiento (los Control crecen solos pero nunca encogen: esto lo corrige).
+static func fit_to_min(ctrl: Control) -> void:
+	if not is_instance_valid(ctrl):
+		return
+	var m: Vector2 = ctrl.get_combined_minimum_size()
+	match ctrl.grow_horizontal:
+		Control.GROW_DIRECTION_BEGIN:
+			ctrl.offset_left = ctrl.offset_right - m.x
+		Control.GROW_DIRECTION_END:
+			ctrl.offset_right = ctrl.offset_left + m.x
+		_:
+			var cx: float = (ctrl.offset_left + ctrl.offset_right) * 0.5
+			ctrl.offset_left = cx - m.x * 0.5
+			ctrl.offset_right = cx + m.x * 0.5
+	match ctrl.grow_vertical:
+		Control.GROW_DIRECTION_BEGIN:
+			ctrl.offset_top = ctrl.offset_bottom - m.y
+		Control.GROW_DIRECTION_END:
+			ctrl.offset_bottom = ctrl.offset_top + m.y
+		_:
+			var cy: float = (ctrl.offset_top + ctrl.offset_bottom) * 0.5
+			ctrl.offset_top = cy - m.y * 0.5
+			ctrl.offset_bottom = cy + m.y * 0.5
+
+
+## Mantiene el control ajustado a su tamaño mínimo cada vez que este cambie.
+static func keep_fitted(ctrl: Control) -> void:
+	var refit: Callable = _deferred_fit.bind(ctrl)
+	if not ctrl.minimum_size_changed.is_connected(refit):
+		ctrl.minimum_size_changed.connect(refit)
+	_deferred_fit(ctrl)
+
+
+static func _deferred_fit(ctrl: Control) -> void:
+	fit_to_min.call_deferred(ctrl)
+
+
+## Centra un control en la pantalla y lo mantiene centrado y ajustado (ventanas modales).
+static func center_fitted(ctrl: Control) -> void:
+	ctrl.set_anchors_preset(Control.PRESET_CENTER)
+	ctrl.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	ctrl.grow_vertical = Control.GROW_DIRECTION_BOTH
+	ctrl.offset_left = 0.0
+	ctrl.offset_right = 0.0
+	ctrl.offset_top = 0.0
+	ctrl.offset_bottom = 0.0
+	keep_fitted(ctrl)
+
+
 # ─── Fuentes ───────────────────────────────────────────────────────
 
 ## Fuente del directorio assets/fonts (OFL); si falta, la del motor.
@@ -319,6 +384,31 @@ static func spaced(base_font: Font) -> Font:
 	fv.base_font = base_font
 	fv.spacing_glyph = 1
 	return fv
+
+
+## Variante cursiva sintética (inclinación de los glifos): distingue por forma, no solo por color.
+static func italic(base_font: Font) -> Font:
+	var key: String = "italic:%d" % base_font.get_instance_id()
+	if _fonts.has(key):
+		return _fonts[key]
+	var fv: FontVariation = FontVariation.new()
+	fv.base_font = base_font
+	fv.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(ITALIC_SKEW, 1.0), Vector2.ZERO)
+	_fonts[key] = fv
+	return fv
+
+
+## Pulsación principal (clic izquierdo o toque) sin duplicados: con la emulación de ratón desde
+## el táctil activa (ajuste del proyecto), un toque llega también como clic emulado y solo cuenta este.
+static func is_primary_press(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		return (event as InputEventScreenTouch).pressed and not touch_emulates_mouse()
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	return mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
+
+
+static func touch_emulates_mouse() -> bool:
+	return bool(ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", true))
 
 
 # ─── Ajustes (balance.json, sección interfaz) ──────────────────────
@@ -416,9 +506,11 @@ static func band_accent_for_floor(floor_number: int) -> Color:
 	var pal: Dictionary = band_palette_for_floor(floor_number)
 	if current_high_contrast or not pal.has("accent"):
 		return color("accent")
-	var c: Color = Color(str(pal["accent"]))
-	while c.get_luminance() < 0.42:
-		c = c.lightened(0.15)
+	var src: Color = Color(str(pal["accent"]))
+	var c: Color = Color.from_hsv(src.h, clampf(src.s * ACCENT_SATURATION_BOOST, 0.0, 1.0),
+			maxf(src.v, ACCENT_MIN_VALUE))
+	while c.get_luminance() < ACCENT_MIN_LUMINANCE:
+		c = c.lightened(0.12)
 	return c
 
 
@@ -462,13 +554,40 @@ static func trf(key: String, args: Array = []) -> String:
 
 # ─── Iconos por contexto ───────────────────────────────────────────
 
+## Tipo de interactivo (datos de sala, tránsitos de FloorLayout, HidingSpot) → glifo del botón de acción.
 const INTERACT_ICONS: Dictionary = {
-	"door": "door", "elevator": "elevator", "stairs": "stairs", "service_stairs": "stairs",
-	"freight": "elevator", "vent_hatch": "hide", "hiding_spot": "hide", "hide": "hide",
-	"computer": "computer", "npc_computer": "computer", "talk": "talk", "npc": "talk",
-	"bed": "sleep", "sleep": "sleep", "lock": "lock", "drawer": "take", "pickup": "take",
-	"take": "take", "trash": "trash", "trash_dock": "trash", "card_reader": "card",
-	"phone": "phone", "map": "map", "shop": "cash", "vending": "food", "copier": "document",
+	"door": "door", "exit": "door", "bus_stop": "door", "turnstile": "card", "card_reader": "card",
+	"elevator": "elevator", "freight": "elevator", "elevator_panel": "elevator", "freight_panel": "elevator",
+	"stairs": "stairs", "service_stairs": "stairs", "stairs_door": "stairs", "service_stairs_door": "stairs",
+	"vent_hatch": "hide", "hiding_spot": "hide", "hide": "hide", "smoking_spot": "talk",
+	"computer": "computer", "npc_computer": "computer", "monitor_console": "camera",
+	"training_screen": "computer", "backup_unit": "computer",
+	"talk": "talk", "npc": "talk", "police_desk": "talk", "interrogation_table": "talk",
+	"board_table": "talk", "aurora_podium": "talk", "results_stage": "talk",
+	"bed": "sleep", "sleep": "sleep", "lock": "lock", "lock_old": "lock", "safe": "safe",
+	"drawer": "take", "desk": "take", "pickup": "take", "take": "take", "carrier_bay": "take",
+	"trash": "trash", "trash_dock": "trash", "trash_chute": "trash", "eavesdrop_point": "ear",
+	"phone": "phone", "map": "map", "shop": "cash", "shop_counter": "cash", "vending": "food",
+	"food_fridge": "food", "kitchen_food": "food", "lunch_counter": "food", "coffee_machine_use": "food",
+	"copier": "document", "copier_memory": "document", "archive_files": "document",
+	"personnel_files": "document", "design_archive": "document", "delivery_notes": "document",
+	"mail_sorting": "document", "notary_desk": "document", "forgery_station": "supplies",
+	"supply_shelf": "supplies", "cleaning_supplies": "supplies", "cleaning_cart": "supplies",
+	"product_shelf": "product", "demo_table": "product", "uniform_locker": "uniform",
+	"tool_rack": "tool", "repair_bench": "tool", "machine_controls": "tool", "mold_station": "tool",
+	"car_sabotage": "tool", "electrical_breaker": "tool", "alarm_panel": "tool",
+	"chemical_station": "hazard", "roof_ledge": "hazard", "medical_cabinet": "plus",
+}
+## Reglas por sufijo para tipos no listados (p. ej. "payroll_terminal" → ordenador).
+const INTERACT_SUFFIX_ICONS: Dictionary = {
+	"_terminal": "computer", "_console": "computer", "_safe": "safe", "_files": "document",
+	"_door": "door", "_locker": "uniform", "_shelf": "supplies", "_panel": "tool",
+}
+const ITEM_ID_ICONS: Dictionary = {
+	"phone": "phone", "phone_highend": "phone", "laptop_highend": "computer",
+	"office_equipment": "computer", "footage_copy": "camera", "watch_luxury": "clock",
+	"lockpick": "key", "master_keys": "key", "guard_keys": "key", "security_master_key": "key",
+	"balaclava": "hide", "wallet": "cash", "company_cash": "cash", "cash_envelope": "cash",
 }
 const ITEM_KIND_ICONS: Dictionary = {
 	"key": "key", "tool": "tool", "card": "card", "food": "food", "supplies": "supplies",
@@ -479,11 +598,23 @@ const ITEM_KIND_ICONS: Dictionary = {
 
 
 static func icon_for_interact_type(interact_type: String) -> String:
-	return str(INTERACT_ICONS.get(interact_type, "target"))
+	if INTERACT_ICONS.has(interact_type):
+		return str(INTERACT_ICONS[interact_type])
+	for suffix: String in INTERACT_SUFFIX_ICONS:
+		if interact_type.ends_with(suffix):
+			return str(INTERACT_SUFFIX_ICONS[suffix])
+	return "target"
 
 
 static func icon_for_item_kind(kind: String) -> String:
 	return str(ITEM_KIND_ICONS.get(kind, "document"))
+
+
+## Icono de un objeto: primero por id (ITEM_ID_ICONS), después por tipo ("kind" del catálogo).
+static func icon_for_item(item_id: String, kind: String) -> String:
+	if ITEM_ID_ICONS.has(item_id):
+		return str(ITEM_ID_ICONS[item_id])
+	return icon_for_item_kind(kind)
 
 
 # ─── Dibujo vectorial de iconos (trazo plano, extremos redondeados) ─
@@ -537,6 +668,8 @@ static func _icons_actions(c: CanvasItem, icon: String, r: Rect2, col: Color, w:
 		"sleep": _icon_sleep(c, r, col, w)
 		"lock": _icon_lock(c, r, col, w)
 		"trash": _icon_trash(c, r, col, w)
+		"safe": _icon_safe(c, r, col, w)
+		"ear": _icon_ear(c, r, col, w)
 		_:
 			return false
 	return true
@@ -564,8 +697,8 @@ static func _icons_items(c: CanvasItem, icon: String, r: Rect2, col: Color, w: f
 
 static func _icons_misc(c: CanvasItem, icon: String, r: Rect2, col: Color, w: float) -> bool:
 	match icon:
-		"sneak": _icon_feet(c, r, col)
-		"crouch": _icon_chevrons(c, r, col, w, true)
+		"sneak": _icon_sneak(c, r, col, w)
+		"crouch": _icon_crouch(c, r, col, w)
 		"sprint": _icon_chevrons(c, r, col, w, false)
 		"chevron_down": _poly(c, r, [0.24, 0.38, 0.5, 0.64, 0.76, 0.38], col, w)
 		"chevron_up": _poly(c, r, [0.24, 0.62, 0.5, 0.36, 0.76, 0.62], col, w)
@@ -633,7 +766,11 @@ static func rounded_rect_points(rect: Rect2, radius: float, segments: int = 6) -
 		var start_angle: float = -PI * 0.5 + k * PI * 0.5
 		for s: int in segments + 1:
 			var a: float = start_angle + (PI * 0.5) * float(s) / segments
-			out.append(corners[k] + Vector2(cos(a), sin(a)) * rad)
+			var point: Vector2 = corners[k] + Vector2(cos(a), sin(a)) * rad
+			if out.is_empty() or not out[out.size() - 1].is_equal_approx(point):
+				out.append(point)
+	if out.size() > 1 and out[0].is_equal_approx(out[out.size() - 1]):
+		out.remove_at(out.size() - 1)
 	return out
 
 
@@ -817,8 +954,8 @@ static func _icon_key(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:
 
 
 static func _icon_tool(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:
-	_fill(c, r, [0.16, 0.12, 0.72, 0.12, 0.72, 0.32, 0.16, 0.32], col)
-	_line(c, r, 0.46, 0.32, 0.46, 0.92, col, w * 1.6)
+	_line(c, r, 0.16, 0.84, 0.54, 0.46, col, w * 2.0)
+	c.draw_arc(_p(r, 0.66, 0.34), 0.2 * r.size.x, deg_to_rad(80.0), deg_to_rad(370.0), 24, col, w * 1.6, true)
 
 
 static func _icon_card(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:
@@ -890,9 +1027,47 @@ static func _icon_person(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:
 	c.draw_arc(_p(r, 0.5, 0.94), 0.34 * r.size.x, PI, TAU, 24, col, w, true)
 
 
-static func _icon_feet(c: CanvasItem, r: Rect2, col: Color) -> void:
-	c.draw_colored_polygon(ellipse_points(_p(r, 0.34, 0.64), 0.12 * r.size.x, 0.2 * r.size.y), col)
-	c.draw_colored_polygon(ellipse_points(_p(r, 0.66, 0.34), 0.12 * r.size.x, 0.2 * r.size.y), col)
+## Huellas de pies descalzos (planta + dedos), una adelantada: sigilo.
+static func _icon_sneak(c: CanvasItem, r: Rect2, col: Color, _w: float) -> void:
+	_footprint(c, r, Vector2(0.31, 0.68), col)
+	_footprint(c, r, Vector2(0.69, 0.3), col)
+
+
+static func _footprint(c: CanvasItem, r: Rect2, at: Vector2, col: Color) -> void:
+	c.draw_colored_polygon(ellipse_points(_p(r, at.x, at.y + 0.05), 0.125 * r.size.x, 0.18 * r.size.y), col)
+	var toes: Array[Vector3] = [Vector3(-0.09, -0.19, 0.05), Vector3(-0.025, -0.215, 0.043),
+			Vector3(0.035, -0.205, 0.037), Vector3(0.085, -0.175, 0.031)]
+	for toe: Vector3 in toes:
+		_dot(c, r, at.x + toe.x, at.y + toe.y, toe.z, col)
+
+
+## Figura agachada: espalda doblada y rodillas flexionadas sobre una línea de suelo.
+static func _icon_crouch(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:
+	var s: float = w * 1.25
+	_dot(c, r, 0.34, 0.3, 0.1, col)
+	_poly(c, r, [0.42, 0.42, 0.62, 0.52, 0.66, 0.62], col, s)
+	_poly(c, r, [0.66, 0.62, 0.42, 0.7, 0.5, 0.86], col, s)
+	_poly(c, r, [0.66, 0.62, 0.8, 0.74, 0.76, 0.86], col, s)
+	_line(c, r, 0.47, 0.46, 0.36, 0.64, col, s)
+	_line(c, r, 0.12, 0.93, 0.88, 0.93, col, w)
+
+
+## Caja fuerte: cuerpo, rueda de combinación y bisagras.
+static func _icon_safe(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:
+	_rrect(c, r, Rect2(0.1, 0.1, 0.8, 0.74), col, w, 0.08)
+	_ring(c, r, 0.5, 0.47, 0.19, col, w)
+	_dot(c, r, 0.5, 0.47, 0.05, col)
+	_line(c, r, 0.5, 0.28, 0.5, 0.36, col, w * 0.8)
+	_line(c, r, 0.2, 0.84, 0.2, 0.94, col, w)
+	_line(c, r, 0.8, 0.84, 0.8, 0.94, col, w)
+
+
+## Oreja (puntos de escucha).
+static func _icon_ear(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:
+	c.draw_arc(_p(r, 0.52, 0.4), 0.3 * r.size.x, PI * 0.95, TAU + PI * 0.3, 28, col, w, true)
+	_poly(c, r, [0.78, 0.55, 0.62, 0.72, 0.58, 0.88, 0.42, 0.92, 0.34, 0.84], col, w)
+	c.draw_arc(_p(r, 0.52, 0.42), 0.12 * r.size.x, PI, TAU + PI * 0.25, 16, col, w * 0.8, true)
+	_line(c, r, 0.4, 0.42, 0.46, 0.6, col, w * 0.8)
 
 
 static func _icon_chevrons(c: CanvasItem, r: Rect2, col: Color, w: float, down: bool) -> void:
@@ -911,14 +1086,11 @@ static func _icon_speaker(c: CanvasItem, r: Rect2, col: Color, w: float) -> void
 
 
 static func _icon_moon(c: CanvasItem, r: Rect2, col: Color) -> void:
-	var pts: PackedVector2Array = PackedVector2Array()
-	for s: int in 17:
-		var a: float = PI * 0.35 + (PI * 1.3) * float(s) / 16.0
-		pts.append(_p(r, 0.5 + cos(a) * 0.4, 0.5 + sin(a) * 0.4))
-	for s: int in range(16, -1, -1):
-		var a: float = PI * 0.35 + (PI * 1.3) * float(s) / 16.0
-		pts.append(_p(r, 0.66 + cos(a) * 0.3, 0.42 + sin(a) * 0.3))
-	c.draw_colored_polygon(pts, col)
+	var outer: PackedVector2Array = ellipse_points(_p(r, 0.46, 0.54), 0.4 * r.size.x, 0.4 * r.size.y, 32)
+	var bite: PackedVector2Array = ellipse_points(_p(r, 0.66, 0.38), 0.32 * r.size.x, 0.32 * r.size.y, 32)
+	for piece: PackedVector2Array in Geometry2D.clip_polygons(outer, bite):
+		if piece.size() >= 3:
+			c.draw_colored_polygon(piece, col)
 
 
 static func _icon_plus(c: CanvasItem, r: Rect2, col: Color, w: float) -> void:

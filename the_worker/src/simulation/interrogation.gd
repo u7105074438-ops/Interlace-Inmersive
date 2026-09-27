@@ -14,12 +14,14 @@ extends RefCounted
 ##   var end := s.finish()                          # {success, total_weight, verdict}
 ## Las reglas puras son estáticas (rule_*). La sesión es código "manos" (BUILD_NOTES §2): aplica
 ## los efectos con la API pública de Security (retirar, duplicar o trasladar piezas, congelar el
-## caso) y de NPCDirector (agravio del acusado y de sus aliados), y emite interrogation_answered.
-## La subida de sospecha (+5 por silencio, +8 por negación rechazada, datos de
-## investigations.json) la aplica BeliefNet al escuchar interrogation_answered; la sesión la
-## acumula en get_suspicion_delta() y la descuenta ya dentro de la escena.
-## Contexto (todas opcionales; si faltan se leen del juego): reputation, suspicion,
-## alibi ({provider, genuine}), has_legal_contact, verification_roll (0-1, sustituye la tirada).
+## caso, quemar una coartada falsa), de NPCDirector (agravio del acusado y de sus ALIADOS:
+## amistad o pareja) y de BeliefNet (la subida de sospecha: +5 por silencio, +8 por negación
+## rechazada, investigations.json, como acta sellada del interrogatorio en el expediente), y
+## emite interrogation_answered. get_suspicion_delta() suma lo aplicado en la sesión.
+## Si Security no acepta abrir la escena (el caso no está en fase 4), la sesión nace terminada.
+## Contexto (todas opcionales; si faltan se leen del juego): reputation, suspicion (sin ella, la
+## efectiva de Security: la máxima si el jugador está marcado), alibi ({provider, genuine}),
+## has_legal_contact, verification_roll (0-1, sustituye la tirada).
 
 const ANSWER_DENY := "deny"
 const ANSWER_EXPLAIN := "explain"
@@ -46,13 +48,17 @@ const OUTCOME_REQUIREMENT_MISSING := "requirement_missing"
 const OUTCOME_NO_PIECE := "no_piece"
 
 const OUTCOME_KEY_PREFIX := "INTERROGATION_OUTCOME_"
-const B_DENY_DISCOUNT := "seguridad.interrogatorio_sospecha_descuenta_negar"
+## Multiplicador que deja el peso de una pieza como estaba.
+const NEUTRAL_MULTIPLIER := 1.0
 const B_ALLY_GRIEVANCE := "seguridad.gravedad_agravio_aliados"
 const B_ALLY_STRENGTH := "seguridad.fuerza_minima_aliado"
 const B_FREEZE_DAYS := "investigaciones.dias_congelacion_por_abogado"
 const GRIEVANCE_ACCUSED := "accused_in_interrogation"
 const GRIEVANCE_ALLY := "ally_accused"
 const SALT := "interrogation"
+## Acta del interrogatorio: registro documental del expediente (misma convención que la
+## «anotación en expediente» de DutySystem).
+const RECORD_STATEMENT := BeliefNetSystem.RECORD_STAMPED_DOCUMENT
 
 var case_id: String = ""
 var _rules: Dictionary = {}
@@ -63,6 +69,8 @@ var _index: int = 0
 var _ended: bool = false
 var _started: bool = false
 var _suspicion_delta: int = 0
+## Una coartada comprada que se verificó falsa ya no sirve en esta sesión.
+var _alibi_burned: bool = false
 var _log: Array[Dictionary] = []
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
@@ -88,7 +96,6 @@ static func load_rules() -> Dictionary:
 		"deny_reputation_above": float(_dig(deny, "removes_piece_if.reputation_above")),
 		"deny_weight_below": float(_dig(deny, "removes_piece_if.piece_weight_below")),
 		"deny_fail_suspicion": int(deny.get("on_failure_suspicion_delta", 0)),
-		"deny_discount_suspicion": Database.get_balance_float(B_DENY_DISCOUNT),
 		"false_alibi_multiplier": float(explain.get("false_alibi_weight_multiplier", 1.0)),
 		"alibi_verification_chance": float(explain.get("bought_alibi_verification_chance", 0.0)),
 		"accuse_grievance": int(accuse.get("grievance_severity", 0)),
@@ -99,6 +106,7 @@ static func load_rules() -> Dictionary:
 		"success_below": float(block.get("success_below_weight", 0.0)),
 		"apology_above": float(_dig(block, "tone.apology_if_reputation_above")),
 		"door_slam_above": float(_dig(block, "tone.door_slam_if_suspicion_above")),
+		"room": str(block.get("room", "")),
 		"intro_keys": block.get("intro_keys", {}),
 		"answer_keys": _answer_keys(answers),
 	}
@@ -131,13 +139,12 @@ static func opening_tone(reputation: float, suspicion: float, rules: Dictionary)
 	return TONE_NEUTRAL
 
 
-## Negar: retira la pieza si reputación > 60 y peso < 2,0 (§12.5), salvo que la sospecha
-## descuente los desmentidos (§7.10); si no, sube la sospecha.
-static func rule_deny(piece_weight: float, reputation: float, suspicion: float,
-		rules: Dictionary) -> Dictionary:
+## Negar (tabla §12.5 exacta, PASO 29): retira la pieza si reputación > 60 y peso < 2,0; si
+## no, sube la sospecha. (§7.10 «los desmentidos se descuentan» con sospecha alta ya lo recoge
+## la tabla: la sospecha alta abre el caso con pruebas que pesan y la reputación decide.)
+static func rule_deny(piece_weight: float, reputation: float, rules: Dictionary) -> Dictionary:
 	var believed: bool = reputation > float(rules["deny_reputation_above"]) \
-			and piece_weight < float(rules["deny_weight_below"]) \
-			and suspicion <= float(rules["deny_discount_suspicion"])
+			and piece_weight < float(rules["deny_weight_below"])
 	if believed:
 		return _result(OUTCOME_PIECE_REMOVED, {"remove": true})
 	return _result(OUTCOME_DENIAL_REJECTED,
@@ -184,7 +191,8 @@ static func is_success(total_weight: float, rules: Dictionary) -> bool:
 
 
 static func _result(outcome: String, fields: Dictionary) -> Dictionary:
-	var out: Dictionary = {"outcome": outcome, "remove": false, "weight_multiplier": 1.0,
+	var out: Dictionary = {"outcome": outcome, "remove": false,
+			"weight_multiplier": NEUTRAL_MULTIPLIER,
 			"new_subject": "", "suspicion_delta": 0, "freeze_days": 0, "grievance_severity": 0,
 			"consumes_turn": true}
 	out.merge(fields, true)
@@ -193,17 +201,17 @@ static func _result(outcome: String, fields: Dictionary) -> Dictionary:
 
 # ─── Sesión ───────────────────────────────────────────────────
 
-## Abre la escena: fija las piezas a presentar y avisa a Security (fase 4 en curso).
+## Abre la escena: avisa a Security (fase 4 en curso) y fija las piezas a presentar. Si el caso
+## no está en fase 4, la sesión termina sin presentar nada ({}).
 func start() -> Dictionary:
 	var inv: Investigation = Security.get_investigation(case_id)
 	_started = true
-	if inv == null:
+	if inv == null or not Security.begin_interrogation(case_id):
 		_ended = true
 		return {}
 	var player: String = InvestigationEngine.SUBJECT_PLAYER
 	for piece: Dictionary in InvestigationEngine.pieces_against(inv, player):
 		_queue.append(str(piece.get("record_id", "")))
-	Security.begin_interrogation(case_id)
 	return {"tone": get_opening_tone(), "intro_key": get_opening_key(),
 			"interrogator": Security.get_interrogator(case_id), "pieces": _queue.size()}
 
@@ -224,7 +232,7 @@ func get_rules() -> Dictionary:
 	return _rules.duplicate(true)
 
 
-## Respuestas utilizables ahora (explicar exige coartada; abogado exige contacto en P9).
+## Respuestas utilizables ahora (explicar exige coartada no quemada; abogado exige contacto en P9).
 func available_answers() -> Array[String]:
 	var out: Array[String] = [ANSWER_DENY]
 	if not _alibi().is_empty():
@@ -238,7 +246,7 @@ func available_answers() -> Array[String]:
 ## Pieza que el investigador tiene sobre la mesa ({} si ya no quedan).
 func current_piece() -> Dictionary:
 	var inv: Investigation = Security.get_investigation(case_id)
-	while inv != null and not _ended and _index < _queue.size():
+	while inv != null and _started and not _ended and _index < _queue.size():
 		var i: int = InvestigationEngine.find_piece(inv, _queue[_index])
 		if i >= 0:
 			return inv.evidence[i].duplicate()
@@ -293,7 +301,7 @@ func _resolve(answer_id: String, piece: Dictionary, accused: String) -> Dictiona
 	var weight: float = float(piece.get("weight", 0.0))
 	match answer_id:
 		ANSWER_DENY:
-			return rule_deny(weight, _reputation(), _suspicion(), _rules)
+			return rule_deny(weight, _reputation(), _rules)
 		ANSWER_EXPLAIN:
 			return rule_explain(_alibi(), _verification_roll(), _rules)
 		ANSWER_ACCUSE:
@@ -305,10 +313,12 @@ func _resolve(answer_id: String, piece: Dictionary, accused: String) -> Dictiona
 
 func _apply(result: Dictionary, piece: Dictionary) -> void:
 	var record_id: String = str(piece.get("record_id", ""))
-	_suspicion_delta += int(result["suspicion_delta"])
+	_raise_suspicion(int(result["suspicion_delta"]))
+	if str(result["outcome"]) == OUTCOME_ALIBI_FALSE:
+		_burn_alibi()
 	if bool(result["remove"]):
 		Security.remove_evidence(case_id, record_id, str(result["outcome"]))
-	elif float(result["weight_multiplier"]) != 1.0:
+	elif not is_equal_approx(float(result["weight_multiplier"]), NEUTRAL_MULTIPLIER):
 		Security.scale_evidence(case_id, record_id, float(result["weight_multiplier"]))
 	elif not str(result["new_subject"]).is_empty():
 		_apply_accusation(record_id, str(result["new_subject"]), int(result["grievance_severity"]))
@@ -319,21 +329,57 @@ func _apply(result: Dictionary, piece: Dictionary) -> void:
 func _apply_accusation(record_id: String, accused: String, severity: int) -> void:
 	Security.transfer_evidence(case_id, record_id, accused)
 	NPCDirector.add_grievance(accused, GRIEVANCE_ACCUSED, severity)
-	for ally: String in SocialGraph.get_neighbours(accused, float(_rules["ally_min_strength"])):
-		if ally != InvestigationEngine.SUBJECT_PLAYER:
-			NPCDirector.add_grievance(ally, GRIEVANCE_ALLY, int(_rules["ally_grievance"]))
+	for ally: String in accused_allies(accused, float(_rules["ally_min_strength"])):
+		NPCDirector.add_grievance(ally, GRIEVANCE_ALLY, int(_rules["ally_grievance"]))
+
+
+## «Hostilidad de sus aliados» (§12.5): vínculos de amistad o pareja del acusado
+## (NPCDirectorSystem.ALLY_LINK_TYPES, los mismos que usa NPCDirector) con la fuerza mínima;
+## rivales, jerarquía y departamento no son aliados.
+static func accused_allies(accused: String, min_strength: float) -> Array[String]:
+	var out: Array[String] = []
+	for other: String in SocialGraph.get_neighbours(accused, min_strength):
+		if other != InvestigationEngine.SUBJECT_PLAYER \
+				and NPCDirectorSystem.ALLY_LINK_TYPES.has(SocialGraph.get_link_type(accused, other)):
+			out.append(other)
+	return out
+
+
+## Aplica al juego la subida de sospecha (§12.5): acta sellada en el expediente (registro de
+## BeliefNet en la sala de interrogatorios) con el peso que aporta exactamente `points` puntos
+## (BeliefNet.weight_for_suspicion_points: los registros los sostiene el archivo, con la
+## credibilidad por defecto y certeza plena; create_record nunca crea registros neutros).
+func _raise_suspicion(points: int) -> void:
+	if points <= 0:
+		return
+	var weight: float = BeliefNet.weight_for_suspicion_points(float(points),
+			Investigation.FULL_CERTAINTY)
+	BeliefNet.create_record(RECORD_STATEMENT, InvestigationEngine.SUBJECT_PLAYER, weight,
+			str(_rules["room"]))
+	_suspicion_delta += points
+
+
+## Coartada comprada descubierta: no vuelve a servir (ni en esta sesión ni en el caso).
+func _burn_alibi() -> void:
+	var provider: String = str(_alibi().get("provider", ""))
+	_alibi_burned = true
+	if not provider.is_empty():
+		Security.discard_alibi(case_id, provider)
 
 
 func _reputation() -> float:
 	return float(_context.get("reputation", PlayerState.get_reputation()))
 
 
-## La sospecha de la escena incluye lo que las respuestas ya han sumado.
+## La del contexto o la efectiva de Security (máxima mientras el jugador está marcado). Lo que
+## suben las respuestas ya llega a BeliefNet y de ahí a Security (suspicion_changed).
 func _suspicion() -> float:
-	return float(_context.get("suspicion", Security.get_known_suspicion())) + _suspicion_delta
+	return float(_context.get("suspicion", Security.get_effective_suspicion()))
 
 
 func _alibi() -> Dictionary:
+	if _alibi_burned:
+		return {}
 	if _context.has("alibi"):
 		return _context["alibi"]
 	return Security.get_alibi(case_id)

@@ -1,5 +1,5 @@
-# bribery.gd — Sobornos (§8.2): precio justo, probabilidad de aceptación, rechazo y canales.
-# PROPIETARIO DE: nada (librería sin estado; dinero, creencias y material de chantaje pertenecen a sus dueños).
+# bribery.gd — Sobornos (§8.2): precio justo, probabilidad de aceptación, rechazo, contraoferta y canales.
+# PROPIETARIO DE: nada (librería sin estado; dinero, creencias, registro y material de chantaje pertenecen a sus dueños).
 # ESCUCHA: nada.
 class_name Bribery
 extends RefCounted
@@ -7,14 +7,35 @@ extends RefCounted
 ## Uso principal: Bribery.offer(npc, cantidad, favor, canal, ctx) → Dictionary de resultado.
 ## Emite bribe_offered, crime_committed("bribe"), bribe_result y, si hay denuncia, game_over.
 ## ctx (todo opcional; lo que falta se lee de los autoloads):
-##   wallet: Object con can_afford(int) -> bool y spend_money(int, String) -> bool (PlayerState)
+##   wallet: Bribery.Wallet (por defecto, el dinero de PlayerState)
 ##   reputation, suspicion (0–100) · affection, debt (registro del personaje)
 ##   rank_relation: RANK_PLAYER_SUPERIOR (+1), RANK_NPC_SUPERIOR (−1) o RANK_NONE (0)
-##   daily_wage, price_modifier (registro), difficulty_modifier (preset) · asked_price
-##   (contraoferta pendiente: ofrecer ≥ asked_price se acepta) · room_id, day, hour
-##   listeners (llamada: ids en radio de escucha) · witnesses / cameras (en persona: ids)
-##   crime_type (flagrancia) · roll / counter_roll (0–1: tiradas fijas, p. ej. en pruebas)
-## Sin ctx["roll"], la tirada es determinista: semilla de partida + personaje + oferta + hora.
+##   daily_wage, price_modifier (registro), difficulty_modifier (preset) · room_id, day, hour
+##   counteroffer: la ficha que devolvió una contraoferta previa (ver abajo)
+##   listeners (llamada: ids en radio de escucha) · witnesses (en persona e inmediato: ids)
+##   cameras (en persona: ids) · crime_type (flagrancia) · roll / counter_roll (tiradas fijas)
+## DECISIONES (contrato para el resto de sistemas):
+##  · Precio justo = salario diario × multiplicador del favor × registro (§7.9) × preset de
+##    dificultad (precio_soborno, §15.7) × (1 + sobornos.mod_precio_por_sospecha × sospecha/100)
+##    (§7.10: la sospecha encarece). Con sospecha 0 coincide con
+##    NPCDirector.get_fair_bribe_price(). Salario: NPCDirector.get_daily_wage() para la
+##    plantilla (ocupación o puesto no jugable); fuera de ella, ocupación → daily_wage/role del
+##    nominado → media del escalón.
+##  · P = 0 si codicia < 20 y lealtad > 80 (§8.2) o si el arquetipo está en
+##    sobornos.arquetipos_insobornables (§8.1: el incorruptible es nulo «por definición», aunque la
+##    variación ±15 lo saque de la regla de rasgos). Nada lo salta: tampoco una contraoferta.
+##  · Una tirada por personaje, favor y jornada (semilla de partida): cambiar la cantidad o esperar
+##    no vuelve a tirar; ofrecer más solo sube P.
+##  · Contraoferta: resultado["counteroffer"] = ficha {npc_id, favour, asked_price, day, rounds}.
+##    Devuelta en ctx["counteroffer"] (mismo personaje, mismo favor, misma jornada ±
+##    sobornos.jornadas_validez_contraoferta, precio ≥ 1,3 × el justo actual): oferta ≥ precio
+##    pedido → aceptada sin tirada; menor → repite su precio (otra ronda) y, pasadas
+##    sobornos.max_contraofertas rondas, rechazo neutro. Cada contraoferta cuesta: creencia
+##    "bribe_attempt:countered" del personaje (se refuerza en cada ronda).
+##  · Canales: chat → registro chat_log (peso creencias.peso_tipo.chat_log); llamada → cada
+##    oyente de ctx.listeners recibe "bribe_attempt:overheard"; en persona → testigos
+##    ("bribe_attempt:witnessed") y cámaras (Security.register_camera_footage); inmediato → favor
+##    silence_witnessed forzado y los testigos de la flagrancia también lo ven.
 
 const PLAYER_ID := "player"
 const FAVOUR_SILENCE := "silence_witnessed"
@@ -36,6 +57,7 @@ const OUTCOME_TEXT_KEYS: Dictionary = {
 	OUTCOME_NEUTRAL: "BRIBE_OUTCOME_NEUTRAL", OUTCOME_NO_FUNDS: "BRIBE_OUTCOME_INSUFFICIENT_FUNDS",
 	OUTCOME_INVALID: "BRIBE_OUTCOME_INVALID",
 }
+const TEXT_INSULTED := "BRIBE_OUTCOME_INSULTED"
 
 const EFFECT_PAID := "paid"
 const EFFECT_DIGITAL_RECORD := "digital_record"
@@ -43,6 +65,7 @@ const EFFECT_OVERHEARD := "overheard"
 const EFFECT_WITNESSED := "witnessed"
 const EFFECT_CAMERA := "camera"
 const EFFECT_INSULTED := "insulted"
+const EFFECT_COUNTERED := "countered"
 const EFFECT_BLACKMAIL := "blackmail_material"
 
 const RANK_PLAYER_SUPERIOR := 1
@@ -53,17 +76,43 @@ const CAUSE_DENOUNCED := "bribe_denounced"
 const CRIME_BRIBE := "bribe"
 const MONEY_REASON := "bribe"
 const DIFFICULTY_KEY := "precio_soborno"
-const DIRECTOR_PRICE_METHOD := "get_bribe_price_modifier"
-const TRACKING_CAUSE_METHOD := "evaluate_ending_for_cause"
 ## Hechos con la convención de BeliefNet "<tipo>:<detalle>" (peso en creencias.peso_tipo).
 const FACT_REFUSED := "bribe_attempt:refused"
 const FACT_INSULTED := "bribe_attempt:insulting"
 const FACT_REMEMBERED := "bribe_attempt:remembered"
 const FACT_OVERHEARD := "bribe_attempt:overheard"
 const FACT_WITNESSED := "bribe_attempt:witnessed"
+const FACT_COUNTERED := "bribe_attempt:countered"
 const RECORD_CHAT := "chat_log"
 const SOURCE_DIRECT := "direct"
 const PERCENT := 100.0
+
+## Ficha de contraoferta (ctx["counteroffer"] / resultado["counteroffer"]).
+const CTX_COUNTEROFFER := "counteroffer"
+const TOKEN_NPC := "npc_id"
+const TOKEN_FAVOUR := "favour"
+const TOKEN_ASKED := "asked_price"
+const TOKEN_DAY := "day"
+const TOKEN_ROUNDS := "rounds"
+
+## Jerarquía de generación (npcs_generation.json): superior de cada sala de trabajo.
+const GENERATION_FILE := "npcs_generation"
+const HIERARCHY_PATH: Array[String] = ["link_generation", "hierarchy", "superior_by_room"]
+const OCCUPATION_PREFIX := "occ:"
+const KEY_UNBRIBABLE_ARCHETYPES := "sobornos.arquetipos_insobornables"
+const KEY_GENERAL_SUPERIORS := "sobornos.departamentos_superiores_generales"
+
+
+## Monedero del soborno: por defecto el de PlayerState. Herramientas y pruebas lo sustituyen
+## extendiendo esta clase (Bribery.Wallet).
+class Wallet:
+	extends RefCounted
+
+	func can_afford(amount: int) -> bool:
+		return PlayerState.can_afford(amount)
+
+	func spend_money(amount: int, reason: String) -> bool:
+		return PlayerState.spend_money(amount, reason)
 
 
 # ─── Datos ─────────────────────────────────────────────────────
@@ -76,22 +125,35 @@ static func tunable_int(path: String) -> int:
 	return Database.get_balance_int(path)
 
 
+static func tunable_strings(path: String) -> Array[String]:
+	var out: Array[String] = []
+	var raw: Variant = Database.get_balance(path)
+	if raw is Array:
+		for value: Variant in raw:
+			out.append(str(value))
+	return out
+
+
 static func favour_multiplier(favour_id: String) -> float:
 	return float(Database.get_bribe_favour(favour_id).get("multiplier", 0.0))
 
 
-## Salario diario: ocupación → puesto del nominado (daily_wage propio) → rol generado →
-## media de su escalón.
+## Salario diario: el del perfil de NPCDirector (ocupación o puesto no jugable) para la plantilla;
+## fuera de ella, ocupación → daily_wage / role del nominado → media de su escalón.
 static func npc_daily_wage(npc: NPCRuntime) -> int:
+	if is_managed(npc):
+		var managed: int = NPCDirector.get_daily_wage(npc.id)
+		if managed > 0:
+			return managed
 	var occupation: OccupationData = Database.get_occupation(npc.occupation_id)
 	if occupation != null:
 		return occupation.daily_wage
 	var named: NPCData = Database.get_named_npc(npc.id)
-	if named != null and int(named.extra.get("daily_wage", 0)) > 0:
-		return int(named.extra["daily_wage"])
-	var role: Variant = npc.get("role")
-	if role is String and not (role as String).is_empty():
-		var role_wage: int = int(Database.get_role(role).get("daily_wage", 0))
+	if named != null:
+		if int(named.extra.get("daily_wage", 0)) > 0:
+			return int(named.extra["daily_wage"])
+		var role_wage: int = int(Database.get_role(str(named.extra.get("role", ""))).get(
+				"daily_wage", 0))
 		if role_wage > 0:
 			return role_wage
 	return tier_daily_wage(npc.tier)
@@ -125,14 +187,22 @@ static func base_price(daily_wage: int, favour_id: String) -> int:
 	return roundi(daily_wage * favour_multiplier(favour_id))
 
 
-## Precio justo aplicado: base × preset de dificultad (precio_soborno) × registro de relaciones.
+## Precio justo aplicado (ver DECISIONES). Mismo orden de producto que NPCDirector.
 static func fair_price(npc: NPCRuntime, favour_id: String, ctx: Dictionary = {}) -> int:
 	var wage: int = int(ctx["daily_wage"]) if ctx.has("daily_wage") else npc_daily_wage(npc)
-	var difficulty: float = float(ctx["difficulty_modifier"]) if ctx.has("difficulty_modifier") \
-			else Database.get_difficulty_modifier(DIFFICULTY_KEY)
 	var ledger: float = float(ctx["price_modifier"]) if ctx.has("price_modifier") \
 			else ledger_price_modifier(npc)
-	return roundi(wage * favour_multiplier(favour_id) * difficulty * ledger)
+	var difficulty: float = float(ctx["difficulty_modifier"]) if ctx.has("difficulty_modifier") \
+			else Database.get_difficulty_modifier(DIFFICULTY_KEY)
+	var suspicion: float = float(ctx["suspicion"]) if ctx.has("suspicion") \
+			else PlayerState.get_suspicion()
+	return roundi(float(wage) * favour_multiplier(favour_id) * ledger * difficulty
+			* suspicion_price_factor(suspicion))
+
+
+## §7.10: la sospecha encarece el soborno. 1 + mod × sospecha/100.
+static func suspicion_price_factor(suspicion: float) -> float:
+	return 1.0 + tunable("sobornos.mod_precio_por_sospecha") * maxf(suspicion, 0.0) / PERCENT
 
 
 ## Precio estimado del expediente N5 (§13.4): el precio justo del favor.
@@ -140,11 +210,11 @@ static func estimated_price(npc: NPCRuntime, favour_id: String) -> int:
 	return fair_price(npc, favour_id)
 
 
-## Agravios encarecen y favores abaratan (§7.9). Manda NPCDirector si ofrece
-## get_bribe_price_modifier(npc_id) y conoce al personaje; si no, se calcula del registro.
+## Agravios encarecen y favores abaratan (§7.9): NPCDirector para la plantilla; fuera de ella, la
+## misma fórmula (registro.precio_*) sobre el registro propio del personaje.
 static func ledger_price_modifier(npc: NPCRuntime) -> float:
-	if NPCDirector.has_method(DIRECTOR_PRICE_METHOD) and is_managed(npc):
-		return float(NPCDirector.call(DIRECTOR_PRICE_METHOD, npc.id))
+	if is_managed(npc):
+		return NPCDirector.get_bribe_price_modifier(npc.id)
 	return ledger_modifier_from(npc.ledger)
 
 
@@ -153,13 +223,13 @@ static func ledger_modifier_from(ledger: Dictionary) -> float:
 	for grievance: Variant in ledger.get("grievances", []):
 		if grievance is Dictionary:
 			modifier += float(grievance.get("severity", 0)) \
-					* tunable("sobornos.mod_precio_por_gravedad_agravio")
+					* tunable("registro.precio_por_gravedad_agravio")
 	for favour: Variant in ledger.get("favours", []):
 		if favour is Dictionary:
 			modifier -= float(favour.get("magnitude", 0)) \
-					* tunable("sobornos.mod_precio_por_magnitud_favor")
-	return clampf(modifier, tunable("sobornos.mod_precio_registro_min"),
-			tunable("sobornos.mod_precio_registro_max"))
+					* tunable("registro.precio_por_magnitud_favor")
+	return clampf(modifier, tunable("registro.precio_modificador_min"),
+			tunable("registro.precio_modificador_max"))
 
 
 # ─── Probabilidad ──────────────────────────────────────────────
@@ -168,6 +238,16 @@ static func ledger_modifier_from(ledger: Dictionary) -> float:
 static func is_unbribable(traits: Dictionary) -> bool:
 	return int(traits.get("greed", 0)) < tunable_int("sobornos.insobornable_codicia_max") \
 			and int(traits.get("loyalty", 0)) > tunable_int("sobornos.insobornable_lealtad_min")
+
+
+## §8.1: arquetipos de probabilidad nula por definición (sobornos.arquetipos_insobornables).
+static func is_unbribable_archetype(archetype_id: String) -> bool:
+	return not archetype_id.is_empty() \
+			and tunable_strings(KEY_UNBRIBABLE_ARCHETYPES).has(archetype_id)
+
+
+static func is_npc_unbribable(npc: NPCRuntime) -> bool:
+	return is_unbribable_archetype(npc.archetype) or is_unbribable(npc.traits)
 
 
 ## ratio_oferta = mín(oferta ÷ precio_justo, 2,0) ÷ 2,0
@@ -214,6 +294,8 @@ static func probability_from(traits: Dictionary, offer: int, fair: int,
 
 static func acceptance_probability(npc: NPCRuntime, offer: int, favour_id: String,
 		ctx: Dictionary = {}) -> float:
+	if is_npc_unbribable(npc):
+		return 0.0
 	return probability_from(npc.traits, offer, fair_price(npc, favour_id, ctx),
 			gather_inputs(npc, ctx))
 
@@ -241,29 +323,62 @@ static func rank_relation(npc: NPCRuntime) -> int:
 			Database.get_occupation(npc.occupation_id))
 
 
-## +1 si el jugador es superior jerárquico directo del personaje, −1 si el personaje lo es del
-## jugador, 0 en otro caso. Superior directo: puesto con subordinados (has_subordinates) de
-## escalón mayor que comparte sala de trabajo, o del mismo departamento y un escalón por encima.
+## §8.2 modificador_de_rango: +1 si el jugador es superior jerárquico DIRECTO del personaje;
+## −1 si el personaje es superior del jugador (directo o más arriba en su línea); 0 si no.
+## Sin puesto jugable (roles) no hay relación.
 static func rank_relation_between(player_occ: OccupationData, npc_occ: OccupationData) -> int:
 	if player_occ == null or npc_occ == null:
 		return RANK_NONE
 	if is_direct_superior(player_occ, npc_occ):
 		return RANK_PLAYER_SUPERIOR
-	if is_direct_superior(npc_occ, player_occ):
+	if is_superior(npc_occ, player_occ):
 		return RANK_NPC_SUPERIOR
 	return RANK_NONE
 
 
+## Superior directo: puesto con subordinados y escalón mayor que comparte sala de trabajo, que
+## es el superior de la sala del subordinado en la jerarquía de generación (superior_by_room), o
+## del mismo departamento y exactamente un escalón por encima.
 static func is_direct_superior(boss: OccupationData, subordinate: OccupationData) -> bool:
 	if not bool(boss.extra.get("has_subordinates", false)) or boss.tier <= subordinate.tier:
 		return false
 	if not boss.office_room.is_empty() and boss.office_room == subordinate.office_room:
 		return true
-	return str(boss.extra.get("department", "")) == str(subordinate.extra.get("department", "")) \
-			and boss.tier == subordinate.tier + 1
+	if room_superior_occupation(subordinate.office_room) == boss.id:
+		return true
+	return _department(boss) == _department(subordinate) and boss.tier == subordinate.tier + 1
 
 
-# ─── Rechazo ───────────────────────────────────────────────────
+## Superior (en su línea, no necesariamente directo): superior directo, o puesto con subordinados
+## de escalón mayor del mismo departamento o de la dirección general
+## (sobornos.departamentos_superiores_generales).
+static func is_superior(boss: OccupationData, subordinate: OccupationData) -> bool:
+	if is_direct_superior(boss, subordinate):
+		return true
+	if not bool(boss.extra.get("has_subordinates", false)) or boss.tier <= subordinate.tier:
+		return false
+	return _department(boss) == _department(subordinate) \
+			or tunable_strings(KEY_GENERAL_SUPERIORS).has(_department(boss))
+
+
+## Ocupación del superior de una sala (npcs_generation.json superior_by_room: "occ:<id>" o un
+## nominado, cuya ocupación se toma); "" si la sala no tiene o es un puesto no jugable.
+static func room_superior_occupation(room_id: String) -> String:
+	var node: Variant = Database.get_raw(GENERATION_FILE)
+	for key: String in HIERARCHY_PATH:
+		node = (node as Dictionary).get(key, {}) if node is Dictionary else {}
+	var value: String = str((node as Dictionary).get(room_id, "")) if node is Dictionary else ""
+	if value.begins_with(OCCUPATION_PREFIX):
+		return value.trim_prefix(OCCUPATION_PREFIX)
+	var named: NPCData = Database.get_named_npc(value) if not value.is_empty() else null
+	return named.occupation if named != null else ""
+
+
+static func _department(occupation: OccupationData) -> String:
+	return str(occupation.extra.get("department", ""))
+
+
+# ─── Rechazo y contraoferta ────────────────────────────────────
 
 ## §8.2 paso tercero, en orden: denuncia → silencio con memoria → contraoferta → rechazo neutro.
 static func rejection_outcome(traits: Dictionary, offer: int, fair: int) -> String:
@@ -286,40 +401,98 @@ static func counteroffer_price(fair: int, roll: float) -> int:
 			tunable("sobornos.factor_contraoferta_max"), clampf(roll, 0.0, 1.0)))
 
 
-## Tirada determinista en [0, 1) a partir de la semilla de partida, el momento y `parts`.
+## Tirada determinista en [0, 1) a partir de la semilla de partida, la jornada y `parts`
+## (la hora no entra: esperar no vuelve a tirar).
 static func roll_for(parts: Array) -> float:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	var key: Array = [GameClock.get_run_seed(), GameClock.get_day(), GameClock.get_hour(),
-			GameClock.get_minute()]
+	var key: Array = [GameClock.get_run_seed(), GameClock.get_day()]
 	key.append_array(parts)
 	rng.seed = hash(key)
 	return rng.randf()
 
 
-## Decisión pura (sin efectos): {fair_price, probability, roll, accepted, outcome, insulting,
-## asked_price (solo contraoferta)}.
+static func make_counteroffer(npc_id: String, favour_id: String, asked: int, rounds: int,
+		day: int) -> Dictionary:
+	return {TOKEN_NPC: npc_id, TOKEN_FAVOUR: favour_id, TOKEN_ASKED: asked,
+			TOKEN_DAY: day, TOKEN_ROUNDS: rounds}
+
+
+## La ficha de ctx["counteroffer"] si sigue en pie para este personaje, favor, jornada y precio
+## justo actual; {} si no hay o no vale.
+static func standing_counteroffer(npc: NPCRuntime, favour_id: String, fair: int,
+		ctx: Dictionary) -> Dictionary:
+	var raw: Variant = ctx.get(CTX_COUNTEROFFER, {})
+	if not raw is Dictionary or (raw as Dictionary).is_empty():
+		return {}
+	var token: Dictionary = raw
+	if str(token.get(TOKEN_NPC, "")) != npc.id or str(token.get(TOKEN_FAVOUR, "")) != favour_id:
+		return {}
+	var age: int = _day(ctx) - int(token.get(TOKEN_DAY, -1))
+	if age < 0 or age > tunable_int("sobornos.jornadas_validez_contraoferta"):
+		return {}
+	if int(token.get(TOKEN_ASKED, 0)) < counteroffer_price(fair, 0.0):
+		return {}
+	return token
+
+
+## Decisión pura (sin efectos): {npc_id, amount, favour, fair_price, insulting, unbribable,
+## probability, roll, accepted, outcome, asked_price, counteroffer}.
 static func evaluate(npc: NPCRuntime, amount: int, favour_id: String,
 		ctx: Dictionary) -> Dictionary:
 	var fair: int = fair_price(npc, favour_id, ctx)
 	var result: Dictionary = {"npc_id": npc.id, "amount": amount, "favour": favour_id,
-			"fair_price": fair, "insulting": is_insulting(amount, fair), "asked_price": 0}
-	var asked: int = int(ctx.get("asked_price", 0))
-	if asked > 0 and amount >= asked:
-		result.merge({"probability": 1.0, "roll": 0.0, "accepted": true,
-				"outcome": OUTCOME_ACCEPTED, "insulting": false}, true)
-		return result
-	var p: float = probability_from(npc.traits, amount, fair, gather_inputs(npc, ctx))
+			"fair_price": fair, "insulting": is_insulting(amount, fair), "asked_price": 0,
+			"counteroffer": {}, "unbribable": is_npc_unbribable(npc)}
+	var standing: Dictionary = {} if bool(result["unbribable"]) \
+			else standing_counteroffer(npc, favour_id, fair, ctx)
+	if standing.is_empty():
+		_evaluate_formula(npc, ctx, result)
+	else:
+		_evaluate_standing(result, standing, _day(ctx))
+	return result
+
+
+static func _evaluate_formula(npc: NPCRuntime, ctx: Dictionary, result: Dictionary) -> void:
+	var amount: int = int(result["amount"])
+	var fair: int = int(result["fair_price"])
+	var favour: String = str(result["favour"])
+	var p: float = 0.0 if bool(result["unbribable"]) \
+			else probability_from(npc.traits, amount, fair, gather_inputs(npc, ctx))
 	var roll: float = float(ctx["roll"]) if ctx.has("roll") \
-			else roll_for([npc.id, amount, favour_id, OUTCOME_ACCEPTED])
+			else roll_for([npc.id, favour, OUTCOME_ACCEPTED])
 	var accepted: bool = roll < p
 	result.merge({"probability": p, "roll": roll, "accepted": accepted}, true)
 	result["outcome"] = OUTCOME_ACCEPTED if accepted \
 			else rejection_outcome(npc.traits, amount, fair)
-	if result["outcome"] == OUTCOME_COUNTEROFFER:
-		var counter_roll: float = float(ctx["counter_roll"]) if ctx.has("counter_roll") \
-				else roll_for([npc.id, amount, favour_id, OUTCOME_COUNTEROFFER])
-		result["asked_price"] = counteroffer_price(fair, counter_roll)
-	return result
+	if result["outcome"] != OUTCOME_COUNTEROFFER:
+		return
+	if bool(result["unbribable"]):
+		result["outcome"] = OUTCOME_NEUTRAL
+		return
+	var counter_roll: float = float(ctx["counter_roll"]) if ctx.has("counter_roll") \
+			else roll_for([npc.id, favour, OUTCOME_COUNTEROFFER])
+	result["asked_price"] = counteroffer_price(fair, counter_roll)
+	result["counteroffer"] = make_counteroffer(npc.id, favour, int(result["asked_price"]), 1,
+			_day(ctx))
+
+
+## Con una contraoferta en pie: se paga su precio (aceptado) o repite su precio hasta agotar
+## sobornos.max_contraofertas rondas (rechazo neutro). No hay nueva tirada.
+static func _evaluate_standing(result: Dictionary, standing: Dictionary, day: int) -> void:
+	var asked: int = int(standing[TOKEN_ASKED])
+	result["asked_price"] = asked
+	if int(result["amount"]) >= asked:
+		result.merge({"probability": 1.0, "roll": 0.0, "accepted": true,
+				"outcome": OUTCOME_ACCEPTED, "insulting": false}, true)
+		return
+	var rounds: int = int(standing.get(TOKEN_ROUNDS, 1)) + 1
+	result.merge({"probability": 0.0, "roll": 0.0, "accepted": false}, true)
+	if rounds > tunable_int("sobornos.max_contraofertas"):
+		result["outcome"] = OUTCOME_NEUTRAL
+		return
+	result["outcome"] = OUTCOME_COUNTEROFFER
+	result["counteroffer"] = make_counteroffer(str(result["npc_id"]), str(result["favour"]),
+			asked, rounds, day)
 
 
 # ─── Oferta completa ───────────────────────────────────────────
@@ -327,7 +500,8 @@ static func evaluate(npc: NPCRuntime, amount: int, favour_id: String,
 ## Ofrece `amount` al personaje por `favour_id` a través de `channel_id` y aplica todas las
 ## consecuencias. El canal "immediate" fuerza el favor silence_witnessed (×20).
 ## Devuelve evaluate() + {ok, channel, room_id, effects, beliefs, record_id, footage_id,
-## paid, text_key}. ok = false (sin señales ni efectos) si la oferta no es válida o no hay fondos.
+## paid, text_key, insult_text_key}. ok = false (sin señales ni efectos) si la oferta no es
+## válida o no hay fondos.
 static func offer(npc: NPCRuntime, amount: int, favour_id: String, channel_id: String,
 		ctx: Dictionary = {}) -> Dictionary:
 	var channel: Dictionary = Database.get_bribe_channel(channel_id)
@@ -340,9 +514,9 @@ static func offer(npc: NPCRuntime, amount: int, favour_id: String, channel_id: S
 	var result: Dictionary = evaluate(npc, amount, favour, ctx)
 	result.merge({"ok": true, "channel": channel_id, "room_id": _room(npc, ctx), "effects": [],
 			"beliefs": [], "record_id": "", "footage_id": "", "paid": 0}, true)
-	_apply_channel(npc, channel, ctx, result)
+	_apply_channel(npc, channel_id, channel, ctx, result)
 	_apply_outcome(npc, ctx, result)
-	result["text_key"] = OUTCOME_TEXT_KEYS[result["outcome"]]
+	_set_text_keys(result)
 	EventBus.crime_committed.emit(CRIME_BRIBE, str(result["room_id"]), _crime_details(result))
 	EventBus.bribe_result.emit(npc.id, bool(result["accepted"]), str(result["outcome"]))
 	if result["outcome"] == OUTCOME_DENOUNCED:
@@ -364,18 +538,15 @@ static func declare_game_over(cause: String) -> void:
 	EventBus.game_over.emit(cause, ending_for_cause(cause), Tracking.get_snapshot())
 
 
-## Primer final de evaluation_order cuya condición `cause` incluye la causa (Tracking manda si
-## ofrece evaluate_ending_for_cause(cause)).
+## El final de endings.json para una causa terminal (lo decide Tracking con todas sus condiciones).
 static func ending_for_cause(cause: String) -> String:
-	if Tracking.has_method(TRACKING_CAUSE_METHOD):
-		return str(Tracking.call(TRACKING_CAUSE_METHOD, cause))
-	var rules: Dictionary = Database.get_raw("endings")
-	for ending_id: Variant in rules.get("evaluation_order", []):
-		var conditions: Dictionary = Database.get_ending(str(ending_id)).get("conditions", {})
-		var causes: Variant = conditions.get("cause", [])
-		if causes is Array and (causes as Array).has(cause):
-			return str(ending_id)
-	return str(rules.get("fallback_ending", ""))
+	return Tracking.evaluate_ending_for_cause(cause)
+
+
+## El monedero de ctx["wallet"] (Bribery.Wallet) o el de PlayerState.
+static func wallet_from(ctx: Dictionary) -> Wallet:
+	var wallet: Variant = ctx.get("wallet")
+	return wallet as Wallet if wallet is Wallet else Wallet.new()
 
 
 static func _check_offer(npc: NPCRuntime, amount: int, favour: String, channel: Dictionary,
@@ -384,31 +555,31 @@ static func _check_offer(npc: NPCRuntime, amount: int, favour: String, channel: 
 		return OUTCOME_INVALID
 	if Database.get_bribe_favour(favour).is_empty():
 		return OUTCOME_INVALID
-	if not bool(_wallet(ctx).call("can_afford", amount)):
+	if not wallet_from(ctx).can_afford(amount):
 		return OUTCOME_NO_FUNDS
 	return ""
 
 
-static func _apply_channel(npc: NPCRuntime, channel: Dictionary, ctx: Dictionary,
-		result: Dictionary) -> void:
+static func _apply_channel(npc: NPCRuntime, channel_id: String, channel: Dictionary,
+		ctx: Dictionary, result: Dictionary) -> void:
 	var room: String = str(result["room_id"])
 	if bool(channel.get("leaves_digital_record", false)):
-		result["record_id"] = BeliefNet.create_record(RECORD_CHAT, PLAYER_ID,
-				tunable("sobornos.peso_registro_chat"), room)
+		result["record_id"] = BeliefNet.create_record(RECORD_CHAT, PLAYER_ID, 0.0, room)
 		result["effects"].append(EFFECT_DIGITAL_RECORD)
 	if bool(channel.get("requires_privacy", false)):
 		if _add_beliefs(result, npc.id, ctx.get("listeners", []), FACT_OVERHEARD,
 				tunable("sobornos.certeza_escucha_llamada")) > 0:
 			result["effects"].append(EFFECT_OVERHEARD)
-	if bool(channel.get("witness_risk", false)):
+	var in_person: bool = bool(channel.get("witness_risk", false))
+	if in_person or channel_id == CHANNEL_IMMEDIATE:
 		if _add_beliefs(result, npc.id, ctx.get("witnesses", []), FACT_WITNESSED,
 				tunable("sobornos.certeza_testigo_en_persona")) > 0:
 			result["effects"].append(EFFECT_WITNESSED)
-		var cameras: Variant = ctx.get("cameras", [])
-		if cameras is Array and not (cameras as Array).is_empty():
-			result["footage_id"] = Security.register_camera_footage(room, _day(ctx),
-					int(ctx.get("hour", GameClock.get_hour())))
-			result["effects"].append(EFFECT_CAMERA)
+	var cameras: Variant = ctx.get("cameras", [])
+	if in_person and cameras is Array and not (cameras as Array).is_empty():
+		result["footage_id"] = Security.register_camera_footage(room, _day(ctx),
+				int(ctx.get("hour", GameClock.get_hour())))
+		result["effects"].append(EFFECT_CAMERA)
 
 
 static func _apply_outcome(npc: NPCRuntime, ctx: Dictionary, result: Dictionary) -> void:
@@ -417,7 +588,7 @@ static func _apply_outcome(npc: NPCRuntime, ctx: Dictionary, result: Dictionary)
 	match str(result["outcome"]):
 		OUTCOME_ACCEPTED:
 			var amount: int = int(result["amount"])
-			if bool(_wallet(ctx).call("spend_money", amount, MONEY_REASON)):
+			if wallet_from(ctx).spend_money(amount, MONEY_REASON):
 				result["paid"] = amount
 				result["effects"].append(EFFECT_PAID)
 			if result["favour"] == FAVOUR_SILENCE:
@@ -431,10 +602,22 @@ static func _apply_outcome(npc: NPCRuntime, ctx: Dictionary, result: Dictionary)
 		OUTCOME_NEUTRAL:
 			_add_belief(result, npc.id, FACT_REFUSED, tunable("sobornos.certeza_rechazo_neutro"),
 					room)
+		OUTCOME_COUNTEROFFER:
+			_add_belief(result, npc.id, FACT_COUNTERED, tunable("sobornos.certeza_contraoferta"),
+					room)
+			result["effects"].append(EFFECT_COUNTERED)
 	if bool(result["insulting"]) and result["outcome"] != OUTCOME_DENOUNCED:
 		_add_belief(result, npc.id, FACT_INSULTED, tunable("sobornos.certeza_oferta_insultante"),
 				room)
 		result["effects"].append(EFFECT_INSULTED)
+
+
+## text_key del resultado; una oferta insultante rechazada sin más muestra la ofensa.
+static func _set_text_keys(result: Dictionary) -> void:
+	var insulted: bool = bool(result["insulting"])
+	result["insult_text_key"] = TEXT_INSULTED if insulted else ""
+	result["text_key"] = TEXT_INSULTED if insulted and result["outcome"] == OUTCOME_NEUTRAL \
+			else OUTCOME_TEXT_KEYS[result["outcome"]]
 
 
 static func _add_beliefs(result: Dictionary, npc_id: String, holders: Variant, fact: String,
@@ -461,11 +644,6 @@ static func _crime_details(result: Dictionary) -> Dictionary:
 	return {"npc_id": result["npc_id"], "amount": result["amount"], "paid": result["paid"],
 			"favour": result["favour"], "channel": result["channel"],
 			"accepted": result["accepted"], "outcome": result["outcome"]}
-
-
-static func _wallet(ctx: Dictionary) -> Object:
-	var wallet: Variant = ctx.get("wallet")
-	return wallet as Object if wallet is Object else PlayerState
 
 
 static func _room(npc: NPCRuntime, ctx: Dictionary) -> String:

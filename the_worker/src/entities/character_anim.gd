@@ -12,14 +12,19 @@ extends RefCounted
 ##   lean (inclinación hacia delante), crouch/sit (0..1), hand_l/hand_r Vector3(delante, fuera,
 ##   arriba) respecto a la mano colgando, head_turn (-1..1), head_tilt (+ mira abajo), hunch,
 ##   squash (escala vertical), shake (temblor lateral), roll (giro del cuerpo, rad), expr, fx,
-##   prop_l/prop_r (objeto en la mano), uses_hands (oculta el objeto transportado del escalón).
+##   prop_l/prop_r (objeto en la mano), uses_hands (oculta el objeto transportado del escalón),
+##   scene_prop (objeto del escenario que acompaña a la pose, p. ej. el cajón abierto).
+## Silueta antes que detalle (§14.2): agachado = cadera baja, rodillas abiertas y cabeza hundida;
+## sigilo = de puntillas con los antebrazos en alto; esprint = inclinado, brazos bombeando y
+## líneas de velocidad; sentado de espaldas = sin piernas (quedan bajo el cuerpo y la mesa).
+## En sigilo, esprint y agachado las manos quedan libres (no se ve el objeto del escalón).
 
 const DEFAULT_ANIM := "idle"
 const DEFAULTS: Dictionary = {
 	"step": 0.0, "lift_l": 0.0, "lift_r": 0.0, "bob": 0.0, "lean": 0.0, "crouch": 0.0,
 	"sit": 0.0, "hand_l": Vector3.ZERO, "hand_r": Vector3.ZERO, "head_turn": 0.0,
 	"head_tilt": 0.0, "hunch": 0.0, "squash": 1.0, "shake": 0.0, "roll": 0.0, "expr": "",
-	"fx": "", "prop_l": "", "prop_r": "", "uses_hands": false,
+	"fx": "", "prop_l": "", "prop_r": "", "uses_hands": false, "scene_prop": "",
 }
 
 ## frames, fps (multiplicador de animacion.fps_base), loop, loop_from (reinicio del bucle),
@@ -53,14 +58,19 @@ const CATALOGUE: Dictionary = {
 }
 
 ## Ciclos de desplazamiento generados por fase (poses clave cuantizadas a `frames`).
+## arms_up/arms_fwd/arms_out = posición media de las manos; head_sweep = giro de cabeza por ciclo;
+## fx_all = el efecto se ve en todos los fotogramas (si no, parpadea cada dos).
 const LOCOMOTION: Dictionary = {
 	"walk": {"stride": 5.0, "swing": 5.0, "lift": 2.2, "bob": 1.3, "lean": 0.8},
-	"sprint": {"stride": 8.5, "swing": 8.0, "lift": 4.0, "bob": 2.6, "lean": 4.5,
-		"arms_up": 6.0, "hunch": 1.0},
-	"sneak": {"stride": 4.0, "swing": 1.2, "lift": 3.2, "bob": 0.8, "lean": 2.5, "crouch": 0.35,
-		"arms_up": 7.0, "arms_fwd": 4.0, "hunch": 2.0},
-	"crouch": {"stride": 3.0, "swing": 1.0, "lift": 1.5, "bob": 0.6, "lean": 1.5, "crouch": 1.0,
-		"arms_up": 3.0, "arms_fwd": 5.0},
+	"sprint": {"stride": 10.0, "swing": 11.0, "lift": 5.5, "bob": 3.2, "lean": 7.5,
+		"arms_up": 9.0, "arms_fwd": 2.0, "hunch": 1.5, "expr": "focus", "fx": "speed", "fx_all": true,
+		"uses_hands": true},
+	"sneak": {"stride": 4.5, "swing": 0.8, "lift": 6.0, "bob": 2.0, "lean": 3.0, "crouch": 0.22,
+		"arms_up": 14.0, "arms_fwd": 6.0, "arms_out": 3.0, "hunch": 2.5, "head_sweep": 0.4,
+		"expr": "sly", "uses_hands": true},
+	"crouch": {"stride": 3.2, "swing": 1.0, "lift": 1.6, "bob": 0.6, "lean": 3.0, "crouch": 1.0,
+		"arms_up": 1.5, "arms_fwd": 7.0, "arms_out": 1.0, "hunch": 1.0, "head_sweep": 0.2,
+		"uses_hands": true},
 	"drag": {"stride": 3.0, "swing": 0.0, "lift": 1.5, "bob": 1.0, "lean": -3.5, "crouch": 0.25,
 		"arms_up": 3.0, "arms_fwd": -9.0, "expr": "strain", "fx": "sweat", "uses_hands": true},
 	"walk_report": {"stride": 6.0, "swing": 4.0, "lift": 2.4, "bob": 1.2, "lean": 2.5,
@@ -69,13 +79,14 @@ const LOCOMOTION: Dictionary = {
 
 ## Poses clave: [fotogramas que se mantiene, cambios sobre DEFAULTS + BASE de la animación].
 const BASES: Dictionary = {
-	"crouch_idle": {"crouch": 1.0, "hand_l": Vector3(4, 1, 4), "hand_r": Vector3(4, 1, 4)},
+	"crouch_idle": {"crouch": 1.0, "lean": 3.0, "hunch": 1.0, "hand_l": Vector3(7, 1, 2),
+		"hand_r": Vector3(7, 1, 2), "uses_hands": true},
 	"sit": {"sit": 1.0, "hand_l": Vector3(6, -2, 7), "hand_r": Vector3(6, -2, 7)},
 	"sit_type": {"sit": 1.0, "head_tilt": 0.25, "uses_hands": true,
 		"hand_l": Vector3(8, -3, 9), "hand_r": Vector3(8, -3, 9)},
 	"type_intense": {"sit": 1.0, "head_tilt": 0.3, "lean": 3.0, "expr": "focus",
 		"uses_hands": true, "hand_l": Vector3(9, -3, 9), "hand_r": Vector3(9, -3, 9)},
-	"drawer": {"uses_hands": true},
+	"drawer": {"uses_hands": true, "scene_prop": "drawer_open"},
 	"steal": {"uses_hands": true, "hunch": 3.0},
 	"hide": {"crouch": 1.0, "hunch": 3.0, "head_tilt": 0.3, "expr": "worried",
 		"hand_l": Vector3(6, -2, 6), "hand_r": Vector3(6, -2, 6), "uses_hands": true},
@@ -106,7 +117,7 @@ const KEYS: Dictionary = {
 		[1, {"hand_l": Vector3(9, -3, 12), "bob": -0.5}], [1, {"hand_r": Vector3(9, -3, 12)}],
 		[1, {"hand_l": Vector3(9, -3, 12)}], [1, {"hand_r": Vector3(9, -3, 12), "bob": -0.5}],
 		[1, {"hand_l": Vector3(9, -3, 12)}], [1, {"hand_r": Vector3(9, -3, 12)}]],
-	"drawer": [[1, {"lean": 2.0, "hand_r": Vector3(4, 0, 4)}],
+	"drawer": [[1, {"lean": 2.0, "hand_r": Vector3(4, 0, 4), "scene_prop": "drawer_closed"}],
 		[1, {"lean": 4.0, "crouch": 0.2, "hand_r": Vector3(9, 0, 3)}],
 		[1, {"lean": 5.0, "crouch": 0.3, "hand_r": Vector3(12, -1, 2)}],
 		[1, {"lean": 3.0, "crouch": 0.3, "hand_r": Vector3(7, -1, 2)}],
@@ -166,9 +177,9 @@ const KEYS: Dictionary = {
 		[1, {"hand_l": Vector3(4, -3, 8)}], [1, {"prop_l": ""}]],
 	"yawn": [[2, {}], [1, {"hand_l": Vector3(2, 3, 12), "hand_r": Vector3(2, 3, 12),
 			"head_tilt": -0.1, "expr": "yawn"}],
-		[2, {"hand_l": Vector3(0, 5, 26), "hand_r": Vector3(0, 5, 26), "head_tilt": -0.3,
+		[2, {"hand_l": Vector3(-1, 6, 38), "hand_r": Vector3(-1, 6, 38), "head_tilt": -0.3,
 			"expr": "yawn", "squash": 1.04}],
-		[3, {"hand_l": Vector3(0, 5, 27), "hand_r": Vector3(0, 5, 27), "head_tilt": -0.3,
+		[3, {"hand_l": Vector3(-1, 6, 40), "hand_r": Vector3(-1, 6, 40), "head_tilt": -0.3,
 			"expr": "yawn", "squash": 1.04, "fx": "zzz"}],
 		[1, {"hand_l": Vector3(2, 4, 14), "hand_r": Vector3(2, 4, 14), "expr": "bored"}],
 		[3, {"expr": "bored"}]],
@@ -192,16 +203,15 @@ const KEYS: Dictionary = {
 	"suspicion": [[3, {"head_turn": -0.3}], [2, {"head_turn": 0.0, "head_tilt": 0.1}],
 		[3, {"head_turn": 0.3}], [2, {"head_turn": 0.0, "expr": "blink"}]],
 	"point": [[1, {"hand_r": Vector3(5, 1, 8)}], [1, {"hand_r": Vector3(12, 1, 12)}],
-		[1, {"hand_r": Vector3(18, 0, 13), "expr": "angry", "fx": "exclaim", "lean": 2.0}],
-		[1, {"hand_r": Vector3(19, 0, 13), "expr": "angry", "fx": "exclaim", "lean": 2.0}],
-		[1, {"hand_r": Vector3(19, 0, 14), "expr": "angry", "fx": "exclaim", "lean": 2.0}],
-		[3, {"hand_r": Vector3(19, 0, 13), "expr": "angry", "fx": "exclaim", "lean": 2.0}]],
+		[1, {"hand_r": Vector3(23, 0, 14), "expr": "angry", "fx": "exclaim", "lean": 2.0}],
+		[1, {"hand_r": Vector3(24, 0, 14), "expr": "angry", "fx": "exclaim", "lean": 2.0}],
+		[1, {"hand_r": Vector3(24, 0, 15), "expr": "angry", "fx": "exclaim", "lean": 2.0}],
+		[3, {"hand_r": Vector3(24, 0, 14), "expr": "angry", "fx": "exclaim", "lean": 2.0}]],
 }
 
 ## Tics visuales (§14.6): id de archetypes.json → se aplica sobre estas animaciones base.
 const TIC_ANIMS: Array[String] = ["idle", "chat", "walk", "walk_report", "sit", "crouch_idle"]
 const TIC_CYCLE := 12
-const HEAD_TURN_MAX := 1.2
 const TICS: Array[String] = [
 	"rushes_to_superiors_offices", "checks_sides_before_talking", "rubs_fingers",
 	"straightens_tie", "headphones_never_turns_head", "leans_toward_interlocutor",
@@ -210,8 +220,20 @@ const TICS: Array[String] = [
 ]
 
 
+static var _anim_indices: Dictionary = {}
+
+
 static func has_anim(anim: String) -> bool:
 	return CATALOGUE.has(anim)
+
+
+## Índice estable de la animación en el catálogo (para claves de caché).
+static func anim_index(anim: String) -> int:
+	if _anim_indices.is_empty():
+		var names: Array = CATALOGUE.keys()
+		for i: int in names.size():
+			_anim_indices[names[i]] = i
+	return int(_anim_indices.get(anim, 0))
 
 
 static func info(anim: String) -> Dictionary:
@@ -272,13 +294,14 @@ static func _key_frame(anim: String, frame: int) -> Dictionary:
 
 static func _locomotion(out: Dictionary, anim: String, frame: int, tier: int) -> void:
 	var spec: Dictionary = LOCOMOTION[anim]
-	var shape: Dictionary = CharacterStyle.TIER_SHAPES[clampi(tier, 1, 8)]
+	var shape: Dictionary = CharacterStyle.TIER_SHAPES[clampi(tier, 1, CharacterStyle.OUTFIT_COUNT)]
 	var phase: float = TAU * float(posmod(frame, frame_count(anim))) / float(frame_count(anim))
 	var s: float = sin(phase)
 	var c: float = cos(phase)
 	var swing: float = float(spec["swing"]) * float(shape["swing"]) * s
 	var up: float = float(spec.get("arms_up", 0.0))
 	var fwd: float = float(spec.get("arms_fwd", 0.0))
+	var out_h: float = float(spec.get("arms_out", 0.0))
 	out["step"] = s * float(spec["stride"]) * float(shape["stride"])
 	out["lift_l"] = maxf(0.0, c) * float(spec["lift"])
 	out["lift_r"] = maxf(0.0, -c) * float(spec["lift"])
@@ -286,10 +309,12 @@ static func _locomotion(out: Dictionary, anim: String, frame: int, tier: int) ->
 	out["lean"] = float(spec["lean"])
 	out["crouch"] = float(spec.get("crouch", 0.0))
 	out["hunch"] = float(spec.get("hunch", 0.0))
-	out["hand_l"] = Vector3(fwd - swing, 0.0, up)
-	out["hand_r"] = Vector3(fwd + swing, 0.0, up)
+	out["head_turn"] = sin(phase) * float(spec.get("head_sweep", 0.0))
+	out["hand_l"] = Vector3(fwd - swing, out_h, up + maxf(0.0, -swing) * 0.3)
+	out["hand_r"] = Vector3(fwd + swing, out_h, up + maxf(0.0, swing) * 0.3)
 	out["expr"] = str(spec.get("expr", ""))
-	out["fx"] = str(spec.get("fx", "")) if posmod(frame, 4) < 2 else ""
+	var blink: bool = bool(spec.get("fx_all", false)) or posmod(frame, 4) < 2
+	out["fx"] = str(spec.get("fx", "")) if blink else ""
 	out["uses_hands"] = bool(spec.get("uses_hands", false))
 
 

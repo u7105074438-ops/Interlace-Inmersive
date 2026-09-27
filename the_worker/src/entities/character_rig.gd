@@ -1,5 +1,5 @@
 # character_rig.gd — Esqueleto 2D de un personaje en una pose: articulaciones, medidas y colores resueltos.
-# PROPIETARIO DE: nada (estructura de cálculo efímera; la construye CharacterPainter en cada dibujo).
+# PROPIETARIO DE: nada (estructura de cálculo efímera; la construye CharacterPainter al grabar una pose).
 # ESCUCHA: nada.
 class_name CharacterRig
 extends RefCounted
@@ -17,11 +17,26 @@ const ARM_LENGTH := 0.92
 const SIDE_NARROW_SHOULDER := 0.36
 const SIDE_NARROW_HIP := 0.3
 const HEAD_TURN_MAX := 1.15
+## Agachado (§14.7, silueta antes que detalle): cadera al ~40 % de la pierna, torso más corto,
+## espalda curvada, cabeza hundida en los hombros, pies abiertos y rodillas hacia fuera.
+const CROUCH_LEG_DROP := 0.62
+const CROUCH_TORSO_DROP := 0.16
+const CROUCH_HUNCH := 2.0
+const CROUCH_NECK_SINK := 2.2
+const CROUCH_SPREAD := 0.9
+const KNEE_SPLAY := 5.0
+## Sentado: la cadera baja a la altura del asiento y los pies avanzan bajo la mesa.
+const SIT_LEG_DROP := 0.45
+const SIT_REACH := 11.0
 const OBLIVIOUS_TIC := "headphones_never_turns_head"
 const STARE_TIC := "stares_at_anomalies"
 const RIGHT_HOLDS: Array[String] = ["right"]
 const BOTH_HOLDS: Array[String] = ["both", "both_up", "cart"]
 const HUG_HOLD := "hug"
+## Un brazo está "lejos" (detrás del torso) cuando su hombro sube en pantalla: vistas de perfil.
+const FAR_SIDE := -0.15
+## Mangas algo más oscuras que el torso: los brazos se leen sobre el cuerpo.
+const SLEEVE_SHADE := 0.1
 
 var tier: int = 1
 var appearance: Dictionary = {}
@@ -66,6 +81,8 @@ var uniform: String = ""
 var colors: Dictionary = {}
 var short_sleeves: bool = false
 var carry: String = ""
+var hug_right: bool = false
+var legs_hidden: bool = false
 var held: String = ""
 var unique: String = ""
 var unique_hold: String = ""
@@ -88,7 +105,7 @@ static func build(app: Dictionary, char_tier: int, pose: Dictionary) -> Characte
 ## true si el brazo derecho (o izquierdo) queda en el lado lejano del cuerpo (se dibuja detrás).
 func arm_is_far(right: bool) -> bool:
 	var l: Vector2 = lat if right else -lat
-	return l.y < -0.05
+	return l.y < FAR_SIDE
 
 
 func _setup_basics(app: Dictionary, char_tier: int, pose: Dictionary) -> void:
@@ -97,6 +114,8 @@ func _setup_basics(app: Dictionary, char_tier: int, pose: Dictionary) -> void:
 	var anim: String = str(pose.get("anim", CharacterAnim.DEFAULT_ANIM))
 	var frame: int = int(pose.get("frame", 0))
 	p = CharacterAnim.params(anim, frame, tier)
+	if bool(pose.get("seated", false)) and not CharacterAnim.is_locomotion(anim):
+		p["sit"] = 1.0
 	tic = str(pose.get("tic", ""))
 	CharacterAnim.apply_tic(p, anim, tic, int(pose.get("tic_frame", frame)))
 	var f: Vector2 = pose.get("facing", Vector2.DOWN)
@@ -130,7 +149,7 @@ func _setup_dims() -> void:
 	hip_half = float(shape["hip"]) * width_scale * (1.0 - SIDE_NARROW_HIP * side * side)
 	torso_h = float(shape["torso"]) * height_scale
 	leg_h = float(shape["leg"]) * height_scale
-	hunch = float(shape["hunch"]) + float(p["hunch"])
+	hunch = float(shape["hunch"]) + float(p["hunch"]) + CROUCH_HUNCH * float(p["crouch"])
 	loose = float(shape["loose"])
 	pad = float(shape["pad"])
 	uniform = str(appearance.get("uniform", ""))
@@ -147,30 +166,33 @@ func _setup_dims() -> void:
 func _setup_vertical() -> void:
 	var crouch: float = float(p["crouch"])
 	var sit: float = float(p["sit"])
-	var leg: float = leg_h * (1.0 - 0.5 * crouch) * (1.0 - 0.45 * sit)
-	var torso: float = torso_h * float(p["squash"]) * (1.0 - 0.1 * crouch)
+	var leg: float = leg_h * (1.0 - CROUCH_LEG_DROP * crouch) * (1.0 - SIT_LEG_DROP * sit)
+	var torso: float = torso_h * float(p["squash"]) * (1.0 - CROUCH_TORSO_DROP * crouch)
 	var lean: float = float(p["lean"])
 	hip_c = Vector2(float(p["shake"]), -leg + float(p["bob"]))
 	shoulder_c = hip_c + Vector2(0.0, -torso) + fwd * (lean + hunch * 0.6)
 	var tilt: float = float(p["head_tilt"])
-	var neck: Vector2 = Vector2(0.0, -(head_radii.y * 0.92 + NECK))
-	head_c = shoulder_c + neck + fwd * (hunch * 0.9 + lean * 0.3 + tilt * 2.0)
-	head_c.y += hunch * 0.65 + tilt * 2.0
+	var neck: Vector2 = Vector2(0.0, -(head_radii.y * 0.92 + NECK - CROUCH_NECK_SINK * crouch))
+	head_c = shoulder_c + neck + fwd * (hunch * 0.55 + lean * 0.3 + tilt * 2.0)
+	head_c.y += hunch * 0.85 + tilt * 2.0
+	legs_hidden = sit > 0.5 and front < CharacterOutfit.BACK_VIEW
 
 
 func _setup_legs() -> void:
 	var crouch: float = float(p["crouch"])
 	var sit: float = float(p["sit"])
-	var spread: float = hip_half * 0.45 * (1.0 + 0.4 * crouch)
+	var spread: float = hip_half * 0.45 * (1.0 + CROUCH_SPREAD * crouch)
 	hip_l = hip_c - lat * spread
 	hip_r = hip_c + lat * spread
 	var step: Vector2 = fwd * float(p["step"])
-	var seat: Vector2 = fwd * 9.0 * sit
+	var seat: Vector2 = fwd * SIT_REACH * sit
 	foot_l = -lat_g * spread * 1.1 + step + seat + Vector2(0.0, -float(p["lift_l"]))
 	foot_r = lat_g * spread * 1.1 - step + seat + Vector2(0.0, -float(p["lift_r"]))
 	var bend: Vector2 = fwd * 5.0 * maxf(crouch, sit) + Vector2(0.0, -3.0 * crouch)
-	knee_l = hip_l.lerp(foot_l, 0.5) + bend - lat * 2.0 * crouch
-	knee_r = hip_r.lerp(foot_r, 0.5) + bend + lat * 2.0 * crouch
+	var splay: Vector2 = lat_g.normalized() * KNEE_SPLAY * crouch if lat_g.length_squared() > 0.0001 \
+			else Vector2.ZERO
+	knee_l = hip_l.lerp(foot_l, 0.5) + bend - lat * 2.0 * crouch - splay
+	knee_r = hip_r.lerp(foot_r, 0.5) + bend + lat * 2.0 * crouch + splay
 
 
 ## Qué lleva en las manos: objeto del escalón (§14.5), accesorio de mano o accesorio único.
@@ -185,7 +207,8 @@ func _setup_items() -> void:
 		held = accessory
 	if RIGHT_HOLDS.has(unique_hold):
 		held = unique
-	if held == "cart" or BOTH_HOLDS.has(unique_hold):
+	if held == "cart" or BOTH_HOLDS.has(unique_hold) or CharacterProps.CHEST_UNIQUES.has(unique) \
+			or not uniform.is_empty():
 		carry = ""
 	elif unique_hold == HUG_HOLD:
 		carry = "planner"
@@ -194,6 +217,7 @@ func _setup_items() -> void:
 	if bool(p["uses_hands"]):
 		carry = ""
 		held = ""
+	hug_right = arm_is_far(false) and not arm_is_far(true)
 
 
 func _setup_arms() -> void:
@@ -226,11 +250,15 @@ func _apply_item_grips() -> void:
 	var chest: Vector2 = shoulder_c.lerp(hip_c, 0.55)
 	match carry:
 		"box":
-			var c: Vector2 = chest + fwd * 9.0
-			hand_l = c - lat * 9.0
-			hand_r = c + lat * 9.0
+			var c: Vector2 = chest + fwd * 10.0
+			hand_l = c - lat * 11.0
+			hand_r = c + lat * 11.0
 		"folder", "planner":
-			hand_l = shoulder_c.lerp(hip_c, 0.45) + fwd * 5.0 - lat * 2.0
+			var grip: Vector2 = CharacterProps.hug_point(self) + fwd * 3.0 + Vector2(0.0, 6.0)
+			if hug_right:
+				hand_r = grip
+			else:
+				hand_l = grip
 		"papers":
 			hand_l = hand_l.lerp(chest - lat * 4.0 + fwd * 6.0, 0.7)
 	if held == "cart" or unique_hold == "cart":
@@ -241,7 +269,7 @@ func _apply_item_grips() -> void:
 		var up: float = 9.0 if unique_hold == "both_up" else 4.0
 		hand_l = chest + fwd * 6.0 - lat * 5.0 + Vector2(0.0, -up)
 		hand_r = chest + fwd * 6.0 + lat * 5.0 + Vector2(0.0, -up)
-	elif not held.is_empty():
+	elif not held.is_empty() and not (hug_right and (carry == "folder" or carry == "planner")):
 		hand_r = hand_r.lerp(chest + lat * 6.0 + fwd * 5.0, 0.6)
 
 
@@ -252,8 +280,8 @@ func _setup_colors() -> void:
 	var pick: int = int(appearance.get("carry_pick", 0))
 	colors = {
 		"skin": CharacterStyle.SKIN_TONES[skin_i], "hair": CharacterStyle.HAIR_COLORS[hair_i],
-		"shirt": pal["shirt"], "tie": pal["tie"], "coat": pal["coat"], "trim": Color(),
-		"hands": Color(), "cap": Color(), "shoe": CharacterStyle.SHOE_DARK,
+		"shirt": pal["shirt"], "tie": pal["tie"], "coat": pal["coat"], "trim": CharacterStyle.NONE,
+		"hands": CharacterStyle.NONE, "cap": CharacterStyle.NONE, "shoe": CharacterStyle.SHOE_DARK,
 	}
 	outfit = CharacterStyle.TIER_OUTFITS[tier] if uniform.is_empty() else uniform
 	if not uniform.is_empty():
@@ -285,13 +313,14 @@ func _outfit_colors(pal: Dictionary, pick: int) -> void:
 	if outfit == "lux_suit" or outfit == "lux_coat":
 		colors["shirt"] = CharacterStyle.WHITE_SHIRT
 		colors["trim"] = CharacterStyle.GOLD
-	colors["sleeve"] = colors["top"]
+		colors["coat"] = CharacterStyle.LUX_COAT
+	colors["sleeve"] = (colors["top"] as Color).darkened(SLEEVE_SHADE)
 
 
 func _uniform_colors() -> void:
 	var u: Dictionary = CharacterStyle.UNIFORMS.get(uniform, CharacterStyle.UNIFORMS["security"])
 	colors["top"] = u["top"]
-	colors["sleeve"] = u["top"]
+	colors["sleeve"] = (u["top"] as Color).darkened(SLEEVE_SHADE)
 	colors["bottom"] = u["bottom"]
 	colors["trim"] = u["trim"]
 	colors["cap"] = u["cap"]

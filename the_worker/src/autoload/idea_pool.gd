@@ -1,36 +1,52 @@
 # idea_pool.gd — Las ideas vivas del mundo: generación, señalización, adquisición, reunión Aurora y caducidad.
-# PROPIETARIO DE: las ideas vivas (§11.1, §19.11), su RNG, las señales de generación visibles, la preparación declarada, los propietarios desaparecidos y la reunión semanal Aurora (§11.2).
+# PROPIETARIO DE: las ideas vivas (§11.1, §19.11), su RNG, las señales de generación visibles, la preparación declarada, la presentación abierta, los propietarios desaparecidos y la reunión semanal Aurora (§11.2).
 # ESCUCHA: day_advanced, hour_passed, npc_removed.
 class_name IdeaPoolSystem
 extends Node
 
 ## Manual §11.1, §11.2, §19.11, §32.3, PASO 23-24; BUILD_NOTES §2, §6, §12-§13.
 ## Regla de comunicación: este autoload no llama a métodos mutadores de otros autoloads. Deja
-## rastros emitiendo señales (player_seen_partially, crime_committed) y la escena Aurora aplica las
-## consecuencias del choque mediante IdeaPresentation (manos).
+## rastros emitiendo señales (player_seen_partially, crime_committed) y las consecuencias del
+## choque las aplica IdeaPresentation (manos).
 ## GENERACIÓN (§11.1): al empezar cada jornada, cada personaje vivo con ambición ≥
-##   ideas.ambicion_minima_generacion tira p = (0,12 + 0,004 × ambición) × modificador de Company
-##   (get_idea_generation_modifier, si existe). Si sale, la idea nace a una hora laborable aleatoria
-##   [ideas.hora_generacion_min, _max]: idea_generated + señal visible (get_signalling_npcs) con uno
-##   de tres comportamientos: "agitation", "to_computer" o "tell_colleague" (comunica la idea a un
-##   confidente, que pasa a known_by: es el momento en que se puede escuchar).
+##   ideas.ambicion_minima_generacion tira UNA vez p = (0,12 + 0,004 × ambición) × modificador de
+##   Company (get_idea_generation_modifier). Sin tope de ideas vivas: la frecuencia real es la de
+##   la fórmula. Si sale, la idea nace a una hora laborable aleatoria [ideas.hora_generacion_min,
+##   _max]: idea_generated + señal visible (get_signalling_npcs) con uno de tres comportamientos:
+##   "agitation", "to_computer" o "tell_colleague" (se la cuenta a un confidente: share_idea).
 ##   calidad = 20 + aleatorio(0, 80) proyectada sobre el rango de la plantilla del departamento
 ##   (o special.idea_quality_range del personaje nominado); frescura = aleatorio(3, 10).
 ## CADUCIDAD: cada jornada la frescura baja 1; a 0 la idea se retira (idea_expired si no se había
-##   presentado). Si el propietario la presenta antes que el jugador, presented = true: no vale nada.
-## ADQUISICIÓN (§11.1): overhear → player_seen_partially(propietario) (sabe que estabas presente);
-##   steal_file → crime_committed("file_copied") (registro digital); inherit → solo si el
-##   propietario ya no está (npc_removed); purchase → el propietario lo sabe todo (sigue en known_by,
-##   no acusa); gifted → sin rastro.
+##   presentado). Si el propietario la presenta antes que el jugador, presented = true: ya no vale.
+## ADQUISICIÓN (§11.1, requisito → rastro; get_acquisition_block dice por qué no se puede):
+##   overhear   → el propietario la está contando (señal tell_colleague activa) y el jugador está en
+##                su misma sala → player_seen_partially(propietario): sabe que estabas presente.
+##   steal_file → el propietario no está en su sala de trabajo y el jugador sí (su ordenador) →
+##                crime_committed("file_copied"): BeliefNet levanta un registro digital (chat_log,
+##                creencias.registros_por_delito.file_copied), consultable por IT.
+##   inherit    → solo si el propietario ya no está (npc_removed); sin rastro propio.
+##   purchase   → sin requisito propio aquí (el precio y el favor los cobra el flujo de soborno);
+##                el propietario lo sabe todo (sigue en known_by) y no acusa.
+##   gifted     → NPCDirector.get_debt(propietario) ≥ ideas.deuda_minima_cesion; sin rastro.
+## PRESENTACIÓN (§11.2, §19.11): present() solo resuelve una presentación ABIERTA con
+##   stage_presentation(), que abre IdeaPresentation.present_player_idea (manos) para aplicar
+##   después el mérito (Company) y las consecuencias del choque. present() sin abrir devuelve
+##   status "not_staged" y NO gasta la idea: el mérito nunca se pierde por usar la interfaz §19.
+##   contest() es el choque de esa presentación abierta; present() reutiliza su resultado.
 ## AURORA (§11.2): reunión semanal en aurora_room el día ideas.aurora_dia_semana (0 = primer día de
 ##   la semana; jornada 1 = día 0) a ideas.aurora_hora durante ideas.aurora_duracion_horas.
-##   Al abrirse: aurora_meeting_started + asistencia de los propietarios con ideas vivas
-##   (p = ambición × ideas.prob_presentar_por_punto_ambicion). Durante la reunión el jugador presenta
-##   (present / IdeaPresentation.present_player_idea). Al cerrarse, los propietarios asistentes
-##   presentan sus ideas pendientes (idea_presented con presenter = propietario).
+##   Al abrirse: aurora_meeting_started y la convocatoria: cada propietario (una vez) con ideas
+##   presentables tira p = ambición × ideas.prob_presentar_por_punto_ambicion; los convocados se
+##   ordenan por la calidad de su mejor idea y se limitan a las sillas de aurora_room.
+##   PRESENCIA: si la escena preparó la reunión (IdeaPresentation.summon_attendees →
+##   mark_meeting_staged), asisten los personajes que NPCDirector sitúa en aurora_room: quien fue
+##   apartado, retenido o enviado a otra sala no está y no puede acusar. Sin escena (reunión fuera
+##   de cámara), asisten los convocados disponibles (vivos y sin otra sala forzada para la franja).
+##   Al cerrarse, los propietarios asistentes presentan sus ideas pendientes.
 
 const PLAYER_ID := "player"
 const AURORA_ROOM := "aurora_room"
+const SEAT_FURNITURE := "chair"
 const METHOD_OVERHEAR := "overhear"
 const METHOD_STEAL_FILE := "steal_file"
 const METHOD_INHERIT := "inherit"
@@ -47,6 +63,20 @@ const STATUS_NOT_HELD := "not_held"
 const STATUS_ALREADY_PRESENTED := "already_presented"
 const STATUS_EXPIRED := "expired"
 const STATUS_NO_MEETING := "no_meeting"
+const STATUS_NOT_STAGED := "not_staged"
+## Motivos de get_acquisition_block (texto: IDEA_BLOCK_<MOTIVO>).
+const BLOCK_NOT_FOUND := "not_found"
+const BLOCK_UNKNOWN_METHOD := "unknown_method"
+const BLOCK_NOT_LIVE := "not_live"
+const BLOCK_TAKEN := "already_acquired"
+const BLOCK_OWNER_PRESENT := "owner_still_here"
+const BLOCK_OWNER_GONE := "owner_gone"
+const BLOCK_NOT_TELLING := "not_telling"
+const BLOCK_TOO_FAR := "too_far"
+const BLOCK_OWNER_AT_DESK := "owner_at_desk"
+const BLOCK_NOT_AT_DESK := "not_at_desk"
+const BLOCK_LOW_DEBT := "low_debt"
+const BLOCK_KEY_FORMAT := "IDEA_BLOCK_%s"
 const BEHAVIOUR_AGITATION := "agitation"
 const BEHAVIOUR_TO_COMPUTER := "to_computer"
 const BEHAVIOUR_TELL := "tell_colleague"
@@ -57,6 +87,12 @@ const KEY_QUALITY_RANGE := "idea_quality_range"
 const KEY_DEPARTMENT := "department"
 const KEY_METHOD_ID := "id"
 const KEY_TRACE := "leaves_trace"
+const KEY_FURNITURE_TYPE := "type"
+## Claves de la presentación abierta (_staged).
+const K_IDEA := "idea_id"
+const K_OVERRIDES := "overrides"
+const K_ACCUSER := "accuser"
+const K_CONTEST_RESULT := "contest_result"
 const ID_FORMAT := "idea_%d"
 const MEETING_ID_FORMAT := "aurora_d%d"
 const HOUR_FORMAT := "%02d:00"
@@ -70,7 +106,6 @@ const COMPANY_MODIFIER_GETTER := "get_idea_generation_modifier"
 const B_PROB_BASE := "ideas.prob_generacion_diaria_base"
 const B_PROB_PER_AMBITION := "ideas.mod_prob_por_ambicion"
 const B_MIN_AMBITION := "ideas.ambicion_minima_generacion"
-const B_MAX_LIVE := "ideas.max_ideas_vivas_por_personaje"
 const B_FRESH_MIN := "ideas.frescura_min_jornadas"
 const B_FRESH_MAX := "ideas.frescura_max_jornadas"
 const B_QUALITY_MIN := "ideas.calidad_min"
@@ -86,6 +121,7 @@ const B_AURORA_WEEKDAY := "ideas.aurora_dia_semana"
 const B_AURORA_HOUR := "ideas.aurora_hora"
 const B_AURORA_HOURS := "ideas.aurora_duracion_horas"
 const B_PRESENT_PER_AMBITION := "ideas.prob_presentar_por_punto_ambicion"
+const B_GIFT_DEBT := "ideas.deuda_minima_cesion"
 const B_DAYS_PER_WEEK := "tiempo.jornadas_por_semana"
 const B_PARTIAL_CERTAINTY := "creencias.certeza_parcial"
 
@@ -101,9 +137,11 @@ var _pending_generation: Dictionary[String, int] = {}
 var _removed_owners: Dictionary[String, String] = {}
 ## idea_id → "none" | "assist" | "real".
 var _preparation: Dictionary[String, String] = {}
-## {id, day, start_hour, end_hour, open, attendees: Array[String]}; {} si nunca hubo reunión.
+## {id, day, start_hour, end_hour, open, invited: Array[String], staged}; {} si nunca hubo reunión.
 var _meeting: Dictionary = {}
 var _last_meeting_day: int = -1
+## Presentación abierta: {idea_id, overrides[, accuser, contest_result]}; {} si ninguna.
+var _staged: Dictionary = {}
 ## Detalle numérico del último choque (UI y depuración).
 var _last_contest: Dictionary = {}
 
@@ -123,6 +161,7 @@ func reset_for_new_run() -> void:
 	_preparation.clear()
 	_meeting = {}
 	_last_meeting_day = -1
+	_staged = {}
 	_last_contest = {}
 	_rng.seed = hash("%d:%s" % [GameClock.get_run_seed(), RNG_SALT])
 
@@ -220,13 +259,27 @@ func get_signalling_npcs() -> Array[Dictionary]:
 	return out
 
 
-## EXTRA: el propietario cuenta su idea a otro personaje (pasa a creer «la idea era suya»).
+## EXTRA: el propietario cuenta su idea a otro personaje: este pasa a creer «la idea era suya» y,
+## durante ideas.horas_senal, el propietario muestra la señal tell_colleague (se puede escuchar).
 func share_idea(idea_id: String, npc_id: String) -> bool:
 	var idea: Idea = _ideas.get(idea_id)
-	if idea == null or npc_id.is_empty() or idea.known_by.has(npc_id):
+	if idea == null or npc_id.is_empty() or npc_id == PLAYER_ID or idea.known_by.has(npc_id):
 		return false
 	idea.known_by.append(npc_id)
+	if _is_live(idea) and not is_owner_gone(idea.owner):
+		_set_signal(idea.owner, idea.id, BEHAVIOUR_TELL, npc_id)
 	return true
+
+
+## EXTRA: true mientras el propietario está contando esta idea (ventana de la vía overhear).
+func is_being_told(idea_id: String) -> bool:
+	var idea: Idea = _ideas.get(idea_id)
+	if idea == null:
+		return false
+	var entry: Dictionary = _signals.get(idea.owner, {})
+	return str(entry.get("idea_id", "")) == idea_id and entry.get("behaviour") == BEHAVIOUR_TELL \
+			and int(entry.get("day", -1)) == GameClock.get_day() \
+			and GameClock.get_hour() < int(entry.get("until_hour", 0))
 
 
 # ─── Consulta ─────────────────────────────────────────────────
@@ -298,9 +351,9 @@ func get_npc_display_name(npc_id: String) -> String:
 # ─── Adquisición (§11.1) ──────────────────────────────────────
 
 func acquire(idea_id: String, method: String) -> bool:
-	var idea: Idea = _ideas.get(idea_id)
-	if not _can_acquire(idea, method):
+	if not get_acquisition_block(idea_id, method).is_empty():
 		return false
+	var idea: Idea = _ideas[idea_id]
 	idea.acquired_by = PLAYER_ID
 	idea.acquisition_method = method
 	if not idea.known_by.has(PLAYER_ID):
@@ -308,6 +361,46 @@ func acquire(idea_id: String, method: String) -> bool:
 	_leave_trace(idea, method)
 	EventBus.idea_acquired.emit(idea.id, method)
 	return true
+
+
+## EXTRA: "" si la vía es posible ahora mismo; si no, el motivo (BLOCK_*; texto con
+## acquisition_block_key). Requisitos de la tabla de §11.1 (ver cabecera).
+func get_acquisition_block(idea_id: String, method: String) -> String:
+	var idea: Idea = _ideas.get(idea_id)
+	if idea == null:
+		return BLOCK_NOT_FOUND
+	if not METHODS.has(method):
+		return BLOCK_UNKNOWN_METHOD
+	if not _is_live(idea):
+		return BLOCK_NOT_LIVE
+	if not idea.acquired_by.is_empty():
+		return BLOCK_TAKEN
+	if method == METHOD_INHERIT:
+		return "" if is_owner_gone(idea.owner) else BLOCK_OWNER_PRESENT
+	if is_owner_gone(idea.owner):
+		return BLOCK_OWNER_GONE
+	return _method_requirement(idea, method)
+
+
+## EXTRA: clave de texto de un motivo de get_acquisition_block.
+static func acquisition_block_key(block: String) -> String:
+	return BLOCK_KEY_FORMAT % block.to_upper()
+
+
+## EXTRA: el jugador está en la misma sala que el personaje (proximidad de la vía overhear).
+func is_player_within_earshot(npc_id: String) -> bool:
+	return same_room(PlayerState.get_room(), NPCDirector.get_current_location(npc_id))
+
+
+## EXTRA: misma sala; una copia transversal sin planta ("corridors_low") vale por cualquiera.
+static func same_room(a: String, b: String) -> bool:
+	if a.is_empty() or b.is_empty():
+		return false
+	if a == b:
+		return true
+	var sep: String = DatabaseSystem.INSTANCE_SEPARATOR
+	return DatabaseSystem.get_room_base_id(a) == DatabaseSystem.get_room_base_id(b) \
+			and (not a.contains(sep) or not b.contains(sep))
 
 
 ## EXTRA (manos: DutySystem): la idea robada se usa como material de una entrega (§10.2). Deja de
@@ -336,57 +429,66 @@ func get_preparation(idea_id: String) -> String:
 	return _preparation.get(idea_id, IdeaPresentation.PREP_NONE)
 
 
-## Presentación del jugador con el contexto real. Devuelve { merit, contested, contest_result }
-## más: status, idea_id, quality, preparation, reputation, accuser, attendees y, si hubo choque,
-## player_credibility, accuser_credibility, difference, allies, believers.
-## No aplica consecuencias en otros sistemas: IdeaPresentation.present_player_idea lo hace.
+## EXTRA (manos: IdeaPresentation.prepare con A.S.S.I.S.T.): lotería §10.4 con el RNG del pool.
+func roll_assist_outcome() -> String:
+	return DutySystem.assist_outcome_for_roll(_rng.randf())
+
+
+## EXTRA (manos: IdeaPresentation.present_player_idea): abre la presentación de `idea_id` con claves
+## de contexto forzadas (IdeaPresentation.build_context, "preparation", "accuser_present").
+## false (sin abrir) si la idea no puede presentarse ahora.
+func stage_presentation(idea_id: String, overrides: Dictionary = {}) -> bool:
+	if _presentation_status(_ideas.get(idea_id)) != STATUS_OK:
+		return false
+	_staged = {K_IDEA: idea_id, K_OVERRIDES: overrides.duplicate(true)}
+	return true
+
+
+func is_presentation_staged(idea_id: String) -> bool:
+	return not _staged.is_empty() and str(_staged.get(K_IDEA, "")) == idea_id
+
+
+## §19.11. Resuelve la presentación ABIERTA (stage_presentation) de `idea_id` y la cierra.
+## Devuelve { merit, contested, contest_result } más: status, idea_id, quality, preparation,
+## reputation, accuser, attendees y, si hubo choque, player_credibility, accuser_credibility,
+## difference, allies, believers. Sin abrir: status "not_staged" (o el que impida presentarla) y
+## la idea no se gasta; así el mérito y las consecuencias que aplica IdeaPresentation nunca se
+## pierden. Escenas y UI presentan con IdeaPresentation.present_player_idea().
 func present(idea_id: String) -> Dictionary:
-	return present_with_context(idea_id, {})
-
-
-## EXTRA: como present(), con claves de contexto forzadas (ver IdeaPresentation.build_context;
-## además "preparation" y "accuser_present").
-func present_with_context(idea_id: String, overrides: Dictionary) -> Dictionary:
-	var idea: Idea = _ideas.get(idea_id)
-	var result: Dictionary = {
-		"merit": 0, "contested": false, "contest_result": "", "idea_id": idea_id,
-		"status": _presentation_status(idea), "accuser": "", "attendees": get_meeting_attendees(),
-	}
-	if result["status"] != STATUS_OK:
+	var result: Dictionary = _base_result(idea_id)
+	if not is_presentation_staged(idea_id):
+		result["status"] = _unstaged_status(_ideas.get(idea_id))
 		return result
-	var accuser: String = _find_accuser(idea, overrides)
-	if not accuser.is_empty():
-		result["contested"] = true
-		result["accuser"] = accuser
-		result["contest_result"] = contest_with_context(idea_id, accuser, overrides)
-		result.merge(_last_contest, false)
-		result["attendees"] = _last_contest.get("attendees", result["attendees"])
+	var stage: Dictionary = _staged
+	_staged = {}
+	var idea: Idea = _ideas.get(idea_id)
+	var overrides: Dictionary = stage.get(K_OVERRIDES, {})
+	if not stage.has(K_CONTEST_RESULT):
+		result["status"] = _presentation_status(idea)
+		if result["status"] != STATUS_OK:
+			return result
+		var accuser: String = _find_accuser(idea, overrides)
+		if not accuser.is_empty():
+			_record_clash(idea, accuser, stage)
+	_fill_contest(result, stage)
 	if not result["contested"] or result["contest_result"] == IdeaPresentation.RESULT_WIN:
 		_grant_player_merit(idea, overrides, result)
 	return result
 
 
+## §19.11: choque de credibilidad de la presentación abierta de `idea_id` con `accuser`. Registra el
+## resultado en la idea (derrota: revierte al propietario; empate: quemada) y emite
+## idea_contested. "" si esa idea no tiene presentación abierta. present() reutiliza el resultado.
 func contest(idea_id: String, accuser: String) -> String:
-	return contest_with_context(idea_id, accuser, {})
-
-
-## EXTRA: choque de credibilidad con claves de contexto forzadas. Registra el resultado en la idea
-## (derrota: revierte al propietario; empate: quemada) y emite idea_contested.
-func contest_with_context(idea_id: String, accuser: String, overrides: Dictionary) -> String:
-	var idea: Idea = _ideas.get(idea_id)
-	if idea == null or accuser.is_empty():
+	if not is_presentation_staged(idea_id) or accuser.is_empty():
 		return ""
-	var context: Dictionary = IdeaPresentation.build_context(idea, accuser, get_meeting_attendees())
-	context.merge(overrides, true)
-	var outcome: Dictionary = IdeaPresentation.resolve_contest(context)
-	var result: String = str(outcome["result"])
-	_apply_contest_to_idea(idea, result)
-	_last_contest = context.duplicate(true)
-	_last_contest.merge(outcome, true)
-	_last_contest["idea_id"] = idea_id
-	_last_contest["accuser"] = accuser
-	EventBus.idea_contested.emit(idea_id, accuser, result)
-	return result
+	if _staged.has(K_CONTEST_RESULT):
+		return str(_staged[K_CONTEST_RESULT])
+	var idea: Idea = _ideas.get(idea_id)
+	if _presentation_status(idea) != STATUS_OK:
+		return ""
+	_record_clash(idea, accuser, _staged)
+	return str(_staged[K_CONTEST_RESULT])
 
 
 func get_last_contest() -> Dictionary:
@@ -410,13 +512,24 @@ func present_for_owner(idea_id: String) -> int:
 
 # ─── Reunión semanal Aurora (§11.2) ───────────────────────────
 
-## EXTRA: {room, weekday, hour, duration_hours} para el calendario y PORTAL.
+## EXTRA: {room, weekday, hour, duration_hours, seats} para el calendario y PORTAL.
 func get_meeting_schedule() -> Dictionary:
 	return {
 		"room": AURORA_ROOM, "weekday": Database.get_balance_int(B_AURORA_WEEKDAY),
 		"hour": Database.get_balance_int(B_AURORA_HOUR),
-		"duration_hours": Database.get_balance_int(B_AURORA_HOURS),
+		"duration_hours": Database.get_balance_int(B_AURORA_HOURS), "seats": get_meeting_seats(),
 	}
+
+
+## EXTRA: sillas de aurora_room (rooms/p12.json): tope de convocados.
+func get_meeting_seats() -> int:
+	var room: RoomData = Database.get_room(AURORA_ROOM)
+	var seats: int = 0
+	if room != null:
+		for piece: Dictionary in room.furniture:
+			if str(piece.get(KEY_FURNITURE_TYPE, "")) == SEAT_FURNITURE:
+				seats += 1
+	return seats
 
 
 ## EXTRA: la jornada 1 es el primer día de la semana (weekday 0).
@@ -438,34 +551,65 @@ func is_meeting_open() -> bool:
 	return bool(_meeting.get("open", false))
 
 
-## EXTRA: {id, day, start_hour, end_hour, open, attendees} de la reunión en curso o la última.
+## EXTRA: {id, day, start_hour, end_hour, open, invited, staged} de la reunión en curso o la última.
 func get_current_meeting() -> Dictionary:
 	return _meeting.duplicate(true)
 
 
-## EXTRA: asistentes de la reunión abierta: los propietarios que acudieron, los que la escena
-## añadió y los personajes que NPCDirector sitúa en aurora_room.
+## EXTRA: convocados de la reunión abierta (tirada de asistencia + los que añadió la escena).
+func get_meeting_invitees() -> Array[String]:
+	var out: Array[String] = []
+	if is_meeting_open():
+		for npc_id: Variant in _meeting.get("invited", []):
+			out.append(str(npc_id))
+	return out
+
+
+## EXTRA: presentes en la reunión abierta (ver PRESENCIA en la cabecera).
 func get_meeting_attendees() -> Array[String]:
 	var out: Array[String] = []
 	if not is_meeting_open():
 		return out
-	for npc_id: Variant in _meeting.get("attendees", []):
-		out.append(str(npc_id))
+	if not is_meeting_staged():
+		for npc_id: String in get_meeting_invitees():
+			if is_available_for_meeting(npc_id):
+				out.append(npc_id)
 	for npc: NPCRuntime in NPCDirector.get_npcs_in_room(AURORA_ROOM):
 		if not out.has(npc.id):
 			out.append(npc.id)
 	return out
 
 
-## EXTRA: un personaje entra en la reunión abierta (la escena Aurora, guiones o tests).
+## EXTRA: el personaje puede acudir ahora: vivo, en plantilla y sin otra sala forzada para la
+## franja en curso (NPCDirector.override_routine hacia otro sitio = apartado de la reunión).
+func is_available_for_meeting(npc_id: String) -> bool:
+	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
+	if npc == null or not NPCDirector.is_active(npc_id) or is_owner_gone(npc_id):
+		return false
+	var forced: String = str(npc.schedule_override.get(GameClock.get_current_band(), ""))
+	return forced.is_empty() or same_room(forced, AURORA_ROOM)
+
+
+## EXTRA: convoca a un personaje a la reunión abierta (escena Aurora, guiones o tests).
 func add_meeting_attendee(npc_id: String) -> bool:
 	if not is_meeting_open() or npc_id.is_empty() or is_owner_gone(npc_id):
 		return false
-	var attendees: Array = _meeting.get("attendees", [])
-	if not attendees.has(npc_id):
-		attendees.append(npc_id)
-	_meeting["attendees"] = attendees
+	var invited: Array = _meeting.get("invited", [])
+	if not invited.has(npc_id):
+		invited.append(npc_id)
+	_meeting["invited"] = invited
 	return true
+
+
+## EXTRA (manos: IdeaPresentation.summon_attendees): la escena llevó a los convocados a la sala;
+## desde ahora la presencia es física (NPCDirector).
+func mark_meeting_staged() -> void:
+	if is_meeting_open():
+		_meeting["staged"] = true
+
+
+func is_meeting_staged() -> bool:
+	return is_meeting_open() and bool(_meeting.get("staged", false))
 
 
 ## EXTRA: abre la reunión ahora (el reloj lo hace solo a la hora programada). Devuelve su id.
@@ -473,7 +617,8 @@ func start_meeting() -> String:
 	if is_meeting_open():
 		return str(_meeting["id"])
 	var start: int = GameClock.get_hour()
-	return _open_meeting(GameClock.get_day(), start, start + Database.get_balance_int(B_AURORA_HOURS))
+	var end: int = start + Database.get_balance_int(B_AURORA_HOURS)
+	return _open_meeting(GameClock.get_day(), start, end)
 
 
 ## EXTRA: cierra la reunión: los propietarios asistentes presentan sus ideas pendientes.
@@ -488,6 +633,7 @@ func close_meeting() -> int:
 				present_for_owner(idea.id)
 				presented += 1
 	_meeting["open"] = false
+	_staged = {}
 	return presented
 
 
@@ -544,6 +690,7 @@ func save_state() -> Dictionary:
 		"pending_generation": _pending_generation.duplicate(),
 		"removed_owners": _removed_owners.duplicate(), "preparation": _preparation.duplicate(),
 		"meeting": _meeting.duplicate(true), "last_meeting_day": _last_meeting_day,
+		"staged": _staged.duplicate(true),
 	}
 
 
@@ -559,6 +706,8 @@ func load_state(data: Dictionary) -> void:
 	_load_maps(data)
 	_meeting = _load_meeting(data.get("meeting", {}))
 	_last_meeting_day = int(data.get("last_meeting_day", -1))
+	var staged: Variant = data.get("staged", {})
+	_staged = (staged as Dictionary).duplicate(true) if staged is Dictionary else {}
 
 
 # ─── Internos: generación ─────────────────────────────────────
@@ -566,13 +715,7 @@ func load_state(data: Dictionary) -> void:
 func _can_generate(npc: NPCRuntime) -> bool:
 	if not npc.alive or is_owner_gone(npc.id) or _pending_generation.has(npc.id):
 		return false
-	if not is_ambitious_enough(npc.get_trait(TRAIT_AMBITION)):
-		return false
-	var live: int = 0
-	for idea: Idea in get_ideas_by_owner(npc.id):
-		if _is_live(idea):
-			live += 1
-	return live < Database.get_balance_int(B_MAX_LIVE)
+	return is_ambitious_enough(npc.get_trait(TRAIT_AMBITION))
 
 
 ## {department (plantilla), quality_min, quality_max} o {} si el personaje no existe o ya no está.
@@ -637,18 +780,21 @@ func _pick_text_key(template_department: String) -> String:
 	return str(keys[_rng.randi_range(0, (keys as Array).size() - 1)])
 
 
-## Señalización (§11.1): indicador visual + cambio de comportamiento observable.
+## Señalización (§11.1): indicador visual + cambio de comportamiento observable. "Contárselo a un
+## colega" pasa por share_idea (el confidente la conoce y se abre la ventana de escucha).
 func _start_signal(idea: Idea) -> void:
 	var behaviour: String = _weighted_pick(_balance_dict(B_BEHAVIOUR_WEIGHTS))
-	var confidant: String = ""
 	if behaviour == BEHAVIOUR_TELL:
-		confidant = _pick_confidant(idea.owner)
-		if confidant.is_empty():
-			behaviour = BEHAVIOUR_AGITATION
-		else:
-			share_idea(idea.id, confidant)
-	_signals[idea.owner] = {
-		"npc_id": idea.owner, "idea_id": idea.id, "behaviour": behaviour, "confidant": confidant,
+		var confidant: String = _pick_confidant(idea.owner)
+		if not confidant.is_empty() and share_idea(idea.id, confidant):
+			return
+		behaviour = BEHAVIOUR_AGITATION
+	_set_signal(idea.owner, idea.id, behaviour, "")
+
+
+func _set_signal(owner: String, idea_id: String, behaviour: String, confidant: String) -> void:
+	_signals[owner] = {
+		"npc_id": owner, "idea_id": idea_id, "behaviour": behaviour, "confidant": confidant,
 		"day": GameClock.get_day(),
 		"until_hour": GameClock.get_hour() + Database.get_balance_int(B_SIGNAL_HOURS),
 	}
@@ -661,7 +807,8 @@ func _pick_confidant(owner: String) -> String:
 		if npc_id != owner and npc_id != PLAYER_ID and not is_owner_gone(npc_id):
 			candidates.append(npc_id)
 	if candidates.is_empty():
-		for npc: NPCRuntime in NPCDirector.get_npcs_in_room(NPCDirector.get_current_location(owner)):
+		var room: String = NPCDirector.get_current_location(owner)
+		for npc: NPCRuntime in NPCDirector.get_npcs_in_room(room):
 			if npc.id != owner and npc.alive:
 				candidates.append(npc.id)
 	if candidates.is_empty():
@@ -700,19 +847,35 @@ func _expire_signals(hour: int, day: int) -> void:
 			_signals.erase(npc_id)
 
 
-# ─── Internos: adquisición y presentación ─────────────────────
+# ─── Internos: adquisición ────────────────────────────────────
 
 func _is_live(idea: Idea) -> bool:
 	return not idea.presented and not idea.is_expired()
 
 
-func _can_acquire(idea: Idea, method: String) -> bool:
-	if idea == null or not METHODS.has(method) or not _is_live(idea):
-		return false
-	if not idea.acquired_by.is_empty():
-		return false
-	# Herencia solo si el propietario ya no está; el resto exige que siga en plantilla.
-	return is_owner_gone(idea.owner) == (method == METHOD_INHERIT)
+## Requisito propio de cada vía con el propietario en plantilla ("" = se cumple).
+func _method_requirement(idea: Idea, method: String) -> String:
+	match method:
+		METHOD_OVERHEAR:
+			if not is_being_told(idea.id):
+				return BLOCK_NOT_TELLING
+			return "" if is_player_within_earshot(idea.owner) else BLOCK_TOO_FAR
+		METHOD_STEAL_FILE:
+			return _file_access_block(idea.owner)
+		METHOD_GIFTED:
+			var debt: int = NPCDirector.get_debt(idea.owner)
+			return "" if debt >= Database.get_balance_int(B_GIFT_DEBT) else BLOCK_LOW_DEBT
+	return ""
+
+
+## Copia de archivo: el propietario lejos de su sala de trabajo y el jugador en ella.
+func _file_access_block(owner: String) -> String:
+	var desk_room: String = _owner_desk_room(owner)
+	if desk_room.is_empty():
+		return BLOCK_NOT_AT_DESK
+	if same_room(NPCDirector.get_current_location(owner), desk_room):
+		return BLOCK_OWNER_AT_DESK
+	return "" if same_room(PlayerState.get_room(), desk_room) else BLOCK_NOT_AT_DESK
 
 
 func _leave_trace(idea: Idea, method: String) -> void:
@@ -724,7 +887,7 @@ func _leave_trace(idea: Idea, method: String) -> void:
 			EventBus.crime_committed.emit(CRIME_FILE_COPIED, _owner_desk_room(idea.owner),
 					{"idea_id": idea.id, "owner": idea.owner, "subject": PLAYER_ID})
 		_:
-			pass  # inherit: el rastro es el de la desaparición; purchase/gifted: ninguno documental.
+			pass  # inherit: el rastro es el de la desaparición; purchase/gifted: ninguno.
 
 
 func _owner_location(npc_id: String) -> String:
@@ -740,6 +903,8 @@ func _owner_desk_room(npc_id: String) -> String:
 	return named.home_room if named != null else ""
 
 
+# ─── Internos: presentación ───────────────────────────────────
+
 func _presentation_status(idea: Idea) -> String:
 	if idea == null:
 		return STATUS_NOT_FOUND
@@ -754,12 +919,52 @@ func _presentation_status(idea: Idea) -> String:
 	return STATUS_OK
 
 
+func _unstaged_status(idea: Idea) -> String:
+	var status: String = _presentation_status(idea)
+	return STATUS_NOT_STAGED if status == STATUS_OK else status
+
+
+func _base_result(idea_id: String) -> Dictionary:
+	return {
+		"merit": 0, "contested": false, "contest_result": "", "idea_id": idea_id,
+		"status": STATUS_OK, "accuser": "", "attendees": get_meeting_attendees(),
+	}
+
+
+## Acusa el propietario vivo y presente, salvo si consintió (compra, cesión).
 func _find_accuser(idea: Idea, overrides: Dictionary) -> String:
 	if CONSENTED_METHODS.has(idea.acquisition_method) or is_owner_gone(idea.owner):
 		return ""
 	var present: bool = bool(overrides.get("accuser_present",
 			get_meeting_attendees().has(idea.owner)))
 	return idea.owner if present else ""
+
+
+## Resuelve el choque con el contexto real (más las claves forzadas de la presentación abierta).
+func _record_clash(idea: Idea, accuser: String, stage: Dictionary) -> void:
+	var context: Dictionary = IdeaPresentation.build_context(idea, accuser,
+			get_meeting_attendees())
+	context.merge(stage.get(K_OVERRIDES, {}), true)
+	var outcome: Dictionary = IdeaPresentation.resolve_contest(context)
+	var result: String = str(outcome["result"])
+	_apply_contest_to_idea(idea, result)
+	_last_contest = context.duplicate(true)
+	_last_contest.merge(outcome, true)
+	_last_contest[K_IDEA] = idea.id
+	_last_contest[K_ACCUSER] = accuser
+	stage[K_ACCUSER] = accuser
+	stage[K_CONTEST_RESULT] = result
+	EventBus.idea_contested.emit(idea.id, accuser, result)
+
+
+func _fill_contest(result: Dictionary, stage: Dictionary) -> void:
+	if not stage.has(K_CONTEST_RESULT):
+		return
+	result["contested"] = true
+	result["accuser"] = str(stage[K_ACCUSER])
+	result["contest_result"] = str(stage[K_CONTEST_RESULT])
+	result.merge(_last_contest, false)
+	result["attendees"] = _last_contest.get("attendees", result["attendees"])
 
 
 func _grant_player_merit(idea: Idea, overrides: Dictionary, result: Dictionary) -> void:
@@ -784,19 +989,29 @@ func _apply_contest_to_idea(idea: Idea, result: String) -> void:
 			pass  # victoria: present() concede el mérito y marca la idea presentada.
 
 
+# ─── Internos: reunión ────────────────────────────────────────
+
 func _owner_can_present(idea: Idea) -> bool:
 	return _is_live(idea) and not CONSENTED_METHODS.has(idea.acquisition_method)
 
 
+## Convocatoria: una tirada por propietario con ideas presentables; por calidad de su mejor idea
+## (desc., luego id) hasta llenar las sillas de la sala.
 func _roll_attendance() -> Array[String]:
-	var out: Array[String] = []
-	var per_point: float = Database.get_balance_float(B_PRESENT_PER_AMBITION)
+	var best: Dictionary[String, int] = {}
 	for idea: Idea in _ideas.values():
-		if out.has(idea.owner) or not _owner_can_present(idea) or is_owner_gone(idea.owner):
-			continue
-		if _rng.randf() < per_point * float(_ambition_of(idea.owner)):
-			out.append(idea.owner)
-	return out
+		if _owner_can_present(idea) and not is_owner_gone(idea.owner):
+			best[idea.owner] = maxi(int(best.get(idea.owner, 0)), idea.quality)
+	var per_point: float = Database.get_balance_float(B_PRESENT_PER_AMBITION)
+	var out: Array[String] = []
+	for owner: String in best.keys():
+		if is_available_for_meeting(owner) \
+				and _rng.randf() < per_point * float(_ambition_of(owner)):
+			out.append(owner)
+	out.sort_custom(func(a: String, b: String) -> bool:
+		return best[a] > best[b] or (best[a] == best[b] and a < b))
+	var seats: int = get_meeting_seats()
+	return out.slice(0, seats) if seats > 0 and out.size() > seats else out
 
 
 func _ambition_of(npc_id: String) -> int:
@@ -810,8 +1025,9 @@ func _ambition_of(npc_id: String) -> int:
 func _open_meeting(day: int, start_hour: int, end_hour: int) -> String:
 	_meeting = {
 		"id": MEETING_ID_FORMAT % day, "day": day, "start_hour": start_hour,
-		"end_hour": end_hour, "open": true, "attendees": _roll_attendance(),
+		"end_hour": end_hour, "open": true, "invited": [], "staged": false,
 	}
+	_meeting["invited"] = _roll_attendance()
 	_last_meeting_day = day
 	EventBus.aurora_meeting_started.emit(str(_meeting["id"]))
 	return str(_meeting["id"])
@@ -827,12 +1043,15 @@ func _update_meeting(hour: int, day: int) -> void:
 
 # ─── Internos: señales y persistencia ─────────────────────────
 
+## Sin datos cargados (herramientas, tests sin partida) el pool no hace nada.
 func _on_day_advanced(day_number: int) -> void:
-	process_new_day(day_number)
+	if Database.is_loaded():
+		process_new_day(day_number)
 
 
 func _on_hour_passed(hour: int, day_number: int) -> void:
-	process_hour(hour, day_number)
+	if Database.is_loaded():
+		process_hour(hour, day_number)
 
 
 func _on_npc_removed(npc_id: String, cause: String) -> void:
@@ -840,9 +1059,9 @@ func _on_npc_removed(npc_id: String, cause: String) -> void:
 	_signals.erase(npc_id)
 	_pending_generation.erase(npc_id)
 	if is_meeting_open():
-		var attendees: Array = _meeting.get("attendees", [])
-		attendees.erase(npc_id)
-		_meeting["attendees"] = attendees
+		var invited: Array = _meeting.get("invited", [])
+		invited.erase(npc_id)
+		_meeting["invited"] = invited
 
 
 func _load_maps(data: Dictionary) -> void:
@@ -863,13 +1082,14 @@ func _load_meeting(raw: Variant) -> Dictionary:
 	if not (raw is Dictionary) or (raw as Dictionary).is_empty():
 		return {}
 	var d: Dictionary = raw
-	var attendees: Array[String] = []
-	for npc_id: Variant in d.get("attendees", []):
-		attendees.append(str(npc_id))
+	var invited: Array[String] = []
+	for npc_id: Variant in d.get("invited", []):
+		invited.append(str(npc_id))
 	return {
 		"id": str(d.get("id", "")), "day": int(d.get("day", 0)),
 		"start_hour": int(d.get("start_hour", 0)), "end_hour": int(d.get("end_hour", 0)),
-		"open": bool(d.get("open", false)), "attendees": attendees,
+		"open": bool(d.get("open", false)), "invited": invited,
+		"staged": bool(d.get("staged", false)),
 	}
 
 

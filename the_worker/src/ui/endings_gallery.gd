@@ -18,10 +18,13 @@ const CATEGORY_KEYS: Dictionary = {
 	"full_victory": "UI_GALLERY_CAT_FULL", "partial_victory": "UI_GALLERY_CAT_PARTIAL", "defeat": "UI_GALLERY_CAT_DEFEAT",
 }
 
+static var _cache: Array[Dictionary] = []
+
 var _unlocked: Array[String] = []
 var _override: bool = false
 var _states: Dictionary = {}
 var _built_locale: String = ""
+var _grid: GridContainer
 
 
 ## Fuerza la lista de desbloqueos (si no se llama, se lee del perfil).
@@ -38,10 +41,11 @@ func _ready() -> void:
 	if not _override:
 		_unlocked = read_unlocked()
 	_build()
+	resized.connect(_update_columns)
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready() and _built_locale != TranslationServer.get_locale():
+	if what == NOTIFICATION_TRANSLATION_CHANGED and MenuKit.locale_outdated(self, _built_locale):
 		_rebuild.call_deferred()
 
 
@@ -49,6 +53,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		closed.emit()
+
+
+## Atrás (Esc o botón de Android, vía MainMenu).
+func go_back() -> void:
+	closed.emit()
+
+
+## Columnas según la proporción actual (se recalcula al cambiar de tamaño).
+func column_count() -> int:
+	var area: Vector2 = size if size.x > 0.0 else get_viewport_rect().size
+	return NARROW_COLUMNS if area.x / maxf(1.0, area.y) < NARROW_ASPECT else COLUMNS
+
+
+func _update_columns() -> void:
+	if _grid != null and is_instance_valid(_grid) and _grid.columns != column_count():
+		_grid.columns = column_count()
 
 
 # ─── Datos ─────────────────────────────────────────────────────
@@ -62,17 +82,17 @@ static func read_unlocked() -> Array[String]:
 
 ## Los finales en orden de galería (victorias plenas, parciales, derrotas).
 static func load_endings() -> Array[Dictionary]:
-	var data: Dictionary = MenuKit.read_json(ENDINGS_FILE)
-	if Database.has_method("get_endings_data"):
-		var from_db: Variant = Database.call("get_endings_data")
-		if from_db is Dictionary and not (from_db as Dictionary).is_empty():
-			data = from_db
-	var out: Array[Dictionary] = []
-	for category: String in CATEGORY_KEYS:
-		for raw: Variant in data.get("endings", []):
-			if raw is Dictionary and str((raw as Dictionary).get("category", "")) == category:
-				out.append(raw)
-	return out
+	if _cache.is_empty():
+		var list: Array = []
+		if Database.has_method("get_all_endings"):
+			list = Database.call("get_all_endings")
+		if list.is_empty():
+			list = MenuKit.read_json(ENDINGS_FILE).get("endings", [])
+		for category: String in CATEGORY_KEYS:
+			for raw: Variant in list:
+				if raw is Dictionary and str((raw as Dictionary).get("category", "")) == category:
+					_cache.append(raw)
+	return _cache.duplicate()
 
 
 static func find_ending(ending_id: String) -> Dictionary:
@@ -114,6 +134,8 @@ func card_count() -> int:
 # ─── Construcción ──────────────────────────────────────────────
 
 func _rebuild() -> void:
+	if not is_inside_tree():
+		return
 	for child: Node in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -128,7 +150,7 @@ func _build() -> void:
 	var frame: Dictionary = MenuKit.memo_frame(tr("UI_GALLERY_TITLE"), tr("UI_GALLERY_KICKER"))
 	add_child(frame["root"])
 	(frame["back"] as Button).pressed.connect(func() -> void: closed.emit())
-	(frame["back"] as Button).grab_focus.call_deferred()
+	MenuKit.focus_later(frame["back"] as Button)
 	var body: VBoxContainer = frame["body"]
 	var unlocked_total: int = 0
 	for ending: Dictionary in endings:
@@ -137,14 +159,13 @@ func _build() -> void:
 	var counter: Label = MenuKit.label(MenuKit.trf("UI_GALLERY_COUNTER", {"n": unlocked_total, "total": endings.size()}))
 	counter.add_theme_font_override("font", MenuKit.font("bold"))
 	body.add_child(counter)
-	var grid: GridContainer = GridContainer.new()
-	grid.name = "Grid"
-	var viewport_size: Vector2 = get_viewport_rect().size
-	grid.columns = NARROW_COLUMNS if viewport_size.x / maxf(1.0, viewport_size.y) < NARROW_ASPECT else COLUMNS
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(grid)
+	_grid = GridContainer.new()
+	_grid.name = "Grid"
+	_grid.columns = column_count()
+	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(_grid)
 	for ending: Dictionary in endings:
-		grid.add_child(_make_card(ending))
+		_grid.add_child(_make_card(ending))
 
 
 func _make_card(ending: Dictionary) -> Control:
@@ -178,7 +199,7 @@ func _card_texts(ending: Dictionary, unlocked: bool) -> VBoxContainer:
 	var category: String = str(ending.get("category", ""))
 	var tag: Label = MenuKit.label(tr(str(CATEGORY_KEYS.get(category, ""))).to_upper(), "TWSmall")
 	tag.add_theme_font_override("font", MenuKit.font("bold"))
-	tag.add_theme_color_override("font_color", MenuKit.axis_color(ending_axis(ending)).darkened(0.25))
+	tag.add_theme_color_override("font_color", MenuKit.heading_color(MenuKit.axis_color(ending_axis(ending)).darkened(0.25)))
 	texts.add_child(tag)
 	var title_text: String = tr(str(ending.get("name_key", ""))) if unlocked else tr("UI_GALLERY_LOCKED_NAME")
 	var title: Label = MenuKit.label(title_text.to_upper(), "TWHeading", true)

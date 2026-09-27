@@ -5,7 +5,8 @@ class_name OpeningCinematic
 extends Control
 
 ## ~90 s sin diálogo hablado: solo texto (rótulos) y sonido (subtítulos si el ajuste está activo).
-## play() arranca; skip() la salta; seek(t) salta a un instante (capturas, pruebas).
+## play() arranca; skip() la salta (también Esc y el botón «atrás» de Android); seek(t) salta a un
+## instante (capturas, pruebas). Sonidos: AudioDirector (SfxBank) y OpeningSounds (autobús).
 ## La única elección (la oferta de Stellar Sell) espera al jugador hasta `espera_eleccion_segundos`
 ## y después se elige sola. Al terminar emite finished(skipped). Duraciones: balance menus.apertura.
 
@@ -27,10 +28,19 @@ const CAPTIONS: Array[Array] = [
 	[1, 0.05, 0.36, "OPENING_SFX_BUS", true],
 	[1, 0.36, 0.44, "OPENING_SFX_BRAKES", true],
 	[1, 0.5, 0.68, "OPENING_M2_CAPTION_2", false],
-	[1, 0.72, 0.95, "OPENING_M2_CAPTION_3", false],
+	[1, 0.72, 0.83, "OPENING_M2_CAPTION_3", false],
+	[1, 0.84, 0.96, "OPENING_M2_CAPTION_4", false],
 	[2, 0.06, 0.4, "OPENING_M3_CAPTION_1", false],
 	[2, 0.42, 0.56, "OPENING_SFX_BEEP", true],
 	[2, 0.58, 0.85, "OPENING_M3_CAPTION_2", false],
+	[2, 0.7, 0.84, "OPENING_SFX_CHIME", true],
+]
+
+## Efectos: [movimiento, instante (fracción), id]. Ids de SfxBank → AudioDirector (si existe);
+## los de OpeningSounds (autobús) suenan en esta escena. Cada subtítulo de sonido tiene su efecto.
+const SOUND_CUES: Array[Array] = [
+	[0, 0.2, "chatter"], [1, 0.05, OpeningSounds.ENGINE], [1, 0.36, OpeningSounds.BRAKES],
+	[2, 0.44, "card_beep"], [2, 0.7, "elevator_chime"],
 ]
 
 ## Posición global (segundos) de la línea de tiempo; se anima con Tweens.
@@ -39,7 +49,10 @@ var timeline: float = 0.0:
 		timeline = value
 		_on_timeline()
 
+## Multiplicador de velocidad de reproducción (1 = tiempo real). Pruebas y depuración.
+var playback_speed: float = 1.0
 var _durations: Array[float] = []
+var _last_timeline: float = 0.0
 var _tween: Tween
 var _playing: bool = false
 var _waiting_choice: bool = false
@@ -53,6 +66,7 @@ var _caption: Label
 var _subtitle: Label
 var _hint: Label
 var _skip_button: Button
+var _sounds: OpeningSounds
 
 
 func _ready() -> void:
@@ -63,6 +77,9 @@ func _ready() -> void:
 	_durations = _read_durations()
 	_build_layers()
 	_build_texts()
+	_sounds = OpeningSounds.new()
+	_sounds.name = "Sounds"
+	add_child(_sounds)
 	resized.connect(_on_timeline)
 	_on_timeline()
 
@@ -80,7 +97,14 @@ func _gui_input(event: InputEvent) -> void:
 			choose_offer()
 		elif card >= 0:
 			_back.shake_card(card)
+			MenuKit.audio_call(self, "play_sfx", ["ui_error"])
 		accept_event()
+
+
+## Botón «atrás» de Android: salta la apertura.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and _playing:
+		skip()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -139,8 +163,14 @@ func seek(seconds: float) -> void:
 	if _tween != null:
 		_tween.kill()
 	_waiting_choice = false
+	_hint.visible = false
 	_chosen_at = choice_time() if seconds > choice_time() else -1.0
-	timeline = clampf(seconds, 0.0, total_duration())
+	_last_timeline = clampf(seconds, 0.0, total_duration())
+	timeline = _last_timeline
+
+
+func is_hint_visible() -> bool:
+	return _hint.visible
 
 
 ## El jugador (o el temporizador) elige Stellar Sell: la única oferta disponible.
@@ -150,6 +180,7 @@ func choose_offer() -> void:
 	_waiting_choice = false
 	_chosen_at = timeline
 	_hint.visible = false
+	MenuKit.audio_call(self, "play_sfx", ["ui_confirm"])
 	offer_chosen.emit()
 	_run_to(total_duration(), func() -> void: _finish(false))
 
@@ -167,18 +198,31 @@ func _read_durations() -> Array[float]:
 func _run_to(target: float, then: Callable) -> void:
 	if _tween != null:
 		_tween.kill()
-	_tween = create_tween()
+	_tween = create_tween().set_speed_scale(playback_speed)
 	_tween.tween_property(self, "timeline", target, maxf(target - timeline, 0.01))
 	_tween.tween_callback(then)
 
 
 func _begin_choice() -> void:
+	present_offers()
+
+
+## Despliega las ofertas y espera la elección (se elige sola pasado `espera_eleccion_segundos`).
+func present_offers() -> void:
+	if _tween != null:
+		_tween.kill()
 	_waiting_choice = true
 	_hint.visible = true
+	_on_timeline()
 	var wait: float = MenuKit.bal_float("menus.apertura.espera_eleccion_segundos")
-	_tween = create_tween()
+	_tween = create_tween().set_speed_scale(playback_speed)
 	_tween.tween_interval(maxf(wait, 0.01))
 	_tween.tween_callback(choose_offer)
+
+
+## Centro (coordenadas locales) de una oferta en pantalla; STELLAR_CARD es la de Stellar Sell.
+func offer_center(index: int) -> Vector2:
+	return _back.card_center(index)
 
 
 func _finish(skipped: bool) -> void:
@@ -187,6 +231,8 @@ func _finish(skipped: bool) -> void:
 	_done = true
 	_playing = false
 	_waiting_choice = false
+	_hint.visible = false
+	_sounds.stop_all()
 	if _tween != null:
 		_tween.kill()
 	finished.emit(skipped)
@@ -217,6 +263,24 @@ func _on_timeline() -> void:
 		stage.set_moment(index, where.y, chosen_local, _waiting_choice)
 	_place_tower(index, where.y)
 	_update_texts(index, where.y)
+	_hint.visible = _waiting_choice
+	_fire_cues(timeline)
+
+
+func _fire_cues(t: float) -> void:
+	for cue: Array in SOUND_CUES:
+		var index: int = int(cue[0])
+		var at: float = movement_start(index) + _durations[index] * float(cue[1])
+		if _last_timeline < at and t >= at:
+			_play_cue(str(cue[2]))
+	_last_timeline = t
+
+
+func _play_cue(id: String) -> void:
+	if id == OpeningSounds.ENGINE or id == OpeningSounds.BRAKES:
+		_sounds.play(id)
+	else:
+		MenuKit.audio_call(self, "play_sfx", [id])
 
 
 # ─── Capas y textos ────────────────────────────────────────────
@@ -231,6 +295,8 @@ func _build_layers() -> void:
 	_tower.show_factory = false
 	_tower.show_ground = false
 	_tower.show_people = true
+	_tower.reserve_label_space = true
+	_tower.elevator_visible = false
 	add_child(_tower)
 	_front = OpeningStage.new()
 	_front.name = "Front"
@@ -256,16 +322,16 @@ func _place_tower(index: int, local_t: float) -> void:
 
 
 func _build_texts() -> void:
-	_caption = _text_label("Caption", "display", MenuKit.fs(MenuKit.FONT_HEADING + 6))
-	_caption.anchor_top = 0.8
-	_caption.anchor_bottom = 0.92
+	_caption = _text_label("Caption", "display", MenuKit.fs(MenuKit.FONT_HEADING))
+	_caption.anchor_top = 1.0 - OpeningStage.LETTERBOX
+	_caption.anchor_bottom = 1.0
 	_subtitle = _text_label("Subtitle", "italic", MenuKit.fs(MenuKit.FONT_BODY))
-	_subtitle.anchor_top = 0.92
-	_subtitle.anchor_bottom = 0.98
+	_subtitle.anchor_top = 1.0 - OpeningStage.LETTERBOX * 1.7
+	_subtitle.anchor_bottom = 1.0 - OpeningStage.LETTERBOX
 	_hint = _text_label("Hint", "bold", MenuKit.fs(MenuKit.FONT_BODY))
 	_hint.text = tr("OPENING_CHOICE_HINT")
-	_hint.anchor_top = 0.04
-	_hint.anchor_bottom = 0.12
+	_hint.anchor_top = OpeningStage.LETTERBOX
+	_hint.anchor_bottom = OpeningStage.LETTERBOX * 2.0
 	_hint.visible = false
 	_skip_button = MenuKit.button(tr("OPENING_SKIP"))
 	_skip_button.name = "Skip"
@@ -305,12 +371,20 @@ func _update_texts(index: int, local_t: float) -> void:
 			sound_text = tr(str(entry[3]))
 			sound_alpha = a if subtitles_on else 0.0
 		elif _caption_allowed(str(entry[3])):
-			caption_text = MenuKit.trf(str(entry[3]), {"name": GameLaunch.peek().get("player_name", "")})
+			caption_text = _caption_text(str(entry[3]))
 			caption_alpha = a
 	_caption.text = caption_text
 	_caption.modulate.a = caption_alpha
 	_subtitle.text = sound_text
 	_subtitle.modulate.a = sound_alpha
+
+
+## Rótulo traducido; {name} = nombre elegido en el alta (variante _ANON si aún no hay nombre).
+func _caption_text(key: String) -> String:
+	var player_name: String = str(GameLaunch.peek().get("player_name", ""))
+	if player_name.is_empty() and TranslationServer.translate(key).contains("{name}"):
+		return tr(key + "_ANON")
+	return MenuKit.trf(key, {"name": player_name})
 
 
 ## Los rótulos posteriores a la elección solo aparecen si ya se eligió la oferta.

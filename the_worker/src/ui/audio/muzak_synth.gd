@@ -7,7 +7,8 @@ extends RefCounted
 ## Una "pieza" se renderiza en pistas (stems) de un bucle exacto: acompañamiento + melodía en tres
 ## variantes (limpia, desafinada, atonal). MuzakDeck las reproduce como una cinta que se degrada.
 ## Todas las piezas son variaciones del mismo tema de la compañía (leitmotiv): el hilo musical en
-## Fa mayor, el menú (música de espera), y los epílogos por eje dominante (§14.9).
+## Fa mayor, el menú (música de espera), y los epílogos por eje dominante (§14.9); sin eje
+## dominante (híbrido) suena el propio hilo musical del edificio, limpio: te has vuelto parte de él.
 ## Las notas, acordes y timbres son contenido artístico (como coordenadas de dibujo); los ajustes de
 ## juego (tempo, umbrales y parámetros de degradación) vienen de balance.json → audio.*.
 
@@ -77,38 +78,39 @@ const PIECES: Dictionary = {
 	"epilogue_silk": {"bars": 16, "transpose": -3, "minor": true, "degradable": false, "arrangement": "noir"},
 	"epilogue_blood": {"bars": 8, "transpose": 0, "minor": true, "degradable": false, "arrangement": "dirge"},
 	"epilogue_ruin": {"bars": 16, "transpose": 0, "minor": false, "degradable": true, "arrangement": "standard"},
+	"epilogue_hybrid": {"bars": 16, "transpose": 0, "minor": false, "degradable": false, "arrangement": "standard"},
 }
 
 ## Arreglos: más orquestal arriba, más comprimido abajo (§14.9). hp/lp = altavoz del edificio.
 const ARRANGEMENTS: Dictionary = {
-	"muffled": {"lead": "sax", "double": "", "lead_gain": 0.55, "comp_gain": 0.16, "bass_gain": 0.7,
+	"muffled": {"lead": "sax", "double": "", "lead_gain": 0.6, "comp_gain": 0.2, "bass_gain": 0.5,
 		"drums": "brush", "drum_gain": 0.6, "pad_gain": 0.0, "harp_gain": 0.0,
 		"hp": 45.0, "lp": 620.0, "drive": 1.0},
-	"compressed": {"lead": "sax", "double": "", "lead_gain": 0.5, "comp_gain": 0.15, "bass_gain": 0.4,
-		"drums": "machine", "drum_gain": 0.75, "pad_gain": 0.0, "harp_gain": 0.0,
+	"compressed": {"lead": "sax", "double": "", "lead_gain": 0.65, "comp_gain": 0.2, "bass_gain": 0.3,
+		"drums": "machine", "drum_gain": 0.9, "pad_gain": 0.0, "harp_gain": 0.0,
 		"hp": 380.0, "lp": 3300.0, "drive": 2.6},
-	"standard": {"lead": "sax", "double": "", "lead_gain": 0.5, "comp_gain": 0.15, "bass_gain": 0.5,
-		"drums": "brush", "drum_gain": 0.7, "pad_gain": 0.0, "harp_gain": 0.0,
+	"standard": {"lead": "sax", "double": "", "lead_gain": 0.7, "comp_gain": 0.2, "bass_gain": 0.36,
+		"drums": "brush", "drum_gain": 0.9, "pad_gain": 0.0, "harp_gain": 0.0,
 		"hp": 90.0, "lp": 6500.0, "drive": 1.3},
-	"strings": {"lead": "sax", "double": "", "lead_gain": 0.45, "comp_gain": 0.12, "bass_gain": 0.5,
-		"drums": "brush_soft", "drum_gain": 0.5, "pad_gain": 0.045, "harp_gain": 0.0,
+	"strings": {"lead": "sax", "double": "", "lead_gain": 0.62, "comp_gain": 0.16, "bass_gain": 0.36,
+		"drums": "brush_soft", "drum_gain": 0.7, "pad_gain": 0.045, "harp_gain": 0.0,
 		"hp": 60.0, "lp": 8000.0, "drive": 1.1},
-	"orchestral": {"lead": "sax", "double": "flute", "lead_gain": 0.42, "comp_gain": 0.08,
-		"bass_gain": 0.5, "drums": "soft", "drum_gain": 0.45, "pad_gain": 0.05, "harp_gain": 0.16,
+	"orchestral": {"lead": "sax", "double": "flute", "lead_gain": 0.6, "comp_gain": 0.12,
+		"bass_gain": 0.36, "drums": "soft", "drum_gain": 0.6, "pad_gain": 0.05, "harp_gain": 0.2,
 		"hp": 40.0, "lp": 9500.0, "drive": 1.0},
-	"hold": {"lead": "vibes", "double": "", "lead_gain": 0.5, "comp_gain": 0.12, "bass_gain": 0.45,
-		"drums": "brush", "drum_gain": 0.55, "pad_gain": 0.035, "harp_gain": 0.0,
+	"hold": {"lead": "vibes", "double": "", "lead_gain": 0.65, "comp_gain": 0.16, "bass_gain": 0.34,
+		"drums": "brush", "drum_gain": 0.75, "pad_gain": 0.035, "harp_gain": 0.0,
 		"hp": 35.0, "lp": 10000.0, "drive": 1.0},
-	"ep_solo": {"lead": "ep_lead", "double": "", "lead_gain": 0.55, "comp_gain": 0.1, "bass_gain": 0.3,
+	"ep_solo": {"lead": "ep_lead", "double": "", "lead_gain": 0.7, "comp_gain": 0.1, "bass_gain": 0.25,
 		"drums": "none", "drum_gain": 0.0, "pad_gain": 0.045, "harp_gain": 0.0,
 		"hp": 35.0, "lp": 9000.0, "drive": 1.0},
-	"brass_band": {"lead": "brass", "double": "", "lead_gain": 0.5, "comp_gain": 0.14,
-		"bass_gain": 0.55, "drums": "machine", "drum_gain": 0.8, "pad_gain": 0.0, "harp_gain": 0.0,
+	"brass_band": {"lead": "brass", "double": "", "lead_gain": 0.65, "comp_gain": 0.18,
+		"bass_gain": 0.4, "drums": "machine", "drum_gain": 0.9, "pad_gain": 0.0, "harp_gain": 0.0,
 		"hp": 50.0, "lp": 9000.0, "drive": 1.4},
-	"noir": {"lead": "sax_low", "double": "", "lead_gain": 0.55, "comp_gain": 0.14, "bass_gain": 0.55,
-		"drums": "brush", "drum_gain": 0.6, "pad_gain": 0.0, "harp_gain": 0.0,
+	"noir": {"lead": "sax_low", "double": "", "lead_gain": 0.7, "comp_gain": 0.18, "bass_gain": 0.4,
+		"drums": "brush", "drum_gain": 0.8, "pad_gain": 0.0, "harp_gain": 0.0,
 		"hp": 50.0, "lp": 7000.0, "drive": 1.2},
-	"dirge": {"lead": "sax_low", "double": "", "lead_gain": 0.55, "comp_gain": 0.0, "bass_gain": 0.4,
+	"dirge": {"lead": "sax_low", "double": "", "lead_gain": 0.7, "comp_gain": 0.0, "bass_gain": 0.32,
 		"drums": "none", "drum_gain": 0.0, "pad_gain": 0.07, "harp_gain": 0.0,
 		"hp": 35.0, "lp": 6000.0, "drive": 1.0},
 }
@@ -141,6 +143,7 @@ static func degradation_from(suspicion: float, table: Dictionary) -> Dictionary:
 		"flutter_hz": float(table.get("flutter_hz", 0.0)),
 		"dropout_s": _pair(table.get("silencio_s", [])), "cut_s": _pair(table.get("corte_s", [])),
 		"jitter_change_s": _pair(table.get("irregular_cambio_s", [])),
+		"grain_s": float(table.get("grano_s", 0.0)),
 	}
 
 
@@ -233,8 +236,12 @@ static func switch_points(score: Dictionary, spb: float, rate: int) -> PackedInt
 # ─── Render ──────────────────────────────────────────────────────
 
 ## Renderiza las pistas de una pieza. Puro y seguro en hilos (tras SynthDSP.warm_up()).
-## Devuelve {rate, length, spb, acc, mel: Array[PackedFloat32Array], switches, piece, arrangement}.
-static func render_piece(piece_id: String, arrangement_id: String, cfg: Dictionary) -> Dictionary:
+## `variants` = variantes de melodía a renderizar ya (-1 = todas); el resto se añade después con
+## add_variants() para que el hilo musical empiece a sonar antes (render en dos fases).
+## Devuelve {rate, length, spb, acc, mel: Array[PackedFloat32Array], switches, piece, arrangement,
+## gain, degradable}.
+static func render_piece(piece_id: String, arrangement_id: String, cfg: Dictionary,
+		variants: int = -1) -> Dictionary:
 	var piece: Dictionary = PIECES.get(piece_id, PIECES[DEFAULT_PIECE])
 	var arr: Dictionary = ARRANGEMENTS.get(arrangement_id, ARRANGEMENTS[DEFAULT_ARRANGEMENT])
 	var rate: int = int(cfg["rate"])
@@ -242,36 +249,58 @@ static func render_piece(piece_id: String, arrangement_id: String, cfg: Dictiona
 	var score: Dictionary = score_for(piece_id)
 	var length: int = int(round(float(int(score["bars"]) * BEATS_PER_BAR) * spb))
 	var acc: PackedFloat32Array = MuzakVoices.accompaniment(score, arr, rate, spb, length)
-	var mel: Array[PackedFloat32Array] = []
-	var variants: int = VARIANT_COUNT if bool(piece["degradable"]) else 1
-	for v: int in variants:
-		mel.append(MuzakVoices.melody(score, arr, rate, spb, length, v, cfg))
-	_finish(acc, mel, arr, rate)
-	return {
-		"rate": rate, "length": length, "spb": spb, "acc": acc, "mel": mel,
+	var mel0: PackedFloat32Array = MuzakVoices.melody(score, arr, rate, spb, length, VARIANT_CLEAN, cfg)
+	_speaker(acc, arr, rate)
+	_speaker(mel0, arr, rate)
+	var gain: float = _common_gain(acc, mel0)
+	SynthDSP.scale(acc, gain)
+	SynthDSP.scale(mel0, gain)
+	var mel: Array[PackedFloat32Array] = [mel0]
+	var stems: Dictionary = {
+		"rate": rate, "length": length, "spb": spb, "acc": acc, "mel": mel, "gain": gain,
 		"switches": switch_points(score, spb, rate), "piece": piece_id, "arrangement": arrangement_id,
+		"degradable": bool(piece["degradable"]),
 	}
+	if variants < 0 or variants > 1:
+		return add_variants(stems, cfg)
+	return stems
 
 
-## Altavoz del edificio (filtros + saturación) y normalización común de todas las pistas.
-static func _finish(acc: PackedFloat32Array, mel: Array[PackedFloat32Array], arr: Dictionary,
-		rate: int) -> void:
-	var tracks: Array[PackedFloat32Array] = [acc]
-	tracks.append_array(mel)
-	for t: PackedFloat32Array in tracks:
-		SynthDSP.highpass(t, rate, float(arr["hp"]))
-		SynthDSP.lowpass(t, rate, float(arr["lp"]), 2)
-		SynthDSP.soft_clip(t, float(arr["drive"]))
-	var worst: float = 0.0
-	for m: PackedFloat32Array in mel:
-		var p: float = 0.0
-		for i: int in acc.size():
-			p = maxf(p, absf(acc[i] + m[i]))
-		worst = maxf(worst, p)
-	if worst <= SynthDSP.DENORMAL_GUARD:
-		return
-	for t: PackedFloat32Array in tracks:
-		SynthDSP.scale(t, TARGET_PEAK / worst)
+## Devuelve una copia de `stems` con las variantes desafinada y atonal añadidas (si la pieza se degrada).
+static func add_variants(stems: Dictionary, cfg: Dictionary) -> Dictionary:
+	var out: Dictionary = stems.duplicate()
+	var mel: Array[PackedFloat32Array] = []
+	mel.assign(stems["mel"])
+	if not bool(stems.get("degradable", false)):
+		out["mel"] = mel
+		return out
+	var arr: Dictionary = ARRANGEMENTS.get(str(stems["arrangement"]), ARRANGEMENTS[DEFAULT_ARRANGEMENT])
+	var score: Dictionary = score_for(str(stems["piece"]))
+	var rate: int = int(stems["rate"])
+	for v: int in range(mel.size(), VARIANT_COUNT):
+		var track: PackedFloat32Array = MuzakVoices.melody(score, arr, rate, float(stems["spb"]),
+				int(stems["length"]), v, cfg)
+		_speaker(track, arr, rate)
+		SynthDSP.scale(track, float(stems["gain"]))
+		mel.append(track)
+	out["mel"] = mel
+	return out
+
+
+## Altavoz del edificio: paso alto, paso bajo de 12 dB/oct y saturación.
+static func _speaker(track: PackedFloat32Array, arr: Dictionary, rate: int) -> void:
+	SynthDSP.highpass(track, rate, float(arr["hp"]))
+	SynthDSP.lowpass(track, rate, float(arr["lp"]), 2)
+	if float(arr["drive"]) > 1.0:
+		SynthDSP.soft_clip(track, float(arr["drive"]))
+
+
+## Ganancia común para que acompañamiento + melodía alcancen TARGET_PEAK.
+static func _common_gain(acc: PackedFloat32Array, mel: PackedFloat32Array) -> float:
+	var p: float = 0.0
+	for i: int in acc.size():
+		p = maxf(p, absf(acc[i] + mel[i]))
+	return TARGET_PEAK / p if p > SynthDSP.DENORMAL_GUARD else 1.0
 
 
 ## Render sin conexión (tests, WAV de revisión): pista + cinta con la degradación de `suspicion`.
@@ -290,7 +319,7 @@ static func render_offline(stems: Dictionary, suspicion: float, seconds: float,
 	mono.resize(frames.size())
 	for i: int in frames.size():
 		mono[i] = frames[i].x
-	return {"samples": mono, "telemetry": deck.telemetry, "rate": rate, "degradation": params}
+	return {"samples": mono, "telemetry": deck.get_telemetry(), "rate": rate, "degradation": params}
 
 
 ## Escribe `seconds` de hilo musical con la sospecha dada en un WAV PCM (revisión sin escuchar).

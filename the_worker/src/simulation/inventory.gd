@@ -1,63 +1,51 @@
-# inventory.gd — Reglas puras de inventario y contrabando: objetos, escondites y registro corporal.
+# inventory.gd — Reglas de inventario y contrabando: objetos, escondites, registro corporal y acciones de "manos".
 # PROPIETARIO DE: nada (biblioteca estática; el inventario y los alijos pertenecen a PlayerState).
 # ESCUCHA: nada.
 class_name InventoryRules
 extends RefCounted
 
-## Manual §11.3, §12.3, §12.4, PASO 37; BUILD_NOTES §12, §13.
+## Manual §11.3, §12.3, §12.4, PASO 37; BUILD_NOTES §2, §12, §13.
 ## · Objetos: catálogo balance.objetos vía Database.get_item(id). Si el id no está catalogado se
 ##   aplica la regla de respaldo: ordinario si empieza por inventario.prefijos_ordinarios, si no
 ##   inventario.categoria_por_defecto ("compromising": lo que no es tuyo, compromete).
 ##   extra.kind "post_tool" = herramienta del puesto: no ocupa inventario. extra.kind "cash" ordinario
 ##   = efectivo de bolsillo: PlayerState lo suma al capital. extra.stackable = comparte posición.
-## · Ubicaciones de ocultación (§11.3): desk, locker, dead_archive, vents, cleaning_closet,
-##   trash_dock (absoluta e irreversible: el objeto sale del juego) + forgotten_corridor (§22.1,
-##   ninguna investigación lo registra), home (domicilio) y other (escondite improvisado).
-##   La ubicación sale de la sala (dead_archive, trash_dock, cleaning_closet_*, ...) o, si la sala no
-##   la fija, del tipo de escondite de los datos de sala (under_desk → desk, locker, vent → vents...).
-##   Parámetros por ubicación en balance inventario.escondites.<ubicación>.
-## · Registro corporal: resolve_body_search() aplica §12.4 — un objeto comprometedor es evidencia
-##   de peso investigaciones.pesos_evidencia.objeto_comprometedor (10) y el caso se cierra contra el
-##   jugador; el grado sale de los umbrales de condena modulados por la sospecha
-##   (umbral + mod_umbral_por_sospecha × sospecha): "conviction_major" si el peso supera el umbral
-##   grave, "conviction_minor" si alcanza el leve, "clean" sin objetos comprometedores
-##   ("evidence_noted" = peso positivo por debajo del umbral leve; solo vía classify_evidence).
-
-const LOC_DESK := "desk"
-const LOC_LOCKER := "locker"
-const LOC_DEAD_ARCHIVE := "dead_archive"
-const LOC_VENTS := "vents"
-const LOC_CLEANING_CLOSET := "cleaning_closet"
-const LOC_TRASH_DOCK := "trash_dock"
-const LOC_FORGOTTEN_CORRIDOR := "forgotten_corridor"
-const LOC_HOME := "home"
-const LOC_OTHER := "other"
-const LOCATIONS: Array[String] = [
-	LOC_DESK, LOC_LOCKER, LOC_DEAD_ARCHIVE, LOC_VENTS, LOC_CLEANING_CLOSET, LOC_TRASH_DOCK,
-	LOC_FORGOTTEN_CORRIDOR, LOC_HOME, LOC_OTHER,
-]
-## Tipo de escondite de los datos de sala (§27 hiding_spots / interactables) → ubicación.
-## "curtain" no figura: solo oculta al jugador, no admite objetos.
-const SPOT_TYPE_LOCATION: Dictionary = {
-	"under_desk": LOC_DESK, "locker": LOC_LOCKER, "vent": LOC_VENTS, "trash_chute": LOC_TRASH_DOCK,
-	"supply_closet": LOC_OTHER, "archive_shelves": LOC_OTHER, "crate": LOC_OTHER,
-	"car_trunk": LOC_OTHER, "dumpster": LOC_OTHER, "toilet_stall": LOC_OTHER,
-}
-## Sala (id base, sin sufijo @planta) → ubicación; prevalece sobre el tipo de escondite.
-const ROOM_LOCATION: Dictionary = {
-	"dead_archive": LOC_DEAD_ARCHIVE, "trash_dock": LOC_TRASH_DOCK, "vent_network": LOC_VENTS,
-	"forgotten_corridor": LOC_FORGOTTEN_CORRIDOR, "player_flat": LOC_HOME,
-}
-## Prefijo de sala → ubicación (los cuatro cuartos de limpieza transversales).
-const ROOM_PREFIX_LOCATION: Dictionary = {"cleaning_closet": LOC_CLEANING_CLOSET}
-const ROOM_INSTANCE_SEPARATOR := "@"
+## · Ubicaciones de ocultación (§11.3) = claves de balance inventario.escondites: desk, locker,
+##   dead_archive, vents, cleaning_closet, trash_dock (absoluta e irreversible: el objeto sale del
+##   juego) + forgotten_corridor (§22.1), home y other. Todo es dato: la ubicación de un escondite
+##   sale de la sala (inventario.ubicacion_por_sala / ubicacion_por_prefijo_sala) o, si la sala no la
+##   fija, de su tipo (inventario.ubicacion_por_tipo_escondite). Parámetros en
+##   inventario.escondites.<ubicación>.
+## · Inconvenientes §11.3 aplicados: escritorio = primero en el registro (orden_registro); archivo
+##   muerto = solo investigaciones que registran sótanos; conductos = recuperación lenta
+##   (retrieve_from_stash avanza el reloj minutos_recuperacion); cuartos de limpieza = hallazgo
+##   diario (prob_hallazgo_diaria, lo tira PlayerState en day_advanced si el descubridor sigue
+##   activo); muelle = irreversible. La taquilla (acceso al vestuario) la impone la puerta del mundo.
+## · Registro corporal: resolve_body_search() aplica §12.3 fase 5 + §12.4 — un objeto
+##   comprometedor es evidencia de peso investigaciones.pesos_evidencia.objeto_comprometedor (10) y
+##   el caso se cierra contra el jugador; el grado sale de los umbrales de condena modulados por la
+##   sospecha (umbral + mod_umbral_por_sospecha × sospecha, mod = −0,03): "conviction_major" si el
+##   peso SUPERA el umbral grave, "conviction_minor" si alcanza el leve, "clean" sin objetos
+##   comprometedores ("evidence_noted" = peso positivo bajo el umbral leve; solo vía
+##   classify_evidence). DECISIÓN (fiel al manual, no es un error): con peso 10 y umbral grave 10,
+##   el grado leve solo es posible con sospecha exactamente 0; cualquier sospecha > 0 baja el umbral
+##   grave por debajo de 10 y el hallazgo es grave (fin de partida). Como Security solo registra por
+##   encima de un umbral de sospecha o con el jugador en lista corta, en la práctica llevar material
+##   comprometedor a un registro es terminal: «la causa de derrota más evitable del juego» (§11.3).
+## · Acciones de "manos" (BUILD_NOTES §2: solo desde código fuera de src/autoload/, nunca desde un
+##   autoload): perform_body_search() resuelve el registro y emite player_searched (PlayerState
+##   requisa lo comprometedor al oírlo; Security añade la pieza); retrieve_from_stash() recupera y
+##   avanza el reloj el coste de la ubicación.
 
 const KIND_POST_TOOL := "post_tool"
 const KIND_CASH := "cash"
 const EXTRA_KIND := "kind"
 const EXTRA_STACKABLE := "stackable"
 const FALLBACK_NAME_KEY_FORMAT := "ITEM_%s"
-const UNKNOWN_ITEM_WARNING := "InventoryRules: objeto '%s' ausente del catálogo balance.objetos; se aplica la regla de respaldo (%s)."
+const UNKNOWN_ITEM_WARNING := ("InventoryRules: objeto '%s' ausente del catálogo balance.objetos;"
+		+ " se aplica la regla de respaldo (%s).")
+const ROOM_INSTANCE_SEPARATOR := "@"
+const COMMENT_PREFIX := "_"
 
 const OUTCOME_CLEAN := "clean"
 const OUTCOME_EVIDENCE_NOTED := "evidence_noted"
@@ -67,11 +55,17 @@ const OUTCOME_KEY_FORMAT := "SEARCH_OUTCOME_%s"
 const LOCATION_NAME_KEY_FORMAT := "HIDE_LOC_%s"
 const LOCATION_RISK_KEY_FORMAT := "HIDE_LOC_%s_RISK"
 const SECURITY_KEY_FORMAT := "HIDE_SECURITY_%s"
+## Resultado de retrieve_from_stash cuando no se pudo recuperar.
+const RETRIEVE_FAILED := -1
 
 const P_DEFAULT_CATEGORY := "inventario.categoria_por_defecto"
 const P_ORDINARY_PREFIXES := "inventario.prefijos_ordinarios"
 const P_BULKY_ITEMS := "inventario.objetos_voluminosos"
+const P_LOCATIONS := "inventario.escondites"
 const P_LOCATION_FORMAT := "inventario.escondites.%s.%s"
+const P_SPOT_TYPE_MAP := "inventario.ubicacion_por_tipo_escondite"
+const P_ROOM_MAP := "inventario.ubicacion_por_sala"
+const P_ROOM_PREFIX_MAP := "inventario.ubicacion_por_prefijo_sala"
 const P_WEIGHT_ITEM := "investigaciones.pesos_evidencia.objeto_comprometedor"
 const P_MINOR_THRESHOLD := "investigaciones.umbral_condena_leve"
 const P_MAJOR_THRESHOLD := "investigaciones.umbral_condena_grave"
@@ -85,6 +79,7 @@ const F_BASEMENT_ONLY := "solo_si_registra_sotanos"
 const F_SEARCH_ORDER := "orden_registro"
 const F_RETRIEVAL := "minutos_recuperacion"
 const F_DAILY_CHANCE := "prob_hallazgo_diaria"
+const F_DISCOVERER := "descubridor"
 const F_ACCEPTS_BULKY := "admite_voluminosos"
 const F_IRREVERSIBLE := "irreversible"
 
@@ -144,18 +139,39 @@ static func is_bulky(item: ItemData) -> bool:
 
 # ─── Ubicaciones de ocultación ─────────────────────────────────
 
+## Ubicaciones definidas en balance inventario.escondites (orden del archivo).
+static func get_locations() -> Array[String]:
+	var out: Array[String] = []
+	var table: Variant = Database.get_balance(P_LOCATIONS)
+	if table is Dictionary:
+		for key: Variant in table:
+			if not str(key).begins_with(COMMENT_PREFIX):
+				out.append(str(key))
+	return out
+
+
+static func is_location(location: String) -> bool:
+	return not location.is_empty() and not location.begins_with(COMMENT_PREFIX) \
+			and Database.has_balance(P_LOCATIONS + "." + location)
+
+
 ## Ubicación (§11.3) de un escondite. `spot_type` puede ser un tipo de los datos de sala o ya una
 ## ubicación. "" si el escondite no admite objetos.
 static func spot_location(spot_type: String, room_id: String) -> String:
-	if LOCATIONS.has(spot_type):
+	if is_location(spot_type):
 		return spot_type
+	var by_type: Dictionary = _balance_dict(P_SPOT_TYPE_MAP)
+	if not by_type.has(spot_type):
+		return ""
 	var base_room: String = room_id.get_slice(ROOM_INSTANCE_SEPARATOR, 0)
-	if ROOM_LOCATION.has(base_room) and SPOT_TYPE_LOCATION.has(spot_type):
-		return ROOM_LOCATION[base_room]
-	for prefix: String in ROOM_PREFIX_LOCATION:
-		if base_room.begins_with(prefix) and SPOT_TYPE_LOCATION.has(spot_type):
-			return ROOM_PREFIX_LOCATION[prefix]
-	return str(SPOT_TYPE_LOCATION.get(spot_type, ""))
+	var by_room: Dictionary = _balance_dict(P_ROOM_MAP)
+	if by_room.has(base_room):
+		return str(by_room[base_room])
+	var by_prefix: Dictionary = _balance_dict(P_ROOM_PREFIX_MAP)
+	for prefix: String in by_prefix:
+		if base_room.begins_with(prefix):
+			return str(by_prefix[prefix])
+	return str(by_type[spot_type])
 
 
 ## Busca `spot_id` en hiding_spots e interactables de la sala (admite ids "sala@planta").
@@ -183,7 +199,8 @@ static func find_spot(room_id: String, spot_id: String) -> Dictionary:
 
 ## ¿Se puede ocultar `item_id` en un escondite de este tipo (o ubicación)? No admiten objetos las
 ## cortinas, las herramientas de puesto ni el efectivo de bolsillo; los objetos voluminosos
-## (inventario.objetos_voluminosos) no caben donde admite_voluminosos = false (escritorio, conductos).
+## (inventario.objetos_voluminosos) no caben donde admite_voluminosos = false (escritorio,
+## conductos).
 static func can_hide_in(spot_type: String, item_id: String) -> bool:
 	var location: String = spot_location(spot_type, "")
 	if location.is_empty():
@@ -222,10 +239,16 @@ static func search_order(location: String) -> int:
 	return _location_int(location, F_SEARCH_ORDER)
 
 
-## Probabilidad diaria de hallazgo casual (cuartos de limpieza: Connie Marks). La tira quien
-## gestione el hallazgo, con su propio RandomNumberGenerator sembrado desde la semilla de partida.
+## Probabilidad diaria de hallazgo casual (cuartos de limpieza: Connie Marks). La tira PlayerState
+## al cambiar de jornada con su RandomNumberGenerator sembrado desde la semilla de partida.
 static func daily_discovery_chance(location: String) -> float:
 	return _location_float(location, F_DAILY_CHANCE)
+
+
+## Personaje que hace el hallazgo diario ("" = cualquiera: el riesgo no depende de nadie).
+static func daily_discoverer(location: String) -> String:
+	var value: Variant = _location_value(location, F_DISCOVERER)
+	return str(value) if value is String else ""
 
 
 ## ¿El registro físico de la fase 2 (§12.3) de una investigación de gravedad `severity` (1-5)
@@ -291,6 +314,30 @@ static func get_outcome_key(outcome: String) -> String:
 	return OUTCOME_KEY_FORMAT % outcome.to_upper()
 
 
+# ─── Acciones de "manos" (nunca desde un autoload) ─────────────
+
+## Registro corporal del jugador (Security.can_search_player() verdadero, PASO 37): resuelve con
+## su inventario y la sospecha dada (por defecto la caché de PlayerState; pase la efectiva de
+## Security si procede) y emite player_searched(found_hot_items, outcome). PlayerState requisa lo
+## comprometedor al oír la señal; Security añade la pieza de peso 10. Devuelve el resultado.
+static func perform_body_search(suspicion: float = -1.0) -> Dictionary:
+	var value: float = suspicion if suspicion >= 0.0 else PlayerState.get_suspicion()
+	var result: Dictionary = resolve_body_search(PlayerState.get_inventory(), value)
+	EventBus.player_searched.emit(int(result["found_hot_items"]), str(result["outcome"]))
+	return result
+
+
+## Recupera una unidad de un alijo y cobra en reloj de juego los minutos_recuperacion de su
+## ubicación (§11.3: conductos, «recuperación lenta e incómoda»). Devuelve los minutos gastados o
+## RETRIEVE_FAILED (-1) si no se pudo (y entonces el reloj no avanza).
+static func retrieve_from_stash(spot_id: String, item_id: String) -> int:
+	var minutes: int = PlayerState.get_stash_retrieval_minutes(spot_id)
+	if not PlayerState.retrieve_item(spot_id, item_id):
+		return RETRIEVE_FAILED
+	GameClock.advance_minutes(float(minutes))
+	return minutes
+
+
 # ─── Interno ───────────────────────────────────────────────────
 
 static func _as_item(entry: Variant) -> ItemData:
@@ -303,7 +350,7 @@ static func _as_item(entry: Variant) -> ItemData:
 
 static func _location_value(location: String, field: String) -> Variant:
 	var path: String = P_LOCATION_FORMAT % [location, field]
-	if not LOCATIONS.has(location) or not Database.has_balance(path):
+	if not is_location(location) or not Database.has_balance(path):
 		return null
 	return Database.get_balance(path)
 
@@ -326,3 +373,14 @@ static func _location_int(location: String, field: String) -> int:
 static func _balance_array(path: String) -> Array:
 	var value: Variant = Database.get_balance(path)
 	return value as Array if value is Array else []
+
+
+## Diccionario de balance sin las claves de comentario ("_nota").
+static func _balance_dict(path: String) -> Dictionary:
+	var out: Dictionary = {}
+	var value: Variant = Database.get_balance(path)
+	if value is Dictionary:
+		for key: Variant in value:
+			if not str(key).begins_with(COMMENT_PREFIX):
+				out[str(key)] = value[key]
+	return out

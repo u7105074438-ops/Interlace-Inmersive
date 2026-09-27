@@ -1,16 +1,23 @@
 # inventory_case.gd — Cuerpo de test_inventory (§21, PASO 37): escondites §11.3, alijos, muelle de basuras, registro corporal §12.4.
 # PROPIETARIO DE: nada.
-# ESCUCHA: inventory_changed, item_hidden, item_disposed (conexión temporal).
+# ESCUCHA: inventory_changed, item_hidden, item_disposed, notebook_entry_added (conexión temporal).
 extends TestCase
 
 const DESK_SPOT := "hide_3b_desk"
 const DESK_ROOM := "wing_3b"
 const TRASH_SPOT := "trash_compactor"
 const TRASH_ROOM := "trash_dock"
+const VENT_SPOT := "hide_vent_duct@3"
+const VENT_ROOM := "vent_network@3"
+const CLOSET_SPOT := "hide_closet_low@3"
+const CLOSET_ROOM := "cleaning_closet_low@3"
+## Tope de jornadas para esperar el hallazgo casual (p = 0,1/día: 0,9^120 ≈ 3·10⁻⁶).
+const DISCOVERY_MAX_DAYS := 120
 
 var _changed: Array = []
 var _hidden: Array = []
 var _disposed: Array = []
+var _notes: Array = []
 
 
 func run_case() -> void:
@@ -18,6 +25,7 @@ func run_case() -> void:
 	EventBus.inventory_changed.connect(_on_changed)
 	EventBus.item_hidden.connect(_on_hidden)
 	EventBus.item_disposed.connect(_on_disposed)
+	EventBus.notebook_entry_added.connect(_on_note)
 	_test_security_table()
 	_test_spot_classification()
 	_test_can_hide_in()
@@ -27,9 +35,14 @@ func run_case() -> void:
 	_test_body_search()
 	_test_investigation_search()
 	_test_confiscation()
+	_test_body_search_is_event_driven()
+	_test_investigation_seizes_stash()
+	_test_vent_retrieval_costs_time()
+	_test_cleaning_closet_daily_discovery()
 	EventBus.inventory_changed.disconnect(_on_changed)
 	EventBus.item_hidden.disconnect(_on_hidden)
 	EventBus.item_disposed.disconnect(_on_disposed)
+	EventBus.notebook_entry_added.disconnect(_on_note)
 
 
 # ─── Escenarios ────────────────────────────────────────────────
@@ -44,11 +57,17 @@ func _test_security_table() -> void:
 				"§11.3 security of %s" % location)
 	check(_security("desk") < _security("locker")
 			and _security("locker") < _security("dead_archive"), "desk < locker < dead archive")
-	check_eq(_security("locker"), _security("cleaning_closet"), "locker and cleaning closet: medium")
+	check_eq(_security("locker"), _security("cleaning_closet"),
+			"locker and cleaning closet: medium")
 	check_eq(_security("dead_archive"), _security("vents"), "dead archive and vents: high")
 	check(_security("vents") < _security("trash_dock"), "high < absolute")
 	check_near(_security("trash_dock"), 1.0, 0.0001, "trash dock: absolute")
-	for location: String in InventoryRules.LOCATIONS:
+	var locations: Array[String] = InventoryRules.get_locations()
+	var all_present: bool = locations.size() == 9
+	for location: String in expected:
+		all_present = all_present and locations.has(location)
+	check(all_present, "balance defines the six §11.3 locations + corridor/home/other")
+	for location: String in locations:
 		check_eq(InventoryRules.is_irreversible(location), location == "trash_dock",
 				"only the trash dock is irreversible (%s)" % location)
 	check(InventoryRules.retrieval_minutes("vents") > InventoryRules.retrieval_minutes("desk"),
@@ -56,6 +75,8 @@ func _test_security_table() -> void:
 	check(InventoryRules.daily_discovery_chance("cleaning_closet") > 0.0
 			and InventoryRules.daily_discovery_chance("desk") == 0.0,
 			"cleaning closets: Connie Marks may stumble on it daily")
+	check_eq(InventoryRules.daily_discoverer("cleaning_closet"), "npc_connie_marks",
+			"the cleaning-closet finder is Connie Marks (data)")
 
 
 func _test_spot_classification() -> void:
@@ -172,6 +193,10 @@ func _test_body_search() -> void:
 	var many: Dictionary = InventoryRules.resolve_body_search(PlayerState.get_inventory(), 50.0)
 	check_eq([many["found_hot_items"], many["evidence_weight"]], [3, 10.0],
 			"three hot units found; the evidence stays weight 10")
+	check_eq(InventoryRules.resolve_body_search(["balaclava"], 1.0)["outcome"], "conviction_major",
+			"documented cliff: any suspicion > 0 lowers the 10.0 major threshold below 10 -> major")
+	check_eq(InventoryRules.resolve_body_search(["balaclava"], 0.1)["outcome"], "conviction_major",
+			"…even suspicion 0.1 (only exactly 0 leaves a hot item at the minor grade)")
 	check_eq(InventoryRules.classify_evidence(6.0, 0.0), "evidence_noted", "6 < 7: below minor")
 	check_eq(InventoryRules.classify_evidence(6.0, 100.0), "conviction_minor",
 			"suspicion 100 lowers the minor threshold 7 -> 4")
@@ -214,6 +239,109 @@ func _test_confiscation() -> void:
 	check(PlayerState.get_stashes().is_empty(), "no stash left")
 
 
+## A body search is resolved by the hands (InventoryRules.perform_body_search) and announced with
+## player_searched; PlayerState confiscates on hearing it (no autoload calls PlayerState).
+func _test_body_search_is_event_driven() -> void:
+	new_run(DEFAULT_SEED, false)
+	PlayerState.add_item("balaclava")
+	PlayerState.add_item("product_pair")
+	_clear()
+	var result: Dictionary = InventoryRules.perform_body_search(0.0)
+	check_eq([result["found_hot_items"], result["outcome"]], [2, "conviction_minor"],
+			"perform_body_search resolves the player's inventory")
+	check(not PlayerState.has_hot_items() and PlayerState.is_carrying("phone"),
+			"player_searched(found > 0) -> PlayerState confiscated the hot items, ordinary stay")
+	check_eq(_disposed, [["product_pair", "confiscated"], ["balaclava", "confiscated"]],
+			"item_disposed(..., confiscated) per unit")
+	_clear()
+	EventBus.player_searched.emit(0, "clean")
+	check(_disposed.is_empty(), "a clean search confiscates nothing")
+
+
+## Security's phase-2 physical search finds a hidden item (evidence_added compromising_item): the
+## owner of the stash (PlayerState) removes it, so it cannot be retrieved afterwards.
+func _test_investigation_seizes_stash() -> void:
+	new_run(DEFAULT_SEED, false)
+	EventBus.room_entered.emit(DESK_ROOM, true)
+	PlayerState.add_item("balaclava")
+	PlayerState.add_item("food_basic")
+	PlayerState.stash_item("balaclava", DESK_SPOT, DESK_ROOM)
+	PlayerState.stash_item("food_basic", DESK_SPOT, DESK_ROOM)
+	_clear()
+	var case_id: String = Security.report_incident("object_missing", 1, DESK_ROOM, true,
+			{"always_opens": true})
+	for _i: int in 2:
+		Security.process_day(Security.get_current_day() + 1)
+	var found: int = 0
+	for find: Dictionary in Security.get_found_items():
+		if find["spot_id"] == DESK_SPOT and find["item_id"] == "balaclava":
+			found += 1
+	check(not case_id.is_empty() and found == 1,
+			"setup: Security's phase-2 search found the balaclava in the desk")
+	check_eq(_disposed, [["balaclava", "confiscated"]], "the found item is confiscated")
+	var left: Array[String] = []
+	var stash: Dictionary = PlayerState.get_stashes().get(DESK_SPOT, {})
+	for record: Dictionary in stash.get("items", []):
+		left.append(str(record["id"]))
+	check_eq(left, ["food_basic"],
+			"the stash keeps only what was not seized (ordinary food is not evidence)")
+	check(not PlayerState.retrieve_item(DESK_SPOT, "balaclava"), "a seized item cannot be retrieved")
+	check(_notes.has(["stashes", "NOTE_STASH_SEIZED", []]), "the notebook records the seizure")
+
+
+## §11.3 vents: «recuperación lenta e incómoda» — retrieving costs minutos_recuperacion of clock.
+func _test_vent_retrieval_costs_time() -> void:
+	new_run(DEFAULT_SEED, false)
+	PlayerState.add_item("balaclava")
+	PlayerState.add_item("lockpick")
+	check(PlayerState.stash_item("balaclava", VENT_SPOT, VENT_ROOM)
+			and PlayerState.stash_item("lockpick", DESK_SPOT, DESK_ROOM), "setup: vent + desk stashes")
+	check_eq([PlayerState.get_stash_retrieval_minutes(VENT_SPOT),
+			PlayerState.get_stash_retrieval_minutes(DESK_SPOT)], [15, 1],
+			"retrieval cost: vents 15 game minutes, desk 1")
+	var before: float = GameClock.get_total_minutes()
+	check_eq(InventoryRules.retrieve_from_stash(VENT_SPOT, "balaclava"), 15, "vent retrieval")
+	check_near(GameClock.get_total_minutes() - before, 15.0, 0.001, "the clock advanced 15 minutes")
+	before = GameClock.get_total_minutes()
+	check_eq(InventoryRules.retrieve_from_stash(DESK_SPOT, "lockpick"), 1, "desk retrieval")
+	check_near(GameClock.get_total_minutes() - before, 1.0, 0.001, "the desk costs 1 minute")
+	before = GameClock.get_total_minutes()
+	check_eq(InventoryRules.retrieve_from_stash(VENT_SPOT, "balaclava"), -1, "nothing left")
+	check_near(GameClock.get_total_minutes(), before, 0.001, "a failed retrieval costs no time")
+	check(PlayerState.is_carrying("balaclava") and PlayerState.is_carrying("lockpick"),
+			"both items are carried again")
+
+
+## §11.3 cleaning closets: «Connie Marks accede a ellos diariamente». Each day the closet stash is
+## found with prob_hallazgo_diaria (seeded, reproducible); the desk is never found this way.
+func _test_cleaning_closet_daily_discovery() -> void:
+	var first: int = _discovery_day(DEFAULT_SEED)
+	check(first > 0, "the closet stash is found by the cleaning staff (day %d)" % first)
+	check_eq(_disposed, [["foreign_document", "found_by_staff"],
+			["foreign_document", "found_by_staff"]],
+			"the whole closet stash leaves the game: item_disposed(found_by_staff) per unit")
+	check(PlayerState.get_stashes().has(DESK_SPOT), "the desk stash is untouched (no daily risk)")
+	check(_notes.has(["stashes", "NOTE_STASH_FOUND_BY_STAFF", []]), "the notebook tells the player")
+	check_eq(_discovery_day(DEFAULT_SEED), first, "same run seed -> same discovery day")
+
+
+## Fresh run: two documents in the closet, one in the desk; sleeps until the closet stash is gone.
+## Returns the day it was found (0 = never within DISCOVERY_MAX_DAYS).
+func _discovery_day(run_seed: int) -> int:
+	new_run(run_seed, false)
+	for _i: int in 3:
+		PlayerState.add_item("foreign_document")
+	PlayerState.stash_item("foreign_document", CLOSET_SPOT, CLOSET_ROOM)
+	PlayerState.stash_item("foreign_document", CLOSET_SPOT, CLOSET_ROOM)
+	PlayerState.stash_item("foreign_document", DESK_SPOT, DESK_ROOM)
+	_clear()
+	while GameClock.get_day() <= DISCOVERY_MAX_DAYS:
+		GameClock.advance_to_next_day()
+		if not PlayerState.get_stashes().has(CLOSET_SPOT):
+			return GameClock.get_day()
+	return 0
+
+
 # ─── Registro de señales ───────────────────────────────────────
 
 func _security(location: String) -> float:
@@ -224,6 +352,7 @@ func _clear() -> void:
 	_changed.clear()
 	_hidden.clear()
 	_disposed.clear()
+	_notes.clear()
 
 
 func _on_changed(item_id: String, added: bool) -> void:
@@ -236,3 +365,7 @@ func _on_hidden(item_id: String, spot_id: String) -> void:
 
 func _on_disposed(item_id: String, method: String) -> void:
 	_disposed.append([item_id, method])
+
+
+func _on_note(category: String, text_key: String, args: Array) -> void:
+	_notes.append([category, text_key, args])

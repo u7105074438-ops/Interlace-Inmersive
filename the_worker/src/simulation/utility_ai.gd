@@ -94,6 +94,8 @@ const CTX_SCALES := "relation_scales"
 ## afecto −100..100 y temor 0-100 (§7.9), rango 0-33 (§6.1).
 const METER_MAX := 100.0
 const LEDGER_MAX := 100.0
+## Nombre visible de una acción: tr("UTILITY_ACTION_<ACCIÓN>").
+const ACTION_KEY_FORMAT := "UTILITY_ACTION_%s"
 
 
 ## Puntúa las candidatas del contexto y devuelve la de mayor utilidad.
@@ -179,6 +181,11 @@ static func relation_inputs(ledger: Dictionary, scales: Dictionary) -> Dictionar
 		REL_GRIEVANCES: _entry_sum(ledger.get("grievances", []), "severity") / grievance_scale,
 		REL_FAVOURS: _entry_sum(ledger.get("favours", []), "magnitude") / favour_scale,
 	}
+
+
+## Clave de strings.csv con el nombre visible de la acción (panel F1, expediente).
+static func action_name_key(action: String) -> String:
+	return ACTION_KEY_FORMAT % action.to_upper()
 
 
 ## Pesos de balance.json → utilidad (copia). Se recomienda pasarlos en el contexto (caché).
