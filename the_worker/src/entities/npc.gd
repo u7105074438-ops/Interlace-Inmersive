@@ -86,6 +86,10 @@ const ERRANDS: Dictionary = {
 	ERRAND_TELL_IDEA: {"bubble": "", "walk": "walk", "stay": "chat", "speed": ""},
 	ERRAND_FOCUS: {"bubble": "", "walk": "walk", "stay": "type_intense", "speed": ""},
 }
+## Interactivo de persona (InteractionRouter, tipo "npc", data {npc_id}): invisible (sin realce
+## propio; la indicación contextual del HUD basta) y con su sala al día (_report_room).
+const INTERACT_TYPE := "npc"
+const INTERACT_NODE := "Interact"
 const PHASE_GO := "go"
 const PHASE_STAY := "stay"
 const IDEA_AGITATION := "agitation"
@@ -112,6 +116,8 @@ var tier: int = 1
 var lod: int = NPCRuntime.LOD_MEDIUM
 var perception: Perception = null
 var indicator: DetectionIndicator = null
+## Interactivo "npc" hijo (BUILD_NOTES §15): el jugador puede dirigirse a esta persona.
+var interactable: Interactable = null
 ## Segundos de mundo que NPCLayer lo mantiene fuera de la planta tras salir (recados).
 var away_after_exit: float = 0.0
 
@@ -245,7 +251,17 @@ func _build_children() -> void:
 	_bubble = NPCBubble.new()
 	_bubble.name = "Bubble"
 	add_child(_bubble)
+	_build_interactable()
 	_set_draw_offset(Vector2.ZERO)
+
+
+## Integración (game_root, BUILD_NOTES §15): interactivo "npc" con {npc_id}; lo despacha el router.
+func _build_interactable() -> void:
+	interactable = Interactable.new()
+	interactable.setup(npc_id, INTERACT_TYPE, home_room, {"npc_id": npc_id}, _cell, Vector2.ZERO)
+	interactable.name = INTERACT_NODE
+	interactable.visible = false
+	add_child(interactable)
 
 
 # ─── API pública ──────────────────────────────────────────────
@@ -739,6 +755,8 @@ func _report_room() -> void:
 	if not room.is_empty() and room != _reported_room:
 		_reported_room = room
 		NPCDirector.set_current_location(npc_id, room)
+		if interactable != null:
+			interactable.room_id = room
 
 
 func get_reported_room() -> String:

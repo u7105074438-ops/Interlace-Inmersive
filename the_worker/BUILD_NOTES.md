@@ -365,3 +365,75 @@ their owner autoload passes it in; state lives in the owning autoload (and is sa
   the NPC layer, UIRoot, CaughtHandler, DutySystem, AudioDirector (`src/ui/audio/audio_director.gd`).
   Boot flow: `scenes/boot.tscn` → main menu (`src/ui/main_menu.gd`) → opening cinematic → tutorial →
   game. `src/util/autopilot.gd` drives scripted runs for screenshots/QA.
+
+## 15. Game session & interaction modules (Phase 4 — game root)
+
+- **Game scene** `scenes/world/game.tscn` → `GameRoot` (`src/world/game_root.gd`, group `game_root`,
+  `GameRoot.find(tree)`). Public members: `streamer`, `player`, `npc_layer`, `ui`, `audio`, `travel`
+  (FloorTravel), `bridges` (WorldBridges), `promotion` (PromotionFlow), `time_skip` (TimeSkip),
+  `sim_nodes` {CaughtHandler, DutySystem, HomeCycle, Police, NightOps, Endgame}; `get_mode()` ("new"|"load"),
+  `observers_present()` (registered as `GameClock.set_observer_check`), `open_pause_menu()`,
+  `end_run(cause, ending_id)` (WorldBridges calls it on `game_over`: stops the world → EpilogueScreen → menu).
+  Lifecycle: `GameSession` (`src/world/game_session.gd`) — `read_request()` (GameLaunch + `--seed`,
+  `--force-rank`, `--skip-intro`), `begin_new_run(request)` (§2 order; also stores the name-entry portrait seed
+  in `PlayerState` flag `Player.PORTRAIT_FLAG`), `load_saved_run()`. New run: player at `partida.sala_inicio`
+  (turnstiles, PB) at 08:00, then `run_started`. Continue: `SaveSystem.load_run()` then the player wakes in
+  `hogar.sala_domicilio`. **Tutorial hook**: `GameRoot.tutorial_hook = func(root: GameRoot) -> void` — when set
+  and `GameSession.wants_tutorial(request)`, the new run starts in `partida.sala_tutorial` and the hook is
+  called right after `run_started`.
+- **Placing the player / changing floor from code**: never call `streamer.load_floor` + move the player by hand;
+  use `GameRoot.travel.teleport_to_room(room_id, cells := (-1,-1))` or `teleport(floor, point)` (loads the floor,
+  snaps to a walkable cell, refreshes camera bounds). Interactables of the old floor are FREED by a floor
+  change: never keep references to them across an `await` that may travel.
+- **InteractionRouter** (`src/world/interaction_router.gd`, static): the player's E / action button calls
+  `InteractionRouter.interact(focus, player)`. It dispatches on `Interactable.interact_type` to ONE module.
+  Module = a script in `res://src/world/interactions/<family>.gd` (files starting with `_` are private; the
+  router scans the folder once, alphabetically; built-ins first: `floor_travel.gd`, `world_bridges.gd`).
+  A type claimed twice → the first wins (push_warning). Unknown type → `_default.gd` (toast
+  `INTERACT_NOTHING_USEFUL`; type `"npc"` opens the NPC quick card until `social.gd` claims it).
+  Contract (all **static**, the module holds no state; keep state in the owning autoload or a scene node):
+  ```
+  # src/world/interactions/office.gd — Interacciones de oficina: cajones, ordenadores ajenos, archivos...
+  # PROPIETARIO DE: nada.
+  # ESCUCHA: nada.
+  extends RefCounted
+
+  static func handled_types() -> Array[String]:                 # required
+      return ["drawer", "npc_computer"]
+
+  static func interact(interactable: Interactable, player: Node, ctx: Dictionary) -> void:   # required, may await
+      var ui: UIRoot = ctx["ui_root"]                           # ctx = {game_root, ui_root, streamer, room_id, floor}
+      match interactable.interact_type:
+          "drawer":
+              player.begin_act("theft_small", 2.0)              # visible act → Perception can catch it
+              var r: Array = await player.act_finished          # [crime_type, completed]
+              if not r[1]: return                               # moved away = cancelled
+              EventBus.crime_committed.emit("theft_small", interactable.room_id, {"value": 12})
+              ui.toast("OFFICE_DRAWER_LOOTED", [12], ToastStack.KIND_GOOD)
+          "npc_computer":
+              StellarOS.open_intrusion(str(interactable.data.get("owner", "")), {"computer_id": interactable.interact_id,
+                      "room_id": interactable.room_id, "contains": interactable.data.get("contains", [])})
+
+  static func is_available(interactable: Interactable, player: Node) -> bool:   # optional (default true)
+      return interactable.interact_type != "npc_computer" or not _owner_present(interactable)
+
+  static func prompt_key(interactable: Interactable) -> String:                 # optional ("" = UI_INTERACT_<TYPE>)
+      return "UI_INTERACT_DRAWER_FORCE" if interactable.data.get("locked", false) else ""
+  ```
+  Rules for modules: every action gives feedback (toast / subtitle via AudioDirector.play_sfx / animation);
+  irreversible actions use `await ctx.ui_root.show_dialog(...)` with the danger option not focused (§13.7);
+  crimes go through `player.begin_act(crime, seconds)` + `EventBus.crime_committed` (details per
+  docs_integration_todo); time costs via `GameClock.advance_minutes`; never emit `floor_changed`/`room_entered`.
+  Tests may inject a module with `InteractionRouter.register_module(script)`; `InteractionRouter.reset()` rescans.
+  `InteractionRouter.handled_types_map()` lists type → module for debugging.
+- **NPC interactable**: every `NPCNode` carries a hidden `Interactable` child `Interact` of type `"npc"`,
+  `data = {npc_id}`, `room_id` kept current. The social module claims `"npc"`.
+- **Types already owned by the game root**: `elevator_panel`, `stairs_door`, `service_stairs_door`,
+  `freight_panel`, `vent_hatch`, `roof_ledge`, `exit` → `FloorTravel` (rules in its header, balance `viaje.*`);
+  `dropped_item` → `WorldBridges` (items the player drops through the inventory: group `item_drop_handlers`).
+- **Scene glue already wired** (WorldBridges / PromotionFlow / TimeSkip): game over → epilogue → menu;
+  `aurora_meeting_started` → `IdeaPresentation.summon_attendees()`; denied doors → `card_denied` + toast;
+  `interrogation_started` (player in shortlist) → summons dialog → interrogation room → `InterrogationScene`;
+  home ↔ work commute (`HomeCycle.commute()`); own computer → player sits (`sit_type`); promotions (toast on
+  `promotion_available`, accept/decline with confirmation from the pause menu, `PromotionScreen` on
+  `occupation_changed`, new desk); time skip (key **T** or pause menu, §15.6, balance `salto_tiempo.*`).

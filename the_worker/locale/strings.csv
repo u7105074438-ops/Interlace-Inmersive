@@ -3508,3 +3508,93 @@ ENDGAME_REASON_NO_TOOLS,You need forcing tools (cutting tools or an angle grinde
 ENDGAME_REASON_NOTARY_ABSENT,The notary is not at the desk. Come back later.,El notario no está en su mesa. Vuelve más tarde.
 ENDGAME_REASON_BAND_OVER,That part of the day is already over.,Esa parte del día ya ha pasado.
 FACTORY_REASON_NOT_IN_FACTORY,Stolen goods can only be put back on the factory shelves,El producto robado solo puede devolverse a las estanterías de la nave
+GAME_DEFAULT_PLAYER_NAME,New Hire,Nuevo empleado
+INTERACT_NOTHING_USEFUL,Nothing useful here.,Aquí no hay nada útil.
+UI_INTERACT_NPC,Talk,Hablar
+UI_INTERACT_DROPPED_ITEM,Pick up,Recoger
+TRAVEL_UNAVAILABLE,You can't use that from here.,No puedes usar eso desde aquí.
+TRAVEL_REFUSE_BULKY,Too bulky for this route. Only the freight elevator takes big loads.,Demasiado voluminoso para esta ruta. Solo el montacargas admite cargas grandes.
+TRAVEL_REFUSE_FREIGHT,The freight elevator needs a key or N%d clearance.,El montacargas necesita una llave o acreditación N%d.
+TRAVEL_REFUSE_VENT,The grille is screwed shut. Maintenance access (or a toilet hatch) needed.,La rejilla está atornillada. Hace falta acceso de mantenimiento (o la trampilla de un baño).
+TRAVEL_NO_DESTINATION,It doesn't lead anywhere right now.,Ahora mismo no lleva a ninguna parte.
+TRAVEL_VENT_PACE_TITLE,Into the ducts,Por los conductos
+TRAVEL_VENT_PACE_BODY,"Crawling carefully is slow. Hurrying is faster, but everyone on both floors will hear the ducts rattle.","Arrastrarse con cuidado es lento. Deprisa se tarda menos, pero en las dos plantas se oirá traquetear el conducto."
+TRAVEL_VENT_CAREFUL,Crawl carefully (%d min),Con cuidado (%d min)
+TRAVEL_VENT_HURRY,Hurry — noisy (%d min),Deprisa — ruidoso (%d min)
+TRAVEL_INTERRUPTED,You stopped halfway.,Te has detenido a medias.
+TRAVEL_SEARCH_TITLE,Security check,Control de seguridad
+TRAVEL_SEARCH_BODY,"""Routine check, please empty your pockets."" The guard doesn't look like it's routine.","«Control rutinario, vacíe los bolsillos, por favor.» El vigilante no parece pensar que sea rutina."
+TRAVEL_SEARCH_OK,Empty your pockets,Vaciar los bolsillos
+TRAVEL_SEARCH_FOUND,The guard found %d compromising item(s). Confiscated.,El vigilante ha encontrado %d objeto(s) comprometedor(es). Requisados.
+TRAVEL_SEARCH_CLEAN,Clean. The guard waves you through.,Limpio. El vigilante te deja pasar.
+TRAVEL_SEEN_SERVICE_STAIRS,%s saw you on the service stairs.,%s te ha visto en la escalera de servicio.
+TRAVEL_TITLE_ELEVATOR,Elevator,Ascensor
+TRAVEL_TITLE_STAIRS,Main stairs,Escalera principal
+TRAVEL_TITLE_SERVICE_STAIRS,Service stairs,Escalera de servicio
+TRAVEL_TITLE_FREIGHT,Freight elevator,Montacargas
+TRAVEL_TITLE_VENT_HATCH,Ventilation ducts,Conductos de ventilación
+TRAVEL_TITLE_LEDGE,Ledge,Cornisa
+TRAVEL_TITLE_EXIT,Exit,Salida
+TRAVEL_HINT_ELEVATOR,Fast. Your card is logged on every trip and the cabin has a camera.,Rápido. Tu tarjeta queda registrada en cada viaje y la cabina tiene cámara.
+TRAVEL_HINT_STAIRS,No card reader. Camera on the landing; packed at arrival and clock-out.,Sin lector de tarjeta. Cámara en el rellano; llena a la entrada y a la salida.
+TRAVEL_HINT_SERVICE_STAIRS,No cameras and no logs. Slow — and bumping into someone looks odd.,Sin cámaras ni registros. Lenta… y cruzarse con alguien resulta raro.
+TRAVEL_HINT_FREIGHT,Only its stops. Loud. The only way to move big loads.,Solo sus paradas. Ruidoso. La única forma de mover cargas grandes.
+TRAVEL_HINT_VENT_HATCH,"No cameras, no readers. Very slow. Pick the hatch you want to come out of.",Sin cámaras ni lectores. Muy lento. Elige por qué trampilla quieres salir.
+TRAVEL_HINT_LEDGE,A slow climb along the facade. Only the door has a camera.,Una lenta escalada por la fachada. Solo la puerta tiene cámara.
+TRAVEL_HINT_EXIT,A door leading elsewhere.,Una puerta que lleva a otra parte.
+TRAVEL_CAPTION_ELEVATOR,%s · %d min,%s · %d min
+TRAVEL_CAPTION_STAIRS,Stairs to %s · %d min,Escaleras hasta %s · %d min
+TRAVEL_CAPTION_SERVICE_STAIRS,Service stairs to %s · %d min,Escalera de servicio hasta %s · %d min
+TRAVEL_CAPTION_FREIGHT,Freight elevator to %s · %d min,Montacargas hasta %s · %d min
+TRAVEL_CAPTION_VENT_HATCH,Crawling to %s · %d min,Reptando hasta %s · %d min
+TRAVEL_CAPTION_LEDGE,Along the ledge to %s · %d min,Por la cornisa hasta %s · %d min
+TRAVEL_CAPTION_EXIT,%s · %d min,%s · %d min
+TRAVEL_CARD_DENIED,Card denied: %s needs N%d.,Tarjeta denegada: %s exige N%d.
+TRAVEL_LOCKED_FMT,N%d,N%d
+TRAVEL_LOCKED_TIP,Your card doesn't open this floor.,Tu tarjeta no abre esta planta.
+PROMO_TOAST_AVAILABLE,Promotion available: %s. See PORTAL or the pause menu (Esc).,Ascenso disponible: %s. Míralo en PORTAL o en el menú de pausa (Esc).
+PROMO_TOAST_DECLINED,You turned down %s. The chair goes to someone else.,Has rechazado %s. La silla será para otro.
+PROMO_TOAST_NONE,No promotion is open to you today.,Hoy no tienes ningún ascenso a tu alcance.
+PROMO_TOAST_DEMOTED,Demoted to %s.,Degradado a %s.
+PROMO_TOAST_NEW_DESK,Your new place: %s.,Tu nuevo sitio: %s.
+PROMO_OFFER_TITLE,Promotions,Ascensos
+PROMO_OFFER_BODY,Available today. Declining keeps your current chair — and its keys.,Disponibles hoy. Rechazar te deja en tu silla actual… y con sus llaves.
+PROMO_OFFER_ACCEPT,Accept %s (R%d),Aceptar %s (R%d)
+PROMO_OFFER_DECLINE,Decline %s (R%d),Rechazar %s (R%d)
+PROMO_OFFER_LATER,Decide later,Decidir más tarde
+PROMO_CONFIRM_ACCEPT_TITLE,Accept the promotion?,¿Aceptar el ascenso?
+PROMO_CONFIRM_ACCEPT_BODY,You will leave your chair for %s. There is no going back by choice.,Dejarás tu silla por %s. No hay vuelta atrás por voluntad propia.
+PROMO_CONFIRM_DECLINE_TITLE,Decline the promotion?,¿Rechazar el ascenso?
+PROMO_CONFIRM_DECLINE_BODY,The seat of %s will be filled by someone else today.,La silla de %s la ocupará otra persona hoy mismo.
+PROMO_CONFIRM_YES,Sign,Firmar
+PROMO_CONFIRM_DECLINE,Decline,Rechazar
+TIMESKIP_TITLE,Let time pass,Dejar pasar el tiempo
+TIMESKIP_BODY,Nobody is watching. Kill time until %s (%s)?,Nadie mira. ¿Matar el tiempo hasta %s (%s)?
+TIMESKIP_CONFIRM,Skip to %s (%s),Saltar a %s (%s)
+TIMESKIP_DONE,Time flies: %s · %s,El tiempo vuela: %s · %s
+TIMESKIP_REFUSED_NIGHT,It's night. Go home and sleep.,Es de noche. Vete a casa a dormir.
+TIMESKIP_REFUSED_UNSAFE,"Not here. Only at your own desk, a toilet or home.","Aquí no. Solo en tu puesto, en un baño o en casa."
+TIMESKIP_REFUSED_OBSERVED,Someone can see you. Loafing needs privacy.,Alguien te ve. Holgazanear exige intimidad.
+TIMESKIP_REFUSED_BUSY,Finish what you're doing first.,Termina primero lo que estás haciendo.
+TIMESKIP_REFUSED_POLICE,The police are coming. Not now.,Viene la policía. Ahora no.
+TIMESKIP_REFUSED_NO_RUN,There's no shift to skip.,No hay jornada que saltar.
+WORLD_SUMMONS_NOTICE,Security wants a word with you. They'll come for you.,Seguridad quiere hablar contigo. Vendrán a buscarte.
+WORLD_SUMMONS_TITLE,Summoned,Citación
+WORLD_SUMMONS_BODY,"Two guards stop you. ""%s will see you now. Interrogation room, 15th floor.""","Dos vigilantes te paran. «%s le recibirá ahora. Sala de interrogatorios, planta 15.»"
+WORLD_SUMMONS_GO,Go with them,Acompañarles
+WORLD_SUMMONS_GUARD,A security officer,Un agente de seguridad
+WORLD_DOOR_DENIED,Access denied — this door needs N%d.,Acceso denegado: esta puerta exige N%d.
+WORLD_DOOR_OLD_LOCK,Locked. An old key lock.,Cerrada. Una cerradura antigua.
+WORLD_TURNSTILE_DENIED,The turnstile beeps red — N%d card needed.,El torno pita en rojo: hace falta una tarjeta N%d.
+WORLD_COMMUTE,Commute: %d min.,Trayecto: %d min.
+WORLD_PICKUP_FULL,Your pockets are full.,Llevas los bolsillos llenos.
+PAUSE_TITLE,Paused,Pausa
+PAUSE_BODY,Day %d · %s,Jornada %d · %s
+PAUSE_RESUME,Back to work,Volver al trabajo
+PAUSE_TIME_SKIP,Let time pass (T),Dejar pasar el tiempo (T)
+PAUSE_PROMOTIONS,Promotions (%d),Ascensos (%d)
+PAUSE_SETTINGS,Settings,Ajustes
+PAUSE_QUIT,Quit to title,Salir al título
+PAUSE_QUIT_TITLE,Quit to title?,¿Salir al título?
+PAUSE_QUIT_BODY,The game only saves when you sleep. Everything since last night will be lost.,La partida solo se guarda al dormir. Se perderá todo desde anoche.
+PAUSE_QUIT_CONFIRM,Quit,Salir

@@ -38,7 +38,7 @@ const TESSELLATION_PATH := "arte_personajes.teselado_ms_por_fotograma"
 const CACHE_FALLBACK := 256
 const CACHE_KB_FALLBACK := 8192
 const PORTRAIT_FALLBACK := 64
-const TESSELLATION_MS_FALLBACK := 2.0
+const TESSELLATION_MS_FALLBACK := 4.0
 ## Presupuesto de teselado: sin leer de balance.json / sin límite.
 const BUDGET_UNREAD := -2
 const BUDGET_UNLIMITED := -1
@@ -47,6 +47,12 @@ const USEC_PER_MS := 1000.0
 const CACHE_KEEP := 0.9
 ## Clave reservada de cada cubo de apariencia: la clave con la que está en _poses (para borrarlo).
 const BUCKET_APP := &"app"
+## Topes del memo de claves: claves brutas memorizadas (clave bruta → id canónico) y firmas de
+## esqueleto (firma → id, ~0,6 KB cada una). Al llegar a uno se vacía solo ese memo: los ids nunca
+## se reutilizan (contador), así la caché de poses sigue siendo válida y nunca se vacía entera en
+## pleno juego (una pose con un id que ya no se vuelve a calcular la acaba descartando el LRU).
+const CANON_LIMIT := 16384
+const CANON_SIG_LIMIT := 4096
 ## Metadato del lienzo con las grabaciones de su última pasada de dibujo: [fotograma, grabaciones...].
 const HELD_META := &"_character_recordings"
 const HAIR_AGE_GREY_CHANCE: Array[float] = [0.0, 0.08, 0.4, 0.9]
@@ -119,8 +125,21 @@ static var _pose_count: int = 0
 static var _pose_bytes: int = 0
 ## Poses en caché aún sin malla (se dibujan con su lista de órdenes hasta teselarlas).
 static var _pending: int = 0
+## Diagnóstico de la caché de poses: aciertos, fallos (grabaciones) y poses descartadas.
+static var _hits: int = 0
+static var _misses: int = 0
+static var _evicted: int = 0
 ## Orden LRU de las poses en caché (grabación → [cubo, clave]; la primera es la usada hace más tiempo).
 static var _lru: Dictionary = {}
+## Clave bruta de pose (anim, fotograma, rumbos, escalón, tic, fotograma de tic, sentado) → id
+## canónico: poses brutas distintas que dan el MISMO esqueleto comparten grabación.
+static var _canon_of_raw: Dictionary = {}
+static var _canon_ids: Dictionary = {}
+static var _next_canon_id: int = 0
+static var _canon_raw_max: int = CANON_LIMIT
+static var _canon_sig_max: int = CANON_SIG_LIMIT
+## Veces que se ha llegado a un tope del memo de claves (diagnóstico).
+static var _canon_resets: int = 0
 static var _tick: int = 0
 static var _portraits: Dictionary = {}
 static var _portrait_backgrounds: Dictionary = {}
@@ -534,25 +553,36 @@ static func pose_recording(appearance: Dictionary, tier: int, pose: Dictionary) 
 	var facing_i: int = maxi(_direction_index(pose.get("facing", Vector2.DOWN)), 0)
 	var look_i: int = _direction_index(pose.get("look", Vector2.ZERO))
 	var seated: bool = bool(pose.get("seated", false))
-	var key: int = _pose_key(CharacterAnim.anim_index(anim), frame, facing_i, look_i, tier,
+	var raw: int = _pose_key(CharacterAnim.anim_index(anim), frame, facing_i, look_i, tier,
 			CharacterAnim.TICS.find(tic) + 1, tic_f) * 2 + (1 if seated else 0)
+	var key: int = int(_canon_of_raw.get(raw, -1))
+	if key < 0:
+		key = _canonical_key(raw, appearance, tier, _clean_pose(anim, frame, facing_i, look_i, tic, tic_f, seated))
 	var bucket: Dictionary = _poses.get([appearance], {})
 	var rec: CharacterCanvas = bucket.get(key)
 	if rec != null:
 		var ref: Array = _lru[rec]
 		_lru.erase(rec)
 		_lru[rec] = ref
+		_hits += 1
 		_try_build(rec, false)
 		return rec
+	_misses += 1
+	rec = CharacterCanvas.new()
+	_record(rec, appearance, tier, _clean_pose(anim, frame, facing_i, look_i, tic, tic_f, seated))
+	rec.finish()
+	_insert(appearance, bucket, key, rec)
+	return rec
+
+
+## Pose reducida a lo que cambia el dibujo (rumbos cuantizados), la que se graba.
+static func _clean_pose(anim: String, frame: int, facing_i: int, look_i: int, tic: String, tic_f: int,
+		seated: bool) -> Dictionary:
 	var clean: Dictionary = {"anim": anim, "frame": frame, "facing": _direction_of(facing_i), "tic": tic,
 			"tic_frame": tic_f, "seated": seated}
 	if look_i != NO_LOOK:
 		clean["look"] = _direction_of(look_i)
-	rec = CharacterCanvas.new()
-	_record(rec, appearance, tier, clean)
-	rec.finish()
-	_insert(appearance, bucket, key, rec)
-	return rec
+	return clean
 
 
 ## Mete una grabación nueva en la caché (la más recién usada), la tesela si hay presupuesto y
@@ -569,6 +599,51 @@ static func _insert(appearance: Dictionary, bucket: Dictionary, key: int, rec: C
 	_pending += 1
 	_try_build(rec, false)
 	_evict_if_full()
+
+
+## Id canónico de una pose: lo que de verdad lee el dibujo, sacado del propio esqueleto
+## (CharacterRig): escalón, rumbo, mirada resuelta (tic, pose.look y head_turn), tic "sin girar la
+## cabeza" (cascos) y todos los parámetros resueltos de la pose (fotograma clave + tic + sentado).
+## No depende de la apariencia. Los fotogramas clave que se mantienen varios fotogramas y los
+## fotogramas de tic que no cambian nada comparten grabación: el dibujo es el mismo por
+## construcción. Se memoriza por clave bruta.
+static func _canonical_key(raw: int, appearance: Dictionary, tier: int, clean: Dictionary) -> int:
+	if _canon_of_raw.size() >= _canon_raw_max:
+		_canon_resets += 1
+		_canon_of_raw.clear()
+	if _canon_ids.size() >= _canon_sig_max:
+		_canon_resets += 1
+		_canon_ids.clear()
+	var sig: Array = _rig_signature(CharacterRig.build(appearance, tier, clean))
+	var id: int = int(_canon_ids.get(sig, -1))
+	if id < 0:
+		id = _next_canon_id
+		_next_canon_id += 1
+		_canon_ids[sig] = id
+	_canon_of_raw[raw] = id
+	return id
+
+
+## Firma compacta y exacta del esqueleto: números en float64 (escalón, rumbo, mirada, cascos y los
+## parámetros de la pose en su orden fijo, CharacterAnim.DEFAULTS) + textos (expresión, efectos,
+## objetos); una clave ajena a DEFAULTS entra con su nombre.
+static func _rig_signature(rig: CharacterRig) -> Array:
+	var nums: PackedFloat64Array = PackedFloat64Array([rig.tier, rig.facing.x, rig.facing.y, rig.look.x, rig.look.y,
+			1.0 if rig.tic == CharacterRig.OBLIVIOUS_TIC else 0.0, rig.p.size()])
+	var words: String = ""
+	for k: Variant in rig.p:
+		var v: Variant = rig.p[k]
+		if not CharacterAnim.DEFAULTS.has(k):
+			words += str(k) + "="
+		match typeof(v):
+			TYPE_FLOAT, TYPE_INT, TYPE_BOOL:
+				nums.append(float(v))
+			TYPE_VECTOR3:
+				var v3: Vector3 = v
+				nums.append_array(PackedFloat64Array([v3.x, v3.y, v3.z]))
+			_:
+				words += str(v) + "|"
+	return [nums, words]
 
 
 static func _pose_key(anim_i: int, frame: int, facing_i: int, look_i: int, tier: int, tic_i: int,
@@ -621,6 +696,7 @@ static func _forget(rec: CharacterCanvas) -> void:
 		_poses.erase(bucket[BUCKET_APP])
 	_pose_count -= 1
 	_pose_bytes -= rec.byte_size()
+	_evicted += 1
 	if not rec.is_built():
 		_pending -= 1
 
@@ -656,6 +732,12 @@ static func set_cache_limits(max_poses: int, max_kb: int) -> void:
 	clear_cache()
 
 
+## Tests: topes del memo de claves (claves brutas, firmas; 0 = CANON_LIMIT / CANON_SIG_LIMIT).
+static func set_key_memo_limits(max_raw: int, max_sigs: int) -> void:
+	_canon_raw_max = max_raw if max_raw > 0 else CANON_LIMIT
+	_canon_sig_max = max_sigs if max_sigs > 0 else CANON_SIG_LIMIT
+
+
 ## Número de poses grabadas en caché (diagnóstico y tests).
 static func cached_pose_count() -> int:
 	return _pose_count
@@ -673,6 +755,20 @@ static func cached_portrait_count() -> int:
 ## Poses en caché que aún se dibujan con su lista de órdenes (esperan presupuesto de teselado).
 static func pending_pose_count() -> int:
 	return _pending
+
+
+## Diagnóstico (QA): {hits, misses, evicted, poses, bytes, pending} desde el último reset_cache_stats(),
+## más el memo de claves: canon_raw (claves brutas), canon_sigs (firmas) y resets (topes alcanzados).
+static func cache_stats() -> Dictionary:
+	return {"hits": _hits, "misses": _misses, "evicted": _evicted, "poses": _pose_count, "bytes": _pose_bytes,
+		"pending": _pending, "canon_raw": _canon_of_raw.size(), "canon_sigs": _canon_ids.size(),
+		"resets": _canon_resets}
+
+
+static func reset_cache_stats() -> void:
+	_hits = 0
+	_misses = 0
+	_evicted = 0
 
 
 static func clear_cache() -> void:

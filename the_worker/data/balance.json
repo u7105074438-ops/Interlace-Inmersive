@@ -2365,8 +2365,8 @@
     "cache_poses": 1200,
     "cache_mallas_kb": 24576,
     "cache_retratos": 96,
-    "_nota": "Personajes (CharacterPainter, §14.2-§14.7). Cada pose (apariencia + escalón + animación/fotograma + rumbo y mirada en 8 direcciones + tic + sentado) se graba una vez y se tesela en UNA malla con colores por vértice (1 llamada de dibujo por personaje). teselado_ms_por_fotograma = ms de teselado como máximo por fotograma (una pose aún sin malla se dibuja con su lista de órdenes, mismo aspecto, y se tesela en los fotogramas siguientes). Caché LRU: cache_poses = poses como máximo; cache_mallas_kb = KB de mallas en GPU como máximo (≈28 KB por pose; la cafetería llena necesita ≈45 × 12 poses ≈ 15 MB); al pasarse de cualquiera de los dos descarta las menos usadas hasta quedar en el 90 %. cache_retratos = bustos de foto de PERSONNEL en caché (LRU). escala_volumen_perfil = escala de volumen de un perfil de nominado (ceo).",
-    "teselado_ms_por_fotograma": 2.0
+    "_nota": "Personajes (CharacterPainter, §14.2-§14.7). Cada pose se graba una vez y se tesela en UNA malla con colores por vértice (1 llamada de dibujo por personaje). La clave de caché es canónica: poses brutas (animación, fotograma, rumbo, mirada, tic, fotograma de tic, sentado) que dan el mismo esqueleto comparten grabación. teselado_ms_por_fotograma = ms de teselado como máximo por fotograma (una pose aún sin malla se dibuja con su lista de órdenes, mismo aspecto, y se tesela en los fotogramas siguientes). Caché LRU: cache_poses = poses como máximo; cache_mallas_kb = KB de mallas en GPU como máximo (≈24 KB por pose; la cafetería llena a mediodía, 60 personajes, usa ≈620 poses ≈ 14 MB en 20 s); al pasarse de cualquiera de los dos descarta las menos usadas hasta quedar en el 90 %. cache_retratos = bustos de foto de PERSONNEL en caché (LRU). escala_volumen_perfil = escala de volumen de un perfil de nominado (ceo).",
+    "teselado_ms_por_fotograma": 4.0
   },
   "noticias": {
     "decaimiento_sentimiento_diario": 0.75,
@@ -4108,5 +4108,113 @@
       "_nota": "Preston Vaile III: aliado táctico contra Voss mientras Voss ocupa la silla y el jugador no llega a ocupacion_rival_hostil; después, rival (agravio rival_for_chair de gravedad_rivalidad, una vez).",
       "gravedad_rivalidad": 8
     }
+  },
+  "partida": {
+    "_nota": "Sesión de juego (GameRoot/GameSession, BUILD_NOTES §2): sala y celdas (desde su esquina superior izquierda) donde empieza una partida nueva a las 8:00 (lado público de los tornos de la PB), sala del tutorial (§13.8), semilla de las partidas de QA sin menú y segundos reales que se ve la reacción antes del epílogo.",
+    "sala_inicio": "turnstiles",
+    "celda_inicio": [
+      4.5,
+      2.3
+    ],
+    "sala_tutorial": "training_room",
+    "semilla_qa": 12345,
+    "retardo_epilogo_segundos": 2.5
+  },
+  "viaje": {
+    "_nota": "FloorTravel (§5.2-§5.5, §22.15). minutos_* en minutos de juego: minutos_base + minutos_por_planta × plantas (la nave y el exterior cuentan como 1 planta). escalera.factor_hora_punta en las franjas busy_bands de la escalera principal. escalera_servicio: probabilidad de coincidir con alguien por planta recorrida (tope) en sus franjas, certeza de la creencia parcial que genera; los disfraces justificados no llaman la atención. montacargas: sala cuya acreditación exige, llaves que lo abren y radio de ruido por defecto (el panel de datos manda). conducto: entrada por aseos (patrón), acceso especial, uniforme o llave; prisa = × factor_prisa con ruido de radio_ruido_prisa metros; segundos_acto = acto visible al colarse. cornisa: acto visible. control_salida: salas del control de salida hacia la planta indicada (registro corporal). presentacion: fundido y recorrido del indicador (segundos reales). semilla_encuentros: sal del RNG de encuentros.",
+    "ascensor": {
+      "minutos_base": 1.0,
+      "minutos_por_planta": 0.2
+    },
+    "escalera": {
+      "minutos_base": 0.5,
+      "minutos_por_planta": 1.0,
+      "factor_hora_punta": 1.6
+    },
+    "escalera_servicio": {
+      "minutos_base": 0.5,
+      "minutos_por_planta": 2.0,
+      "prob_encuentro_por_planta": 0.05,
+      "prob_encuentro_max": 0.45,
+      "certeza_encuentro": 0.35,
+      "franjas_encuentro": [
+        "arrival",
+        "work_morning",
+        "lunch",
+        "work_afternoon",
+        "exit"
+      ],
+      "disfraces_justificados": [
+        "uniform_cleaning",
+        "uniform_maintenance",
+        "uniform_security"
+      ]
+    },
+    "montacargas": {
+      "minutos_base": 2.0,
+      "minutos_por_planta": 1.0,
+      "sala": "freight_elevator",
+      "llaves": [
+        "factory_master_key",
+        "master_keys",
+        "guard_master_keys",
+        "security_master_key",
+        "guard_keys"
+      ],
+      "radio_ruido": 8.0
+    },
+    "conducto": {
+      "minutos_base": 3.0,
+      "minutos_por_planta": 6.0,
+      "factor_prisa": 0.5,
+      "radio_ruido_prisa": 7.0,
+      "segundos_acto": 2.5,
+      "patron_aseos": "toilets",
+      "accesos_especiales": [
+        "maintenance"
+      ],
+      "disfraces": [
+        "uniform_maintenance"
+      ],
+      "llaves": [
+        "vent_key"
+      ]
+    },
+    "cornisa": {
+      "minutos_base": 8.0,
+      "minutos_por_planta": 0.0,
+      "segundos_acto": 3.0
+    },
+    "salida": {
+      "minutos_base": 1.0,
+      "minutos_por_planta": 0.0
+    },
+    "control_salida": {
+      "salas": [
+        "main_reception",
+        "turnstiles"
+      ],
+      "planta": 200
+    },
+    "presentacion": {
+      "fundido_segundos": 0.25,
+      "recorrido_segundos": 0.6,
+      "recorrido_por_planta_segundos": 0.05,
+      "recorrido_max_segundos": 1.4
+    },
+    "semilla_encuentros": 7919
+  },
+  "salto_tiempo": {
+    "_nota": "Salto temporal (§15.6, TimeSkip): solo a la franja siguiente, sin observadores y en lugar seguro: la sala de trabajo del puesto, el domicilio (hogar.sala_domicilio) o una sala cuyo id contenga alguno de estos patrones.",
+    "patrones_seguros": [
+      "toilets"
+    ]
+  },
+  "puentes": {
+    "_nota": "WorldBridges: segundos reales entre avisos de una misma puerta denegada, sala de la citación a interrogatorio, cada cuántos segundos reales se mira si ya se puede ejecutar una citación pendiente y radio (celdas) para sentarse en la silla propia al abrir el ordenador.",
+    "segundos_aviso_puerta": 2.5,
+    "sala_interrogatorio": "interrogation_room",
+    "segundos_citacion": 1.0,
+    "radio_silla_celdas": 2.5
   }
 }

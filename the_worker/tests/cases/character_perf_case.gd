@@ -7,8 +7,9 @@ extends TestCase
 ## (tools/screenshot.sh <dir> char_perf). Aquí: API compatible, una orden por pose para todas
 ## las animaciones × escalones × rumbos × sentado × uniformes × tics, recuentos y posiciones del
 ## teselado frente a las fórmulas del motor, LRU por número y por bytes, retención, fotos, coste de
-## grabar/vaciar y presupuesto de teselado por fotograma (lo que no cabe se dibuja con la lista de
-## órdenes y el lienzo se redibuja solo).
+## grabar/vaciar, presupuesto de teselado por fotograma (lo que no cabe se dibuja con la lista de
+## órdenes y el lienzo se redibuja solo), memo de claves lleno sin vaciar la caché e invalidación al
+## cambiar de disfraz o de escalón.
 
 const DIRS: Array[Vector2] = [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(1, -1), Vector2(0, -1),
 	Vector2(-1, -1), Vector2(-1, 0), Vector2(-1, 1)]
@@ -73,6 +74,9 @@ func run_case() -> void:
 	CharacterPainter.set_tessellation_budget_ms(-1.0)
 	_check_api()
 	_check_one_order_per_pose()
+	_check_canonical_keys()
+	_check_key_memo()
+	_check_invalidation()
 	_check_line_geometry()
 	_check_polyline_geometry()
 	_check_round_geometry()
@@ -393,3 +397,67 @@ func _check_budget() -> void:
 			"the canvas redraws itself until every pose is a mesh (%d passes)" % crowd.pending_log.size())
 	crowd.queue_free()
 	CharacterPainter.set_tessellation_budget_ms(-1.0)
+
+
+## Claves canónicas: poses brutas con el mismo esqueleto comparten grabación; las que cambian
+## el dibujo no.
+func _check_canonical_keys() -> void:
+	CharacterPainter.clear_cache()
+	var app: Dictionary = CharacterPainter.appearance_from_seed(13130, 2, false, "")
+	var held_a: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("idle", 0, DIRS[0]))
+	var held_b: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("idle", 1, DIRS[0]))
+	check(held_a == held_b, "a key frame held for two frames (idle 0 and 1) shares one recording")
+	var deaf: String = "headphones_never_turns_head"
+	var tic_a: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("idle", 0, DIRS[0],
+			{"tic": deaf, "tic_frame": 0}))
+	var tic_b: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("idle", 0, DIRS[0],
+			{"tic": deaf, "tic_frame": 7}))
+	check(tic_a == tic_b, "tic frames that change nothing share one recording")
+	var sweep: String = "slow_wide_gaze_sweep"
+	var sw_a: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("idle", 0, DIRS[0],
+			{"tic": sweep, "tic_frame": 0}))
+	var sw_b: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("idle", 0, DIRS[0],
+			{"tic": sweep, "tic_frame": 3}))
+	var walk_a: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("walk", 0, DIRS[0]))
+	var walk_b: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("walk", 1, DIRS[0]))
+	var turned: CharacterCanvas = CharacterPainter.pose_recording(app, 2, CharacterPainter.make_pose("walk", 0, DIRS[2]))
+	check(sw_a != sw_b and walk_a != walk_b and walk_a != turned,
+			"poses that change the drawing (head sweep, walk phase, facing) keep their own recordings")
+
+
+## Memo de claves lleno: se vacía solo el memo (la caché de poses sigue entera), los ids no se
+## reutilizan (una pose nueva nunca recibe la grabación de otra) y la pose recién usada sigue en caché.
+func _check_key_memo() -> void:
+	CharacterPainter.clear_cache()
+	CharacterPainter.set_key_memo_limits(3, 2)
+	var resets: int = int(CharacterPainter.cache_stats()["resets"])
+	var app: Dictionary = CharacterPainter.appearance_from_seed(14140, 4, false, "")
+	var recs: Array[CharacterCanvas] = []
+	for i: int in 6:
+		recs.append(CharacterPainter.pose_recording(app, 4, CharacterPainter.make_pose("walk", i, DIRS[0])))
+	var distinct: bool = true
+	for i: int in recs.size():
+		for j: int in range(i + 1, recs.size()):
+			distinct = distinct and recs[i] != recs[j]
+	resets = int(CharacterPainter.cache_stats()["resets"]) - resets
+	check(distinct and CharacterPainter.cached_pose_count() == recs.size() and resets > 0,
+			"a full key memo empties only itself: the pose cache stays and ids are never reused (%d resets)" % resets)
+	check(CharacterPainter.pose_recording(app, 4, CharacterPainter.make_pose("walk", 5, DIRS[0])) == recs[5],
+			"the pose just used is still found after the memo resets")
+	CharacterPainter.set_key_memo_limits(0, 0)
+
+
+## Cambiar la apariencia (disfraz, escalón) da otra grabación, también si se modifica el mismo
+## diccionario después de dibujarlo; volver a la de antes recupera la suya.
+func _check_invalidation() -> void:
+	CharacterPainter.clear_cache()
+	var app: Dictionary = CharacterPainter.appearance_from_seed(15150, 2, false, "")
+	var pose: Dictionary = CharacterPainter.make_pose("walk", 3, DIRS[1])
+	var plain: CharacterCanvas = CharacterPainter.pose_recording(app, 2, pose)
+	app["uniform"] = CharacterPainter.uniform_for_disguise("uniform_cleaning")
+	var disguised: CharacterCanvas = CharacterPainter.pose_recording(app, 2, pose)
+	var promoted: CharacterCanvas = CharacterPainter.pose_recording(app, 3, pose)
+	app["uniform"] = ""
+	var back: CharacterCanvas = CharacterPainter.pose_recording(app, 2, pose)
+	check(disguised != plain and promoted != disguised and promoted != plain and back == plain,
+			"disguise and tier changes (even mutating the same appearance) get their own recordings; undoing them finds the old one")

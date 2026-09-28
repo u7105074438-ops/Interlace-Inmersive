@@ -46,6 +46,7 @@ const RAW_DEADZONE := 0.0
 const MOVE_ACTIONS: Array[String] = ["move_up", "move_down", "move_left", "move_right"]
 const CELL_PATH := "mundo.px_por_unidad"
 const SEED_PATH := "jugador.semilla_apariencia"
+const PORTRAIT_FLAG := "player.portrait_seed"
 const SPEED_PATHS: Dictionary = {
 	"walk": "jugador.velocidad_normal", "sneak": "jugador.velocidad_sigilo",
 	"sprint": "jugador.velocidad_esprint", "crouch": "jugador.velocidad_agachado",
@@ -635,6 +636,8 @@ static func _snap8(dir: Vector2) -> Vector2:
 # ─── Interacción ───────────────────────────────────────────────
 
 func _update_focus() -> void:
+	if not is_instance_valid(_focus):
+		_focus = null
 	var best: Node2D = _pick_focus() if _can_act() else null
 	if best != _focus:
 		_set_focus_flag(_focus, false)
@@ -665,7 +668,7 @@ func _pick_focus() -> Node2D:
 func _is_available(item: Node2D) -> bool:
 	var interactable: Interactable = item as Interactable
 	if interactable != null:
-		return interactable.is_available()
+		return interactable.is_available() and InteractionRouter.is_available_for(interactable, self)
 	return not item.has_method("is_available") or bool(item.call("is_available"))
 
 
@@ -712,13 +715,16 @@ func _set_focus_flag(item: Node2D, focused: bool) -> void:
 
 ## Indicación contextual: UIRoot.show_interactable() (HUD + botón táctil) o la burbuja propia.
 func _refresh_prompt() -> void:
-	var key: String = ""
-	if _focus != null and _focus.has_method("get_prompt_key"):
+	var key: String = InteractionRouter.prompt_key_for(_focus) if _focus != null else ""
+	var custom: bool = not key.is_empty()
+	if not custom and _focus != null and _focus.has_method("get_prompt_key"):
 		key = str(_focus.call("get_prompt_key"))
 	interaction_focus_changed.emit(_focus, key)
 	var ui: Node = get_tree().get_first_node_in_group(UI_GROUP)
 	if ui != null and ui.has_method("show_interactable"):
 		ui.call("show_interactable", _focus)
+		if custom and ui.has_method("set_context_action"):
+			ui.call("set_context_action", key, UITheme.icon_for_interact_type(str(_focus.get("interact_type"))))
 		key = ""
 	_bubble.text = tr(key) if not key.is_empty() else ""
 	_bubble.key_label = _interact_key_label()
@@ -772,9 +778,18 @@ func _refresh_appearance() -> void:
 	_tier = maxi(1, PlayerState.get_tier())
 	if PlayerState.has_method("get_disguise"):
 		_disguise = str(PlayerState.call("get_disguise"))
-	_appearance = CharacterPainter.appearance_from_seed(Database.get_balance_int(SEED_PATH), _tier, false, "")
+	_appearance = CharacterPainter.appearance_from_seed(appearance_seed(), _tier, false, "")
 	_appearance["uniform"] = CharacterPainter.uniform_for_disguise(_disguise)
 	queue_redraw()
+
+
+## Semilla de apariencia: la del alta (GameLaunch.portrait_seed, guardada por GameSession en la
+## bandera PORTRAIT_FLAG de PlayerState) o, sin ella, la de balance jugador.semilla_apariencia.
+func appearance_seed() -> int:
+	var stored: Variant = PlayerState.get_flag(PORTRAIT_FLAG, 0)
+	if (stored is int or stored is float) and int(stored) != 0:
+		return int(stored)
+	return Database.get_balance_int(SEED_PATH)
 
 
 func _on_occupation_changed(_old_id: String, _new_id: String, _reason: String) -> void:

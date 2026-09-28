@@ -6,8 +6,8 @@ extends CanvasLayer
 
 ## Protocolo de ventanas modales (open_modal):
 ##  · La ventana es un Control; UIRoot la añade, la atenúa detrás (meta "ui_dim" = false lo evita)
-##    y la libera al cerrarla. pauses_clock → GameClock.pause() mientras alguna lo pida; al cerrar
-##    solo reanuda si fue UIRoot quien pausó (no deshace la pausa de otro sistema).
+##    y la libera al cerrarla. pauses_clock → GameClock.pause_by(UI_PAUSE_OWNER) mientras alguna lo
+##    pida; al cerrar la última, resume_by(UI_PAUSE_OWNER) (nunca deshace la pausa de otro sistema).
 ##  · Si la ventana sale del árbol por su cuenta (queue_free propio, cambio de escena) se retira
 ##    de la pila; un diálogo pendiente resuelve con CANCEL.
 ##  · Mientras haya ventanas, el jugador (grupo "player") recibe set_input_locked(true).
@@ -43,6 +43,8 @@ const MINUTES_PER_HOUR := 60.0
 const ACT_CANCELLED := 0
 const ACT_DONE := 1
 const ACT_FAILED := 2
+## Dueño de la pausa del reloj mientras alguna ventana modal la pide (GameClock.pause_by).
+const UI_PAUSE_OWNER := "ui_modal"
 
 var _root: Control
 var _hud: HUD
@@ -54,7 +56,6 @@ var _dim: ColorRect
 var _debug: DebugPanel
 var _stack: Array[Dictionary] = []
 var _clock_paused_by_ui: bool = false
-var _clock_was_paused: bool = false
 var _computer_slowed: bool = false
 var _speed_before_computer: float = NORMAL_SPEED
 var _player_locked_by_ui: bool = false
@@ -203,6 +204,15 @@ func get_top_modal() -> Control:
 	return _stack.back()["control"] if not _stack.is_empty() else null
 
 
+## Integración (game_root, ClosingTime): las ventanas abiertas, de la más antigua a la superior.
+func get_modals() -> Array[Control]:
+	var out: Array[Control] = []
+	for entry: Dictionary in _stack:
+		if is_instance_valid(entry["control"]):
+			out.append(entry["control"])
+	return out
+
+
 func is_clock_paused_by_ui() -> bool:
 	return _clock_paused_by_ui
 
@@ -251,14 +261,14 @@ func _refresh_modal_state() -> void:
 	_virtual.visible = _touch_mode and not has_modal()
 
 
-## Pausa del reloj pedida por la interfaz: recuerda si ya estaba pausado para no reanudar lo ajeno.
+## Pausa del reloj pedida por la interfaz (integración, docs_integration_todo): pausa POR DUEÑO
+## (GameClock.pause_by/resume_by con UI_PAUSE_OWNER) para no deshacer nunca la pausa general del
+## ciclo de partida (fin de partida, carga) ni la de otro dueño.
 func _set_ui_pause(on: bool) -> void:
 	if on:
-		_clock_was_paused = GameClock.is_paused()
-		if not _clock_was_paused:
-			GameClock.pause()
-	elif not _clock_was_paused:
-		GameClock.resume()
+		GameClock.pause_by(UI_PAUSE_OWNER)
+	else:
+		GameClock.resume_by(UI_PAUSE_OWNER)
 
 
 ## Ralentización dentro del ordenador; al salir restaura el multiplicador que había.
@@ -697,8 +707,16 @@ func _connect_bus() -> void:
 	EventBus.run_loaded.connect(_on_run_loaded)
 
 
+## Integración (game_root): HomeCycle.build_day_summary entrega ids de deber; DaySummary muestra
+## claves de nombre (sin esto, «duty_emails_r1» aparecía tal cual en el resumen al dormir).
 func _on_day_summary_ready(summary: Dictionary) -> void:
-	show_day_summary(summary)
+	var named: Dictionary = summary.duplicate()
+	for field: String in ["completed_duties", "missed_duties"]:
+		var keys: Array = []
+		for duty: Variant in summary.get(field, []):
+			keys.append(_duty_name_key(str(duty)) if duty is String else duty)
+		named[field] = keys
+	show_day_summary(named)
 
 
 func _on_duty_deadline_warned(duty_id: String, hours_left: float) -> void:
