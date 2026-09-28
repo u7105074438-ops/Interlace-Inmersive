@@ -20,7 +20,7 @@ extends RefCounted
 ## ELIMINAR (§12.2, misma regla que la flagrancia): solo si env no tiene testigos ni cámaras; si
 ##   no, cerrada y en rojo. eliminate() vuelve a comprobarlo: NPCDirector.remove_npc(él,
 ##   "eliminated") (cuerpo: body_created) + crime_committed("elimination", sala, {npc_id,
-##   witnesses: 0}).
+##   witnesses: testigos + cámaras de env, 0 al pasar la regla}).
 
 const OPT_CHAT := "chat"
 const OPT_DIRECTIONS := "directions"
@@ -294,7 +294,8 @@ static func eliminate(npc_id: String, env: Dictionary) -> Dictionary:
 	var name: String = SocialKit.npc_name(npc_id)
 	NPCDirector.remove_npc(npc_id, REMOVAL_CAUSE)
 	EventBus.crime_committed.emit(CRIME_ELIMINATION, str(env.get("room_id", PlayerState.get_room())),
-			{"npc_id": npc_id, "witnesses": 0})
+			{"npc_id": npc_id, "witnesses": (env.get("witnesses", []) as Array).size()
+				+ (env.get("cameras", []) as Array).size()})
 	var res: Dictionary = SocialKit.result(true, "", [], "SOCIAL_TOAST_ELIMINATED", [name], ToastStack.KIND_WARN)
 	res["close"] = true
 	return res

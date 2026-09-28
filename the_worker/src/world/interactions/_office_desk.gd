@@ -220,6 +220,9 @@ static func _retrieve(spot_id: String, ctx: Dictionary) -> void:
 ## Ordenador de un compañero (§11.1 copia de archivo): solo en su ausencia.
 static func use_npc_computer(item: Interactable, _player: Node, ctx: Dictionary) -> void:
 	var owner: String = OfficeKit.owner_of(item)
+	if owner.is_empty():
+		var staff: Array[String] = OfficeKit.room_staff(item.room_id, [])
+		owner = staff[0] if not staff.is_empty() else ""
 	if OfficeKit.is_present(owner, item.room_id):
 		OfficeKit.refuse(ctx, "OFFICE_PC_OWNER_HERE", [OfficeKit.npc_name(owner)])
 		return
@@ -288,6 +291,9 @@ static func use_card_reader(item: Interactable, player: Node, ctx: Dictionary) -
 		OfficeKit.good(ctx, "OFFICE_CARD_OK", [], "")
 		return
 	OfficeKit.sfx(game.ui, SFX_DENIED, door.global_position)
+	if PlayerState.get_clearance() >= door.clearance and not door.special_access.is_empty():
+		OfficeKit.refuse(ctx, "OFFICE_CARD_DENIED_ACCESS", [door.clearance])
+		return
 	OfficeKit.refuse(ctx, "OFFICE_CARD_DENIED", [door.clearance])
 
 

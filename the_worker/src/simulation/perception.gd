@@ -325,7 +325,8 @@ func tick(delta: float, player: Node2D, exposure: Dictionary) -> void:
 	_turn_view(delta)
 	_anomaly = Vector2.INF
 	var sample: Dictionary = EMPTY_SAMPLE
-	if _active and player != null and not exposure.is_empty() and not bool(exposure.get("hidden", false)):
+	if _active and player != null and not exposure.is_empty() and not bool(exposure.get("hidden", false)) \
+			and _str_call(player, "current_act_target") != npc_id:
 		sample = _sample(player, exposure)
 	_advance_counter(delta, float(sample["rate"]), float(sample["cap"]))
 	_check_thresholds(player, exposure, sample)

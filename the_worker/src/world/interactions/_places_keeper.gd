@@ -94,6 +94,7 @@ static func find(tree: SceneTree) -> PlacesKeeper:
 
 ## El keeper de la escena de juego (lo crea si falta; null si no hay GameRoot montado).
 static func ensure(tree: SceneTree) -> PlacesKeeper:
+	hook()
 	var keeper: PlacesKeeper = find(tree)
 	if keeper != null or tree == null:
 		return keeper

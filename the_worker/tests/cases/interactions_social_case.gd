@@ -578,6 +578,9 @@ func _menu_eliminate(target: NPCNode) -> void:
 	get_tree().call_group(SecurityCamera.GROUP, "set_active", false)
 	await _settle()
 	var victim: String = target.npc_id
+	var heard: Array[String] = []
+	var on_noise: Callable = func(_p: Vector2, _r: float, source: String) -> void: heard.append(source)
+	EventBus.noise_emitted.connect(on_noise)
 	SocialInteractions.interact(target.interactable, _game.player, InteractionRouter.build_context(target.interactable, _game.player))
 	var menu: NPCInteractionMenu = NPCInteractionMenu.find(get_tree())
 	await _settle()
@@ -589,6 +592,13 @@ func _menu_eliminate(target: NPCNode) -> void:
 	check(await _wait(func() -> bool: return NPCInteractionMenu.find(get_tree()) == null), "eliminate scene: the menu closes after the fade")
 	check(not NPCDirector.get_body_info(victim).is_empty(), "eliminate scene: a body is left to hide")
 	check(not _game.player.is_input_locked(), "eliminate scene: control returns to the player")
+	EventBus.noise_emitted.disconnect(on_noise)
+	check(heard.has(SocialWorld.NOISE_SOURCE), "eliminate scene: the act makes noise (§12.2)")
+	var sheet_found: bool = false
+	for body: Node in get_tree().get_nodes_in_group(BodyNode.BODY_GROUP):
+		var figure: Node2D = (body as BodyNode).get_figure()
+		sheet_found = sheet_found or (str((body as BodyNode).npc_id) == victim and figure != null and figure.has_node("Sheet"))
+	check(sheet_found, "eliminate scene: the body is covered by a sheet (§3.1)")
 
 
 func _cleanup() -> void:

@@ -12,23 +12,22 @@ extends RefCounted
 ##   las viviendas (NightOps.get_house_type) los resuelve NightOps.loot_container.
 ## · Archivadores (archive_files, filing_cabinet): legal si es tu sala o tu puesto da acceso
 ##   (oficina.archivo.acceso_por_sala); si no, acto drawer_forced. Muestran lo que contienen
-##   (auditoría: investigaciones abiertas antes de que te avisen, §22.10) y sus documentos se
-##   pueden coger (theft_small, valor 0). Pedidos extraviables (§23 order_filer): extraviar los
-##   de un objetivo = crime_committed("sabotage") y su reputación baja.
-## · Expedientes de RR. HH. (§22.6, §23 hr_assistant): con el acceso del puesto → PERSONNEL. Si
-##   no, intrusión (drawer_forced): expediente completo de oficina.expedientes.por_intrusion
-##   personas (objetivos marcados primero) con PersonnelApp.open_full_file(id, "hr_intrusion") y,
-##   si alguno tiene punto débil, un blackmail_file suyo (theft_small).
-## · Estantería de material (§6.5, §15.4 «~35 € diarios»): una unidad por sala y jornada,
-##   theft_small {value, company_loss}. Se revende en el correo interno.
-## · Correo interno (§22.4, §23 mail_courier): rebuscar (theft_small, una vez al día: dinero
-##   suelto, información temprana o nada) y enviar a un comprador el material robado que llevas
-##   (reventa a oficina.material.factor_reventa × valor).
-## · Archivo de diseños (§23 junior_shoe_designer): copiar un diseño de hace treinta años
-##   (acto idea_stolen). Con IdeaPool.adopt_archive_idea (petición abierta) sería una idea
-##   presentable; mientras tanto se lleva una copia (idea_copy) y Old Ray la recuerda.
+##   (auditoría: investigaciones abiertas antes de que te avisen, §22.10); llevarse sus documentos
+##   (uno o todos) es siempre un acto theft_small. Pedidos extraviables (§23 order_filer):
+##   confirmación + acto "sabotage" → crime_committed("sabotage") y su reputación baja.
+## · Expedientes de RR. HH. (§22.6, §13.4): con el acceso del puesto → PERSONNEL. Si no, eliges
+##   UNA persona (marcados, sala, nominados; oficina.expedientes.candidatos_max) y la intrusión
+##   (drawer_forced) abre su expediente completo (PersonnelApp.open_full_file(id, "hr_intrusion"))
+##   y, si tiene punto débil, te llevas su blackmail_file (theft_small).
+## · Estantería de material (§6.5, §15.4 «~35 € diarios»): solo lo revendible
+##   (oficina.material.vendibles); una unidad por jornada en todo el edificio; theft_small
+##   {value, company_loss}. Lo demás (cuero, objetos de valor, químicos) no tiene comprador aquí.
+## · Correo interno (§22.4, §23 mail_courier): rebuscar (acto y theft_small siempre, una vez al
+##   día: dinero suelto, información temprana o nada) y enviar a un comprador el material robado.
+## · Archivo de diseños (§23 junior_shoe_designer): sin IdeaPool.adopt_archive_idea (petición
+##   abierta) solo se hojea; con él, acto idea_stolen + delito + idea presentable.
 ## · Mesa de falsificación (§5.3): exige la estampa. forged_authorization → Endgame.forge_authorization
-##   (solo con el objetivo revelado); otros productos: el objeto + crime_committed("forgery").
+##   (solo con el objetivo revelado); los demás productos se muestran sin uso todavía.
 
 const B_DRAWER_TABLE := "oficina.cajon.tabla"
 const B_COINS_MIN := "oficina.cajon.monedas_min"
@@ -45,8 +44,7 @@ const B_ARCHIVE_ACCESS := "oficina.archivo.acceso_por_sala"
 const B_MISPLACE_REP := "oficina.archivo.reputacion_pedidos"
 const B_MISPLACE_DAYS := "oficina.archivo.enfriamiento_pedidos_dias"
 const B_TARGETS_MAX := "oficina.archivo.objetivos_max"
-const B_HR_FILES := "oficina.expedientes.por_intrusion"
-const B_DESIGN_ITEM := "oficina.diseno.objeto"
+const B_HR_CANDIDATES := "oficina.expedientes.candidatos_max"
 const B_DESIGN_TEMPLATE := "oficina.diseno.plantilla"
 const B_DESIGN_REMEMBERS := "oficina.diseno.recuerda"
 const B_STAMP := "oficina.falsificacion.estampa"
@@ -57,6 +55,7 @@ const CRIME_SABOTAGE := "sabotage"
 const CRIME_FORGERY := "forgery"
 const CRIME_IDEA := "idea_stolen"
 const COINS := "coins"
+const MAIL_OPENED := "mail_opened"
 const NOTHING := "nothing"
 const INFO := "info"
 const CASH := "cash"
@@ -70,6 +69,8 @@ const DOCS_COMPLAINTS := "complaints"
 const DOCS_KEY_FORMAT := "OFFICE_ARCHIVE_DOCS_%s"
 const LOOT_SEPARATOR := ":"
 const SOLD_METHOD := "sold"
+## Marca «ya hoy» del material: global, no por sala.
+const SUPPLIES_KEY := "supplies"
 ## Claves de punto débil que dicen «ninguno» (NPC_WEAK_NONE, NPC_WEAK_NONE_UNBRIBABLE...).
 const NO_WEAKNESS_PREFIX := "NPC_WEAK_NONE"
 
@@ -131,12 +132,15 @@ static func offer_loot(ctx: Dictionary, loot: Array, spec: Dictionary) -> void:
 		OfficeKit.set_list(str(spec["key"]), [])
 		OfficeKit.say(ctx, str(spec["empty"]), [OfficeKit.npc_name(str(spec["owner"]))])
 		return
-	var labels: Array = [{"text_key": "OFFICE_TAKE_ALL", "args": [loot.size()]}]
+	var single: bool = loot.size() == 1
+	var labels: Array = [] if single else [{"text_key": "OFFICE_TAKE_ALL", "args": [loot.size()]}]
 	for entry: Variant in loot:
 		labels.append({"text_key": "OFFICE_TAKE_ITEM", "args": [loot_name(str(entry))]})
 	labels.append("OFFICE_LEAVE_IT")
 	var index: int = await OfficeKit.choose(ctx, str(spec["title"]), "OFFICE_LOOT_BODY", labels,
 			[OfficeKit.npc_name(str(spec["owner"]))])
+	if single and index >= 0:
+		index += 1
 	var chosen: Array = loot.duplicate() if index == 0 else ([loot[index - 1]] if index > 0 and index <= loot.size() else [])
 	var left: Array = loot.duplicate()
 	var names: PackedStringArray = []
@@ -184,10 +188,14 @@ static func _house_drawer(item: Interactable, player: Node, ctx: Dictionary) -> 
 		OfficeKit.refuse(ctx, "OFFICE_HOUSE_NO_OPERATION")
 		return
 	var drawer_id: String = item.interact_id
+	if _house_container_empty(ops, drawer_id):
+		OfficeKit.say(ctx, "OFFICE_DRAWER_NOTHING", [OfficeKit.tr_key("OFFICE_SOMEONE")])
+		return
 	OfficeKit.noise(player, B_DRAWER_NOISE, NOISE_DRAWER)
 	if not await OfficeKit.run_act(ctx, player, "burglary", "cajon", false):
 		return
 	var result: Dictionary = ops.loot_container(drawer_id)
+	_warn_witnesses(ctx, result.get("witnesses", []))
 	if not bool(result.get("ok", false)):
 		OfficeKit.refuse(ctx, NightOps.reason_key(str(result.get("reason", ""))))
 		return
@@ -198,6 +206,24 @@ static func _house_drawer(item: Interactable, player: Node, ctx: Dictionary) -> 
 		OfficeKit.say(ctx, "OFFICE_DRAWER_NOTHING", [OfficeKit.tr_key("OFFICE_SOMEONE")])
 		return
 	OfficeKit.good(ctx, "OFFICE_TOOK", [", ".join(names)], OfficeKit.SFX_CASH)
+
+
+## El contenedor de la vivienda ya se vació (saqueado y sin restos).
+static func _house_container_empty(ops: NightOps, container_id: String) -> bool:
+	for c: Dictionary in ops.get_containers():
+		if str(c.get("id", "")) == container_id:
+			return bool(c.get("looted", false)) and int(c.get("left", 0)) <= 0
+	return false
+
+
+## Aviso si el saqueo tuvo testigos (el residente despierto o la seguridad privada).
+static func _warn_witnesses(ctx: Dictionary, witnesses: Variant) -> void:
+	if not witnesses is Array or (witnesses as Array).is_empty():
+		return
+	var names: PackedStringArray = []
+	for id: Variant in witnesses:
+		names.append(OfficeKit.npc_name(str(id)))
+	OfficeKit.refuse(ctx, "OFFICE_HOUSE_WITNESSED", [", ".join(names)])
 
 
 # ─── Archivadores ─────────────────────────────────────────────
@@ -230,7 +256,7 @@ static func use_archive(item: Interactable, player: Node, ctx: Dictionary) -> vo
 	OfficeKit.spend_minutes("archivo")
 	var lines: Array[String] = archive_lines(data)
 	OfficeInfo.note_lines(lines)
-	await _archive_menu(ctx, room, archive_id, data, lines)
+	await _archive_menu(ctx, player, {"room": room, "id": archive_id, "data": data}, lines)
 
 
 ## Lo que se lee en el archivador según data.documents.
@@ -250,11 +276,14 @@ static func archive_lines(data: Dictionary) -> Array[String]:
 	return out
 
 
-static func _archive_menu(ctx: Dictionary, room: String, archive_id: String, data: Dictionary,
-		lines: Array[String]) -> void:
-	var loot: Array = unique_contents(archive_id, data)
-	var misplace: bool = bool(data.get("can_misplace", false))
-	var labels: Array = []
+## Menú del archivador. archive = {room, id, data}. Llevarse papeles es un acto (theft_small)
+## aunque registrar sea legal; «todo» si hay más de uno.
+static func _archive_menu(ctx: Dictionary, player: Node, archive: Dictionary, lines: Array[String]) -> void:
+	var archive_id: String = str(archive["id"])
+	var loot: Array = unique_contents(archive_id, archive["data"])
+	var misplace: bool = bool((archive["data"] as Dictionary).get("can_misplace", false))
+	var offset: int = 1 if loot.size() > 1 else 0
+	var labels: Array = [{"text_key": "OFFICE_TAKE_ALL", "args": [loot.size()]}] if offset == 1 else []
 	for entry: Variant in loot:
 		labels.append({"text_key": "OFFICE_TAKE_ITEM", "args": [OfficeKit.item_name(str(entry))]})
 	if misplace:
@@ -262,33 +291,55 @@ static func _archive_menu(ctx: Dictionary, room: String, archive_id: String, dat
 	labels.append("OFFICE_CLOSE")
 	var index: int = await OfficeKit.choose(ctx, "OFFICE_ARCHIVE_TITLE", OfficeKit.INFO_BODY, labels,
 			[OfficeKit.bullets(lines)])
-	if index >= 0 and index < loot.size():
-		var spec: Dictionary = {"room": room, "owner": "", "key": "archive." + archive_id, "unique": "taken." + archive_id}
-		if take_loot(str(loot[index]), spec, ctx):
-			OfficeKit.good(ctx, "OFFICE_TOOK", [OfficeKit.item_name(str(loot[index]))])
-	elif misplace and index == loot.size():
-		await misplace_orders(ctx, room)
+	if index >= 0 and index < loot.size() + offset:
+		var chosen: Array = loot.duplicate() if offset == 1 and index == 0 else [loot[index - offset]]
+		await _take_documents(ctx, player, str(archive["room"]), archive_id, chosen)
+	elif misplace and index == loot.size() + offset:
+		await misplace_orders(ctx, player, str(archive["room"]))
+
+
+static func _take_documents(ctx: Dictionary, player: Node, room: String, archive_id: String, chosen: Array) -> void:
+	if not await OfficeKit.run_act(ctx, player, CRIME_THEFT, "archivo"):
+		return
+	var spec: Dictionary = {"room": room, "owner": "", "key": "archive." + archive_id, "unique": "taken." + archive_id}
+	var names: PackedStringArray = []
+	for entry: Variant in chosen:
+		if take_loot(str(entry), spec, ctx):
+			names.append(OfficeKit.item_name(str(entry)))
+	if not names.is_empty():
+		OfficeKit.good(ctx, "OFFICE_TOOK", [", ".join(names)])
 
 
 ## Extraviar los pedidos de alguien (§22.7, §23 order_filer): sabotaje con su reputación.
-static func misplace_orders(ctx: Dictionary, room: String) -> void:
+## Irreversible contra un compañero: confirmación (§13.7) y acto "sabotage" antes del delito.
+static func misplace_orders(ctx: Dictionary, player: Node, room: String) -> void:
 	if OfficeKit.days_since("misplace") < Database.get_balance_int(B_MISPLACE_DAYS):
 		OfficeKit.refuse(ctx, "OFFICE_ARCHIVE_MISPLACE_SOON")
 		return
 	var targets: Array[String] = pick_targets(Database.get_balance_int(B_TARGETS_MAX))
-	var labels: Array = []
-	for npc_id: String in targets:
-		labels.append({"text_key": "OFFICE_TARGET", "args": [OfficeKit.npc_name(npc_id)]})
-	labels.append("OFFICE_CLOSE")
-	var index: int = await OfficeKit.choose(ctx, "OFFICE_ARCHIVE_TITLE", "OFFICE_ARCHIVE_MISPLACE_BODY", labels)
+	var index: int = await OfficeKit.choose(ctx, "OFFICE_ARCHIVE_TITLE", "OFFICE_ARCHIVE_MISPLACE_BODY", target_labels(targets))
 	if index < 0 or index >= targets.size():
 		return
 	var target: String = targets[index]
+	if not await OfficeKit.confirm(ctx, "OFFICE_ARCHIVE_TITLE", "OFFICE_ARCHIVE_MISPLACE_CONFIRM",
+			"OFFICE_ARCHIVE_MISPLACE_GO", [OfficeKit.npc_name(target)]):
+		return
+	if not await OfficeKit.run_act(ctx, player, CRIME_SABOTAGE, "archivo"):
+		return
 	NPCDirector.modify_npc_reputation(target, Database.get_balance_float(B_MISPLACE_REP), "orders_misplaced")
 	OfficeKit.commit(CRIME_SABOTAGE, room, {"target": target, "kind": "orders_misplaced"})
 	OfficeKit.mark_today("misplace")
 	OfficeKit.note(OfficeKit.NOTE_FILES, "OFFICE_NOTE_MISPLACED", [OfficeKit.npc_name(target)])
 	OfficeKit.good(ctx, "OFFICE_ARCHIVE_MISPLACED", [OfficeKit.npc_name(target)])
+
+
+## Opciones «objetivo» (nombre) + Cerrar.
+static func target_labels(targets: Array[String]) -> Array:
+	var labels: Array = []
+	for npc_id: String in targets:
+		labels.append({"text_key": "OFFICE_TARGET", "args": [OfficeKit.npc_name(npc_id)]})
+	labels.append("OFFICE_CLOSE")
+	return labels
 
 
 ## Objetivos: los marcados en PERSONNEL y después los compañeros de tu sala (activos).
@@ -320,45 +371,63 @@ static func use_personnel(item: Interactable, player: Node, ctx: Dictionary) -> 
 		OfficeKit.say(ctx, "OFFICE_HR_DONE_TODAY")
 		return
 	var room: String = item.room_id
+	var candidates: Array[String] = hr_candidates(Database.get_balance_int(B_HR_CANDIDATES))
+	if candidates.is_empty():
+		OfficeKit.say(ctx, "OFFICE_HR_NOBODY")
+		return
+	var index: int = await OfficeKit.choose(ctx, "OFFICE_HR_TITLE", "OFFICE_HR_PICK_BODY", target_labels(candidates))
+	if index < 0 or index >= candidates.size():
+		return
+	var target: String = candidates[index]
 	if not await OfficeKit.confirm_if_watched(ctx):
 		OfficeKit.say(ctx, "OFFICE_ACT_ABORTED")
 		return
 	OfficeKit.noise(player, B_DRAWER_NOISE, NOISE_DRAWER)
 	if not await OfficeKit.run_act(ctx, player, CRIME_DRAWER, "expedientes", false):
 		return
-	OfficeKit.commit(CRIME_DRAWER, room, {"files": "personnel"})
+	OfficeKit.commit(CRIME_DRAWER, room, {"files": "personnel", "target": target})
 	OfficeKit.mark_today(key)
 	OfficeKit.spend_minutes("expedientes")
-	var read: Array[String] = read_personnel_files(Database.get_balance_int(B_HR_FILES))
-	var lines: Array[String] = [OfficeKit.tr_key("OFFICE_HR_READ") % _names(read)]
+	await _read_one_file(ctx, target, room)
+
+
+## Lee el expediente completo de una persona (§13.4) y, si tiene punto débil, su nota.
+static func _read_one_file(ctx: Dictionary, target: String, room: String) -> void:
+	PersonnelApp.open_full_file(target, HR_REASON)
+	var read: Array[String] = [target]
+	var lines: Array[String] = [OfficeKit.tr_key("OFFICE_HR_READ") % OfficeKit.npc_name(target)]
 	var leverage: String = take_blackmail_file(read, room)
 	if not leverage.is_empty():
 		lines.append(OfficeKit.tr_key("OFFICE_HR_LEVERAGE") % OfficeKit.npc_name(leverage))
+	elif has_weakness(target):
+		lines.append(OfficeKit.tr_key("OFFICE_INVENTORY_FULL") % OfficeKit.item_name("blackmail_file"))
 	await OfficeKit.show_lines(ctx, "OFFICE_HR_TITLE", lines)
 
 
-## Abre el expediente completo de hasta `limit` personas sin él (marcados, sala, nominados).
-static func read_personnel_files(limit: int) -> Array[String]:
-	var candidates: Array[String] = pick_targets(limit * 2)
+## A quién se puede buscar: marcados, compañeros de sala y nominados, sin expediente completo aún.
+static func hr_candidates(limit: int) -> Array[String]:
+	var pool: Array[String] = pick_targets(limit)
 	for named: NPCData in Database.get_all_named_npcs():
-		if not candidates.has(named.id):
-			candidates.append(named.id)
+		if not pool.has(named.id):
+			pool.append(named.id)
 	var out: Array[String] = []
-	for npc_id: String in candidates:
-		if out.size() >= limit:
-			break
-		if NPCDirector.is_active(npc_id) and not PlayerState.has_full_file(npc_id) \
-				and PersonnelApp.open_full_file(npc_id, HR_REASON):
+	for npc_id: String in pool:
+		if out.size() < limit and NPCDirector.is_active(npc_id) and not PlayerState.has_full_file(npc_id):
 			out.append(npc_id)
 	return out
+
+
+static func has_weakness(npc_id: String) -> bool:
+	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
+	return npc != null and not npc.weakness_key.is_empty() and not npc.weakness_key.begins_with(NO_WEAKNESS_PREFIX)
 
 
 ## Se lleva la nota comprometedora del primero con punto débil (blackmail_file). Devuelve su id.
 static func take_blackmail_file(read: Array[String], room: String) -> String:
 	for npc_id: String in read:
-		var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
-		if npc == null or npc.weakness_key.is_empty() or npc.weakness_key.begins_with(NO_WEAKNESS_PREFIX):
+		if not has_weakness(npc_id):
 			continue
+		var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
 		var doc: ItemData = OfficeKit.item_copy("blackmail_file", {"npc_id": npc_id,
 				"weakness_key": npc.weakness_key, "stackable": false})
 		if not PlayerState.add_item_data(doc):
@@ -366,15 +435,6 @@ static func take_blackmail_file(read: Array[String], room: String) -> String:
 		OfficeKit.commit(CRIME_THEFT, room, {"value": 0, "item_id": doc.id, "owner": npc_id, "document": true})
 		return npc_id
 	return ""
-
-
-static func _names(ids: Array[String]) -> String:
-	if ids.is_empty():
-		return OfficeKit.tr_key("OFFICE_NOBODY_NEW")
-	var names: PackedStringArray = []
-	for npc_id: String in ids:
-		names.append(OfficeKit.npc_name(npc_id))
-	return ", ".join(names)
 
 
 # ─── Material de oficina ──────────────────────────────────────
@@ -392,9 +452,16 @@ static func shelf_item(data: Dictionary) -> String:
 	return item_id
 
 
+## Solo el material que alguien compra (oficina.material.vendibles) se lleva aquí; cuero, suelas,
+## objetos de valor o químicos no tienen comprador en la oficina: se mira y no se toca. La parte
+## diaria es global (una unidad por jornada en todo el edificio, §15.4 «~35 € diarios»).
 static func use_supplies(item: Interactable, player: Node, ctx: Dictionary) -> void:
-	var key: String = "supplies." + OfficeKit.base_room(item.room_id)
+	var key: String = SUPPLIES_KEY
 	var item_id: String = shelf_item(item.data)
+	if not is_sellable(item_id):
+		OfficeKit.play(player, "check_watch")
+		OfficeKit.say(ctx, "OFFICE_SUPPLIES_NO_BUYER", [OfficeKit.item_name(item_id)])
+		return
 	if OfficeKit.used_today(key):
 		OfficeKit.say(ctx, "OFFICE_SUPPLIES_DONE_TODAY")
 		return
@@ -412,6 +479,10 @@ static func use_supplies(item: Interactable, player: Node, ctx: Dictionary) -> v
 	OfficeKit.commit(CRIME_THEFT, room, {"value": value, "company_loss": value, "item_id": item_id})
 	OfficeKit.spend_minutes("material")
 	OfficeKit.good(ctx, "OFFICE_SUPPLIES_TAKEN", [OfficeKit.item_name(item_id), value])
+
+
+static func is_sellable(item_id: String) -> bool:
+	return (Database.get_balance(B_SELLABLE) as Array).has(item_id)
 
 
 # ─── Correo interno ───────────────────────────────────────────
@@ -470,11 +541,14 @@ static func intercept_mail(key: String, room: String, player: Node, ctx: Diction
 	OfficeKit.mark_today(key)
 	OfficeKit.spend_minutes("correo")
 	var r: RandomNumberGenerator = OfficeKit.rng(key)
-	match OfficeKit.roll_table(Database.get_balance(B_MAIL_TABLE) as Array, r):
+	var pick: String = OfficeKit.roll_table(Database.get_balance(B_MAIL_TABLE) as Array, r)
+	var amount: int = r.randi_range(Database.get_balance_int(B_MAIL_MIN), Database.get_balance_int(B_MAIL_MAX)) \
+			if pick == CASH else 0
+	OfficeKit.commit(CRIME_THEFT, room, {"value": amount, "item_id": CASH if amount > 0 else MAIL_OPENED,
+			"source": "internal_mail"})
+	match pick:
 		CASH:
-			var amount: int = r.randi_range(Database.get_balance_int(B_MAIL_MIN), Database.get_balance_int(B_MAIL_MAX))
 			PlayerState.add_money(amount, "mail_cash")
-			OfficeKit.commit(CRIME_THEFT, room, {"value": amount, "item_id": CASH, "source": "internal_mail"})
 			OfficeKit.good(ctx, "OFFICE_MAIL_CASH", [amount], OfficeKit.SFX_CASH)
 		INFO:
 			var lines: Array[String] = OfficeInfo.early_lines(1, key)
@@ -488,32 +562,31 @@ static func intercept_mail(key: String, room: String, player: Node, ctx: Diction
 
 # ─── Diseños antiguos y falsificación ─────────────────────────
 
+## Sin IdeaPool.adopt_archive_idea el diseño no se puede presentar: se hojea (legal) y se explica,
+## en vez de hacer correr un riesgo sin premio. Con él: acto idea_stolen + delito + idea presentable.
 static func use_design_archive(item: Interactable, player: Node, ctx: Dictionary) -> void:
+	var rememberer: String = str(Database.get_balance(B_DESIGN_REMEMBERS))
+	if not IdeaPool.has_method(ADOPT_METHOD):
+		OfficeKit.play(player, "check_watch")
+		OfficeKit.spend_minutes("lectura")
+		OfficeKit.say(ctx, "OFFICE_DESIGN_BROWSE", [OfficeKit.npc_name(rememberer)])
+		return
 	var key: String = "design." + item.interact_id
 	if OfficeKit.used_today(key):
 		OfficeKit.say(ctx, "OFFICE_DESIGN_DONE_TODAY")
-		return
-	var item_id: String = str(Database.get_balance(B_DESIGN_ITEM))
-	if not OfficeKit.can_take(item_id):
-		OfficeKit.refuse(ctx, "OFFICE_INVENTORY_FULL", [OfficeKit.item_name(item_id)])
 		return
 	var room: String = item.room_id
 	if not await OfficeKit.run_act(ctx, player, CRIME_IDEA, "diseno"):
 		return
 	OfficeKit.mark_today(key)
 	OfficeKit.spend_minutes("diseno")
-	var rememberer: String = str(Database.get_balance(B_DESIGN_REMEMBERS))
-	if IdeaPool.has_method(ADOPT_METHOD):
-		var idea_id: String = str(IdeaPool.call(ADOPT_METHOD, str(Database.get_balance(B_DESIGN_TEMPLATE)), rememberer))
-		OfficeKit.good(ctx, "OFFICE_DESIGN_IDEA", [OfficeKit.npc_name(rememberer)])
-		OfficeKit.note("ideas", "OFFICE_NOTE_DESIGN", [OfficeKit.npc_name(rememberer)])
-		if idea_id.is_empty():
-			push_warning("OfficeLoot: adopt_archive_idea returned no idea")
+	var idea_id: String = str(IdeaPool.call(ADOPT_METHOD, str(Database.get_balance(B_DESIGN_TEMPLATE)), rememberer))
+	OfficeKit.commit(CRIME_IDEA, room, {"source": "design_archive", "idea_id": idea_id, "value": 0})
+	if idea_id.is_empty():
+		push_warning("OfficeLoot: adopt_archive_idea returned no idea")
 		return
-	PlayerState.add_item_data(OfficeKit.item_copy(item_id, {"historic_design": true, "remembered_by": rememberer, "stackable": false}))
-	OfficeKit.commit(CRIME_IDEA, room, {"source": "design_archive", "item_id": item_id, "value": 0})
 	OfficeKit.note("ideas", "OFFICE_NOTE_DESIGN", [OfficeKit.npc_name(rememberer)])
-	OfficeKit.good(ctx, "OFFICE_DESIGN_TAKEN", [OfficeKit.npc_name(rememberer)])
+	OfficeKit.good(ctx, "OFFICE_DESIGN_IDEA", [OfficeKit.npc_name(rememberer)])
 
 
 static func use_forgery(item: Interactable, player: Node, ctx: Dictionary) -> void:
@@ -525,14 +598,22 @@ static func use_forgery(item: Interactable, player: Node, ctx: Dictionary) -> vo
 	var labels: Array = []
 	for raw: Variant in item.data.get("produces", []):
 		products.append(str(raw))
-		var locked: bool = str(raw) == AUTHORIZATION and not Endgame.is_objective_revealed()
-		labels.append({"text_key": "OFFICE_FORGE_LOCKED" if locked else "OFFICE_FORGE_MAKE",
-				"args": [OfficeKit.item_name(str(raw))], "disabled": locked})
+		labels.append(forge_label(str(raw)))
 	labels.append("OFFICE_CLOSE")
 	var index: int = await OfficeKit.choose(ctx, "OFFICE_FORGE_TITLE", "OFFICE_FORGE_BODY", labels)
 	if index < 0 or index >= products.size():
 		return
 	await forge(products[index], item.room_id, player, ctx)
+
+
+## Solo la autorización tiene uso hoy (Endgame); el resto se ve pero no se puede hacer.
+static func forge_label(product: String) -> Dictionary:
+	var key: String = "OFFICE_FORGE_MAKE"
+	if product != AUTHORIZATION:
+		key = "OFFICE_FORGE_NO_USE"
+	elif not Endgame.is_objective_revealed():
+		key = "OFFICE_FORGE_LOCKED"
+	return {"text_key": key, "args": [OfficeKit.item_name(product)], "disabled": key != "OFFICE_FORGE_MAKE"}
 
 
 static func forge(product: String, room: String, player: Node, ctx: Dictionary) -> void:

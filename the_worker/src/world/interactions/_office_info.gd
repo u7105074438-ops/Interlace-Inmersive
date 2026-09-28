@@ -82,7 +82,7 @@ static func vacancy_lines() -> Array[String]:
 static func buyer_lines() -> Array[String]:
 	var out: Array[String] = []
 	for visit: Dictionary in Company.get_buyers_today():
-		out.append(TranslationServer.translate("OFFICE_EARLY_BUYER") % [str(visit.get("name", "")), str(visit.get("firm", ""))])
+		out.append(TranslationServer.translate("OFFICE_EARLY_BUYER") % [str(visit.get("name", "")), TranslationServer.translate(str(visit.get("firm_key", "")))])
 	return out
 
 

@@ -101,7 +101,7 @@ static func is_body_target(item: Interactable) -> bool:
 		return true
 	if item is HidingSpot:
 		return (item as HidingSpot).can_hide_body
-	return FloorTravel.BULK_KINDS.has(FloorTravel.kind_of(item))
+	return FloorTravel.kind_of(item) == FloorLayout.TRANSIT_FREIGHT
 
 
 # ─── Cuerpo ───────────────────────────────────────────────────

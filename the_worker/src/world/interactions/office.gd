@@ -34,6 +34,9 @@ const TYPES: Array[String] = [
 const FREE_FOOD_PROMPT := "UI_INTERACT_FREE_FOOD"
 const EAT_HOME_PROMPT := "UI_INTERACT_EAT_HOME"
 const OWNER_PLAYER := "player"
+const STEAL_FOOD_PROMPT := "UI_INTERACT_FOOD_STEAL"
+const FORBIDDEN_FOOD_PROMPT := "UI_INTERACT_FOOD_FORBIDDEN"
+const DRAWER_PROMPT := "UI_INTERACT_DRAWER_RUMMAGE"
 
 
 static func handled_types() -> Array[String]:
@@ -59,10 +62,19 @@ static func prompt_key(interactable: Interactable) -> String:
 		"desk":
 			return OfficeDesk.desk_prompt(interactable)
 		"lunch_counter", "kitchen_food":
-			return FREE_FOOD_PROMPT if OfficeBreak.is_free_food(interactable) else ""
+			return _food_prompt(interactable)
 		"food_fridge":
-			return EAT_HOME_PROMPT if str(interactable.data.get("owner", "")) == OWNER_PLAYER else ""
+			return EAT_HOME_PROMPT if str(interactable.data.get("owner", "")) == OWNER_PLAYER else STEAL_FOOD_PROMPT
+		"drawer":
+			return DRAWER_PROMPT
 	return ""
+
+
+## Los prompts avisan cuando la acción es un delito (§13.7): comida ajena o bufé vetado.
+static func _food_prompt(item: Interactable) -> String:
+	if not OfficeBreak.is_free_food(item):
+		return STEAL_FOOD_PROMPT if item.interact_type == "kitchen_food" else ""
+	return FORBIDDEN_FOOD_PROMPT if BeliefNet.is_room_forbidden_for_player(item.room_id) else FREE_FOOD_PROMPT
 
 
 static func _desk_family(item: Interactable, player: Node, ctx: Dictionary) -> void:

@@ -20,12 +20,15 @@ extends RefCounted
 ##  · safe / floor_safe: requires key | combination | clearance (min_clearance). Métodos silenciosos
 ##    y de fuerza por requisito en operativa.cajas.metodos.<requires>. Abrir = acto visible
 ##    "theft_small"; forzar = acto "lock_forced" ruidoso + delito lock_forced (+ alarma si armada).
-##    logs_opening → registro de apertura (Security.log_card_access con el id de la caja). Botín:
+##    Toda apertura sin ruido se confirma (§13.7). logs_opening → registro de apertura ANÓNIMO
+##    (titular operativa.cajas.titular_registro: una hora, no una identidad; con acreditación propia
+##    lleva el nombre del jugador). El efectivo (kind "cash") no va al bolsillo como objeto: se abona
+##    con PlayerState.add_money (value, o operativa.cajas.efectivo_sobre si vale 0). Botín:
 ##    contains al inventario (lo que no cabe se queda; la caja se repone en operativa.cajas.
 ##    dias_reposicion jornadas) y crime_committed("theft_small", sala, {value, items, company_loss}).
 ##    En una vivienda (NightOps.get_house_type) la caja es un contenedor de la operación nocturna:
 ##    NightOps.loot_container.
-##  · ceo_safe: Endgame.open_safe() con la combinación; si no, Endgame.work_on_safe() por tramos
+##  · ceo_safe: Endgame.open_safe() con la combinación (confirmada); si no, Endgame.work_on_safe() por tramos
 ##    (operativa.cajas.minutos_tramo_ceo) con los medios físicos; si no, se explica qué falta.
 ##  · repair_bench: clonar una tarjeta robada (acto "forgery" sin registro; +silk en Tracking) y, solo
 ##    puestos con acceso operativa.banco.acceso_intrusion (IT), abrir el ordenador de un objetivo
@@ -132,7 +135,8 @@ static func use_lock(item: Interactable, player: Node, ctx: Dictionary) -> void:
 	var tool: String = lock_tool(item)
 	if tool.is_empty():
 		var key_ok: bool = bool(item.data.get("keys_basic_opens", true))
-		SecurityKit.toast(ctx, "SECOPS_LOCK_NEED_KEY" if key_ok else "SECOPS_LOCK_NEED_TOOL", [], ToastStack.KIND_WARN)
+		SecurityKit.toast(ctx, "SECOPS_LOCK_NEED_KEY" if key_ok else "SECOPS_LOCK_NEED_TOOL",
+				[SecurityKit.item_names(SecurityKit.barr("cerraduras.herramientas"))], ToastStack.KIND_WARN)
 		SecurityKit.sfx(player, "ui_error")
 		return
 	await force_lock(item, player, ctx, door, tool)
@@ -242,11 +246,11 @@ static func swipe_card(door: Door, card: ItemData, ctx: Dictionary) -> bool:
 		SecurityKit.toast(ctx, "SECOPS_CARD_DENIED", [owner_name, door.clearance], ToastStack.KIND_WARN)
 		return false
 	door.open_for(SecurityKit.bf("tarjetas.apertura_s"))
+	SecurityKit.sfx(door, "card_beep", door.global_position)
 	if card.id == SecurityKit.bs("tarjetas.robada"):
 		Security.log_card_access(door.door_id, card_owner(card), GameClock.get_day(), GameClock.get_hour(), door.room_b)
 		SecurityKit.toast(ctx, "SECOPS_CARD_STOLEN_OK", [owner_name], ToastStack.KIND_GOOD)
 	else:
-		SecurityKit.sfx(door, "card_beep", door.global_position)
 		SecurityKit.toast(ctx, "SECOPS_CARD_CLONED_OK", [], ToastStack.KIND_GOOD)
 	return true
 
@@ -290,7 +294,7 @@ static func use_safe(item: Interactable, player: Node, ctx: Dictionary) -> void:
 		return
 	if not await _safe_act(item, player, ctx, method):
 		return
-	loot_safe(item, ctx, kind == METHOD_FORCE)
+	loot_safe(item, ctx, kind == METHOD_FORCE, kind == METHOD_OPEN)
 
 
 ## Confirmación y acto de apertura (forzar: ruido y aviso de alarma). false = cancelado.
@@ -299,6 +303,9 @@ static func _safe_act(item: Interactable, player: Node, ctx: Dictionary, method:
 	var armed: bool = force and SecurityPower.alarm_armed(SecurityKit.floor_of_room(item.room_id))
 	if force and not await SecurityKit.confirm(ctx, "SECOPS_FORCE_TITLE", "SECOPS_FORCE_BODY_ALARM" if armed else "SECOPS_FORCE_BODY",
 			"SECOPS_FORCE_GO", [SecurityKit.item_name(str(method["tool"])), SecurityKit.bi("cajas.radio_ruido_forzar")]):
+		return false
+	if not force and not await SecurityKit.confirm(ctx, "SECOPS_SAFE_TITLE", "SECOPS_SAFE_CONFIRM_BODY", "SECOPS_SAFE_CONFIRM",
+			[SecurityKit.item_names(safe_contents(item))]):
 		return false
 	if not await SecurityKit.watched_ok(ctx, player):
 		return false
@@ -318,22 +325,44 @@ static func _safe_act(item: Interactable, player: Node, ctx: Dictionary, method:
 
 
 ## Caja abierta: registro de apertura, botín y delito de robo. Devuelve lo que se llevó.
-static func loot_safe(item: Interactable, ctx: Dictionary, forced: bool) -> Array:
+## `own_card`: se abrió con la acreditación propia (el registro lleva el nombre del jugador).
+static func loot_safe(item: Interactable, ctx: Dictionary, forced: bool, own_card: bool = false) -> Array:
 	if bool(item.data.get("logs_opening", false)):
-		Security.log_card_access(item.interact_id, SecurityKit.PLAYER_ID, GameClock.get_day(), GameClock.get_hour(), item.room_id)
-	var got: Dictionary = SecurityKit.take_items(safe_contents(item))
+		var holder: String = SecurityKit.PLAYER_ID if own_card else SecurityKit.bs("cajas.titular_registro")
+		Security.log_card_access(item.interact_id, holder, GameClock.get_day(), GameClock.get_hour(), item.room_id)
+	var cash: Dictionary = _take_cash(safe_contents(item))
+	var got: Dictionary = SecurityKit.take_items(cash["rest"])
 	var left: Dictionary = SecurityKit.flag_dict(F_SAFE_LEFT)
 	left[item.interact_id] = {"day": SecurityKit.today(), "items": got["left"]}
 	SecurityKit.set_flag(F_SAFE_LEFT, left)
-	var taken: Array = got["taken"]
+	var taken: Array = (cash["taken"] as Array) + (got["taken"] as Array)
+	var value: int = int(cash["money"]) + int(got["value"])
 	if not taken.is_empty():
-		EventBus.crime_committed.emit(CRIME_THEFT, item.room_id, {"value": int(got["value"]), "items": taken,
-				"company_loss": int(got["value"]), "forced": forced})
-		SecurityKit.toast(ctx, "SECOPS_SAFE_TAKEN", [SecurityKit.item_names(taken)], ToastStack.KIND_GOOD)
+		EventBus.crime_committed.emit(CRIME_THEFT, item.room_id, {"value": value, "items": taken,
+				"company_loss": value, "forced": forced})
+		var key: String = "SECOPS_SAFE_TAKEN_CASH" if int(cash["money"]) > 0 else "SECOPS_SAFE_TAKEN"
+		SecurityKit.toast(ctx, key, [SecurityKit.item_names(taken), int(cash["money"])], ToastStack.KIND_GOOD)
 		SecurityKit.sfx(item, "cash")
 	if not (got["left"] as Array).is_empty():
 		SecurityKit.toast(ctx, "SECOPS_SAFE_FULL", [SecurityKit.item_names(got["left"])], ToastStack.KIND_WARN)
 	return taken
+
+
+## El efectivo de la caja se abona al dinero del jugador: {money, taken, rest (lo demás)}.
+static func _take_cash(ids: Array) -> Dictionary:
+	var money: int = 0
+	var taken: Array[String] = []
+	var rest: Array = []
+	for id: Variant in ids:
+		var data: ItemData = Database.get_item(str(id))
+		if data == null or InventoryRules.get_kind(data) != InventoryRules.KIND_CASH:
+			rest.append(id)
+			continue
+		var amount: int = data.value if data.value > 0 else SecurityKit.bi("cajas.efectivo_sobre")
+		PlayerState.add_money(amount, CRIME_THEFT)
+		money += amount
+		taken.append(str(id))
+	return {"money": money, "taken": taken, "rest": rest}
 
 
 static func _loot_house_safe(item: Interactable, player: Node, ctx: Dictionary) -> void:
@@ -357,7 +386,8 @@ static func _loot_house_safe(item: Interactable, player: Node, ctx: Dictionary) 
 
 static func use_ceo_safe(item: Interactable, player: Node, ctx: Dictionary) -> void:
 	if Endgame.knows_combination():
-		if not await SecurityKit.watched_ok(ctx, player):
+		if not await SecurityKit.confirm(ctx, "SECOPS_CEO_TITLE", "SECOPS_CEO_OPEN_BODY", "SECOPS_CEO_OPEN_GO") \
+				or not await SecurityKit.watched_ok(ctx, player):
 			return
 		if not await SecurityKit.act(player, CRIME_THEFT, SecurityKit.bf("cajas.segundos_abrir")):
 			SecurityKit.toast(ctx, "SECOPS_INTERRUPTED", [], ToastStack.KIND_WARN)
@@ -365,7 +395,7 @@ static func use_ceo_safe(item: Interactable, player: Node, ctx: Dictionary) -> v
 		_endgame_feedback(ctx, Endgame.open_safe(), item)
 		return
 	if not Endgame.has_physical_means():
-		SecurityKit.toast(ctx, "SECOPS_CEO_LOCKED", [], ToastStack.KIND_WARN)
+		SecurityKit.toast(ctx, "SECOPS_CEO_LOCKED" if Endgame.is_objective_revealed() else "SECOPS_CEO_LOCKED_PLAIN", [], ToastStack.KIND_WARN)
 		SecurityKit.sfx(player, "ui_error")
 		return
 	var minutes: int = SecurityKit.bi("cajas.minutos_tramo_ceo")
@@ -408,7 +438,7 @@ static func has_it_access() -> bool:
 
 static func use_bench(item: Interactable, player: Node, ctx: Dictionary) -> void:
 	var card: ItemData = stolen_card()
-	var options: Array = [{"text_key": "SECOPS_BENCH_CLONE", "disabled": card == null},
+	var options: Array = [{"text_key": "SECOPS_BENCH_CLONE", "disabled": card == null, "danger": true},
 			{"text_key": "SECOPS_BENCH_BACKDOOR", "disabled": not has_it_access()}, "UI_CANCEL"]
 	match await SecurityKit.choose(ctx, "SECOPS_BENCH_TITLE", "SECOPS_BENCH_BODY", options):
 		0:

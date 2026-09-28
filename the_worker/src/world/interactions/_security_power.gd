@@ -11,6 +11,8 @@ extends RefCounted
 ##    que se produce. Al producirse: crime_committed("power_cut", sala del cuadro, {floor}) →
 ##    Security abre SIEMPRE el caso power_cut (seguridad.incidentes_apertura_automatica). En la
 ##    planta a oscuras (SecurityKeeper): cámaras inactivas y lectores sin bloqueo (fallo seguro).
+##    Los textos hablan en SEGUNDOS REALES (real_seconds) y el HUD lleva una cuenta atrás; las
+##    opciones de corte son peligrosas (foco en Cancelar, §13.7): todo corte abre investigación.
 ##  · ALARMA: de noche (franja night) cada zona (planta) está armada. Forzar una cerradura o una
 ##    caja en una planta armada la dispara (trip_alarm): ruido, megafonía y Security abre caso
 ##    (operativa.alarma.incidente) en la sala. Desactivar una zona en la central (acto «sabotage»)
@@ -39,6 +41,7 @@ const F_CAR_PENDING := "car_pending"
 const F_CAR_DONE := "car_done"
 const NOISE_ALARM := "alarm_bell"
 const SFX_ALARM := "pa_chime"
+const SFX_POWER := "alarm_the_power"
 
 
 static func handles(interact_type: String) -> bool:
@@ -96,13 +99,31 @@ static func update_blackout() -> Dictionary:
 	return {}
 
 
+## Segundos reales que duran `game_minutes` minutos de juego en la franja actual.
+static func real_seconds(game_minutes: float) -> int:
+	var per_hour: float = GameClock.get_real_minutes_per_game_hour(GameClock.get_current_band())
+	# minutos reales por hora de juego = segundos reales por minuto de juego.
+	return maxi(1, roundi(game_minutes * per_hour / GameClock.get_effective_speed()))
+
+
+## Texto de la cuenta atrás del apagón ("" si no hay ninguno programado).
+static func countdown_text() -> String:
+	var b: Dictionary = blackout()
+	if b.is_empty():
+		return ""
+	var now: float = GameClock.get_total_minutes()
+	if bool(b.get("started", false)):
+		return UITheme.trf("SECOPS_BLACKOUT_LEFT", [MapView.floor_label_short(int(b["floor"])), real_seconds(maxf(0.0, float(b["end"]) - now))])
+	return UITheme.trf("SECOPS_BLACKOUT_SOON", [MapView.floor_label_short(int(b["floor"])), real_seconds(maxf(0.0, float(b["start"]) - now))])
+
+
 static func use_breaker(item: Interactable, player: Node, ctx: Dictionary) -> void:
 	if not blackout().is_empty():
 		SecurityKit.toast(ctx, "SECOPS_BREAKER_BUSY", [MapView.floor_label_short(int(blackout()["floor"]))], ToastStack.KIND_WARN)
 		return
 	var floors: Array[int] = SecurityKit.floor_range("apagon.plantas")
 	var index: int = await SecurityKit.pick(ctx, TranslationServer.translate("SECOPS_BREAKER_TITLE"),
-			UITheme.trf("SECOPS_BREAKER_HINT", [SecurityKit.bi("apagon.minutos")]), SecurityKit.floor_labels(floors), true, floors)
+			UITheme.trf("SECOPS_BREAKER_HINT", [real_seconds(SecurityKit.bf("apagon.minutos"))]), SecurityKit.floor_labels(floors), true, floors)
 	if index < 0:
 		return
 	var delay: float = await _pick_delay(ctx, floors[index])
@@ -115,12 +136,13 @@ static func use_breaker(item: Interactable, player: Node, ctx: Dictionary) -> vo
 	SecurityKit.sfx(player, "ui_confirm")
 	var label: String = MapView.floor_label_short(floors[index])
 	if delay > 0.0:
-		SecurityKit.toast(ctx, "SECOPS_BREAKER_SET", [label, roundi(delay)], ToastStack.KIND_INFO)
+		SecurityKit.toast(ctx, "SECOPS_BREAKER_SET", [label, real_seconds(delay)], ToastStack.KIND_INFO)
 	var keeper: SecurityKeeper = SecurityKeeper.find(SecurityKit.tree_of(player))
 	if keeper != null:
 		keeper.apply_blackout()
 	if delay <= 0.0:
-		SecurityKit.toast(ctx, "SECOPS_BLACKOUT_ON", [label, SecurityKit.bi("apagon.minutos")], ToastStack.KIND_WARN)
+		SecurityKit.toast(ctx, "SECOPS_BLACKOUT_ON", [label, real_seconds(SecurityKit.bf("apagon.minutos"))], ToastStack.KIND_WARN)
+		SecurityKit.sfx(player, SFX_POWER)
 
 
 ## Retardo elegido en minutos (-1 = cancelado).
@@ -128,10 +150,11 @@ static func _pick_delay(ctx: Dictionary, floor_number: int) -> float:
 	var delays: Array = SecurityKit.barr("apagon.retardos")
 	var options: Array = []
 	for d: Variant in delays:
-		options.append("SECOPS_BREAKER_NOW" if float(d) <= 0.0 else {"text_key": "SECOPS_BREAKER_DELAY", "args": [int(d)]})
+		options.append({"text_key": "SECOPS_BREAKER_NOW", "danger": true} if float(d) <= 0.0 else
+				{"text_key": "SECOPS_BREAKER_DELAY", "args": [real_seconds(float(d))], "danger": true})
 	options.append("UI_CANCEL")
 	var i: int = await SecurityKit.choose(ctx, "SECOPS_BREAKER_TITLE", "SECOPS_BREAKER_WHEN",
-			options, [MapView.floor_label_short(floor_number), SecurityKit.bi("apagon.minutos")])
+			options, [MapView.floor_label_short(floor_number), real_seconds(SecurityKit.bf("apagon.minutos"))])
 	return float(delays[i]) if i >= 0 and i < delays.size() else -1.0
 
 
@@ -148,6 +171,8 @@ static func trip_alarm(ctx: Dictionary, player: Node, room_id: String) -> String
 	if player is Node2D:
 		SecurityKit.noise((player as Node2D).global_position, SecurityKit.bf("alarma.radio_ruido"), NOISE_ALARM)
 	SecurityKit.sfx(player, SFX_ALARM)
+	var band: Dictionary = AudioTuning.band_for_floor(SecurityKit.floor_of_room(room_id))
+	SecurityKit.sfx(player, SfxBank.alarm_for_band(str(band.get("id", ""))))
 	SecurityKit.toast(ctx, "SECOPS_ALARM_TRIPPED", [SecurityKit.room_name(room_id)], ToastStack.KIND_BAD)
 	SecurityKit.note("SECOPS_NOTE_ALARM", [SecurityKit.room_name(room_id)])
 	return Security.open_investigation(SecurityKit.bs("alarma.incidente"), SecurityKit.bi("alarma.gravedad"), room_id)
@@ -236,7 +261,7 @@ static func use_car(item: Interactable, player: Node, ctx: Dictionary) -> void:
 		return
 	var tool: String = SecurityKit.owned_of(SecurityKit.barr("coche.herramientas"))
 	if tool.is_empty():
-		SecurityKit.toast(ctx, "SECOPS_CAR_NEED_TOOL", [SecurityKit.npc_name(owner)], ToastStack.KIND_WARN)
+		SecurityKit.toast(ctx, "SECOPS_CAR_NEED_TOOL", [SecurityKit.npc_name(owner), SecurityKit.item_names(SecurityKit.barr("coche.herramientas"))], ToastStack.KIND_WARN)
 		return
 	var options: Array = [{"text_key": "SECOPS_CAR_GO", "danger": true}, "UI_CANCEL"]
 	if await SecurityKit.choose(ctx, "SECOPS_CAR_TITLE", "SECOPS_CAR_BODY", options,

@@ -10,17 +10,24 @@ extends Node
 ## CUERPOS: un BodyNode por cuerpo no escondido ni hallado cuya sala está en la planta cargada, en la
 ## posición guardada (bandera secops.body_pos) o donde cayó la víctima. Arrastrar (start_drag) pone
 ## al jugador en paso "drag" (lento); el cuerpo le sigue detrás. Cambiar de planta arrastrando solo
-## es posible por un tránsito que admite bultos (FloorTravel.BULK_KINDS: montacargas, salida): en
+## es posible por el montacargas (§5.4; la salida a la calle no se lo lleva): en
 ## cualquier otro cambio (desalojo del cierre) el cuerpo se queda donde estaba.
 ## APAGÓN: SecurityPower guarda el corte programado; aquí se aplica a la planta cargada (cámaras
 ## inactivas, lectores sin bloqueo, penumbra) y se anuncia el inicio y el final.
 ## LECTORES: dos puntos "door_reader" por puerta con lector (uno a cada lado) para usar una tarjeta
 ## robada o clonada; solo se ofrecen si hacen falta (SecurityLocks.reader_available).
+## CANDADOS: dos puntos "lock_old" por puerta de cerradura antigua (uno a cada lado, con los datos
+## del lock_old de la sala) para abrir o forzar DESDE FUERA; se ocultan cuando la puerta ya está abierta.
+## EN TRÁNSITO: mientras se arrastra, el cuerpo no tiene sala en NPCDirector (move_body con sala "")
+## y la ronda horaria no lo «descubre» donde ya no está; lo ven los testigos del arrastre (acto).
+## Solo el montacargas lo lleva a otra planta; cualquier otra salida lo deja atrás con un aviso.
 
 const GROUP := "security_keeper"
 const NODES_GROUP := "secops_nodes"
 const READER_TYPE := "door_reader"
 const READER_ID_FORMAT := "reader_%s_%d"
+const LOCK_TYPE := "lock_old"
+const LOCK_ID_FORMAT := "lockpt_%s_%d"
 const SIDES: Array[float] = [-1.0, 1.0]
 const F_BODY_POS := "body_pos"
 const SFX_WARN := "ui_notify"
@@ -38,6 +45,7 @@ var _drag_floor: int = 0
 var _carrying: bool = false
 var _shade: Node2D = null
 var _tick_left: float = 0.0
+var _countdown: Label = null
 
 
 static func find(tree: SceneTree) -> SecurityKeeper:
@@ -113,6 +121,7 @@ func sync_floor() -> void:
 			_bodies.erase(npc_id)
 	_spawn_bodies()
 	_spawn_reader_points()
+	_spawn_lock_points()
 	apply_blackout()
 
 
@@ -167,7 +176,7 @@ func is_dragging() -> bool:
 func _spawn_bodies() -> void:
 	for info: Dictionary in NPCDirector.get_all_bodies():
 		var npc_id: String = str(info["npc_id"])
-		var room_id: String = str(info.get("room_id", ""))
+		var room_id: String = _room_or_stored(npc_id, str(info.get("room_id", "")))
 		if npc_id == _dragged or bool(info.get("hidden", false)) or bool(info.get("discovered", false)):
 			continue
 		if not _streamer.get_room_rect_px(room_id).has_area():
@@ -223,6 +232,19 @@ func remember_position(npc_id: String, pos: Vector2) -> void:
 	SecurityKit.set_flag(F_BODY_POS, stored)
 
 
+## Cuerpo sin sala (partida guardada durante un arrastre): la de su última posición en esta planta.
+func _room_or_stored(npc_id: String, room_id: String) -> String:
+	if not room_id.is_empty():
+		return room_id
+	var entry: Variant = SecurityKit.flag_dict(F_BODY_POS).get(npc_id)
+	if not (entry is Array and (entry as Array).size() == 3 and int(entry[0]) == _streamer.get_current_floor()):
+		return ""
+	var found: String = _streamer.get_room_at(Vector2(float(entry[1]), float(entry[2])))
+	if not found.is_empty():
+		NPCDirector.move_body(npc_id, found, "")
+	return found
+
+
 func _stored_position(npc_id: String, room_id: String) -> Vector2:
 	var entry: Variant = SecurityKit.flag_dict(F_BODY_POS).get(npc_id)
 	if entry is Array and (entry as Array).size() == 3 and int(entry[0]) == _streamer.get_current_floor():
@@ -246,6 +268,7 @@ func start_drag(npc_id: String) -> bool:
 	node.yield_check = has_body_target_near
 	_player.set_dragging(true)
 	_player.play_anim("drag")
+	NPCDirector.move_body(npc_id, "", "")
 	return true
 
 
@@ -264,8 +287,10 @@ func release_body(spot_id: String = "") -> String:
 		return npc_id
 	node.set_dragged(false, BodyNode.REST_HEADING)
 	if spot_id.is_empty():
-		node.room_id = _streamer.get_room_at(node.global_position)
+		var room_id: String = _streamer.get_room_at(node.global_position)
+		node.room_id = room_id if not room_id.is_empty() else node.room_id
 		remember_position(npc_id, node.global_position)
+		NPCDirector.move_body(npc_id, node.room_id, "")
 	else:
 		node.queue_free()
 		_bodies.erase(npc_id)
@@ -309,7 +334,7 @@ func _leave_behind() -> void:
 
 
 func _on_travel_started(kind: String, _from_floor: int, _to_floor: int) -> void:
-	_carrying = is_dragging() and FloorTravel.BULK_KINDS.has(kind)
+	_carrying = is_dragging() and kind == FloorLayout.TRANSIT_FREIGHT
 
 
 func _on_travel_finished(_kind: String, _floor_number: int, room_id: String) -> void:
@@ -356,19 +381,81 @@ func _spawn_reader_points() -> void:
 			node.global_position = point
 
 
+func _spawn_lock_points() -> void:
+	var offset: float = SecurityKit.bf("tarjetas.distancia_lector") * RoomBuilder.cell_px()
+	for door: Door in _streamer.get_doors():
+		if door.kind != Door.KIND_OLD_LOCK:
+			continue
+		var data: Dictionary = _lock_data(door)
+		var centre: Vector2 = door.to_global(door.gap_rect().get_center())
+		var normal: Vector2 = Vector2.RIGHT if door.vertical else Vector2.DOWN
+		for side: float in SIDES:
+			var point: Vector2 = centre + normal * side * offset
+			var room_id: String = _streamer.get_room_at(point)
+			if room_id.is_empty():
+				continue
+			var node: Interactable = Interactable.new()
+			node.setup(LOCK_ID_FORMAT % [door.door_id, int(side)], LOCK_TYPE, room_id, data.duplicate(true),
+					RoomBuilder.cell_px(), Vector2.ZERO)
+			node.add_to_group(NODES_GROUP)
+			_streamer.get_actor_layer().add_child(node)
+			node.global_position = point
+
+
+## Datos del lock_old de la sala que apunta a la puerta (llave, forzable, ruido); si no hay, los básicos.
+func _lock_data(door: Door) -> Dictionary:
+	for room_id: String in [door.room_a, door.room_b]:
+		for item: Interactable in _streamer.get_interactables_in_room(room_id):
+			if item.interact_type == LOCK_TYPE and str(item.data.get("door_id", "")) == door.door_id:
+				return item.data
+	return {"door_id": door.door_id, "target": SecurityLocks.TARGET_DOOR}
+
+
 # ─── Apagón ───────────────────────────────────────────────────
 
 func _tick_blackout() -> void:
 	var change: Dictionary = SecurityPower.update_blackout()
+	_update_countdown()
 	if change.is_empty():
 		return
 	var floor_label: String = MapView.floor_label_short(int(change["floor"]))
 	if str(change["change"]) == SecurityPower.BLACKOUT_STARTED:
-		SecurityKit.toast(ctx(), "SECOPS_BLACKOUT_ON", [floor_label, SecurityKit.bi("apagon.minutos")], ToastStack.KIND_WARN)
+		SecurityKit.toast(ctx(), "SECOPS_BLACKOUT_ON", [floor_label,
+				SecurityPower.real_seconds(SecurityKit.bf("apagon.minutos"))], ToastStack.KIND_WARN)
+		SecurityKit.sfx(self, SecurityPower.SFX_POWER)
 	else:
 		SecurityKit.toast(ctx(), "SECOPS_BLACKOUT_OFF", [floor_label], ToastStack.KIND_INFO)
-	SecurityKit.sfx(self, SFX_WARN)
+		SecurityKit.sfx(self, SFX_WARN)
 	apply_blackout()
+
+
+## Cuenta atrás en segundos REALES mientras dura el apagón (o falta para que empiece), en el HUD.
+func _update_countdown() -> void:
+	var text: String = SecurityPower.countdown_text()
+	if text.is_empty():
+		if _countdown != null and is_instance_valid(_countdown):
+			_countdown.queue_free()
+		_countdown = null
+		return
+	if _countdown == null or not is_instance_valid(_countdown):
+		var hud: HUD = _root.ui.get_hud() if _root != null and _root.ui != null else null
+		if hud == null:
+			return
+		_countdown = Label.new()
+		_countdown.name = "BlackoutCountdown"
+		_countdown.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_countdown.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		_countdown.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		_countdown.position.y = SecurityKit.bf("apagon.margen_cuenta_px")
+		_countdown.add_theme_color_override("font_color", hud.get_theme_color("warn", UITheme.HUD_TYPE))
+		_countdown.add_theme_color_override("font_outline_color", hud.get_theme_color("ink", UITheme.HUD_TYPE))
+		_countdown.add_theme_constant_override("outline_size", SecurityKit.bi("apagon.contorno_cuenta_px"))
+		hud.add_child(_countdown)
+	_countdown.text = text
+
+
+func get_countdown_text() -> String:
+	return _countdown.text if _countdown != null and is_instance_valid(_countdown) else ""
 
 
 ## Cámaras, lectores y penumbra de la planta cargada según el apagón en curso.

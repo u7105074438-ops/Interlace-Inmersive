@@ -3767,7 +3767,8 @@
       "breakfast": [
         "food_breakfast",
         "food_basic",
-        "food_premium"
+        "food_premium",
+        "snack"
       ],
       "dinner": [
         "food_dinner",
@@ -4242,7 +4243,7 @@
     "_nota": "ClosingTime (§5.6 Salida: ocultarse para permanecer en el edificio). avisos: minutos antes del inicio de la franja nocturna (tiempo.franjas_hora_inicio.night) en que se avisa al jugador que sigue dentro (texto con los minutos que faltan y la hora). A la hora de cierre, quien siga dentro sin estar escondido sale acompañado a la calle (sin registros nocturnos); escondido, se queda. Exentos: puestos con rondas de cierre (is_closing)."
   },
   "oficina": {
-    "_nota": "Módulo de oficina (src/world/interactions/office.gd, BUILD_NOTES §15). segundos_acto.* = segundos REALES de cada acto ilegal visible (begin_act); minutos.* = minutos de juego que cuesta cada acción (GameClock.advance_minutes). cajon.tabla / correo.tabla = tiradas diarias {que, peso} (coins = monedas sueltas entre monedas_min y monedas_max; nothing; info = información temprana; cash = dinero suelto del correo; un id de objeto). material: objeto por material de la estantería, objeto_barato si la reventa de la estantería es menor que el valor del objeto, vendibles y factor_reventa del envío por correo (§15.4 ~35 € diarios). archivo.acceso_por_sala: sala → accesos especiales de puesto con los que registrar sus archivadores es legal. fraudes.<acción>: puestos que pueden, importe min-max (€) y enfriamiento_dias; terminales.<tipo>: acciones de cada terminal además de las de sus datos. prensa.<acción>.puestos (vacío = cualquiera; o el Director de Comunicación con deuda >= deuda_minima_soborno). campana: autoelogio de marketing (reputación, fracaso público con prob_fracaso, marca). copiadora: líneas de información temprana para el operario / el resto (una vez al día por sala) y días de antelación de las notas de prensa. cafe: afecto por charla (una vez al día y persona), radio en celdas y número de frases OFFICE_CHAT_LINE_n. diseno: objeto provisional del archivo histórico, plantilla y quién lo recuerda.",
+    "_nota": "Módulo de oficina (src/world/interactions/office.gd, BUILD_NOTES §15). segundos_acto.* = segundos REALES de cada acto ilegal visible (begin_act); minutos.* = minutos de juego que cuesta cada acción (GameClock.advance_minutes). cajon.tabla / correo.tabla = tiradas diarias {que, peso} (coins = monedas sueltas entre monedas_min y monedas_max; nothing; info = información temprana; cash = dinero suelto del correo; un id de objeto). material: objeto por material de la estantería, objeto_barato si la reventa de la estantería es menor que el valor del objeto; solo se coge lo que está en vendibles (una unidad por jornada en todo el edificio, §15.4 ~35 € diarios) y factor_reventa del envío por correo. expedientes.candidatos_max: personas entre las que eliges UN expediente por intrusión (§13.4). comida.precio_comida: precio mínimo de lo que sirve de cena (§6.5). campana.escala_por_puesto: multiplicador del autoelogio. archivo.acceso_por_sala: sala → accesos especiales de puesto con los que registrar sus archivadores es legal. fraudes.<acción>: puestos que pueden, importe min-max (€) y enfriamiento_dias; terminales.<tipo>: acciones de cada terminal además de las de sus datos. prensa.<acción>.puestos (vacío = cualquiera; o el Director de Comunicación con deuda >= deuda_minima_soborno). campana: autoelogio de marketing (reputación, fracaso público con prob_fracaso, marca). copiadora: líneas de información temprana para el operario / el resto (una vez al día por sala) y días de antelación de las notas de prensa. cafe: afecto por charla (una vez al día y persona), radio en celdas y número de frases OFFICE_CHAT_LINE_n. diseno: objeto provisional del archivo histórico, plantilla y quién lo recuerda.",
     "segundos_acto": {
       "cajon": 2.5,
       "archivo": 3.0,
@@ -4299,8 +4300,8 @@
           "peso": 1
         }
       ],
-      "monedas_min": 3,
-      "monedas_max": 15
+      "monedas_min": 1,
+      "monedas_max": 6
     },
     "material": {
       "objeto_barato": "paper",
@@ -4359,7 +4360,7 @@
       "objetivos_max": 5
     },
     "expedientes": {
-      "por_intrusion": 3
+      "candidatos_max": 6
     },
     "copiadora": {
       "avisos_operario": 4,
@@ -4400,7 +4401,6 @@
       },
       "falsify_entries": {
         "puestos": [
-          "junior_accountant",
           "senior_accountant"
         ],
         "min": 150,
@@ -4418,7 +4418,6 @@
       },
       "detect_fraud": {
         "puestos": [
-          "junior_accountant",
           "senior_accountant",
           "chief_auditor"
         ],
@@ -4444,7 +4443,9 @@
         ]
       },
       "leak_story": {
-        "puestos": []
+        "puestos": [
+          "comms_director"
+        ]
       },
       "deuda_minima_soborno": 1,
       "enfriamiento_escandalo_dias": 3
@@ -4457,7 +4458,11 @@
       "reputacion": 2.0,
       "reputacion_fracaso": -4.0,
       "prob_fracaso": 0.15,
-      "marca": 0.01
+      "marca": 0.01,
+      "escala_por_puesto": {
+        "marketing_creative": 1.0,
+        "a10_marketing_director": 2.5
+      }
     },
     "cafe": {
       "afecto": 2,
@@ -4467,8 +4472,9 @@
     "comida": {
       "objeto_lujo": "food_premium",
       "objeto_basico": "food_basic",
-      "objeto_maquina": "snack",
-      "hora_cambio_comida": 12
+      "objeto_maquina": "food_basic",
+      "hora_cambio_comida": 12,
+      "precio_comida": 10
     },
     "diseno": {
       "objeto": "idea_copy",
@@ -4510,7 +4516,7 @@
     },
     "apagon": {
       "_nota": "Cuadro eléctrico (§22.1): corte de UNA planta de plantas [min, max] durante minutos de juego desde que se produce; retardos (minutos) para llegar antes; cámaras inactivas y lectores sin bloqueo en la planta; penumbra multiplicativa de color sombra; el keeper revisa el corte cada intervalo_s segundos reales.",
-      "minutos": 5,
+      "minutos": 25,
       "retardos": [
         0,
         10,
@@ -4527,7 +4533,9 @@
         0.45,
         0.62
       ],
-      "intervalo_s": 0.25
+      "intervalo_s": 0.25,
+      "margen_cuenta_px": 172.0,
+      "contorno_cuenta_px": 6
     },
     "alarma": {
       "_nota": "Central de alarmas: zonas por planta armadas en la franja night. Forzar en una planta armada dispara la alarma: ruido de radio_ruido metros y caso abierto (incidente, gravedad). Desactivar una zona = acto sabotage de segundos_acto, hasta el cambio de jornada.",
@@ -4598,7 +4606,9 @@
       "segundos_forzar": 9.0,
       "radio_ruido_forzar": 8.0,
       "dias_reposicion": 7,
-      "minutos_tramo_ceo": 30
+      "minutos_tramo_ceo": 30,
+      "efectivo_sobre": 1200,
+      "titular_registro": "safe_opening"
     },
     "taquillas": {
       "segundos": 2.5
@@ -4936,7 +4946,9 @@
       "segundos_acto": 2.5,
       "radio_testigo_celdas": 1.5,
       "fundido_segundos": 0.7,
-      "negro_segundos": 1.4
+      "negro_segundos": 1.4,
+      "radio_ruido_celdas": 3.0,
+      "intervalo_ruido_segundos": 0.8
     },
     "menu": {
       "ancho_em": 21,

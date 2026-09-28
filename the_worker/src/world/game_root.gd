@@ -253,6 +253,8 @@ func _build_flows() -> void:
 	time_skip.name = "TimeSkip"
 	add_child(time_skip)
 	time_skip.setup(ui, player, travel, observers_present)
+	PlacesKeeper.ensure(get_tree())
+	SecurityKeeper.ensure(get_tree())
 
 
 func _show_data_error() -> void:

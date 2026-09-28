@@ -164,3 +164,45 @@ tick the bullets below that their final versions already satisfy.
 - `NPC_STATE_WORKING … NPC_STATE_FLEEING` (9 keys) and `DEPT_BASE_FLOORS`, `ROLE_CHIEF_ACCOUNTANT`
   are unused by code today; kept in case the UI shows utility actions as states (loc_add cannot
   delete rows; remove them in a cleanup pass if nobody adopts them).
+
+## Office interactions (src/world/interactions/office.gd)
+
+- REQUEST 1 — IdeaPool: `adopt_archive_idea(template, rememberer) -> String` (a presentable idea
+  from the design archive; the rememberer — Old Ray — may contest it at Aurora). Until it exists
+  the design_archive is a legal browse with an explanation; once it does, OfficeLoot runs the
+  idea_stolen act and still emits `crime_committed("idea_stolen")`. Consider limiting it to
+  `junior_shoe_designer` or making it finite (one idea per week).
+- REQUEST 2 — World: spawn furniture interactables. Mapping: furniture `coffee_machine` →
+  `coffee_machine_use` ONLY where the room has no coffee_machine_use interactable yet;
+  `filing_cabinet` → interactable only in rooms with meaningful documents (acceso_por_sala rooms,
+  audit/complaint archives); other cabinets stay decorative. `photocopier`, `water_cooler`,
+  `whiteboard`, `card_reader` as placed.
+- REQUEST 3 — a consumer for `forged_official_document` (DoorAccess / checkpoints accepting a
+  forged pass). Until then the forgery station shows it disabled ("no use yet").
+- REQUEST 4 — Audio: a `coffee_machine` SFX with its own subtitle (the chat uses ui_confirm now).
+- REQUEST 5 — Company: a MONTHLY supplies inventory (§22.9 office_supplies «Inventario mensual»):
+  count `theft_small` with `company_loss` in supply rooms and raise a delayed record pointing at
+  people with access. The static office module has no day listener, so it cannot own this.
+- REQUEST 6 — Factory material shelves (leather_roll, soles, exotic_leather) and valuables
+  (laptop_highend, shoe_prototype): a fence or FactoryTheft route. The office module only lets the
+  player take items listed in `oficina.material.vendibles`; the rest say "nobody would buy that".
+
+## Security interactions (src/world/interactions/security.gd)
+
+- REQUEST 1 — NPCDirector/routines data: monitor_room must be occupied per its §22.4 occupancy
+  (2·1·2·2, "two guards permanently"). Today security_guard.office_room is `turnstiles`, so erasing
+  footage carries no witness risk. The console text no longer promises the guards until this lands.
+- REQUEST 2 — Security: `delete_access_entries(ids: Array[String])` (only from server_room) so the
+  server wipe can erase the player's card-reader entries in `_access_log`. Until then the terminal
+  counts them apart ("can't be wiped from here") and never says "clean" while any remain.
+- REQUEST 3 — DutySystem: an erase API for A.S.S.I.S.T. usage traces (§22.2). Until then the texts
+  say they can't be wiped.
+- REQUEST 4 — FloorTravel: refuse `exit`/`commute` while the player drags a body (toast), so bodies
+  leave only by the freight elevator (§5.4). The keeper already refuses to carry them: the body
+  stays behind with SECOPS_BODY_LEFT_BEHIND.
+- REQUEST 5 — MapView: use `SecurityLocks.card_opens(door, card)` (real holder clearance) for the
+  stolen/cloned-card halo instead of `mapa.tarjetas` (4/4); they can disagree today.
+- REQUEST 6 — Audio: SfxBank entries for the breaker clunk and the compactor (both borrow
+  alarm_the_power / break_object today).
+- RULING — operativa.apagon.minutos raised from 5 to 25 game minutes (~20 real s by day, ~12 at
+  night) with a real-seconds HUD countdown; the manual's "5 min" read as real time was a trap.

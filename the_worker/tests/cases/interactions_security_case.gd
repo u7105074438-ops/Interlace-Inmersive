@@ -381,6 +381,10 @@ func _test_bodies() -> void:
 	await _finish(_start(body), "grab")
 	check(_keeper.is_dragging() and _game.player.is_dragging(), "body: the player drags it")
 	check(_game.player.get_mode_speed("drag") < _game.player.get_mode_speed("walk"), "body: dragging is slow")
+	check_eq(str(NPCDirector.get_body_info(victim).get("room_id", "-")), "", "body: while dragged it is in transit (no room to be found in)")
+	var exit: Interactable = _anywhere("exit")
+	if exit != null:
+		check(not SecurityBodies.is_body_target(exit), "body: a street exit is no way out for a body (freight only)")
 	var elevator: Interactable = _anywhere("elevator_panel")
 	if elevator != null:
 		check_eq(str(_game.travel.refusal_for(elevator).get("key", "")), "TRAVEL_REFUSE_BULKY", "body: the passenger elevator refuses a body")
@@ -459,6 +463,14 @@ func _test_records() -> void:
 	_age_queue()
 	check_eq(SecurityRecords.restore_due(), 0, "backups: nothing comes back the next night")
 	check_eq(_records(BeliefNetSystem.RECORD_CHAT_LOG), 0, "backups: the file/chat log stays deleted")
+	EventBus.crime_committed.emit("file_copied", "hr_office", {})
+	var late: Array[Belief] = []
+	late.assign(BeliefNet.get_records_about(PLAYER).filter(func(b: Belief) -> bool: return b.record_type == BeliefNetSystem.RECORD_CHAT_LOG))
+	SecurityRecords.delete_traces(late, "server_room")
+	check(SecurityRecords.restore_queue().is_empty(), "backups: deleting after the tapes were wrecked leaves nothing to restore")
+	_age_queue()
+	SecurityRecords.restore_due()
+	check_eq(_records(BeliefNetSystem.RECORD_CHAT_LOG), 0, "backups: a deletion after the wreck stays deleted")
 
 
 ## Simula la noche: los borrados de la cola pasan a ser de la jornada anterior.
@@ -473,11 +485,30 @@ func _age_queue() -> void:
 
 # ─── Cerraduras (§22.2) ───────────────────────────────────────
 
+## Punto de candado que el keeper pone en el lado de fuera de la puerta de `inside` (lleva al jugador allí).
+func _outer_lock(inside: String, interact_id: String) -> Interactable:
+	var inner: Interactable = _item_id(inside, interact_id)
+	if inner == null:
+		return null
+	var door_id: String = str(inner.data.get("door_id", ""))
+	var door: Door = _game.streamer.get_door_by_id(door_id)
+	var outside: String = door.room_b if door.room_a == inside else door.room_a
+	await _go(outside)
+	for node: Node in get_tree().get_nodes_in_group(SecurityKeeper.NODES_GROUP):
+		var item: Interactable = node as Interactable
+		if item != null and item.interact_type == "lock_old" and item.room_id == outside and str(item.data.get("door_id", "")) == door_id:
+			_game.player.global_position = item.global_position + (item.global_position - door.to_global(door.gap_rect().get_center()))
+			await _settle()
+			return item
+	return null
+
+
 func _test_forcing() -> void:
 	await _go("old_confidential_cage")
-	var lock: Interactable = _item_id("old_confidential_cage", "cage_padlock")
-	if not check(lock != null, "cage: the old padlock is there"):
+	var lock: Interactable = await _outer_lock("old_confidential_cage", "cage_padlock")
+	if not check(lock != null, "cage: the padlock can be reached from outside the cage"):
 		return
+	check(_game.player.get_focused_interactable() == lock, "cage: standing outside the door, E focuses the padlock")
 	check(SecurityLocks.lock_key(lock).is_empty(), "cage: no key of the player's fits the padlock")
 	check_eq(SecurityLocks.lock_tool(lock), "lockpick", "cage: the lockpick can force it")
 	var door: Door = SecurityLocks.lock_door(lock, {"streamer": _game.streamer})
@@ -495,9 +526,10 @@ func _test_forcing() -> void:
 
 func _test_keys() -> void:
 	await _go("forgotten_corridor")
-	var lock: Interactable = _item_id("forgotten_corridor", "forgotten_door_lock")
-	if not check(lock != null, "keys: the forgotten corridor has its old lock"):
+	var lock: Interactable = await _outer_lock("forgotten_corridor", "forgotten_door_lock")
+	if not check(lock != null, "keys: the forgotten corridor's old lock is reachable from outside"):
 		return
+	check(_game.player.get_focused_interactable() == lock, "keys: standing outside the door, E focuses the old lock")
 	check_eq(SecurityLocks.lock_key(lock), "keys_basic", "keys: the desk keys fit the old lock")
 	var crimes: int = _crimes.size()
 	await _finish(_start(lock), "keys")
@@ -562,10 +594,15 @@ func _test_safes() -> void:
 	await _finish(_start(safe), "safe locked")
 	check(not PlayerState.is_carrying("cash_envelope"), "safe: without the combination it stays shut")
 	check(PlayerState.add_item("safe_combination_note"), "safe: the written combination")
-	await _finish(_start(safe), "safe open")
-	check(PlayerState.is_carrying("cash_envelope"), "safe: the combination opens it (cash envelope taken)")
-	check(Security.get_access_log().any(func(e: Dictionary) -> bool: return str(e["reader_id"]) == safe.interact_id),
-			"safe: the opening is logged")
+	var money: int = PlayerState.get_money()
+	var state: Dictionary = _start(safe)
+	check(await _answer(0), "safe: opening it asks for confirmation")
+	await _finish(state, "safe open")
+	check_eq(PlayerState.get_money() - money, SecurityKit.bi("cajas.efectivo_sobre"), "safe: the cash goes into the player's money")
+	check(not PlayerState.is_carrying("cash_envelope"), "safe: no compromising envelope left in the pocket")
+	var log: Array[Dictionary] = Security.get_access_log().filter(func(e: Dictionary) -> bool: return str(e["reader_id"]) == safe.interact_id)
+	check(not log.is_empty(), "safe: the opening is logged")
+	check(log.all(func(e: Dictionary) -> bool: return str(e["card_owner"]) != PLAYER), "safe: the opening log names no one without a card")
 	var ceo: Interactable = _fake("ceo_safe", "ceo_office", {"requires": "combination"})
 	await _finish(_start(ceo), "ceo safe")
 	check(not PlayerState.is_carrying("ownership_documents"), "ceo safe: no combination, no documents")

@@ -8,8 +8,9 @@ extends RefCounted
 ##  · monitor_console: todas las consolas ENSEÑAN las grabaciones vigentes (Security.get_footage_list:
 ##    todas son del jugador, a cara descubierta o de uniforme). Solo en la sala de monitores
 ##    (seguridad.sala_monitores, §5.5) se borran: Security.delete_footage (registro destruido, delito
-##    footage_deleted). Borrar es un acto visible (footage_deleted) y la sala tiene dos vigilantes:
-##    si alguien mira, se avisa antes.
+##    footage_deleted). Borrar es un acto visible (footage_deleted): si alguien mira, se avisa antes.
+##    La vigilancia permanente de la sala (§22.4, dos vigilantes) es de las rutinas de NPCDirector
+##    (petición en docs_integration_todo); el texto no la promete mientras no exista.
 ##  · server_terminal: mode "view_logs" (oficina de sistemas) solo lee; el de la sala de servidores
 ##    borra los registros DIGITALES de BeliefNet sobre el jugador (operativa.servidor.tipos_digitales:
 ##    card_log, chat_log) con crime_committed("records_deleted", sala, {record_ids}): BeliefNet los
@@ -19,7 +20,11 @@ extends RefCounted
 ##    (BeliefNet.create_record; los registros neutros —lecturas rutinarias— no se restauran porque no
 ##    pesaban) salvo que antes se destruyan las cintas: destruirlas vacía la cola (los borrados quedan
 ##    firmes) y deja rastro (records_deleted en backup_room → registro de acceso). Las cintas nuevas
-##    empiezan esa noche: un borrado posterior vuelve a estar en la cola.
+##    empiezan esa noche y se graban DESPUÉS del borrado: lo que se borre el mismo día en que se
+##    destruyeron las cintas no entra en la cola (nada que restaurar).
+##  · Lo que el servidor NO borra (sin API todavía, ver docs_integration_todo): el registro de accesos
+##    de Security (lectores de tarjeta) y los usos de A.S.S.I.S.T.; la terminal los cuenta aparte y
+##    nunca anuncia «limpio» mientras queden. Los registros neutros (rutina) no se cuentan ni se borran.
 
 const TYPES: Array[String] = ["monitor_console", "server_terminal", "backup_unit"]
 const T_MONITOR := "monitor_console"
@@ -158,10 +163,19 @@ static func digital_traces() -> Array[Belief]:
 	var kinds: Array = SecurityKit.barr("servidor.tipos_digitales")
 	var out: Array[Belief] = []
 	for b: Belief in BeliefNet.get_records_about(SecurityKit.PLAYER_ID):
-		if kinds.has(b.record_type):
+		if kinds.has(b.record_type) and not BeliefNet.is_record_neutral(b.id):
 			out.append(b)
 	out.sort_custom(func(a: Belief, c: Belief) -> bool: return a.timestamp > c.timestamp)
 	return out
+
+
+## Entradas del registro de accesos de Security a nombre del jugador (no se borran desde aquí).
+static func access_entries() -> int:
+	var count: int = 0
+	for entry: Dictionary in Security.get_access_log():
+		if str(entry.get("card_owner", "")) == SecurityKit.PLAYER_ID:
+			count += 1
+	return count
 
 
 static func trace_label(b: Belief) -> String:
@@ -177,11 +191,14 @@ static func use_server(item: Interactable, player: Node, ctx: Dictionary) -> voi
 	var options: Array = [{"text_key": "SECOPS_SERVER_REVIEW", "icon": "eye"},
 			{"text_key": "SECOPS_SERVER_WIPE", "args": [traces.size()], "danger": true, "disabled": traces.is_empty()},
 			"UI_CANCEL"]
-	var choice: int = await SecurityKit.choose(ctx, "SECOPS_SERVER_TITLE", "SECOPS_SERVER_BODY", options, [traces.size()])
+	var body: String = "SECOPS_SERVER_BODY_NO_TAPES" if backups_destroyed_today() else "SECOPS_SERVER_BODY"
+	var choice: int = await SecurityKit.choose(ctx, "SECOPS_SERVER_TITLE", body, options, [traces.size(), access_entries()])
 	if choice == OPT_WIPE:
 		await wipe_traces(item, player, ctx, traces)
 	elif choice == OPT_REVIEW and traces.is_empty():
-		SecurityKit.toast(ctx, "SECOPS_SERVER_CLEAN", [], ToastStack.KIND_GOOD)
+		var left: int = access_entries()
+		SecurityKit.toast(ctx, "SECOPS_SERVER_ONLY_ACCESS" if left > 0 else "SECOPS_SERVER_CLEAN", [left],
+				ToastStack.KIND_INFO if left > 0 else ToastStack.KIND_GOOD)
 	elif choice == OPT_REVIEW:
 		var labels: Array[String] = []
 		for b: Belief in traces.slice(0, SecurityKit.bi("servidor.lista_max")):
@@ -207,7 +224,8 @@ static func _view_logs(ctx: Dictionary, traces: Array[Belief]) -> void:
 static func wipe_traces(item: Interactable, player: Node, ctx: Dictionary, traces: Array[Belief]) -> int:
 	if traces.is_empty() or not await SecurityKit.watched_ok(ctx, player):
 		return 0
-	if not await SecurityKit.confirm(ctx, "SECOPS_SERVER_CONFIRM_TITLE", "SECOPS_SERVER_CONFIRM_BODY",
+	if not await SecurityKit.confirm(ctx, "SECOPS_SERVER_CONFIRM_TITLE",
+			"SECOPS_SERVER_CONFIRM_BODY_NO_TAPES" if backups_destroyed_today() else "SECOPS_SERVER_CONFIRM_BODY",
 			"SECOPS_SERVER_CONFIRM", [traces.size()]):
 		return 0
 	var seconds: float = minf(SecurityKit.bf("servidor.segundos_base") + SecurityKit.bf("servidor.segundos_por_registro") * traces.size(),
@@ -217,7 +235,8 @@ static func wipe_traces(item: Interactable, player: Node, ctx: Dictionary, trace
 		return 0
 	var destroyed: int = delete_traces(traces, SecurityKit.base_room(item.room_id))
 	GameClock.advance_minutes(SecurityKit.bf("servidor.minutos"))
-	SecurityKit.toast(ctx, "SECOPS_SERVER_WIPED", [destroyed], ToastStack.KIND_GOOD)
+	SecurityKit.toast(ctx, "SECOPS_SERVER_WIPED_FINAL" if backups_destroyed_today() else "SECOPS_SERVER_WIPED",
+			[destroyed], ToastStack.KIND_GOOD)
 	SecurityKit.sfx(player, "ui_confirm")
 	return destroyed
 
@@ -226,10 +245,12 @@ static func wipe_traces(item: Interactable, player: Node, ctx: Dictionary, trace
 static func delete_traces(traces: Array[Belief], room_id: String) -> int:
 	var ids: Array[String] = []
 	var queue: Array = SecurityKit.flag_array(F_QUEUE)
+	var backed_up: bool = not backups_destroyed_today()
 	for b: Belief in traces:
 		ids.append(b.id)
-		queue.append({"record_type": b.record_type, "subject": b.subject, "weight": b.weight,
-				"location": b.location, "neutral": BeliefNet.is_record_neutral(b.id), "day": SecurityKit.today()})
+		if backed_up:
+			queue.append({"record_type": b.record_type, "subject": b.subject, "weight": b.weight,
+					"location": b.location, "neutral": BeliefNet.is_record_neutral(b.id), "day": SecurityKit.today()})
 	SecurityKit.set_flag(F_QUEUE, queue)
 	EventBus.crime_committed.emit(CRIME_RECORDS, room_id, {"record_ids": ids, "method": METHOD_SERVER})
 	var destroyed: int = 0

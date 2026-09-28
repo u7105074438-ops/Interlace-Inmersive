@@ -28,6 +28,14 @@ const REST_HEADING := Vector2.LEFT
 ## Inclinación máxima (fracción) al arrastrar en vertical y zona muerta horizontal del rumbo.
 const HEADING_TILT := 0.45
 const HEADING_DEADZONE := 0.2
+## Sábana que tapa la figura entera (§3.1: nunca gráfico). Medidas en celdas, en el espacio de la
+## figura de pie (pies en el origen, cabeza hacia -y): media anchura, alto y margen bajo los pies.
+const C_SHEET := Color(0.78, 0.8, 0.84)
+const C_SHEET_FOLD := Color(0.62, 0.64, 0.7)
+const SHEET_HALF_W := 0.4
+const SHEET_TOP := 1.3
+const SHEET_BOTTOM := 0.1
+const SHEET_FOLDS := 3
 
 var npc_id: String = ""
 var body_id: String = ""
@@ -49,6 +57,20 @@ class Figure extends Node2D:
 		CharacterPainter.draw(self, appearance, tier, CharacterPainter.make_pose("idle", 0, Vector2.DOWN))
 
 
+## Sábana sobre la figura: solo se ve la forma del cuerpo (§3.1).
+class Sheet extends Node2D:
+	var cell: float = 0.0
+
+	func _draw() -> void:
+		var rect: Rect2 = Rect2(-SHEET_HALF_W * cell, -SHEET_TOP * cell,
+				SHEET_HALF_W * 2.0 * cell, (SHEET_TOP + SHEET_BOTTOM) * cell)
+		draw_rect(rect, C_SHEET)
+		draw_circle(Vector2(0.0, rect.position.y), SHEET_HALF_W * cell, C_SHEET)
+		for i: int in range(1, SHEET_FOLDS + 1):
+			var y: float = rect.position.y + rect.size.y * float(i) / float(SHEET_FOLDS + 1)
+			draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), C_SHEET_FOLD, 1.0)
+
+
 func setup_body(p_npc_id: String, p_body_id: String, p_room_id: String, p_cell_px: float) -> void:
 	npc_id = p_npc_id
 	body_id = p_body_id
@@ -62,6 +84,10 @@ func setup_body(p_npc_id: String, p_body_id: String, p_room_id: String, p_cell_p
 		_figure.appearance = CharacterPainter.appearance_for_npc(npc)
 		_figure.tier = clampi(npc.tier, 1, CharacterStyle.OUTFIT_COUNT)
 	add_child(_figure)
+	var sheet: Sheet = Sheet.new()
+	sheet.name = "Sheet"
+	sheet.cell = p_cell_px
+	_figure.add_child(sheet)
 	face(REST_HEADING)
 
 

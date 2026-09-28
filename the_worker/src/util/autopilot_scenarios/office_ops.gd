@@ -6,9 +6,9 @@ extends Node
 ## tools/screenshot.sh /tmp/shots_office office_ops
 ## Saltos de QA entre plantas con FloorTravel.teleport_to_room (como el F1). Capturas:
 ## office_01_desk_menu · 02_tools · 03_drawer_watch (si alguien mira) · 04_drawer_act ·
-## 05_drawer_loot · 06_supplies · 07_copier · 08_coffee · 09_fridge · 09b_supply_room · 10_mail_menu ·
+## 05_drawer_loot · 07_copier · 08_coffee · 09_fridge · 09b_supply_room · 10_mail_menu ·
 ## 11_mail_sold ·
-## 12_eavesdrop · 13_vending · 14_hr_files · 15_notebook.
+## 12_eavesdrop · 13_vending · 14_hr_pick · 14b_hr_files · 15_notebook.
 
 const PLAYER_NAME := "Alex Doe"
 const DIFFICULTY := "estandar"
@@ -16,7 +16,6 @@ const OFFICE := "wing_3b"
 const DESK_ID := "player_desk"
 const DRAWER_ID := "nate_drawer"
 const COPYROOM := "p3_copyroom"
-const SHELF_ID := "p3_copy_paper"
 const COPIER_ID := "p3_copier_tray"
 const PANTRY := "p3_pantry"
 const COFFEE_ID := "pantry_coffee"
@@ -103,14 +102,8 @@ func _drawer() -> void:
 	_log("after drawer: money=%d items=%s" % [PlayerState.get_money(), _items()])
 
 
+## La parte diaria de material es global: aquí solo la fotocopiadora (el material, en el almacén).
 func _copy_room() -> void:
-	if not await _use(COPYROOM, SHELF_ID):
-		return
-	await _proceed_if_watched()
-	await _wait_until(func() -> bool: return _game.player.current_act().is_empty(), WAIT_TIMEOUT)
-	await _pilot.seconds(0.2)
-	_log("supplies: %s" % _items())
-	await _pilot.shot("office_06_supplies")
 	if await _use(COPYROOM, COPIER_ID):
 		await _wait_dialog()
 		await _pilot.shot("office_07_copier")
@@ -173,9 +166,12 @@ func _hr_files() -> void:
 	await _pilot.frames(SHORT_FRAMES)
 	if not await _use(HR_ROOM, HR_FILES_ID):
 		return
+	await _wait_dialog()
+	await _pilot.shot("office_14_hr_pick")
+	await _answer(0)
 	await _proceed_if_watched()
 	await _wait_dialog()
-	await _pilot.shot("office_14_hr_files")
+	await _pilot.shot("office_14b_hr_files")
 	await _answer(0)
 	_game.ui.open_computer({"app": "notebook", "instant": true})
 	await _pilot.seconds(1.5)

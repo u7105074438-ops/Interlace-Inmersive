@@ -32,7 +32,6 @@ const SFX_OK := "ui_confirm"
 const SFX_ERROR := "ui_error"
 const SFX_INFO := "ui_notify"
 const SFX_CASH := "cash"
-const SFX_CHAT := "chatter"
 const PLAYER_ID := "player"
 const NOTE_FILES := "files"
 const ACT_SIGNAL := "act_finished"
@@ -309,24 +308,39 @@ static func has_access(access: String) -> bool:
 	return occ != null and occ.special_access.has(access)
 
 
-## Dueño de un mueble: el de los datos o, si es "generated", el personaje de esa sala cuyo puesto
-## (desk_position) queda más cerca del mueble; "" si nadie.
+## Dueño de un mueble: el de los datos o, si es "generated", un reparto uno a uno (§11.1): los
+## muebles "generated" de ese tipo en la sala (por id) con la plantilla de la sala (por id) que no es
+## ya dueña explícita de uno de ese tipo. "" si sobran muebles.
 static func owner_of(item: Interactable) -> String:
 	var owner: String = str(item.data.get("owner", ""))
 	if owner != GENERATED_OWNER:
 		return owner
-	var raw: Variant = item.data.get("pos", Vector2i.ZERO)
-	var at: Vector2i = raw as Vector2i if raw is Vector2i else Vector2i.ZERO
-	var best: String = ""
-	var best_d: float = INF
-	for npc: NPCRuntime in NPCDirector.get_all_npcs():
-		if not npc.alive or base_room(npc.home_room) != base_room(item.room_id):
+	var room: RoomData = Database.get_room(item.room_id)
+	if room == null:
+		return ""
+	var objects: Array[String] = []
+	var taken: Array[String] = []
+	for entry: Dictionary in room.interactables:
+		if str(entry.get("type", "")) != item.interact_type:
 			continue
-		var d: float = Vector2(npc.desk_position - at).length()
-		if d < best_d:
-			best_d = d
-			best = npc.id
-	return best
+		if str(entry.get("owner", "")) == GENERATED_OWNER:
+			objects.append(str(entry.get("id", "")))
+		else:
+			taken.append(str(entry.get("owner", "")))
+	objects.sort()
+	var index: int = objects.find(item.interact_id)
+	var staff: Array[String] = room_staff(item.room_id, taken)
+	return staff[index] if index >= 0 and index < staff.size() else ""
+
+
+## Plantilla viva cuya sala propia es esta (por id), sin los excluidos.
+static func room_staff(room_id: String, exclude: Array[String]) -> Array[String]:
+	var out: Array[String] = []
+	for npc: NPCRuntime in NPCDirector.get_all_npcs():
+		if npc.alive and base_room(npc.home_room) == base_room(room_id) and not exclude.has(npc.id):
+			out.append(npc.id)
+	out.sort()
+	return out
 
 
 ## El personaje está ahora en esa sala (NPCDirector).

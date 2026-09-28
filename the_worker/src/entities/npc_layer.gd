@@ -383,8 +383,11 @@ func _on_noise(pos: Vector2, radius: float, source: String) -> void:
 		return
 	var room: String = room_at(pos)
 	var noteworthy: bool = bool(_exposure.get("noteworthy", false))
+	# El blanco del acto en curso (la víctima) no «oye» el ruido que se le hace a él.
+	var player: Node2D = get_player()
+	var target: String = str(player.call("current_act_target")) if player != null and player.has_method("current_act_target") else ""
 	for node: NPCNode in get_nodes():
-		if node.lod == NPCRuntime.LOD_FULL and node.perception != null:
+		if node.lod == NPCRuntime.LOD_FULL and node.perception != null and node.npc_id != target:
 			node.on_heard(node.perception.hear(pos, radius, source, room, noteworthy))
 
 

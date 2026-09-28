@@ -71,7 +71,7 @@ static func prompt_key(interactable: Interactable) -> String:
 		SecurityLocks.T_READER:
 			return "SECOPS_PROMPT_CARD"
 		SecurityGear.T_CART:
-			return "SECOPS_PROMPT_MASTER_KEYS"
+			return SecurityGear.cart_prompt(interactable)
 		SecurityGear.T_LOCKER:
 			return SecurityGear.locker_prompt(interactable)
 		SecurityRecords.T_MONITOR, SecurityRecords.T_SERVER:

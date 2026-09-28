@@ -3713,7 +3713,7 @@ OFFICE_FORGE_NO_STAMP,Nothing gets forged without your %s.,Sin tu %s no se falsi
 OFFICE_FORGE_TITLE,Forgery station,Puesto de falsificación
 OFFICE_FRAUD_BODY,"The terminal trusts whoever is logged in. Right now, that's you.","El terminal confía en quien haya iniciado sesión. Ahora mismo, tú."
 OFFICE_FRAUD_CLEAN_BOOKS,The books are clean. Suspiciously clean.,Las cuentas están limpias. Sospechosamente limpias.
-OFFICE_FRAUD_CONFIRM,%s? It is fraud: the entry will surface in the books in about two weeks.,¿%s? Es fraude: el asiento aflorará en las cuentas en unas dos semanas.
+OFFICE_FRAUD_CONFIRM,%s? It is fraud: the entry will surface in the books in about %d days.,¿%s? Es fraude: el asiento aflorará en las cuentas en unos %d días.
 OFFICE_FRAUD_DONE,Done. %d € have quietly moved to your account.,Hecho. %d € se han mudado discretamente a tu cuenta.
 OFFICE_FRAUD_FOUND,%s's expenses don't add up. You keep a copy — leverage for later.,Los gastos de %s no cuadran. Te guardas una copia: palanca para más adelante.
 OFFICE_FRAUD_GO,Do it,Hacerlo
@@ -3733,7 +3733,7 @@ OFFICE_HOUSE_NO_OPERATION,You would need to be here on a night operation to go t
 OFFICE_HR_DONE_TODAY,You have read enough files for one day. Amelia notices dog-eared folders.,Ya has leído bastantes expedientes por hoy. Amelia se fija en las esquinas dobladas.
 OFFICE_HR_LEGAL,Your post already gives you every file: PERSONNEL is open.,Tu puesto ya te da todos los expedientes: PERSONNEL está abierto.
 OFFICE_HR_LEVERAGE,You pocket a compromising note about %s.,Te guardas una nota comprometedora sobre %s.
-OFFICE_HR_READ,"Full files read: %s. Routines, secrets and home addresses are now in PERSONNEL.","Expedientes completos leídos: %s. Rutinas, secretos y domicilios ya están en PERSONNEL."
+OFFICE_HR_READ,"Full file read: %s. Routine, secrets and home address are now in PERSONNEL.","Expediente completo leído: %s. Rutina, secretos y domicilio ya están en PERSONNEL."
 OFFICE_HR_TITLE,Personnel files,Expedientes de personal
 OFFICE_INFO_BODY,%s,%s
 OFFICE_INVENTORY_FULL,No room for %s: your pockets are full.,No cabe %s: llevas los bolsillos llenos.
@@ -3786,7 +3786,7 @@ OFFICE_SHOWS_VIDEO_CALL_FEED,Video call feed: a supplier nods at a frozen screen
 OFFICE_SHOWS_PARCEL_LOG,Parcel log: nobody checks what goes out. Nobody.,Registro de paquetes: nadie revisa lo que sale. Nadie.
 OFFICE_SHOWS_VISITOR_LOG,Visitor log: no buyers expected today.,Registro de visitas: hoy no se espera a ningún comprador.
 OFFICE_SOMEONE,Someone,Alguien
-OFFICE_SUPPLIES_DONE_TODAY,You have already taken today's share from this room. Inventory is monthly; greed should not be daily.,Ya te has llevado la parte de hoy de esta sala. El inventario es mensual; la codicia no debería ser diaria.
+OFFICE_SUPPLIES_DONE_TODAY,You have already taken today's share. Inventory is monthly; greed should not be daily.,Ya te has llevado la parte de hoy. El inventario es mensual; la codicia no debería ser diaria.
 OFFICE_SUPPLIES_TAKEN,Pocketed: %s (worth %d € to the right buyer). Sell it through the internal mail.,Al bolsillo: %s (vale %d € para el comprador adecuado). Véndelo por el correo interno.
 OFFICE_TAKE_ALL,Take everything (%d),Llevártelo todo (%d)
 OFFICE_TAKE_ITEM,Take: %s,Llevarte: %s
@@ -3820,7 +3820,7 @@ SECOPS_SOMEONE,Someone,Alguien
 SECOPS_BODY_CREATED,%s's body is lying here. Hide it before anyone walks in.,El cuerpo de %s está aquí tirado. Escóndelo antes de que entre alguien.
 SECOPS_BODY_FOUND,%s's body has been found. A top-severity investigation is coming.,Han encontrado el cuerpo de %s. Se avecina una investigación de gravedad máxima.
 SECOPS_BODY_LEFT_BEHIND,You had to let go of %s's body. It stays where you left it.,Has tenido que soltar el cuerpo de %s. Se queda donde lo dejaste.
-SECOPS_BLACKOUT_ON,Power cut on floor %s: cameras and card readers are dead for %d minutes.,Apagón en la planta %s: cámaras y lectores de tarjeta muertos durante %d minutos.
+SECOPS_BLACKOUT_ON,Power cut on floor %s: cameras and card readers are dead for about %d seconds. Move!,Apagón en la planta %s: cámaras y lectores de tarjeta muertos durante unos %d segundos. ¡Muévete!
 SECOPS_BLACKOUT_OFF,Power is back on floor %s. The cameras are recording again.,Vuelve la luz a la planta %s. Las cámaras graban de nuevo.
 SECOPS_CAR_BROKE_DOWN,%s's car broke down on the way in: they'll spend the morning in the garage.,El coche de %s se ha averiado al llegar: pasará la mañana en el garaje.
 SECOPS_BACKUP_RESTORED,IT restored %d deleted traces from last night's backups.,IT ha restaurado %d rastros borrados desde las copias de anoche.
@@ -3831,7 +3831,7 @@ SECOPS_WHO_YOU,YOU,TÚ
 SECOPS_WHO_UNIFORM,"you, in the %s","tú, con %s"
 SECOPS_FOOTAGE_LINE,Day %d · %s · %s — %s,Día %d · %s · %s — %s
 SECOPS_MONITOR_TITLE,Monitor console,Consola de monitores
-SECOPS_MONITOR_BODY,"%d recordings on file, every one of them showing you. Recordings never fade: this room is the only place they can be erased — and two guards work here.","%d grabaciones archivadas, todas en las que sales tú. Las grabaciones no caducan: esta sala es el único sitio donde se borran, y aquí trabajan dos vigilantes."
+SECOPS_MONITOR_BODY,"%d recordings on file, every one of them showing you. Recordings never fade: this room is the only place they can be erased.","%d grabaciones archivadas, todas en las que sales tú. Las grabaciones no caducan: esta sala es el único sitio donde se borran."
 SECOPS_MONITOR_BODY_VIEW,"%d recordings on file, every one of them showing you. This console can only view them: recordings are erased in the monitor room on the ground floor.","%d grabaciones archivadas, todas en las que sales tú. Esta consola solo las muestra: se borran en la sala de monitores de la planta baja."
 SECOPS_MONITOR_REVIEW,Review recordings,Revisar grabaciones
 SECOPS_MONITOR_WIPE,Erase all %d recordings of you,Borrar las %d grabaciones en las que sales
@@ -3848,13 +3848,13 @@ SECOPS_TRACE_CARD_LOG,Card reader,Lector de tarjeta
 SECOPS_TRACE_CHAT_LOG,File / chat log,Registro de archivos / chat
 SECOPS_TRACE_LINE,Day %d · %s · %s,Día %d · %s · %s
 SECOPS_SERVER_TITLE,Server terminal,Terminal del servidor
-SECOPS_SERVER_BODY,"%d digital traces point at you (card-reader entries, copied files, chats). Deleting them is logged on this server, and tonight's backup restores anything deleted unless the tapes next door are destroyed.","%d rastros digitales apuntan a ti (lectores de tarjeta, archivos copiados, chats). Borrarlos queda registrado en este servidor, y la copia de esta noche restaura lo borrado salvo que se destruyan las cintas de al lado."
+SECOPS_SERVER_BODY,"%d digital traces point at you (copied files, chats, card logs). Deleting them is logged on this server, and tonight's backup restores anything deleted unless the tapes next door are destroyed. %d card-reader entries in Security's access log can't be wiped from here, nor can A.S.S.I.S.T. usage.","%d rastros digitales apuntan a ti (archivos copiados, chats, registros de tarjeta). Borrarlos queda registrado en este servidor, y la copia de esta noche restaura lo borrado salvo que se destruyan las cintas de al lado. Las %d entradas de lector en el registro de accesos de Seguridad no se borran desde aquí, ni los usos de A.S.S.I.S.T."
 SECOPS_SERVER_REVIEW,Review traces,Revisar rastros
 SECOPS_SERVER_WIPE,Delete all %d traces,Borrar los %d rastros
 SECOPS_SERVER_CLEAN,No digital traces point at you.,Ningún rastro digital apunta a ti.
 SECOPS_SERVER_LIST_HINT,Pick a trace to delete it.,Elige un rastro para borrarlo.
 SECOPS_SERVER_VIEW_TITLE,Access logs,Registros de acceso
-SECOPS_SERVER_VIEW_BODY,Card-reader entries about you: %d · File and chat logs: %d · A.S.S.I.S.T. uses on record: %d. This console only reads: records are deleted in the server room (S2).,Registros de tarjeta tuyos: %d · Registros de archivos y chats: %d · Usos de A.S.S.I.S.T. registrados: %d. Esta consola solo lee: se borran en la sala de servidores (S2).
+SECOPS_SERVER_VIEW_BODY,Card-reader entries about you: %d · File and chat logs: %d · A.S.S.I.S.T. uses on record: %d (A.S.S.I.S.T. usage can't be wiped anywhere). This console only reads: records are deleted in the server room (S2).,Registros de tarjeta tuyos: %d · Registros de archivos y chats: %d · Usos de A.S.S.I.S.T. registrados: %d (los usos de A.S.S.I.S.T. no se pueden borrar). Esta consola solo lee: se borran en la sala de servidores (S2).
 SECOPS_CLOSE,Close,Cerrar
 SECOPS_SERVER_CONFIRM_TITLE,Delete digital traces,Borrar rastros digitales
 SECOPS_SERVER_CONFIRM_BODY,"Delete %d traces? The server will log this access, and the backups will restore them tonight unless you destroy the tapes.","¿Borrar %d rastros? El servidor registrará este acceso, y las copias los restaurarán esta noche salvo que destruyas las cintas."
@@ -3870,11 +3870,11 @@ SECOPS_BACKUP_CONFIRM,Wreck them,Destrozarlas
 SECOPS_BACKUP_DESTROYED,Tapes destroyed: %d deletions are now permanent.,Cintas destruidas: %d borrados son ya definitivos.
 SECOPS_BREAKER_BUSY,A power cut on floor %s is already set. Wait for it to end.,Ya hay un apagón programado en la planta %s. Espera a que termine.
 SECOPS_BREAKER_TITLE,Breaker panel,Cuadro eléctrico
-SECOPS_BREAKER_HINT,Pick a floor. Its cameras and card readers die for %d minutes — and every blackout opens an investigation.,"Elige una planta. Sus cámaras y lectores de tarjeta mueren durante %d minutos, y todo apagón abre una investigación."
-SECOPS_BREAKER_WHEN,"Cut floor %s now, or on a timer so you can get there first? The blackout lasts %d minutes.",¿Cortar la planta %s ahora o con retardo para llegar antes? El apagón dura %d minutos.
+SECOPS_BREAKER_HINT,Pick a floor. Its cameras and card readers die for about %d seconds — and every blackout opens an investigation.,"Elige una planta. Sus cámaras y lectores de tarjeta mueren unos %d segundos, y todo apagón abre una investigación."
+SECOPS_BREAKER_WHEN,"Cut floor %s now, or on a timer so you can get there first? The blackout lasts about %d seconds, and it always opens an investigation.",¿Cortar la planta %s ahora o con retardo para llegar antes? El apagón dura unos %d segundos y siempre abre una investigación.
 SECOPS_BREAKER_NOW,Cut it now,Cortar ahora
-SECOPS_BREAKER_DELAY,In %d minutes,Dentro de %d minutos
-SECOPS_BREAKER_SET,Floor %s goes dark in %d minutes.,La planta %s se quedará a oscuras dentro de %d minutos.
+SECOPS_BREAKER_DELAY,In %d seconds,Dentro de %d segundos
+SECOPS_BREAKER_SET,Floor %s goes dark in %d seconds.,La planta %s se quedará a oscuras dentro de %d segundos.
 SECOPS_ALARM_TRIPPED,ALARM! You tripped the night alarm in %s. Security is opening an investigation.,¡ALARMA! Has disparado la alarma nocturna en %s. Seguridad abre una investigación.
 SECOPS_NOTE_ALARM,Tripped the night alarm in %s.,Disparaste la alarma nocturna en %s.
 SECOPS_ALARM_TITLE,Alarm control,Central de alarmas
@@ -3891,7 +3891,7 @@ SECOPS_MACHINE_TOO_EARLY,The line runs until %d:00. Shut it down on your closing
 SECOPS_MACHINE_SHUT,Machinery shut down for the night. One closing task done.,Maquinaria apagada hasta mañana. Una tarea de cierre hecha.
 SECOPS_CAR_NOBODY,Nobody drives this car any more.,Ya nadie conduce este coche.
 SECOPS_CAR_ALREADY,%s's car is already sabotaged.,El coche de %s ya está saboteado.
-SECOPS_CAR_NEED_TOOL,%s's car. You need cutting tools or a toolbox to do anything to it.,El coche de %s. Necesitas herramientas de corte o una caja de herramientas para hacerle algo.
+SECOPS_CAR_NEED_TOOL,%s's car. You need a tool to do anything to it (%s).,El coche de %s. Necesitas una herramienta para hacerle algo (%s).
 SECOPS_CAR_TITLE,Sabotage a car,Sabotear un coche
 SECOPS_CAR_BODY,%s's car. With your %s you can make it break down on the next drive in: tomorrow morning they'll be stuck in the garage and their office will stand empty.,El coche de %s. Con tu %s puedes hacer que se averíe en el próximo trayecto: mañana por la mañana se quedará atrapado en el garaje y su despacho estará vacío.
 SECOPS_CAR_GO,Sabotage it,Sabotearlo
@@ -3901,8 +3901,8 @@ SECOPS_PROMPT_FORCE,Force the lock,Forzar la cerradura
 SECOPS_LOCK_ALREADY,It's already unlocked.,Ya está abierta.
 SECOPS_LOCK_EMPTY,Already emptied today.,Ya lo has vaciado hoy.
 SECOPS_LOCK_UNLOCKED,Unlocked with your %s.,Abierta con tus %s.
-SECOPS_LOCK_NEED_KEY,Locked. Your keys don't fit — a lockpick or cutting tools would do it.,Cerrada. Tus llaves no entran: una ganzúa o herramientas de corte la abrirían.
-SECOPS_LOCK_NEED_TOOL,A heavy padlock: only cutting tools or a lockpick will get through.,Un candado pesado: solo herramientas de corte o una ganzúa pueden con él.
+SECOPS_LOCK_NEED_KEY,Locked. Your keys don't fit — one of these would do it: %s.,Cerrada. Tus llaves no entran; lo abriría alguna de estas: %s.
+SECOPS_LOCK_NEED_TOOL,A heavy padlock: only a tool gets through (%s).,Un candado pesado: solo pasa una herramienta (%s).
 SECOPS_FORCE_TITLE,Force it,Forzarla
 SECOPS_FORCE_BODY,Force it with your %s? It's noisy (heard up to %d m away) and leaves obvious damage behind.,¿Forzarla con tu %s? Hace ruido (se oye hasta a %d m) y deja daños evidentes.
 SECOPS_FORCE_BODY_ALARM,Force it with your %s? It's noisy (heard up to %d m away) — and this floor's NIGHT ALARM IS ARMED: it will go off and open an investigation.,¿Forzarla con tu %s? Hace ruido (se oye hasta a %d m) y la ALARMA NOCTURNA DE ESTA PLANTA ESTÁ ARMADA: saltará y abrirá una investigación.
@@ -4426,7 +4426,7 @@ TUT_NOTE_RESTRICTED,HR induction: %s (%s) is a restricted area.,Acogida de RR. H
 TUT_NOTE_KEYS,HR induction: your basic keys open %s (%s).,Acogida de RR. HH.: tus llaves básicas abren %s (%s).
 TUT_DAY_TITLE,Your first day,Tu primer día
 TUT_DAY_FROM,HR Onboarding. Please do not remove this note.,"Acogida de RR. HH. Por favor, no quites esta nota."
-TUT_TASK_EMAILS,Answer three emails in MAIL (%d/%d),Contesta tres correos en MAIL (%d/%d)
+TUT_TASK_EMAILS,"Answer the first 3 of today's emails in MAIL (%d/%d) — they count toward your duties","Contesta en MAIL los 3 primeros correos del día (%d/%d) — cuentan para tus deberes"
 TUT_TASK_EMAILS_HINT,"At your desk: %s, then MAIL. Three. Baby steps. The rest are due by %s.","En tu mesa: %s y luego MAIL. Tres. Pasito a pasito. El resto, antes de las %s."
 TUT_TASK_EMAILS_DONE,Three emails answered. Your onboarding dashboard turns a slightly warmer grey.,Tres correos contestados. Tu panel de acogida se vuelve de un gris ligeramente más cálido.
 TUT_TASK_IDEA,Watch how Claudia Reeves works,Observa cómo trabaja Claudia Reeves
@@ -4454,3 +4454,29 @@ TUT_SKIP_ALWAYS,"Skip it, and anything I have already seen from now on","Saltarl
 TUT_SKIPPED,HR marked your induction as completed. Nobody checks.,RR. HH. ha marcado tu acogida como completada. Nadie lo comprueba.
 TUT_TASK_IDEA_PROGRESS,Watching Claudia Reeves work (%d%%),Observando cómo trabaja Claudia Reeves (%d %%)
 TUT_TASK_IDEA_FOLLOW,She's telling %s something. Get close enough to hear it.,Le está contando algo a %s. Acércate lo bastante para oírlo.
+UI_INTERACT_FOOD_STEAL,Take someone's food (theft),Coger comida ajena (robo)
+UI_INTERACT_FOOD_FORBIDDEN,Help yourself (off-limits: theft),Servirse (zona vetada: robo)
+UI_INTERACT_DRAWER_RUMMAGE,Rummage through the drawer (not yours),Rebuscar en el cajón (no es tuyo)
+OFFICE_HOUSE_WITNESSED,Someone saw you: %s. Get out before this turns into a police matter.,Alguien te ha visto: %s. Sal antes de que esto acabe en la policía.
+OFFICE_ARCHIVE_MISPLACE_CONFIRM,"Make %s's orders disappear? Their figures will tank, and it is sabotage if anyone traces it.","¿Hacer desaparecer los pedidos de %s? Sus cifras se hundirán, y es sabotaje si alguien lo rastrea."
+OFFICE_ARCHIVE_MISPLACE_GO,Lose the orders,Perder los pedidos
+OFFICE_HR_PICK_BODY,"One folder, before anyone notices. Whose file do you pull?","Una carpeta, antes de que nadie se dé cuenta. ¿De quién sacas el expediente?"
+OFFICE_HR_NOBODY,You already have the full file of everyone worth reading here.,Ya tienes el expediente completo de todo el que merece la pena aquí.
+OFFICE_SUPPLIES_NO_BUYER,%s: nobody in the office would buy that from you. Not worth the risk.,%s: nadie en la oficina te lo compraría. No merece el riesgo.
+OFFICE_DESIGN_BROWSE,"Thirty-year-old sketches, half of them signed by %s. Nothing you could pass off as yours today.","Bocetos de hace treinta años, la mitad firmados por %s. Hoy nada que puedas hacer pasar por tuyo."
+OFFICE_FORGE_NO_USE,%s (no use for it yet),%s (aún no sirve para nada)
+OFFICE_CARD_DENIED_ACCESS,"Card refused: clearance N%d is fine, but this reader also wants a special access your post lacks.","Tarjeta rechazada: la acreditación N%d basta, pero este lector pide además un acceso especial que tu puesto no tiene."
+SECOPS_BLACKOUT_LEFT,Floor %s dark · power back in %d s,Planta %s a oscuras · la luz vuelve en %d s
+SECOPS_BLACKOUT_SOON,Floor %s goes dark in %d s,La planta %s se apaga en %d s
+SECOPS_SERVER_BODY_NO_TAPES,"%d digital traces point at you (copied files, chats, card logs). Deleting them is logged on this server. The backup tapes are wrecked today, so whatever you delete now stays deleted. %d card-reader entries in Security's access log can't be wiped from here, nor can A.S.S.I.S.T. usage.","%d rastros digitales apuntan a ti (archivos copiados, chats, registros de tarjeta). Borrarlos queda registrado en este servidor. Las cintas están destrozadas hoy: lo que borres ahora no vuelve. Las %d entradas de lector en el registro de accesos de Seguridad no se borran desde aquí, ni los usos de A.S.S.I.S.T."
+SECOPS_SERVER_CONFIRM_BODY_NO_TAPES,"Delete %d traces? The server will log this access. With the tapes wrecked, nothing brings them back.","¿Borrar %d rastros? El servidor registrará este acceso. Con las cintas destrozadas, nada los devolverá."
+SECOPS_SERVER_WIPED_FINAL,%d traces deleted for good. The server logged your access.,%d rastros borrados para siempre. El servidor ha registrado tu acceso.
+SECOPS_SERVER_ONLY_ACCESS,No deletable traces left — but %d card-reader entries in Security's access log still point at you.,"No quedan rastros borrables, pero %d entradas de lector en el registro de accesos de Seguridad aún apuntan a ti."
+SECOPS_SAFE_TITLE,Safe,Caja fuerte
+SECOPS_SAFE_CONFIRM_BODY,"Open the safe and take %s? It's theft, and the opening is logged.","¿Abrir la caja y llevarte %s? Es un robo, y la apertura queda registrada."
+SECOPS_SAFE_CONFIRM,Open it,Abrirla
+SECOPS_SAFE_TAKEN_CASH,Taken from the safe: %s — €%d in your pocket.,Sacas de la caja: %s. %d € al bolsillo.
+SECOPS_CEO_OPEN_BODY,Dial the combination and take the ownership documents? There's no going back after this.,¿Marcar la combinación y llevarte los documentos de propiedad? Después no hay vuelta atrás.
+SECOPS_CEO_OPEN_GO,Open it,Abrirla
+SECOPS_CEO_LOCKED_PLAIN,"A heavy combination safe. It isn't going anywhere, and neither are you — not without the combination.","Una caja de combinación pesada. No se va a mover, y tú tampoco la abrirás sin la combinación."
+SOCIAL_ELIM_ABORTED_RANGE,They stepped out of reach. You let it go.,Se ha alejado. Lo dejas estar.

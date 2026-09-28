@@ -149,6 +149,13 @@ static func _steal(item: Interactable, ctx: Dictionary, item_id: String) -> bool
 
 # ─── Carrito de limpieza ──────────────────────────────────────
 
+## Indicación del carrito: coger las llaves solo si siguen ahí y no las llevas ("" = la genérica).
+static func cart_prompt(item: Interactable) -> String:
+	var keys: String = SecurityKit.bs("carrito.llaves")
+	var gone: bool = int(SecurityKit.flag_dict(F_TAKEN).get(item.interact_id + "|" + keys, -1)) == SecurityKit.today()
+	return "" if gone or PlayerState.has_item(keys) else "SECOPS_PROMPT_MASTER_KEYS"
+
+
 static func use_cart(item: Interactable, player: Node, ctx: Dictionary) -> void:
 	var keys: String = SecurityKit.bs("carrito.llaves")
 	if PlayerState.has_item(keys):
@@ -183,7 +190,7 @@ static func use_rack(item: Interactable, player: Node, ctx: Dictionary) -> void:
 		return
 	var options: Array = []
 	for id: String in tools:
-		options.append({"text_key": "SECOPS_RACK_TAKE", "args": [SecurityKit.item_name(id)]})
+		options.append({"text_key": "SECOPS_RACK_TAKE", "args": [SecurityKit.item_name(id)], "danger": true})
 	options.append("UI_CANCEL")
 	var i: int = await SecurityKit.choose(ctx, "SECOPS_RACK_TITLE", "SECOPS_RACK_BODY", options)
 	if i < 0 or i >= tools.size() or not await SecurityKit.watched_ok(ctx, player):

@@ -23,6 +23,8 @@ signal footstep_taken(mode: String, radius: float)
 signal hiding_changed(hidden: bool)
 
 const MODE_STILL := "still"
+## Tipo de interactivo de un personaje (prioridad de foco sobre muebles).
+const NPC_INTERACT_TYPE := "npc"
 const MODE_WALK := "walk"
 const MODE_SNEAK := "sneak"
 const MODE_SPRINT := "sprint"
@@ -175,6 +177,8 @@ var _freeze_left: float = 0.0
 var _act: String = ""
 var _act_left: float = 0.0
 var _act_timed: bool = false
+## Blanco del acto (npc_id): su propia percepción no lo cuenta como testigo (p. ej. eliminar).
+var _act_target: String = ""
 var _anim: String = "idle"
 var _override_anim: String = ""
 var _frame: int = 0
@@ -290,12 +294,18 @@ func current_act() -> String:
 	return _act
 
 
+## npc_id del blanco del acto en curso ("" si ninguno). Perception lo ignora como observador.
+func current_act_target() -> String:
+	return _act_target
+
+
 ## Empieza un acto ilegal: inmoviliza al jugador y reproduce su animación. `seconds` <= 0 =
-## hasta end_act(). Moverse lo interrumpe (act_finished(crime_type, false)).
-func begin_act(crime_type: String, seconds: float) -> void:
+## hasta end_act(). Moverse lo interrumpe (act_finished(crime_type, false)). `target` = npc_id blanco.
+func begin_act(crime_type: String, seconds: float, target: String = "") -> void:
 	if not _act.is_empty():
 		_finish_act(false)
 	_act = crime_type
+	_act_target = target
 	_act_timed = seconds > 0.0
 	_act_left = seconds
 	velocity = Vector2.ZERO
@@ -662,17 +672,27 @@ func _pick_focus() -> Node2D:
 	var here: String = _current_room()
 	var best: Node2D = null
 	var best_d: float = INF
+	var best_npc: bool = false
 	for node: Node in get_tree().get_nodes_in_group(INTERACTABLE_GROUP):
 		var item: Node2D = node as Node2D
 		if item == null:
 			continue
+		# Un personaje al alcance gana siempre (E para hablar nunca fuerza un cajón por accidente).
+		var is_npc: bool = _is_npc_item(item)
 		var d: float = global_position.distance_to(item.global_position)
-		if d >= best_d or d > _reach_of(item) or not _is_available(item):
+		if (best_npc and not is_npc) or (d >= best_d and is_npc == best_npc):
 			continue
-		if _no_wall_between(item, here):
-			best = item
-			best_d = d
+		if d > _reach_of(item) or not _is_available(item) or not _no_wall_between(item, here):
+			continue
+		best = item
+		best_d = d
+		best_npc = is_npc
 	return best
+
+
+func _is_npc_item(item: Node2D) -> bool:
+	var interactable: Interactable = item as Interactable
+	return interactable != null and interactable.interact_type == NPC_INTERACT_TYPE
 
 
 func _is_available(item: Node2D) -> bool:
@@ -777,6 +797,7 @@ func _finish_act(completed: bool) -> void:
 		return
 	var crime: String = _act
 	_act = ""
+	_act_target = ""
 	_act_timed = false
 	_act_left = 0.0
 	if _override_anim != "caught":

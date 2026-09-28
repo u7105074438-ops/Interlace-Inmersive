@@ -22,6 +22,8 @@ const B_CHAT_LINES := "oficina.cafe.frases"
 const B_FOOD_LUXURY := "oficina.comida.objeto_lujo"
 const B_FOOD_BASIC := "oficina.comida.objeto_basico"
 const B_VENDING := "oficina.comida.objeto_maquina"
+const B_MEALS := "hogar.comidas"
+const B_MEAL_PRICE := "oficina.comida.precio_comida"
 const B_MIDDAY := "oficina.comida.hora_cambio_comida"
 const CONTACT_PROXIMITY := "proximity"
 const TELL := "tell_colleague"
@@ -33,6 +35,10 @@ const MEAL_BREAKFAST := "breakfast"
 const MEAL_DINNER := "dinner"
 const MEASURES_DISCONTENT := "discontent"
 const TARGETS_INVESTORS := "investors"
+const TARGETS_BUYERS := "buyers"
+const TARGETS_VISITORS := "arrivals_and_visitors"
+const TARGETS_BOARD := "board_members_before_sessions"
+const TARGETS_TOP := "top_management"
 const CHAT_LINE_FORMAT := "OFFICE_CHAT_LINE_%d"
 const REASON_FOOD := "food"
 
@@ -55,9 +61,9 @@ static func use_coffee(item: Interactable, player: Node, ctx: Dictionary) -> voi
 		OfficeKit.mark_today(key)
 	var text: String = OfficeKit.tr_key(CHAT_LINE_FORMAT % line) % name
 	if PlayerState.add_contact(partner, CONTACT_PROXIMITY):
-		OfficeKit.good(ctx, "OFFICE_COFFEE_CONTACT", [text, name], OfficeKit.SFX_CHAT)
+		OfficeKit.good(ctx, "OFFICE_COFFEE_CONTACT", [text, name], OfficeKit.SFX_OK)
 		return
-	OfficeKit.good(ctx, "OFFICE_COFFEE_CHAT", [text], OfficeKit.SFX_CHAT)
+	OfficeKit.good(ctx, "OFFICE_COFFEE_CHAT", [text], OfficeKit.SFX_OK)
 
 
 ## El personaje activo más cercano en la misma sala y dentro del radio de charla ("" si nadie).
@@ -112,8 +118,13 @@ static func eavesdrop_lines(item: Interactable) -> Array[String]:
 	var out: Array[String] = []
 	if str(item.data.get("measures", "")) == MEASURES_DISCONTENT:
 		out.append(OfficeKit.tr_key("OFFICE_EAVESDROP_DISCONTENT") % [Company.get_discontent(), Company.get_strike_threshold()])
-	if str(item.data.get("targets", "")) == TARGETS_INVESTORS:
-		out.append_array(OfficeInfo.investor_lines())
+	match str(item.data.get("targets", "")):
+		TARGETS_INVESTORS:
+			out.append_array(OfficeInfo.investor_lines())
+		TARGETS_BUYERS, TARGETS_VISITORS:
+			out.append_array(OfficeInfo.buyer_lines())
+		TARGETS_BOARD, TARGETS_TOP:
+			out.append(OfficeInfo.meeting_line())
 	var gossip: String = OfficeInfo.gossip_line(item.room_id, "gossip." + item.interact_id)
 	if not gossip.is_empty():
 		out.append(gossip)
@@ -128,7 +139,7 @@ static func use_vending(item: Interactable, _player: Node, ctx: Dictionary) -> v
 	if sells.size() > 1:
 		var labels: Array = []
 		for raw: Variant in sells:
-			labels.append({"text_key": "OFFICE_BUY_ITEM", "args": [OfficeKit.item_name(str(raw)), OfficeKit.item_value(str(raw))]})
+			labels.append({"text_key": "OFFICE_BUY_ITEM", "args": [OfficeKit.item_name(str(raw)), price_of(str(raw))]})
 		labels.append("OFFICE_CLOSE")
 		var index: int = await OfficeKit.choose(ctx, "OFFICE_VENDING_TITLE", "OFFICE_VENDING_BODY", labels)
 		if index < 0 or index >= sells.size():
@@ -139,7 +150,7 @@ static func use_vending(item: Interactable, _player: Node, ctx: Dictionary) -> v
 
 ## Compra una unidad al valor del objeto. true si se compró.
 static func buy(item_id: String, minutes_kind: String, ctx: Dictionary) -> bool:
-	var price: int = OfficeKit.item_value(item_id)
+	var price: int = price_of(item_id)
 	if not OfficeKit.can_take(item_id):
 		OfficeKit.refuse(ctx, "OFFICE_INVENTORY_FULL", [OfficeKit.item_name(item_id)])
 		return false
@@ -150,6 +161,16 @@ static func buy(item_id: String, minutes_kind: String, ctx: Dictionary) -> bool:
 	OfficeKit.spend_minutes(minutes_kind)
 	OfficeKit.good(ctx, "OFFICE_BOUGHT", [OfficeKit.item_name(item_id), price], OfficeKit.SFX_CASH)
 	return true
+
+
+## Lo que sirve de cena (hogar.comidas.dinner) cuesta al menos una cena (oficina.comida.precio_comida,
+## §6.5): comprar en la máquina no abarata el margen diario.
+static func price_of(item_id: String) -> int:
+	var price: int = OfficeKit.item_value(item_id)
+	var dinner: Variant = (Database.get_balance(B_MEALS) as Dictionary).get(MEAL_DINNER, [])
+	if dinner is Array and (dinner as Array).has(item_id):
+		price = maxi(price, Database.get_balance_int(B_MEAL_PRICE))
+	return price
 
 
 # ─── Comida ───────────────────────────────────────────────────

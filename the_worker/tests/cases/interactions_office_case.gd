@@ -41,6 +41,8 @@ func run_case() -> void:
 	await _test_npc_computer()
 	await _test_drawer()
 	await _test_watched_abort()
+	await _test_break_room()
+	_test_generated_owners()
 	await _test_archives()
 	await _test_personnel()
 	await _test_supplies_and_mail()
@@ -48,7 +50,6 @@ func run_case() -> void:
 	await _test_fraud_terminals()
 	await _test_press()
 	await _test_trading_campaign_forgery()
-	await _test_break_room()
 	await _test_food()
 	await _cleanup()
 
@@ -187,8 +188,10 @@ func _test_router_claims() -> void:
 	check_eq(InteractionRouter.prompt_key_for(_find_real(OFFICE, "desk")), "UI_INTERACT_OWN_DESK_MENU", "prompt: the 3B desk with keys and a stash says so")
 	var other: Interactable = _probe("desk", "wing_4a", {})
 	check_eq(InteractionRouter.prompt_key_for(other), "UI_INTERACT_EXAMINE", "prompt: another desk only promises a look")
-	check_eq(InteractionRouter.prompt_key_for(_probe("lunch_counter", "exec_dining", {"free": true})), "UI_INTERACT_FREE_FOOD",
-			"prompt: a free buffet says help yourself")
+	check_eq(InteractionRouter.prompt_key_for(_probe("lunch_counter", "exec_dining", {"free": true})), "UI_INTERACT_FOOD_FORBIDDEN",
+			"prompt: an off-limits free buffet warns that taking food is theft")
+	check_eq(InteractionRouter.prompt_key_for(_probe("food_fridge", "p3_pantry", {"communal": true})), "UI_INTERACT_FOOD_STEAL",
+			"prompt: someone else's fridge says it is theft")
 	check_eq(InteractionRouter.prompt_key_for(_probe("food_fridge", "player_flat", {"owner": "player"})), "UI_INTERACT_EAT_HOME",
 			"prompt: the flat's fridge says eat something")
 	check(TranslationServer.translate("UI_INTERACT_WHITEBOARD") != "UI_INTERACT_WHITEBOARD", "prompt: whiteboards have their own text")
@@ -330,13 +333,17 @@ func _test_archives() -> void:
 	check(not OfficeLoot.archive_is_legal(audit), "archive: Internal Audit's files are not an R1's business")
 	await _use(audit, [0])
 	check(_acts.has("drawer_forced") and not _crime("drawer_forced").is_empty(), "archive: rifling a foreign archive is drawer_forced")
-	check(PlayerState.is_carrying("incident_history"), "archive: its documents can be taken")
+	check(PlayerState.is_carrying("incident_history") and _acts.has("theft_small"), "archive: its documents can be taken (a theft act)")
 	_drop_all("incident_history")
 	var target: String = "npc_george_penn"
 	PlayerState.mark_target(target)
 	var rep: float = NPCDirector.get_npc_reputation(target)
 	var orders: Interactable = _probe("archive_files", "orders_archive", {"documents": "orders", "can_misplace": true})
+	_reset_signals()
 	await _use(orders, [0, 0])
+	check(_crime("sabotage").is_empty() and NPCDirector.get_npc_reputation(target) == rep, "archive: without confirming, nothing is misplaced")
+	await _use(orders, [0, 0, 1])
+	check(_acts.has("sabotage"), "archive: misplacing orders is a visible sabotage act")
 	check(not _crime("sabotage").is_empty() and str(_crime("sabotage")["details"].get("target", "")) == target,
 			"archive: misplacing a marked target's orders is sabotage against them")
 	check(NPCDirector.get_npc_reputation(target) < rep, "archive: their reputation drops (%.1f → %.1f)" % [rep, NPCDirector.get_npc_reputation(target)])
@@ -383,17 +390,21 @@ func _test_supplies_and_mail() -> void:
 	check(not theft.is_empty() and int(theft["details"].get("value", 0)) == 35 and int(theft["details"].get("company_loss", 0)) == 35,
 			"supplies: theft_small with value and company loss 35 €")
 	await _use(_probe("supply_shelf", "office_supplies", {"items": ["office_supplies"], "resale_value": 35}))
-	check(_saw_toast("OFFICE_SUPPLIES_DONE_TODAY"), "supplies: one share per room and day")
+	check(_saw_toast("OFFICE_SUPPLIES_DONE_TODAY"), "supplies: one share per day")
 	await _use(_probe("supply_shelf", "p3_copyroom", {"items": ["office_supplies"], "resale_value": 5}))
-	check(PlayerState.is_carrying("paper"), "supplies: a cheap copy-room shelf gives paper")
+	check(_saw_toast("OFFICE_SUPPLIES_DONE_TODAY") and not PlayerState.is_carrying("paper"), "supplies: the daily share is global, not per room")
+	_reset_signals()
+	await _use(_probe("supply_shelf", "general_warehouse", {"items": ["exotic_leather"], "resale_value": 400}))
+	check(_saw_toast("OFFICE_SUPPLIES_NO_BUYER") and _crime("theft_small").is_empty() and not PlayerState.is_carrying("exotic_leather"),
+			"supplies: nothing without a buyer is taken (no crime)")
 	var money: int = PlayerState.get_money()
 	var mail: Interactable = _probe("mail_sorting", "mail_office", {"intercept": true})
 	await _use(mail, [1])
-	check_eq(PlayerState.get_money() - money, 40, "mail: posting the stolen supplies sells them (+40 €)")
+	check_eq(PlayerState.get_money() - money, 35, "mail: posting the stolen supplies sells them (+35 €)")
 	check(not PlayerState.is_carrying("office_supplies") and not PlayerState.is_carrying("paper"), "mail: the sold items are gone")
 	_reset_signals()
 	await _use(mail, [0])
-	check(_acts.has("theft_small"), "mail: going through the envelopes is a visible theft act")
+	check(_acts.has("theft_small") and not _crime("theft_small").is_empty(), "mail: going through the envelopes is a theft act and a crime")
 	await _use(mail)
 	check(_saw_toast("OFFICE_MAIL_DONE_TODAY"), "mail: nothing more to open today")
 
@@ -460,7 +471,9 @@ func _test_fraud_terminals() -> void:
 	check(_saw_toast("OFFICE_FRAUD_TOO_SOON"), "payroll: not again until the cooldown passes")
 	PlayerState.set_occupation("junior_accountant", "qa")
 	var ledger: Interactable = _probe("accounting_terminal", "accounting", {"action": ["falsify_entries", "detect_fraud"]})
-	check_eq(str(OfficeTerminals.fraud_actions(ledger)), str(["falsify_entries", "detect_fraud"]), "accounting: the junior accountant can falsify and detect")
+	check(OfficeTerminals.fraud_actions(ledger).is_empty(), "accounting: the junior accountant neither falsifies nor detects (§23 #22)")
+	PlayerState.set_occupation("senior_accountant", "qa")
+	check_eq(str(OfficeTerminals.fraud_actions(ledger)), str(["falsify_entries", "detect_fraud"]), "accounting: the senior accountant can falsify and detect")
 	await _use(ledger, [1])
 	check(_saw_toast("OFFICE_FRAUD_FOUND") or _saw_toast("OFFICE_FRAUD_CLEAN_BOOKS"), "accounting: looking for others' fraud answers")
 	_drop_all("blackmail_file")
@@ -473,6 +486,8 @@ func _test_press() -> void:
 	var pr: Interactable = _probe("press_terminal", "public_relations", {"actions": ["bury_news", "fabricate_scandal"]})
 	await _use(pr)
 	check(_saw_toast("OFFICE_PRESS_NO_ACCESS"), "press: an R1 cannot publish")
+	await _use(_probe("press_terminal", "press_room", {"action": "leak_story"}))
+	check(_saw_toast("OFFICE_PRESS_NO_ACCESS"), "press: an R1 cannot leak a scandal either (§23 #40)")
 	PlayerState.set_occupation("comms_director", "qa")
 	var news_id: String = NewsFeed.publish("NEWS_INVESTIGATION_OPENED", -0.08, true)
 	await _use(pr, [0, _bury_index(news_id)])
@@ -514,39 +529,46 @@ func _test_trading_campaign_forgery() -> void:
 	await _use(_probe("forgery_station", "graphic_design", {"produces": ["forged_authorization", "forged_official_document"]}))
 	check(_saw_toast("OFFICE_FORGE_NO_STAMP"), "forgery: without a stamp nothing is forged")
 	PlayerState.set_occupation(INITIAL, "qa")
+	check(bool(OfficeLoot.forge_label("forged_official_document").get("disabled", false)),
+			"forgery: a document nothing accepts yet is shown disabled")
 	_reset_signals()
-	await _use(_probe("forgery_station", "graphic_design", {"produces": ["forged_authorization", "forged_official_document"]}), [1, 1])
-	check(PlayerState.is_carrying("forged_official_document") and not _crime("forgery").is_empty() and _acts.has("forgery"),
-			"forgery: with the desk stamp, a forged document (act + forgery crime)")
-	_drop_all("forged_official_document")
-	_reset_signals()
-	var archive: Interactable = _probe("design_archive", "historic_designs_archive", {"decades_old": 3})
-	await _use(archive)
-	var copy: ItemData = _carried("idea_copy")
-	check(copy != null and bool(copy.extra.get("historic_design", false)) and _acts.has("idea_stolen"), "design: an old design copied (act idea_stolen)")
-	await _use(archive)
-	check(_saw_toast("OFFICE_DESIGN_DONE_TODAY"), "design: once a day")
-	_drop_all("idea_copy")
+	await _use(_probe("design_archive", "historic_designs_archive", {"decades_old": 3}))
+	check(_saw_toast("OFFICE_DESIGN_BROWSE") and _acts.is_empty() and _crime("idea_stolen").is_empty() and _carried("idea_copy") == null,
+			"design: without a way to present it, the archive is only browsed (no risk, no useless item)")
 
 
 # ─── Café y escuchas ──────────────────────────────────────────
 
 func _test_break_room() -> void:
 	var colleague: NPCNode = _colleague_in(OFFICE)
-	if colleague != null:
-		_game.player.global_position = colleague.global_position + Vector2(RoomBuilder.cell_px(), 0.0)
-		var affection: int = NPCDirector.get_affection(colleague.npc_id)
-		var coffee: Interactable = _probe("water_cooler", OFFICE, {})
-		await _use(coffee)
-		check(NPCDirector.get_affection(colleague.npc_id) > affection, "coffee: a chat warms the colleague up")
-		check(PlayerState.has_contact(colleague.npc_id), "coffee: and gets you their number")
-		await _test_overhear(colleague)
+	check(colleague != null, "coffee: precondition — a colleague is in wing 3B (before any floor change)")
+	if colleague == null:
+		return
+	_game.player.global_position = colleague.global_position + Vector2(RoomBuilder.cell_px(), 0.0)
+	var affection: int = NPCDirector.get_affection(colleague.npc_id)
+	await _use(_probe("water_cooler", OFFICE, {}))
+	check(NPCDirector.get_affection(colleague.npc_id) > affection, "coffee: a chat warms the colleague up")
+	check(PlayerState.has_contact(colleague.npc_id), "coffee: and gets you their number")
+	await _test_overhear(colleague)
 	var minutes: float = GameClock.get_total_minutes()
 	await _use(_probe("coffee_machine_use", "p3_copyroom", {}))
 	check(_saw_toast("OFFICE_COFFEE_ALONE") and GameClock.get_total_minutes() - minutes >= Database.get_balance_float("oficina.minutos.cafe") - EPS,
 			"coffee: alone it is just a coffee break (minutes pass)")
 	var huddle: Interactable = _probe("eavesdrop_point", "factory_break_room", {"measures": "discontent"})
 	check_eq(await _use(huddle), 1, "eavesdrop: the factory huddle reveals the discontent level")
+
+
+## "generated" furniture: one owner per object, never the same NPC for two computers (§11.1).
+func _test_generated_owners() -> void:
+	var owners: Array[String] = []
+	for id: String in ["designer_pc_1", "designer_pc_2", "designer_pc_3"]:
+		var pc: Interactable = Interactable.new()
+		pc.setup(id, "npc_computer", "shoe_design_studio", {"owner": "generated"}, RoomBuilder.cell_px(), Vector2.ZERO)
+		var owner: String = OfficeKit.owner_of(pc)
+		pc.free()
+		if not owner.is_empty() and not owners.has(owner):
+			owners.append(owner)
+	check_eq(owners.size(), 3, "owners: three generated PCs in the studio have three different owners %s" % str(owners))
 
 
 func _test_overhear(owner_node: NPCNode) -> void:
@@ -569,8 +591,8 @@ func _test_overhear(owner_node: NPCNode) -> void:
 func _test_food() -> void:
 	var money: int = PlayerState.get_money()
 	await _use(_probe("vending", "foosball_room", {"sells": ["food_basic"]}))
-	check(PlayerState.is_carrying("food_basic") and money - PlayerState.get_money() == OfficeKit.item_value("food_basic"),
-			"vending: buys a meal at its price")
+	check(PlayerState.is_carrying("food_basic") and money - PlayerState.get_money() == Database.get_balance_int("oficina.comida.precio_comida"),
+			"vending: a meal costs what a dinner costs (§6.5)")
 	_drop_all("food_basic")
 	_reset_signals()
 	await _use(_probe("food_fridge", "p3_pantry", {"contains": ["food_basic"], "communal": true}))
@@ -584,7 +606,7 @@ func _test_food() -> void:
 	_drop_all("food_premium")
 	money = PlayerState.get_money()
 	await _use(_probe("lunch_counter", "cafeteria", {"sells": ["food_basic"], "paid": true}))
-	check(money - PlayerState.get_money() == OfficeKit.item_value("food_basic"), "lunch counter: pays for the meal")
+	check(money - PlayerState.get_money() == OfficeBreak.price_of("food_basic"), "lunch counter: pays for the meal")
 	_drop_all("food_basic")
 	var home: HomeCycle = _game.sim_nodes["HomeCycle"] as HomeCycle
 	var meal: String = "breakfast" if GameClock.get_hour() < Database.get_balance_int("oficina.comida.hora_cambio_comida") else "dinner"

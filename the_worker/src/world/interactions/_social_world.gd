@@ -19,6 +19,8 @@ const FADE_NAME := "SocialFade"
 const LOCK_OWNER := "social_scene"
 ## Suelo técnico de un acto en QA (un acto de 0 s sería «hasta end_act()» en Player.begin_act).
 const QA_ACT_SECONDS := 0.01
+const NOISE_SOURCE := "elimination"
+const MSEC := 1000.0
 
 
 static func npc_node(tree: SceneTree, npc_id: String) -> NPCNode:
@@ -130,34 +132,31 @@ static func _fade(tree: SceneTree, rect: ColorRect, alpha: float) -> void:
 	await tween.finished
 
 
-## Acto visible de la eliminación: cualquiera que entre puede pillarlo (flagrancia), salvo la
-## propia víctima, que es el blanco y no un testigo (su percepción calla mientras dura; ver
-## REQUESTS: Perception debería ignorar al objetivo de un acto). true si se completó quieto.
+## Acto visible de la eliminación: cualquiera que entre puede pillarlo (flagrancia) y hace ruido
+## (noise_emitted al empezar y cada eliminar.intervalo_ruido_segundos, radio eliminar.radio_ruido_celdas):
+## quien esté en la sala de al lado lo oye. La víctima es el blanco del acto (Player.begin_act target):
+## su Perception la ignora como testigo. true si se completó quieto.
 static func act(player: Node, seconds: float, victim_id: String) -> bool:
-	if player == null or not player.has_method("begin_act") or not player.is_inside_tree():
+	if not player is Node2D or not player.has_method("begin_act") or not player.is_inside_tree():
 		return true
 	var tree: SceneTree = player.get_tree()
 	var state: Dictionary = {"done": false, "ok": false}
 	var on_done: Callable = func(_crime: String, ok: bool) -> void:
 		state["done"] = true
 		state["ok"] = ok
-	_mute_victim(tree, victim_id, true)
-	player.call("begin_act", SocialRules.CRIME_ELIMINATION, QA_ACT_SECONDS if SocialKit.qa_instant else seconds)
+	player.call("begin_act", SocialRules.CRIME_ELIMINATION, QA_ACT_SECONDS if SocialKit.qa_instant else seconds, victim_id)
 	player.connect("act_finished", on_done, CONNECT_ONE_SHOT)
+	var interval_ms: int = int(SocialKit.bf("eliminar.intervalo_ruido_segundos") * MSEC)
+	var last: int = Time.get_ticks_msec()
+	_noise(player as Node2D)
 	while not bool(state["done"]) and is_instance_valid(player):
-		_mute_victim(tree, victim_id, false)
 		await tree.process_frame
-	var node: NPCNode = npc_node(tree, victim_id)
-	if node != null and node.perception != null:
-		node.perception.set_active(node.lod == NPCRuntime.LOD_FULL)
+		if not bool(state["done"]) and Time.get_ticks_msec() - last >= interval_ms:
+			last = Time.get_ticks_msec()
+			_noise(player as Node2D)
 	return bool(state["ok"])
 
 
-## La víctima no se cuenta como testigo de su propia eliminación (la capa la reactiva al sincronizar).
-static func _mute_victim(tree: SceneTree, victim_id: String, reset: bool) -> void:
-	var node: NPCNode = npc_node(tree, victim_id)
-	if node == null or node.perception == null:
-		return
-	if reset:
-		node.perception.reset_contact()
-	node.perception.set_active(false)
+static func _noise(player: Node2D) -> void:
+	if is_instance_valid(player):
+		EventBus.noise_emitted.emit(player.global_position, SocialKit.bf("eliminar.radio_ruido_celdas"), NOISE_SOURCE)

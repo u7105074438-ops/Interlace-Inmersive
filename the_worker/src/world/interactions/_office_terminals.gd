@@ -14,16 +14,19 @@ extends RefCounted
 ##   tu departamento con las manos sucias → blackmail_file suyo (legal: es tu trabajo).
 ## · Prensa (§23 comms_director, §9.9): enterrar noticias (NewsFeed.bury), fabricar un escándalo
 ##   ajeno (NewsFeed.fabricate: emite "framing"), pieza favorable (fabricate("company")), filtrar a
-##   periodistas. Puestos en oficina.prensa.<acción>.puestos (vacío = cualquiera que llegue); también
-##   vale si el Director de Comunicación te debe un favor (soborno: consume una unidad de deuda).
+##   periodistas (leak_story: el mismo escándalo, exclusivo del Director de Comunicación, §23 #40).
+##   Puestos en oficina.prensa.<acción>.puestos (vacío = cualquiera que llegue); también vale si
+##   el Director de Comunicación te debe un favor (soborno: consume una unidad de deuda).
 ## · Bolsa: cotización; "trade" abre MARKET si tu rango lo permite (Market.can_trade); los de
 ##   early_visibility enseñan las notas de prensa programadas.
-## · Campañas (§23 marketing): autoelogio una vez al día; reputación (+marca, eje silk) o, con
-##   oficina.campana.prob_fracaso, un fracaso público que la resta.
+## · Campañas (§23 marketing): autoelogio una vez al día; reputación × oficina.campana.escala_por_puesto
+##   (el director de A10 a escala industrial) (+marca, eje silk) o, con prob_fracaso, un fracaso
+##   público que la resta.
 ## · Fotocopiadora (§23 copy_operator: «visibilidad de todo documento reproducido»): el operario
 ##   lee oficina.copiadora.avisos_operario líneas de información temprana cuando quiera; el resto,
 ##   avisos_otros una vez al día por sala (copias sobrantes).
 
+const B_FRAUD_DELAY := "creencias.registros_por_delito.fraud.retardo_dias"
 const B_TERMINAL_ACTIONS := "oficina.terminales."
 const B_FRAUD := "oficina.fraudes."
 const B_PRESS := "oficina.prensa."
@@ -116,7 +119,7 @@ static func run_fraud(action: String, room: String, player: Node, ctx: Dictionar
 		OfficeKit.refuse(ctx, "OFFICE_FRAUD_TOO_SOON", [wait])
 		return 0
 	if not await OfficeKit.confirm(ctx, "OFFICE_TERMINAL_TITLE", "OFFICE_FRAUD_CONFIRM", "OFFICE_FRAUD_GO",
-			[OfficeKit.tr_key(label(action))]):
+			[OfficeKit.tr_key(label(action)), Database.get_balance_int(B_FRAUD_DELAY)]):
 		return 0
 	if not await OfficeKit.run_act(ctx, player, CRIME_FRAUD, "fraude"):
 		return 0
@@ -136,11 +139,14 @@ static func detect_fraud(room: String, player: Node, ctx: Dictionary) -> String:
 	if OfficeKit.days_since("fraud." + DETECT_FRAUD) < int(s.get("enfriamiento_dias", 0)):
 		OfficeKit.refuse(ctx, "OFFICE_FRAUD_TOO_SOON", [int(s.get("enfriamiento_dias", 0)) - OfficeKit.days_since("fraud." + DETECT_FRAUD)])
 		return ""
+	if not OfficeKit.can_take("blackmail_file"):
+		OfficeKit.refuse(ctx, "OFFICE_INVENTORY_FULL", [OfficeKit.item_name("blackmail_file")])
+		return ""
 	OfficeKit.play(player, "type_intense")
 	OfficeKit.spend_minutes("fraude")
 	OfficeKit.mark_today("fraud." + DETECT_FRAUD)
 	var target: String = _dirty_superior()
-	if target.is_empty() or not OfficeKit.can_take("blackmail_file"):
+	if target.is_empty():
 		OfficeKit.say(ctx, "OFFICE_FRAUD_CLEAN_BOOKS")
 		return ""
 	PlayerState.add_item_data(OfficeKit.item_copy("blackmail_file", {"npc_id": target, "kind": "fraud", "stackable": false}))
@@ -302,8 +308,10 @@ static func use_campaign(_item: Interactable, player: Node, ctx: Dictionary) -> 
 		PlayerState.modify_reputation(Database.get_balance_float(B_CAMPAIGN + "reputacion_fracaso"), "campaign_flop")
 		OfficeKit.refuse(ctx, "OFFICE_CAMPAIGN_FLOP")
 		return
-	PlayerState.modify_reputation(Database.get_balance_float(B_CAMPAIGN + "reputacion"), "self_promotion")
-	Company.modify_brand_strength(Database.get_balance_float(B_CAMPAIGN + "marca"))
+	var scale: float = float((Database.get_balance(B_CAMPAIGN + "escala_por_puesto") as Dictionary).get(
+			PlayerState.get_occupation_id(), 1.0))
+	PlayerState.modify_reputation(Database.get_balance_float(B_CAMPAIGN + "reputacion") * scale, "self_promotion")
+	Company.modify_brand_strength(Database.get_balance_float(B_CAMPAIGN + "marca") * scale)
 	PlayerState.add_tracking(AXIS_SILK, 1)
 	OfficeKit.good(ctx, "OFFICE_CAMPAIGN_DONE")
 

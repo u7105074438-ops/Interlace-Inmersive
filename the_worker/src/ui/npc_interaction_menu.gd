@@ -548,9 +548,9 @@ func _eliminate() -> void:
 	if _finish_if_closed():
 		return
 	_env = SocialWorld.exposure(_player, npc_id)
-	if not done or not SocialRules.can_eliminate(_env) or not NPCDirector.is_active(npc_id):
+	if not done or not SocialRules.can_eliminate(_env) or not SocialWorld.in_range(_player, npc_id):
 		_busy = false
-		close("SOCIAL_ELIM_INTERRUPTED" if not done else "SOCIAL_ELIM_ABORTED_WITNESS")
+		close(_elim_abort_key(done))
 		return
 	var outcome: Dictionary = {}
 	var env: Dictionary = _env
@@ -561,6 +561,15 @@ func _eliminate() -> void:
 	if not _finish_if_closed():
 		_busy = false
 		close()
+
+
+## Por qué se aborta la eliminación tras el acto: se movió, hay testigos o la víctima se fue.
+func _elim_abort_key(done: bool) -> String:
+	if not done:
+		return "SOCIAL_ELIM_INTERRUPTED"
+	if not SocialRules.can_eliminate(_env):
+		return "SOCIAL_ELIM_ABORTED_WITNESS"
+	return "SOCIAL_ELIM_ABORTED_RANGE"
 
 
 # ─── Vigilancia continua ──────────────────────────────────────

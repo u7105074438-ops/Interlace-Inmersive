@@ -120,7 +120,16 @@ func _chute(keeper: SecurityKeeper, victim: String, crates: Interactable) -> voi
 func _forcing() -> void:
 	PlayerState.add_item("lockpick")
 	await _go("old_confidential_cage")
-	var lock: Interactable = _find_id("old_confidential_cage", "cage_padlock")
+	var inner: Interactable = _find_id("old_confidential_cage", "cage_padlock")
+	var door: Door = _game.streamer.get_door_by_id(str(inner.data.get("door_id", "")))
+	var outside: String = door.room_b if door.room_a == "old_confidential_cage" else door.room_a
+	await _go(outside)
+	var lock: Interactable = null
+	for node: Node in get_tree().get_nodes_in_group(SecurityKeeper.NODES_GROUP):
+		var item: Interactable = node as Interactable
+		if item != null and item.interact_type == "lock_old" and item.room_id == outside and str(item.data.get("door_id", "")) == door.door_id:
+			lock = item
+	_log("cage: forcing from outside (%s)" % outside)
 	await _use(lock)
 	await _wait_until(func() -> bool: return _game.ui.get_top_modal() is DialogBox, WAIT_TIMEOUT)
 	await _pilot.shot("secops_10_force_confirm")
