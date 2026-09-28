@@ -117,7 +117,36 @@ func _meters_column() -> VBoxContainer:
 		var ok: Label = _label(UITheme.trf("DAYSUM_ALL_DUTIES_MET"), UITheme.V_SMALL)
 		ok.add_theme_color_override("font_color", UITheme.color("gain"))
 		col.add_child(ok)
+	else:
+		col.add_child(_failure_warning())
+	for change: Variant in _summary.get("occupation_changes", []):
+		if change is Dictionary:
+			col.add_child(_occupation_row(change))
 	return col
+
+
+## §4.4: jornadas seguidas con fallos frente al umbral de descenso (deberes.fallos_para_descenso).
+func _failure_warning() -> Label:
+	var limit: int = Database.get_balance_int("deberes.fallos_para_descenso")
+	var streak: int = maxi(PlayerState.get_consecutive_failures(), 1)
+	var label: Label = _label(UITheme.trf("DAYSUM_FAILURE_STREAK", [mini(streak, limit), limit]),
+			UITheme.V_SMALL)
+	label.add_theme_color_override("font_color", UITheme.color("loss"))
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return label
+
+
+## §4.4/§6.1: el cambio de puesto de la jornada (descenso o ascenso) se nombra en el resumen.
+func _occupation_row(change: Dictionary) -> Label:
+	var from_occ: OccupationData = Database.get_occupation(str(change.get("from", "")))
+	var to_occ: OccupationData = Database.get_occupation(str(change.get("to", "")))
+	var down: bool = from_occ != null and to_occ != null and to_occ.rank < from_occ.rank
+	var to_name: String = UITheme.trf(to_occ.name_key) if to_occ != null else str(change.get("to", ""))
+	var label: Label = _label(UITheme.trf("DAYSUM_DEMOTED" if down else "DAYSUM_PROMOTED", [to_name]),
+			UITheme.V_STRONG)
+	label.add_theme_color_override("font_color", UITheme.color("loss" if down else "gain"))
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return label
 
 
 func _add_money_lines(col: VBoxContainer, lines: Array, positive: bool) -> void:

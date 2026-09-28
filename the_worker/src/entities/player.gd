@@ -672,22 +672,36 @@ func _pick_focus() -> Node2D:
 	var here: String = _current_room()
 	var best: Node2D = null
 	var best_d: float = INF
-	var best_npc: bool = false
+	var best_tier: int = -1
 	for node: Node in get_tree().get_nodes_in_group(INTERACTABLE_GROUP):
 		var item: Node2D = node as Node2D
 		if item == null:
 			continue
-		# Un personaje al alcance gana siempre (E para hablar nunca fuerza un cajón por accidente).
-		var is_npc: bool = _is_npc_item(item)
+		# Prioridad: trayecto (salida, torniquete, ascensor…) > personaje > resto. Un personaje gana
+		# a cajones y objetos (E para hablar nunca fuerza un cajón por accidente), pero la multitud
+		# de la hora punta no tapa la puerta (§5.6): quien está en la salida sale.
+		var tier: int = _focus_tier(item)
 		var d: float = global_position.distance_to(item.global_position)
-		if (best_npc and not is_npc) or (d >= best_d and is_npc == best_npc):
+		if tier < best_tier or (tier == best_tier and d >= best_d):
 			continue
 		if d > _reach_of(item) or not _is_available(item) or not _no_wall_between(item, here):
 			continue
 		best = item
 		best_d = d
-		best_npc = is_npc
+		best_tier = tier
 	return best
+
+
+func _focus_tier(item: Node2D) -> int:
+	var interactable: Interactable = item as Interactable
+	if interactable == null:
+		return 0
+	if interactable.interact_type == FloorTravel.COMMUTE_TYPE \
+			or (FloorTravel.TYPE_KINDS.has(interactable.interact_type)
+				and not FloorTravel.ACT_KINDS.has(FloorTravel.kind_of(interactable))) \
+			or interactable.interact_type.contains("turnstile"):
+		return 2
+	return 1 if interactable.interact_type == NPC_INTERACT_TYPE else 0
 
 
 func _is_npc_item(item: Node2D) -> bool:

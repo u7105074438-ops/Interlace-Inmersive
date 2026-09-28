@@ -430,7 +430,12 @@ static func standing_counteroffer(npc: NPCRuntime, favour_id: String, fair: int,
 	var age: int = _day(ctx) - int(token.get(TOKEN_DAY, -1))
 	if age < 0 or age > tunable_int("sobornos.jornadas_validez_contraoferta"):
 		return {}
-	if int(token.get(TOKEN_ASKED, 0)) < counteroffer_price(fair, 0.0):
+	# Anti-falsificación contra el mínimo de contraoferta del precio justo SIN recargo por
+	# sospecha: la sospecha que genera la propia primera oferta (grabación) no invalida la
+	# ficha (§8.2 «el jugador puede reintentar» pagando lo pedido).
+	var base_fair: float = float(fair) / suspicion_price_factor(PERCENT)
+	if int(token.get(TOKEN_ASKED, 0)) < floori(base_fair
+			* tunable("sobornos.factor_contraoferta_min")):
 		return {}
 	return token
 

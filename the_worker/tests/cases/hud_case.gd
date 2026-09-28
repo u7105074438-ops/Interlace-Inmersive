@@ -116,6 +116,7 @@ func _check_duties() -> void:
 	check_eq(hud.get_duty_status("d_mail"), HUD.STATUS_DONE, "completed duty status")
 	EventBus.duty_failed.emit("d_copy", "warning")
 	check_eq(hud.get_duty_status("d_copy"), HUD.STATUS_FAILED, "failed duty status after duty_failed")
+	check(not hud.is_duty_struck("d_copy"), "a failed duty is not struck like a completed one")
 	hud.set_duties_collapsed(true)
 	check(hud.is_duties_collapsed(), "duties list collapses")
 	hud.set_duties_collapsed(false)

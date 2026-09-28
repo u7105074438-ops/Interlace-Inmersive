@@ -321,6 +321,7 @@ func _test_shops() -> void:
 	check(counter != null and dinner >= 0, "shop: the supermarket sells dinner")
 	if counter == null or dinner < 0:
 		return
+	PlayerState.add_money(120, "test")
 	var money: int = PlayerState.get_money()
 	var minute: float = GameClock.get_day_minutes()
 	await _use(counter, [dinner])

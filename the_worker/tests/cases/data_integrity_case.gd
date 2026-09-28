@@ -23,8 +23,8 @@ const BALANCE_SPOT_CHECKS: Dictionary = {
 	"percepcion.umbral_parcial": 0.45,
 	"investigaciones.pesos_evidencia.cuerpo_hallado": 12.0,
 	"investigaciones.umbral_condena_grave": 10.0,
-	"economia.dinero_inicial": 120,
-	"economia.estatus_por_escalon.8": 120,
+	"economia.dinero_inicial": 2,
+	"economia.estatus_por_escalon.8": 1150,
 	"tiempo.minutos_reales_por_jornada": 11.0,
 	"ruido.radio_esprint": 9.0,
 	"creencias.decaimiento_diario": 0.08,
@@ -122,7 +122,7 @@ func _check_balance() -> void:
 	for path: String in BALANCE_SPOT_CHECKS:
 		check_near(Database.get_balance_float(path), float(BALANCE_SPOT_CHECKS[path]), 0.0001,
 				"balance '%s' == §25 value" % path)
-	check_eq(Database.get_balance_int("economia.dinero_inicial"), 120, "balance int read")
+	check_eq(Database.get_balance_int("economia.dinero_inicial"), 2, "balance int read")
 	check_eq(Database.get_balance("presets_por_defecto"), "estandar", "default difficulty preset")
 	check_eq(Database.get_balance_int("mundo.px_por_unidad"), 48, "BUILD_NOTES mundo section")
 

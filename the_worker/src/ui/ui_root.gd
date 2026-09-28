@@ -388,10 +388,19 @@ func show_day_summary(summary: Dictionary) -> DaySummary:
 	view.set_meta(META_KIND, KIND_SUMMARY)
 	view.setup(DaySummary.merge(summary, tracked))
 	open_modal(view, true)
+	# §13.1: el reloj ya pasó a la jornada siguiente; el HUD no la muestra tras el resumen.
+	_hud.visible = false
+	view.tree_exiting.connect(_on_summary_exiting.bind(view))
 	_last_snapshot = tracked
 	_summary_day_shown = maxi(_summary_day_shown, day)
 	_tracker.reset(_tracker.rep_now, _tracker.sus_now)
 	return view
+
+
+func _on_summary_exiting(view: DaySummary) -> void:
+	var other: Control = _find_kind(KIND_SUMMARY)
+	if other == null or other == view:
+		_hud.visible = true
 
 
 func _toggle_existing(kind: String) -> bool:

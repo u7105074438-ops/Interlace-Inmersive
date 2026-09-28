@@ -282,8 +282,9 @@ func _test_betrayal() -> void:
 
 func _check_betrayal_is_permanent(worker: String) -> void:
 	check(Company.are_workers_betrayed(), "the betrayal is recorded for good")
+	check_eq(Company.get_discontent(), THRESHOLD, "the betrayal deflates discontent to the threshold")
 	Company.modify_discontent(-20, "test")
-	Company.modify_discontent(20, "test")
+	Company.modify_discontent(25, "test")
 	check(Company.is_strike_active(), "the floor strikes again without the player")
 	check_eq(Strike.lead()["reason"], "workers_betrayed", "nobody follows the traitor")
 	_set_mood(worker, UPSET)

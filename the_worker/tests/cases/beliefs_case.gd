@@ -295,7 +295,7 @@ func _test_incriminating_records() -> void:
 	EventBus.camera_recorded_player.emit("cam_cfo", RESTRICTED, DAY)
 	check_near(_suspicion(), 22.5, EPS, "the same camera counts once per day")
 	EventBus.camera_recorded_player.emit("cam_cfo_2", RESTRICTED, DAY)
-	check_near(_suspicion(), 45.0, EPS, "a second camera adds its own 22.5")
+	check_near(_suspicion(), 22.5, EPS, "a second camera of the same room in the same hour is the same event")
 	_check_cache("restricted records")
 	_fresh()
 	GameClock.set_time(DAY, NIGHT_HOUR, 0)

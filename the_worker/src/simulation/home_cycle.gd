@@ -1,6 +1,6 @@
 # home_cycle.gd — Ciclo de tarde y noche (§4.2, §4.4, §12.7, §15.4, PASO 39): salario, compras, comidas, gastos diarios, inanición y dormir (resumen → cambio de jornada → guardado → desayuno).
 # PROPIETARIO DE: la contabilidad de la jornada en curso (comidas hechas y su origen, ingresos y gastos por motivo, medidores al empezar), jornadas seguidas sin comer, última jornada liquidada, último salario pagado y la marca de fin de partida enviada.
-# ESCUCHA: day_advanced, hour_passed, money_changed, run_started, run_loaded, game_over.
+# ESCUCHA: day_advanced, hour_passed, money_changed, room_entered, duty_completed, run_started, run_loaded, game_over.
 class_name HomeCycle
 extends Node
 
@@ -13,6 +13,8 @@ extends Node
 ## DECISIONES:
 ##  · SALARIO: PlayerState.get_daily_wage() a la hora tiempo.hora_fin_jornada (hour_passed), una vez
 ##    por jornada (motivo "wage"); si la jornada se liquida sin haberlo cobrado, se cobra entonces.
+##    Solo si el jugador fue a trabajar esa jornada (room_entered de una sala del edificio,
+##    duty_completed, o está dentro al cobrar); ausente, no hay salario (QA §6.5).
 ##  · COMIDAS (desayuno y cena, §4.2): eat(comida) come de la despensa (inventario y alijos de
 ##    hogar.sala_domicilio; objetos de hogar.comidas.<comida> en ese orden, sin coste al comerlos:
 ##    comprados antes o ROBADOS, §22.4/§22.8 «elimina el gasto de manutención») o, si no hay, la
@@ -49,6 +51,10 @@ const MEAL_DINNER := "dinner"
 const MEALS: Array[String] = [MEAL_BREAKFAST, MEAL_DINNER]
 const SOURCE_STOCK := "stock"
 const SOURCE_BOUGHT := "bought"
+const SOURCE_VOUCHER := "voucher"
+## Bandera de ocupación (§22 R0 «5 en vales»): el salario llega en vales que solo compran comida.
+const FLAG_WAGE_IN_VOUCHERS := "wage_in_vouchers"
+const REASON_DEBT := "debt"
 const CAUSE_STARVATION := "starvation"
 const REASON_WAGE := "wage"
 const REASON_RENT := "rent"
@@ -91,6 +97,8 @@ const B_SHOPPING := "hogar.minutos_compra"
 const B_MEAL_MINUTES := "hogar.minutos_comida"
 const B_DAY_END := "tiempo.hora_fin_jornada"
 const B_ROLLOVER := "tiempo.hora_cambio_jornada"
+## Las salas exteriores (data/rooms/exterior.json) usan planta 200.
+const EXTERIOR_FLOOR_MIN := 100
 
 var _day: int = 0
 ## comida → origen ("" = no hecha, SOURCE_STOCK, SOURCE_BOUGHT) de la jornada _day.
@@ -101,9 +109,22 @@ var _expenses: Dictionary = {}
 var _start_reputation: float = 0.0
 var _start_suspicion: float = 0.0
 var _hungry_days: int = 0
+## Atrasos (€) de alquiler y estatus: se cobran ANTES de la comida de las jornadas siguientes (§4.4).
+var _debt: int = 0
+## Vales de comida (€) del salario del becario: solo pagan desayuno/cena.
+var _vouchers: int = 0
 var _settled_day: int = 0
 var _wage_day: int = 0
 var _game_over_sent: bool = false
+## Última jornada en que el jugador fue a trabajar (entró al edificio o cumplió una tarea).
+var _attended_day: int = 0
+## Deberes resueltos en la jornada _day (id → status). Sobrevive a la reconstrucción de la lista
+## de deberes cuando la ocupación cambia a mitad de jornada (un descenso por deber fallido).
+var _duty_log: Dictionary = {}
+## Cambios de ocupación de la jornada: [{from, to, reason}].
+var _occupation_changes: Array[Dictionary] = []
+## Ocupación con la que empezó la jornada ("" = la actual): fija salario y vales del día trabajado.
+var _day_occupation: String = ""
 
 
 func _ready() -> void:
@@ -111,6 +132,16 @@ func _ready() -> void:
 	EventBus.day_advanced.connect(_on_day_advanced)
 	EventBus.hour_passed.connect(_on_hour_passed)
 	EventBus.money_changed.connect(_on_money_changed)
+	EventBus.room_entered.connect(func(room_id: String, by_player: bool) -> void:
+		if by_player and _in_building(room_id):
+			_mark_attended())
+	EventBus.duty_completed.connect(func(_d: String, _q: float, _m: String) -> void:
+		_mark_attended())
+	EventBus.duty_completed.connect(func(d: String, _q: float, _m: String) -> void:
+		_log_duty(d, PlayerStateSystem.STATUS_COMPLETED))
+	EventBus.duty_failed.connect(func(d: String, _c: String) -> void:
+		_log_duty(d, PlayerStateSystem.STATUS_FAILED))
+	EventBus.occupation_changed.connect(_on_occupation_changed)
 	EventBus.run_started.connect(func(_seed: int) -> void: reset_for_new_run())
 	EventBus.run_loaded.connect(_on_run_loaded)
 	EventBus.game_over.connect(func(_c: String, _e: String, _s: Dictionary) -> void:
@@ -129,8 +160,11 @@ func get_save_key() -> String:
 
 func reset_for_new_run() -> void:
 	_hungry_days = 0
+	_debt = 0
+	_vouchers = 0
 	_settled_day = GameClock.get_day() - 1
 	_wage_day = _settled_day
+	_attended_day = 0
 	_game_over_sent = false
 	_start_day(GameClock.get_day())
 
@@ -162,7 +196,11 @@ func _eat(meal: String) -> Dictionary:
 		source = SOURCE_STOCK
 	else:
 		cost = meal_price(meal)
-		if PlayerState.spend_money(cost, meal):
+		if _vouchers >= cost:
+			_vouchers -= cost
+			source = SOURCE_VOUCHER
+			cost = 0
+		elif PlayerState.spend_money(cost, meal):
 			source = SOURCE_BOUGHT
 		else:
 			cost = 0
@@ -283,13 +321,21 @@ func settle_day() -> void:
 		return
 	_settled_day = _day
 	_pay_wage()
-	for meal: String in MEALS:
-		_eat(meal)
+	# §4.4: el techo va antes que el plato. Atrasos, alquiler y estatus se cobran primero; lo que
+	# no alcance se arrastra como deuda que se come el salario de las jornadas siguientes.
 	var breakdown: Dictionary = PlayerState.get_daily_expense_breakdown()
-	var unpaid: int = _charge(int(breakdown.get(REASON_RENT, 0)), REASON_RENT)
+	var unpaid: int = _charge(_debt, REASON_DEBT)
+	unpaid += _charge(int(breakdown.get(REASON_RENT, 0)), REASON_RENT)
 	unpaid += _charge(int(breakdown.get(REASON_STATUS, 0)), REASON_STATUS)
+	_debt = unpaid
 	if unpaid > 0:
 		EventBus.notebook_entry_added.emit(NOTE_CATEGORY, NOTE_RENT_UNPAID, [unpaid])
+	# §4.2: solo la cena se liquida a posteriori. El desayuno se toma al despertar (sleep()); uno
+	# que no se tomó no se cobra al final del día, salvo como comida barata de sustitución cuando
+	# la cena no alcanza (el becario con vales de desayuno) y no se ha comido nada en todo el día.
+	_eat(MEAL_DINNER)
+	if not has_eaten(MEAL_DINNER) and not has_eaten(MEAL_BREAKFAST):
+		_eat(MEAL_BREAKFAST)
 	_check_starvation()
 
 
@@ -297,12 +343,16 @@ func settle_day() -> void:
 func build_day_summary() -> Dictionary:
 	var completed: Array[String] = []
 	var missed: Array[String] = []
+	var statuses: Dictionary = _duty_log.duplicate()
 	for duty: Dictionary in PlayerState.get_todays_duties():
 		var status: String = str(duty.get(PlayerStateSystem.D_STATUS, ""))
-		if status == PlayerStateSystem.STATUS_COMPLETED:
-			completed.append(str(duty.get(PlayerStateSystem.D_ID, "")))
-		elif status == PlayerStateSystem.STATUS_FAILED:
-			missed.append(str(duty.get(PlayerStateSystem.D_ID, "")))
+		if status == PlayerStateSystem.STATUS_COMPLETED or status == PlayerStateSystem.STATUS_FAILED:
+			statuses[str(duty.get(PlayerStateSystem.D_ID, ""))] = status
+	for duty_id: Variant in statuses:
+		if statuses[duty_id] == PlayerStateSystem.STATUS_COMPLETED:
+			completed.append(str(duty_id))
+		else:
+			missed.append(str(duty_id))
 	return {
 		"day": _day, "income": _sum(_income), "expenses": _sum(_expenses),
 		"income_lines": _lines(_income), "expense_lines": _lines(_expenses),
@@ -312,11 +362,23 @@ func build_day_summary() -> Dictionary:
 		"suspicion_delta": PlayerState.get_suspicion() - _start_suspicion,
 		"completed_duties": completed, "missed_duties": missed,
 		"meals": _meals.duplicate(), "hungry_days": _hungry_days,
+		"debt": _debt, "vouchers": _vouchers,
+		"occupation_changes": _occupation_changes.duplicate(true),
 	}
 
 
 func get_hungry_days() -> int:
 	return _hungry_days
+
+
+## Atrasos de alquiler/estatus pendientes (€).
+func get_debt() -> int:
+	return _debt
+
+
+## Vales de comida disponibles (€, salario del becario).
+func get_vouchers() -> int:
+	return _vouchers
 
 
 func get_current_day() -> int:
@@ -335,6 +397,9 @@ func save_state() -> Dictionary:
 		"expenses": _expenses.duplicate(), "start_reputation": _start_reputation,
 		"start_suspicion": _start_suspicion, "hungry_days": _hungry_days,
 		"settled_day": _settled_day, "wage_day": _wage_day, "game_over_sent": _game_over_sent,
+		"attended_day": _attended_day, "debt": _debt, "vouchers": _vouchers,
+		"duty_log": _duty_log.duplicate(), "occupation_changes": _occupation_changes.duplicate(true),
+		"day_occupation": _day_occupation,
 	}
 
 
@@ -349,6 +414,19 @@ func load_state(data: Dictionary) -> void:
 	_settled_day = int(data.get("settled_day", _day - 1))
 	_wage_day = int(data.get("wage_day", _day - 1))
 	_game_over_sent = bool(data.get("game_over_sent", false))
+	_attended_day = int(data.get("attended_day", _day))
+	_debt = int(data.get("debt", 0))
+	_vouchers = int(data.get("vouchers", 0))
+	_duty_log = {}
+	var log: Variant = data.get("duty_log", {})
+	if log is Dictionary:
+		for key: Variant in log:
+			_duty_log[str(key)] = str(log[key])
+	_occupation_changes.clear()
+	for change: Variant in data.get("occupation_changes", []):
+		if change is Dictionary:
+			_occupation_changes.append((change as Dictionary).duplicate())
+	_day_occupation = str(data.get("day_occupation", ""))
 
 
 # ─── Internos ─────────────────────────────────────────────────
@@ -360,13 +438,53 @@ func _start_day(day: int) -> void:
 	_expenses = {}
 	_start_reputation = PlayerState.get_reputation()
 	_start_suspicion = PlayerState.get_suspicion()
+	_duty_log = {}
+	_occupation_changes.clear()
+	_day_occupation = ""
+
+
+func _log_duty(duty_id: String, status: String) -> void:
+	var duty: Dictionary = PlayerState.get_duty(duty_id)
+	if int(duty.get(PlayerStateSystem.D_DAY, _day)) == _day:
+		_duty_log[duty_id] = status
+
+
+func _on_occupation_changed(old_id: String, new_id: String, reason: String) -> void:
+	if old_id.is_empty():
+		return
+	# La jornada se cobra al rango con el que se empezó a trabajar (§4.4/§6.1): un descenso a las
+	# 18:00 no rebaja el sueldo de un día trabajado. Si aún no había ido a trabajar, cuenta el nuevo.
+	if _day_occupation.is_empty() and _attended_day >= _day:
+		_day_occupation = old_id
+	_occupation_changes.append({"from": old_id, "to": new_id, "reason": reason})
+
+
+## Ocupación con la que se trabajó la jornada (la del inicio si cambió a mitad).
+func _worked_occupation() -> OccupationData:
+	if not _day_occupation.is_empty():
+		var occupation: OccupationData = Database.get_occupation(_day_occupation)
+		if occupation != null:
+			return occupation
+	return PlayerState.get_occupation()
 
 
 func _pay_wage() -> void:
 	if _wage_day >= _day or _game_over_sent:
 		return
 	_wage_day = _day
-	PlayerState.add_money(PlayerState.get_daily_wage(), REASON_WAGE)
+	# §6.5/§4.1: el salario se gana en el puesto. Sin pisar el edificio ni cumplir una tarea,
+	# la jornada no se cobra (quedarse en casa con T no paga).
+	if _attended_day < _day and not _in_building(PlayerState.get_room()):
+		return
+	var occupation: OccupationData = _worked_occupation()
+	var wage: int = occupation.daily_wage if occupation != null else 0
+	if occupation != null and bool(occupation.extra.get(FLAG_WAGE_IN_VOUCHERS, false)):
+		# Los vales no pagan alquiler ni se gastan en otra cosa: caducan con la siguiente paga.
+		_vouchers = wage
+		_income[SOURCE_VOUCHER] = int(_income.get(SOURCE_VOUCHER, 0)) + _vouchers
+		return
+	if wage > 0:
+		PlayerState.add_money(wage, REASON_WAGE)
 
 
 ## Cobra `amount` con lo que haya; devuelve lo que quedó sin pagar.
@@ -516,6 +634,18 @@ func _on_day_advanced(day_number: int) -> void:
 	if _day < day_number:
 		settle_day()
 	_start_day(day_number)
+
+
+## Salas del edificio: las exteriores (casa, calle, tiendas) usan plantas >= EXTERIOR_FLOOR_MIN.
+static func _in_building(room_id: String) -> bool:
+	if room_id.is_empty():
+		return false
+	var room: RoomData = Database.get_room(InvestigationEngine.base_room(room_id))
+	return room != null and room.floor < EXTERIOR_FLOOR_MIN
+
+
+func _mark_attended() -> void:
+	_attended_day = maxi(_attended_day, _day)
 
 
 func _on_hour_passed(hour: int, day_number: int) -> void:

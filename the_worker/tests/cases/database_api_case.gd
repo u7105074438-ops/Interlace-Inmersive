@@ -79,8 +79,8 @@ func _check_balance_paths() -> void:
 			"three-level dotted path")
 	check_eq(typeof(Database.get_balance_int("economia.dinero_inicial")), TYPE_INT,
 			"get_balance_int returns int")
-	check_eq(Database.get_balance_int("economia.dinero_inicial"), 120, "get_balance_int value")
-	check_eq(Database.get_balance_int("economia.estatus_por_escalon.6"), 60, "numeric dict key")
+	check_eq(Database.get_balance_int("economia.dinero_inicial"), 2, "get_balance_int value")
+	check_eq(Database.get_balance_int("economia.estatus_por_escalon.6"), 240, "numeric dict key")
 	var section: Variant = Database.get_balance("dificultad")
 	check(section is Dictionary and (section as Dictionary).has("estandar"),
 			"intermediate node returns a Dictionary")
@@ -235,7 +235,7 @@ func _check_read_only() -> void:
 			"get_balance containers are copies")
 	var raw: Dictionary = Database.get_raw("balance")
 	raw["economia"]["dinero_inicial"] = 1
-	check_eq(Database.get_balance_int("economia.dinero_inicial"), 120, "get_raw is a copy")
+	check_eq(Database.get_balance_int("economia.dinero_inicial"), 2, "get_raw is a copy")
 	check_eq(Database.get_raw("balance.json").get("presets_por_defecto"), "estandar",
 			"get_raw accepts the .json suffix")
 	var list: Array[OccupationData] = Database.get_all_occupations()

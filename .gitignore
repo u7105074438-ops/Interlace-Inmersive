@@ -9,3 +9,4 @@ the_worker/.godot/
 the_worker/export/
 *.tmp
 .claude/settings.local.json
+TheWorker-windows.zip

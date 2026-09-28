@@ -852,6 +852,8 @@ func _log_chat(p: RumourPass, teller: String, to: String, e: Dictionary) -> void
 		"from": teller, "to": to, "belief_id": str(e[E_ID]), E_SUBJECT: str(e[E_SUBJECT]),
 		E_FACT: str(e[E_FACT]),
 	})
+	NamedSpecials.on_chat_logged(p.gathering_id, str(e[E_SUBJECT]), str(e[E_FACT]),
+			float(e[E_CERTAINTY]))
 	var cap: int = _bal_i(B_MAX_CHAT)
 	while _chat_log.size() > maxi(cap, 0):
 		_chat_log.pop_front()
@@ -981,6 +983,14 @@ func inject_rumour_about(target_npc: String, subject: String, fact: String,
 
 
 ## Extra (protocolo BeliefNet): rumor plantado por el jugador ({} si no existe; copia).
+## Extra (§8.3 Voss): true si el jugador plantó alguna vez este hecho.
+func is_planted_fact(fact: String) -> bool:
+	for entry: Dictionary in _injected.values():
+		if str(entry.get(E_FACT, "")) == fact:
+			return true
+	return false
+
+
 func get_injected_rumour(rumour_id: String) -> Dictionary:
 	return _injected.get(rumour_id, {}).duplicate()
 

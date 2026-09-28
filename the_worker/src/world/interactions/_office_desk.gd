@@ -229,7 +229,6 @@ static func use_npc_computer(item: Interactable, _player: Node, ctx: Dictionary)
 	var intrusion: Dictionary = {"computer_id": item.interact_id, "room_id": item.room_id,
 			"contains": item.data.get("contains", [])}
 	if not await OfficeKit.confirm_if_watched(ctx):
-		OfficeKit.say(ctx, "OFFICE_ACT_ABORTED")
 		return
 	if StellarOS.open_intrusion(owner, intrusion) == null:
 		OfficeKit.refuse(ctx, "UI_COMPUTER_UNAVAILABLE")

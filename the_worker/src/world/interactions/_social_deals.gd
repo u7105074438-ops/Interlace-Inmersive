@@ -59,7 +59,7 @@ static func favour_block(npc_id: String, kind: String) -> String:
 		return "SOCIAL_REASON_GONE"
 	if kind == FAVOUR_LEND:
 		return _lend_block(npc)
-	if NPCDirector.get_debt(npc_id) < cost(kind):
+	if NPCDirector.get_debt(npc_id) < cost(kind) and not NamedSpecials.grants_on_credit(npc_id, cost(kind)):
 		return "SOCIAL_REASON_DEBT"
 	if kind == FAVOUR_ALIBI and Security.get_active_investigations().is_empty():
 		return "SOCIAL_REASON_NO_CASE"
@@ -77,6 +77,8 @@ static func _lend_block(npc: NPCRuntime) -> String:
 	var price: int = int(offer["price"])
 	if price > 0:
 		return "" if PlayerState.can_afford(price) else "SOCIAL_REASON_NO_MONEY"
+	if NamedSpecials.grants_on_credit(npc.id, cost(FAVOUR_LEND)):
+		return ""
 	return "" if NPCDirector.get_debt(npc.id) >= cost(FAVOUR_LEND) else "SOCIAL_REASON_DEBT"
 
 

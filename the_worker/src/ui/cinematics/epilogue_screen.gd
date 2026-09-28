@@ -376,7 +376,12 @@ func _start_typing() -> void:
 	_typing = true
 	_area.hint_enabled = false
 	_tween = create_tween()
-	_tween.tween_method(_set_typed, 0, total, total / speed)
+	# QA §12.9: tope de duración para que un epílogo largo no parezca congelado.
+	var seconds: float = float(total) / speed
+	var cap: float = MenuKit.bal_float("menus.epilogo.duracion_max_segundos")
+	if cap > 0.0:
+		seconds = minf(seconds, cap)
+	_tween.tween_method(_set_typed, 0, total, seconds)
 	_tween.tween_callback(finish_typing)
 
 

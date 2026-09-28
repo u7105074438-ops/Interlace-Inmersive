@@ -192,6 +192,7 @@ const B_PESO_TIPO := "creencias.peso_tipo"
 const B_DIVISOR := "creencias.divisor_normalizacion"
 const B_REGISTROS_POR_DELITO := "creencias.registros_por_delito"
 const B_FACTOR_NEUTRO := "creencias.factor_registro_neutro"
+const B_REGISTROS_SOLO_EVIDENCIA := "creencias.registros_solo_evidencia"
 const B_FRANJAS_INCRIMINATORIAS := "creencias.franjas_registro_incriminatorio"
 const B_VENTANA_DELITO := "creencias.horas_ventana_delito_registro"
 const B_DELITOS_SIN_RASTRO := "creencias.delitos_sin_rastro_visual"
@@ -209,6 +210,8 @@ const W_CUERPO := "cuerpo_hallado"
 
 ## id → Belief (orden de inserción = orden de creación).
 var _beliefs: Dictionary[String, Belief] = {}
+var _rumour_cache: Dictionary = {}
+var _rumour_cache_stamp: String = ""
 ## id → certeza de referencia que restablece un refuerzo (la del nacimiento o último refuerzo).
 var _peaks: Dictionary[String, float] = {}
 ## id → jornadas transcurridas desde el nacimiento o el último refuerzo (reloj de decaimiento).
@@ -321,6 +324,29 @@ func get_beliefs_about(subject: String) -> Array[Belief]:
 		if b.subject == subject and not b.is_record:
 			out.append(b)
 	return out
+
+
+## EXTRA (§8.1/§8.3 rumores dirigidos): Σ certeza de las creencias (no registros) sobre `subject`
+## cuyo hecho empieza por `fact_prefix` («steals_ideas» del rumor sobre un compañero). Caché por
+## minuto de juego y tamaño de la red: lo consultan la reputación de los personajes y los ascensos.
+func get_rumour_weight_about(subject: String, fact_prefix: String) -> float:
+	var stamp: String = "%s|%d|%d" % [fact_prefix, int(GameClock.get_total_minutes()), _beliefs.size()]
+	if stamp != _rumour_cache_stamp:
+		_rumour_cache_stamp = stamp
+		_rumour_cache = {}
+		for b: Belief in _beliefs.values():
+			if not b.is_record and b.fact.begins_with(fact_prefix):
+				_rumour_cache[b.subject] = float(_rumour_cache.get(b.subject, 0.0)) + b.certainty
+	return float(_rumour_cache.get(subject, 0.0))
+
+
+## Personas distintas que sostienen un rumor `fact_prefix` sobre `subject` (informe de alcance).
+func count_rumour_holders(subject: String, fact_prefix: String) -> int:
+	var holders: Dictionary = {}
+	for b: Belief in _beliefs.values():
+		if not b.is_record and b.subject == subject and b.fact.begins_with(fact_prefix):
+			holders[b.holder] = true
+	return holders.size()
 
 
 ## Todo lo que sostiene `holder` (los registros los sostiene RECORD_HOLDER).
@@ -717,13 +743,20 @@ func _on_npc_removed(npc_id: String, cause: String) -> void:
 ## Protocolo de social_graph.gd: un salto from → to. "player" = rumor plantado (id sintético).
 func _on_rumor_spread(from_npc: String, to_npc: String, belief_id: String) -> void:
 	if from_npc == PLAYER_ID:
-		_plant_rumour(to_npc, SocialGraph.get_injected_rumour(belief_id))
+		# §8.3 Voss: lo que el jugador le cuenta en persona no le llega.
+		if NamedSpecials.accepts_rumour(to_npc, true, true):
+			_plant_rumour(to_npc, SocialGraph.get_injected_rumour(belief_id))
 		return
 	var src: Belief = get_belief(belief_id)
 	if src == null or src.is_record or SocialGraph.is_fact_killed(src.fact):
 		return
-	transfer_belief(belief_id, to_npc,
-			SocialGraph.get_transfer_factor(from_npc, to_npc, src.fact, src.subject))
+	# §8.3 Voss: nadie le comunica nada veraz; lo plantado le llega por intermediarios sin merma.
+	if not NamedSpecials.accepts_rumour(to_npc, false, SocialGraph.is_planted_fact(src.fact)):
+		return
+	var factor: float = SocialGraph.get_transfer_factor(from_npc, to_npc, src.fact, src.subject)
+	if NamedSpecials.full_transfer(to_npc):
+		factor = maxf(factor, 1.0)
+	transfer_belief(belief_id, to_npc, factor)
 
 
 ## §5.3 «definitivo si se verifica»: un documento sin verificar que una investigación toma como
@@ -751,7 +784,33 @@ func _on_day_advanced(day_number: int) -> void:
 	_release_pending_records(day_number)
 	_prune_crime_marks(day_number)
 	apply_daily_decay()
+	_report_planted_rumours()
 	_queue_refresh()
+
+
+## §8.1/§8.3: al cambiar de jornada, el cuaderno dice hasta dónde llegó cada rumor que plantó
+## el jugador (flag RUMOUR_FLAG, que escribe el módulo social) y cuánto le cuesta al sujeto.
+const RUMOUR_FLAG := "planted_rumours"
+const RUMOUR_NOTE_KEY := "NOTE_RUMOUR_REACH"
+const RUMOUR_NOTE_CATEGORY := "gossip"
+
+
+func _report_planted_rumours() -> void:
+	var planted: Variant = PlayerState.get_flag(RUMOUR_FLAG, {})
+	if not planted is Dictionary or (planted as Dictionary).is_empty():
+		return
+	var prefix: String = str(Database.get_balance("social.rumor.hecho_colega"))
+	var keep: Dictionary = {}
+	for subject: Variant in planted:
+		var holders: int = count_rumour_holders(str(subject), prefix)
+		if holders <= 0:
+			continue
+		keep[subject] = planted[subject]
+		var npc: NPCRuntime = NPCDirector.get_npc(str(subject))
+		var who: String = npc.name if npc != null else str(subject)
+		EventBus.notebook_entry_added.emit(RUMOUR_NOTE_CATEGORY, RUMOUR_NOTE_KEY,
+				[who, holders, int(round(NPCDirector.get_rumour_reputation_penalty(str(subject))))])
+	PlayerState.set_flag(RUMOUR_FLAG, keep)
 
 
 func _on_run_loaded(_day_number: int) -> void:
@@ -1146,6 +1205,9 @@ func _append_news_entry(out: Array[Dictionary]) -> void:
 
 ## Registros neutros primero (miles de lecturas rutinarias en una partida larga: salida rápida).
 func _weight_in_suspicion(b: Belief, neutral_factor: float) -> float:
+	# §9.8: registros latentes (rastro contable insider) solo sirven como evidencia.
+	if b.is_record and _bal_strings(B_REGISTROS_SOLO_EVIDENCIA).has(b.fact):
+		return 0.0
 	var neutral: bool = b.is_record and _neutral.has(b.id)
 	if neutral and neutral_factor <= 0.0:
 		return 0.0
@@ -1177,6 +1239,11 @@ func _append_entry(out: Array[Dictionary], entry: Dictionary, sensor_key: String
 func _sensor_key(b: Belief) -> String:
 	if not _log_hours.has(b.id):
 		return ""
+	# Todas las cámaras de una misma sala en la misma hora graban el mismo hecho: una sola
+	# grabación entra en la sospecha (QA: un soborno en persona contaba ×3 en los torniquetes).
+	if b.fact.begins_with(RECORD_FOOTAGE + ":") and not b.location.is_empty():
+		return MERGE_KEY_SEPARATOR.join([RECORD_FOOTAGE,
+				InvestigationEngine.base_room(b.location), str(b.timestamp), str(_log_hours[b.id])])
 	return MERGE_KEY_SEPARATOR.join([b.fact, str(b.timestamp)])
 
 

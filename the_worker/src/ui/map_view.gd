@@ -517,7 +517,8 @@ static func is_room_allowed(room: RoomData, ctx: Dictionary) -> bool:
 	var office: String = str(ctx.get(CTX_OFFICE, ""))
 	if not office.is_empty() and DatabaseSystem.get_room_base_id(room.id) == office:
 		return true
-	if meets_door_rule(room, int(ctx.get(CTX_CLEARANCE, -1)), tags):
+	# Cerradura antigua en la puerta: el nivel no basta (la abre la llave, ámbar), como DoorAccess.
+	if not has_old_lock_door(room) and meets_door_rule(room, int(ctx.get(CTX_CLEARANCE, -1)), tags):
 		return true
 	for tag: Variant in tags:
 		if tag_grants(str(tag), room):
@@ -542,6 +543,14 @@ static func meets_door_rule(room: RoomData, clearance: int, tags: Array) -> bool
 	return level_ok
 
 
+## La puerta de la sala es de cerradura antigua (interactivo lock_old con target door).
+static func has_old_lock_door(room: RoomData) -> bool:
+	for entry: Dictionary in room.interactables:
+		if str(entry.get("type", "")) == "lock_old" and str(entry.get("target", "door")) == "door":
+			return true
+	return false
+
+
 static func access_mode(room: RoomData) -> String:
 	if room.extra.has(KEY_MODE):
 		return str(room.extra[KEY_MODE])
@@ -559,9 +568,14 @@ static func rule_grants(rule: Variant, room: RoomData) -> bool:
 	if not rule is Dictionary:
 		return false
 	var r: Dictionary = rule
-	var in_floor: bool = has_number(r.get(RULE_FLOORS, []), room.floor)
+	var in_floor: bool = bool(r.get("all_floors", false)) \
+			or has_number(r.get(RULE_FLOORS, []), room.floor)
 	var in_rooms: bool = (r.get(RULE_ROOMS, []) as Array).has(DatabaseSystem.get_room_base_id(room.id))
 	if not (in_floor or in_rooms):
+		return false
+	# after_hour: solo fuera de horario (desde esa hora hasta el comienzo de la jornada).
+	if r.has("after_hour") and GameClock.get_hour() < int(r["after_hour"]) \
+			and GameClock.get_hour() >= Database.get_balance_int("tiempo.hora_inicio_jornada"):
 		return false
 	return not r.has(RULE_MAX_ROOM) or room.clearance_required <= int(r[RULE_MAX_ROOM])
 

@@ -197,7 +197,7 @@ func get_duty_status(duty_id: String) -> String:
 
 func is_duty_struck(duty_id: String) -> bool:
 	var status: String = get_duty_status(duty_id)
-	return status == STATUS_DONE or status == STATUS_FAILED
+	return status == STATUS_DONE
 
 
 func set_duties_collapsed(collapsed: bool) -> void:
@@ -523,9 +523,12 @@ func _duty_row(duty: Dictionary, status: String) -> HBoxContainer:
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_label.set_meta("duty_id", str(duty.get("id", "")))
-	if status != STATUS_PENDING:
+	if status == STATUS_DONE:
 		name_label.add_theme_color_override("font_color", UITheme.color("muted"))
-		name_label.set_struck(true, "muted" if status == STATUS_DONE else "loss")
+		name_label.set_struck(true, "muted")
+	elif status == STATUS_FAILED:
+		# Un fallo no se tacha como uno hecho (§13.1): texto en rojo con la etiqueta «Incumplido».
+		name_label.add_theme_color_override("font_color", UITheme.color("loss"))
 	row.add_child(name_label)
 	var detail: String = _duty_detail(duty, status)
 	if not detail.is_empty():
@@ -534,6 +537,8 @@ func _duty_row(duty: Dictionary, status: String) -> HBoxContainer:
 
 
 func _duty_detail(duty: Dictionary, status: String) -> String:
+	if status == STATUS_FAILED:
+		return UITheme.trf("HUD_DUTY_FAILED")
 	if status != STATUS_PENDING:
 		return ""
 	var id: String = str(duty.get("id", ""))

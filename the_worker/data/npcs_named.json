@@ -3,7 +3,7 @@
   "_nota": [
     "Los 23 personajes nominados (§24.2) con el esquema §29 más extensiones compatibles.",
     "Rasgos: valores definitivos exactos de §24.2 (sin variación aleatoria).",
-    "archetype: Harlan Voss es único; se usa el arquetipo más próximo por rasgos ('climber') con unique_profile 'ceo'. Preston Vaile III: 'hardliner' con secondary_archetype 'climber'.",
+    "archetype: Harlan Voss es único (§8.3): archetype = unique_profile 'ceo', sin arquetipo de datos (las reacciones y bonos por arquetipo usan su valor neutro). Preston Vaile III: 'hardliner' con secondary_archetype 'climber'.",
     "occupation: id de §23. Cadena vacía \"\" (equivale a null: NPCData.occupation es String tipado y el validador rechaza null) cuando el personaje no ocupa una de las 50 sillas jugables; entonces role/role_name_key/tier/clearance/daily_wage describen su puesto (Rose Miller: auditora bajo el Auditor Jefe; Pearl Osgood: secretaría del CEO, que en §24.2 figura con el id de sala 'ceo_secretariat').",
     "seat_index: índice de silla cuando varios personajes comparten ocupación (la silla del jugador en email_worker_3b es aparte). shift: 'day'|'night' para vigilantes.",
     "future_occupation: sucesor preferente — cuando esa silla queda libre, Company asciende a este personaje antes que aplicar §6.3. future_occupation_day (Rose, §7.13): jornada en que Company jubila al Auditor Jefe generado si la silla sigue ocupada y Rose sigue en plantilla.",
@@ -982,7 +982,7 @@
     {
       "id": "npc_harlan_voss",
       "name": "Harlan Voss",
-      "archetype": "climber",
+      "archetype": "ceo",
       "unique_profile": "ceo",
       "traits": { "ambition": 78, "loyalty": 0, "greed": 68, "courage": 82, "perception": 95, "sociability": 58 },
       "occupation": "ceo",

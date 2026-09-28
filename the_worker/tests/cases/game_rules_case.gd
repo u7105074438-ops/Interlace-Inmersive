@@ -151,7 +151,10 @@ func _test_door_rules() -> void:
 			elif DatabaseSystem.get_room_base_id(door.room_a) == occ.office_room and not DoorAccess.meets_door(door):
 				check(not DoorAccess.allows(door), "doors: %s cannot pass %s into a higher room" % [occupation_id, door.door_id])
 				inner_refused += 1
-		check(inner_refused > 0, "doors: %s has an inner door above the card that stays shut" % occupation_id)
+		# §5.2: las llaves maestras del vigilante (master_keys_no_offices, ≤ N6) abren las salas
+		# interiores de su planta; el resto de puestos sigue con alguna cerrada por encima del nivel.
+		if occupation_id != GUARD:
+			check(inner_refused > 0, "doors: %s has an inner door above the card that stays shut" % occupation_id)
 	PlayerState.set_occupation(initial, "qa")
 
 

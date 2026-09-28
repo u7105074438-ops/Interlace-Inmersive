@@ -66,6 +66,7 @@ const INCIDENT_OBJECT_MISSING := "object_missing"
 const ELIMINATION_CAUSES: Array[String] = ["eliminated", "elimination"]
 const CRIME_FRAUD := "fraud"
 const CRIME_BODY_MOVED := "body_moved"
+const CRIME_ELIMINATION := "elimination"
 const CRIME_FOOTAGE_DELETED := "footage_deleted"
 const DESTROY_METHOD_MONITOR := "deleted_in_monitor_room"
 const FAVOUR_LIE := "lie_in_interrogation"
@@ -175,6 +176,8 @@ var _last_out: Dictionary = {}
 var _bodies: Dictionary = {}
 ## npc_id → jornada de su eliminación (ausencia aún no detectada).
 var _absences: Dictionary = {}
+## npc_id → sala de la eliminación cuando el cuerpo aún no existe (transitorio, mismo fotograma).
+var _pending_last_seen: Dictionary = {}
 ## spot_id → {room_id, items: Array}
 var _stashes: Dictionary = {}
 ## "spot|item" ya incautados por un registro.
@@ -268,7 +271,7 @@ func _clear_state() -> void:
 	for container: Variant in [_incident_days, _footage, _access_log, _case_order, _deferred,
 			_deferred_revivals, _pending, _confiscated, _found_items, _bought_witnesses]:
 		(container as Array).clear()
-	for container: Variant in [_cases, _meta, _last_out, _bodies, _absences, _stashes,
+	for container: Variant in [_cases, _meta, _last_out, _bodies, _absences, _pending_last_seen, _stashes,
 			_pending_bribes, _vacated, _heirs]:
 		(container as Dictionary).clear()
 
@@ -886,7 +889,7 @@ func _max_severity() -> int:
 
 
 ## §12.2: la ausencia se detecta al día siguiente y abre un caso de gravedad máxima (apertura
-## automática) donde se echa en falta a la víctima, NO donde está su cuerpo.
+## automática) donde se vio a la víctima por última vez, NO donde está su cuerpo.
 func _detect_absences() -> void:
 	var delay: int = _bal_i(B_ABSENCE_DAYS)
 	for npc_id: String in _absences.keys():
@@ -900,17 +903,18 @@ func _detect_absences() -> void:
 				"hour": NO_HOUR, "player_culprit": true})
 
 
-## Puesto habitual de la víctima (NPCDirector); si no se conoce, la sala donde se la vio por
-## última vez (la de la eliminación, body_created). Nunca el escondite actual del cuerpo: eso
-## lo descubre el registro de salas (fase 2).
+## §12.2 «último contacto conocido»: la sala donde se la vio por última vez (la de la eliminación,
+## body_created), para que la fase 2 registre esa sala primero y cruce sus lecturas de cámara y
+## lector de ese día; si no hay cuerpo registrado, su puesto habitual (NPCDirector). Nunca el
+## escondite actual del cuerpo: eso lo descubre el registro de salas (fase 2).
 func _absence_location(npc_id: String) -> String:
-	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
-	if npc != null and not npc.home_room.is_empty():
-		return npc.home_room
 	var body_id: String = _body_id_of(npc_id)
-	if body_id.is_empty():
-		return ""
-	return str(_bodies[body_id].get("origin_room", ""))
+	if not body_id.is_empty():
+		var origin: String = str(_bodies[body_id].get("origin_room", ""))
+		if not origin.is_empty():
+			return origin
+	var npc: NPCRuntime = NPCDirector.get_npc(npc_id)
+	return npc.home_room if npc != null else ""
 
 
 func _expire_pending() -> void:
@@ -1802,7 +1806,8 @@ func _on_card_reader_logged(reader_id: String, card_owner: String, day: int, hou
 ## origin_room: sala de la eliminación (última ubicación conocida de la víctima).
 func _on_body_created(body_id: String, npc_id: String, room_id: String) -> void:
 	_bodies[body_id] = {"npc_id": npc_id, "room_id": room_id, "spot_id": "", "hidden": false,
-			"discovered": false, "origin_room": room_id}
+			"discovered": false, "origin_room": str(_pending_last_seen.get(npc_id, room_id))}
+	_pending_last_seen.erase(npc_id)
 
 
 func _on_body_hidden(body_id: String, spot_id: String) -> void:
@@ -1944,6 +1949,8 @@ func _on_crime_committed(crime_type: String, room_id: String, details: Dictionar
 		_note_fraud(details)
 	elif crime_type == CRIME_BODY_MOVED:
 		_note_body_moved(room_id, details)
+	elif crime_type == CRIME_ELIMINATION and not room_id.is_empty():
+		_note_last_seen(str(details.get("npc_id", "")), room_id)
 	var path: String = B_CRIME_INCIDENTS + "." + crime_type
 	if Database.has_balance(path) and bool(details.get("leaves_record", true)):
 		report_incident(str(Database.get_balance(path)), 0, room_id, true, {})
@@ -1958,6 +1965,16 @@ func _note_fraud(details: Dictionary) -> void:
 		_fraud_amount += int(details[DETAIL_AMOUNT])
 	else:
 		_fraud_unsized = true
+
+
+## §12.2 «último contacto conocido»: la sala de la eliminación es donde se vio a la víctima por
+## última vez (origin_room del cuerpo; si el cuerpo aún no existe, lo toma al crearse).
+func _note_last_seen(npc_id: String, room_id: String) -> void:
+	var body_id: String = _body_id_of(npc_id)
+	if body_id.is_empty():
+		_pending_last_seen[npc_id] = room_id
+	else:
+		_bodies[body_id]["origin_room"] = room_id
 
 
 func _note_body_moved(room_id: String, details: Dictionary) -> void:

@@ -322,6 +322,18 @@ their owner autoload passes it in; state lives in the owning autoload (and is sa
   the exit code) verifies that every key used by data (`*_key`, `*_keys`, ALL_CAPS values) and code
   (ALL_CAPS literals, the dynamic key families of the simulation layer expanded from their real
   domains, other `"X_%s"` formats / `"X_" +` prefixes) exists in strings.csv with EN and ES.
+- **Deliberate deviation — perception partial threshold (§7.3):** when the player is doing nothing
+  noteworthy (no crime, no out-of-place presence), Perception caps the counter at
+  `percepcion.tope_contador_presencia` (0.3, below `umbral_parcial` 0.45), so mere presence never
+  creates a partial-perception belief. Otherwise every coworker would log "saw someone" beliefs
+  all day about the player doing their job and flood the memory/rumour systems. Partial beliefs
+  still form for any noteworthy act (the §7.13 example), and the sighting indicator still fills
+  up to the cap.
+- **Special access (§5.2):** an occupation tag with a rule in `mapa.acceso_por_etiqueta` opens
+  the physical door of the room it grants (`DoorAccess.occupation_tag_grants`, which both
+  DoorAccess and FloorStreamer use), so the map (`MapView.is_room_allowed`) and doors agree.
+  `master_keys_no_offices` = every room ≤ N6 (`all_floors`). `floors_1_9_transit` (suspicion)
+  and `all_footage` (footage) are not door tags.
 
 ## 14. World & presentation contract (World phase)
 
@@ -485,3 +497,9 @@ their owner autoload passes it in; state lives in the owning autoload (and is sa
   not count). Profile flags: `tutorial_seen` (set when it ends or is skipped; later runs get a skip offer),
   `skip_tutorial_seen` (= `skip_seen_intro`: later runs skip it in `GameSession.wants_tutorial`). Never shown as
   "tutorial" on screen: it is the welcome video, HR and the first-day note.
+
+- QA (§4.4/§22 R0): HomeCycle arrastra atrasos de alquiler/estatus (`get_debt`) que se cobran ANTES de las comidas de la liquidación; el salario del becario (`wage_in_vouchers`) llega como vales de comida (`get_vouchers`) que solo pagan desayuno/cena.
+- QA (§8.1/§8.3): un rumor `social.rumor.hecho_colega` circulando sobre un personaje le resta reputación (`NPCDirector.get_rumour_reputation_penalty`, npc.reputacion_por_certeza_rumor) y puntuación de ascenso (npc.puntuacion_ascenso_rumor); el cuaderno (gossip, NOTE_RUMOUR_REACH) informa cada jornada del alcance.
+- QA (§11.7): traicionar una huelga que lideraba el jugador baja el descontento al umbral para que una huelga futura pueda volver a estallar.
+
+- NamedSpecials (src/simulation/named_specials.gd, hooked from NPCDirector._ready): honours npcs_named.json special flags: keeps_favour_ledger (Iggy: favours on credit up to especiales_nombrados.credito_max_favores, claims when an investigation opens, reports after dias_plazo_cobro), ally_if_protected (Alvin: a favour while threatened makes a permanent ally who never reports), monitors_gathering (IT-readable chat hops about the player are copied to the monitor), receives_no_truthful_info (Voss: only planted rumours reach him, via intermediaries, undiminished).

@@ -146,23 +146,32 @@ static func spend_minutes(kind: String) -> void:
 
 
 ## Si alguien ve al jugador, pregunta antes (nombra al testigo o la cámara). true = adelante.
-static func confirm_if_watched(ctx: Dictionary) -> bool:
+## `kind` = clase de acto (oficina.segundos_acto.<clase>): el aviso fuerte ("te pillará") solo si
+## el testigo llegaría a flagrancia en ese tiempo; si no, el aviso de "puede notarlo" (§12.2).
+static func confirm_if_watched(ctx: Dictionary, kind: String = "cajon") -> bool:
 	var game: GameRoot = root(ctx)
 	if game == null:
 		return true
-	var who: Dictionary = game.find_observer()
+	var who: Dictionary = game.find_observer(act_seconds(kind))
 	if who.is_empty():
 		return true
-	var watcher: String = npc_name(str(who.get("id", ""))) if str(who.get("kind", "")) == OBSERVER_NPC \
-			else tr_key("OFFICE_WATCHED_CAMERA")
-	return await confirm(ctx, "OFFICE_WATCHED_TITLE", "OFFICE_WATCHED_BODY", "OFFICE_WATCHED_PROCEED", [watcher])
+	var is_npc: bool = str(who.get("kind", "")) == OBSERVER_NPC
+	var watcher: String = npc_name(str(who.get("id", ""))) if is_npc else tr_key("OFFICE_WATCHED_CAMERA")
+	# §12.2/§13: quien te mira en su cono te pilla en flagrante; quien solo está al lado de
+	# espaldas puede notarte (percepción parcial). El aviso dice cuál de los dos es.
+	var looking: bool = bool(who.get("catches", who.get("looking", true)))
+	var go: bool = await confirm(ctx, "OFFICE_WATCHED_TITLE" if looking else "OFFICE_NEARBY_TITLE",
+			"OFFICE_WATCHED_BODY" if looking else "OFFICE_NEARBY_BODY", "OFFICE_WATCHED_PROCEED", [watcher])
+	if not go:
+		# Pista de cuándo será seguro: que el testigo se vaya o mire a otro lado / salir del cono.
+		say(ctx, "OFFICE_ACT_ABORTED_NPC" if is_npc else "OFFICE_ACT_ABORTED_CAMERA", [watcher])
+	return go
 
 
 ## Acto ilegal visible: begin_act(delito) durante oficina.segundos_acto.<clase>. true si terminó
 ## (moverse, que te pillen o un testigo que te detiene lo cancelan).
 static func run_act(ctx: Dictionary, player: Node, crime: String, kind: String, ask: bool = true) -> bool:
-	if ask and not await confirm_if_watched(ctx):
-		say(ctx, "OFFICE_ACT_ABORTED")
+	if ask and not await confirm_if_watched(ctx, kind):
 		return false
 	if player == null or not player.has_method("begin_act") or not player.has_signal(ACT_SIGNAL):
 		return true

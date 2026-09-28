@@ -270,27 +270,35 @@ func observers_present() -> bool:
 	return not find_observer().is_empty()
 
 
-## Quién le observa: {kind: "npc", id} si un personaje activo le tiene en su cono de visión (le
+## Quién le observa: {kind: "npc", id, looking: true} si un personaje activo le tiene en su cono de visión (le
 ## MIRA) o a su lado (salto_tiempo.radio_testigo_cercano_celdas) con línea de visión; {kind:
 ## "camera", id} si una cámara activa lo tiene en campo; {} si nadie. Un compañero de espaldas o
-## absorto en su pantalla no observa (con solo alcance + línea de visión, en una sala diáfana
+## absorto en su pantalla no observa; uno a su lado sin mirarle devuelve looking=false (con solo alcance + línea de visión, en una sala diáfana
 ## nunca se podía saltar desde la mesa).
-func find_observer() -> Dictionary:
+## Con `act_seconds` >= 0, "catches" dice si ese testigo llegaría a flagrancia en un acto de esa
+## duración (Perception.would_catch_in; una cámara siempre registra); sin él, catches = looking.
+func find_observer(act_seconds: float = -1.0) -> Dictionary:
 	if player == null or streamer == null:
 		return {}
 	var pos: Vector2 = player.global_position
 	var near: float = Database.get_balance_float(B_NEAR_WITNESS) * RoomBuilder.cell_px()
+	var nearby: Dictionary = {}
 	if npc_layer != null:
 		for node: NPCNode in npc_layer.get_nodes():
 			var eyes: Perception = node.perception
 			if eyes == null or not eyes.is_active():
 				continue
-			if eyes.sees_point(pos) or (eyes.global_position.distance_to(pos) <= near and eyes.has_line_of_sight(pos)):
-				return {"kind": OBSERVER_NPC, "id": node.npc_id}
+			if eyes.sees_point(pos):
+				return {"kind": OBSERVER_NPC, "id": node.npc_id, "looking": true,
+						"catches": act_seconds < 0.0 or eyes.would_catch_in(pos, act_seconds)}
+			if eyes.global_position.distance_to(pos) <= near and eyes.has_line_of_sight(pos):
+				nearby = {"kind": OBSERVER_NPC, "id": node.npc_id, "looking": false, "catches": false}
 	for cam: SecurityCamera in streamer.get_cameras():
 		if cam.is_active() and cam.is_player_in_view(pos):
-			return {"kind": OBSERVER_CAMERA, "id": cam.camera_id}
-	return {}
+			return {"kind": OBSERVER_CAMERA, "id": cam.camera_id, "looking": true, "catches": true}
+	# Alguien al lado pero sin mirar: vetar el salto temporal sí, pero sin decir que te ve (§12.2:
+	# a lo sumo percepción parcial). "looking" distingue ambos casos para la UI.
+	return nearby
 
 
 ## Nombre de quien le mira ("" si es una cámara o nadie).

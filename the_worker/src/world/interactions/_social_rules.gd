@@ -85,7 +85,10 @@ static func _social_extras(npc: NPCRuntime, out: Array[Dictionary]) -> void:
 static func _favour_option(npc_id: String) -> Dictionary:
 	var opt: Dictionary = _opt(OPT_FAVOUR, "clipboard", FLOW_CHOICES, "")
 	var debt: int = NPCDirector.get_debt(npc_id)
-	opt["hint"] = UITheme.trf("SOCIAL_HINT_DEBT", [debt]) if debt > 0 else TranslationServer.translate("SOCIAL_HINT_NO_DEBT")
+	if debt < 0:
+		opt["hint"] = UITheme.trf("SOCIAL_HINT_OWED", [-debt])
+	else:
+		opt["hint"] = UITheme.trf("SOCIAL_HINT_DEBT", [debt]) if debt > 0 else TranslationServer.translate("SOCIAL_HINT_NO_DEBT")
 	return opt
 
 
@@ -260,6 +263,11 @@ static func plant_rumour(npc_id: String, subject: String) -> Dictionary:
 	if not planted:
 		return SocialKit.refusal("SOCIAL_LINE_BUSY")
 	SocialKit.mark(RUMOUR_KIND, npc_id)
+	if subject != RUMOUR_MANAGEMENT:
+		var planted_map: Variant = PlayerState.get_flag(BeliefNetSystem.RUMOUR_FLAG, {})
+		var planted_copy: Dictionary = (planted_map as Dictionary).duplicate() if planted_map is Dictionary else {}
+		planted_copy[subject] = GameClock.get_day()
+		PlayerState.set_flag(BeliefNetSystem.RUMOUR_FLAG, planted_copy)
 	SocialKit.spend_minutes(SocialKit.bi("minutos_accion"))
 	return _rumour_result(npc, subject)
 

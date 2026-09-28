@@ -310,7 +310,7 @@ def check_named(w):
         fut = n.get("future_occupation")
         if fut and fut not in w.occs:
             R.error([f, "occupations.json"], "%s.future_occupation '%s' does not exist" % (nid, fut))
-        if n.get("archetype") not in w.archetypes and w.archetypes:
+        if n.get("archetype") not in w.archetypes and w.archetypes and not (n.get("unique_profile") and n.get("unique_profile") == n.get("archetype")):
             R.error([f, "archetypes.json"], "%s.archetype '%s' does not exist" % (nid, n.get("archetype")))
         if w.templates and n.get("routine_template") not in w.templates:
             R.error([f, "npcs_generation.json"], "%s.routine_template '%s' does not exist" % (nid, n.get("routine_template")))

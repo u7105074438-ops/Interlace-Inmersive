@@ -303,7 +303,8 @@ func get_dominant_axis() -> String:
 	for axis: String in _tie_break_order():
 		if best.is_empty() or int(_axes.get(axis, 0)) > int(_axes.get(best, 0)):
 			best = axis
-	return best
+	# Todos a 0: no hay eje dominante (§12.9 exige un eje dominante real).
+	return best if int(_axes.get(best, 0)) > 0 else ""
 
 
 ## Ningún eje de estilo supera hybrid_rule.max_axis_share de la suma de los cuatro (suma > 0).
@@ -314,8 +315,9 @@ func is_hybrid() -> bool:
 		var value: int = int(_axes.get(axis, 0))
 		total += value
 		top = maxi(top, value)
+	# Suma 0: ningún estilo domina (QA §12.9: sin SUDOR no hay THE WORKER) → híbrido.
 	if total <= 0:
-		return false
+		return true
 	return float(top) <= _max_axis_share() * float(total) + HYBRID_EPSILON
 
 

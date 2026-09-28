@@ -236,8 +236,8 @@ func _test_scandals(base: int) -> void:
 
 func _test_dominance_and_hybrid() -> void:
 	new_run(DEFAULT_SEED, false)
-	check_eq(Tracking.get_dominant_axis(), "sweat", "all four at zero → tie-break gives SWEAT")
-	check(not Tracking.is_hybrid(), "a run with no tracked acts is not hybrid")
+	check_eq(Tracking.get_dominant_axis(), "", "all four at zero → no dominant axis")
+	check(Tracking.is_hybrid(), "a run with no tracked acts has no dominant style → hybrid")
 	_set_axes({"blood": 10, "gold": 10})
 	check_eq(Tracking.get_dominant_axis(), "gold", "blood/gold tie → tie-break order prefers gold")
 	_set_axes({"blood": 40, "gold": 20, "silk": 20, "sweat": 20})
@@ -277,7 +277,8 @@ func _test_full_victories() -> void:
 		check_eq(Tracking.evaluate_ending(), ending_id, "R33 + documents + notary + %s → %s" % [
 				str(styles[ending_id]), ending_id])
 	_run_as(R33, true, {})
-	check_eq(Tracking.evaluate_ending(), "the_worker", "a spotless full victory is THE WORKER")
+	check_eq(Tracking.evaluate_ending(), "the_full_suite",
+			"a victory with no tracked acts has no dominant SWEAT: not THE WORKER (§12.9)")
 	_run_as(R33, true, {"blood": 60, "gold": 5, "ruin": HUSK_THRESHOLD})
 	check_eq(Tracking.evaluate_ending(), "the_butcher", "RUIN does not change which victory it is")
 	check_eq(Tracking.get_ruin_tier(), "husk", "…only its variant")

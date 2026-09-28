@@ -65,6 +65,8 @@ const W_BELIEF := "creencia"
 const W_MOOD := "animo"
 const W_RELATION := "relacion"
 const W_RANK := "rango"
+## Modulación opcional del peso del rango por rasgos: peso efectivo = rango + Σ k × rasgo/100.
+const W_RANK_TRAITS := "rango_rasgos"
 const W_SUSPICION := "sospecha"
 const W_REPUTATION := "reputacion"
 const W_OFFER := "oferta"
@@ -131,7 +133,7 @@ static func breakdown(action: String, npc: NPCRuntime, context: Dictionary) -> D
 		W_BELIEF: _num(w, W_BELIEF) * _belief_sum(context),
 		W_MOOD: _num(w, W_MOOD) * float(context.get(CTX_MOOD, npc.mood)),
 		W_RELATION: relation_term(w, context.get(CTX_LEDGER, npc.ledger), _scales(context)),
-		W_RANK: _num(w, W_RANK) * float(context.get(CTX_RANK, 0)) / OccupationData.MAX_RANK,
+		W_RANK: rank_weight(w, npc.traits) * float(context.get(CTX_RANK, 0)) / OccupationData.MAX_RANK,
 		W_SUSPICION: _num(w, W_SUSPICION) * float(context.get(CTX_SUSPICION, 0.0)) / METER_MAX,
 		W_REPUTATION: _num(w, W_REPUTATION) * float(context.get(CTX_REPUTATION, 0.0)) / METER_MAX,
 		W_OFFER: _num(w, W_OFFER) * float(context.get(CTX_OFFER, 0.0)),
@@ -142,6 +144,17 @@ static func breakdown(action: String, npc: NPCRuntime, context: Dictionary) -> D
 		total += float(terms[key])
 	terms[TERM_TOTAL] = total
 	return terms
+
+
+## Peso efectivo del término rango: rango + Σ rango_rasgos[r] × rasgo/100 (§7.5, §8.1: la valentía
+## decide cuánto intimida el rango del jugador).
+static func rank_weight(action_weights: Dictionary, traits: Dictionary) -> float:
+	var weight: float = _num(action_weights, W_RANK)
+	var mods: Variant = action_weights.get(W_RANK_TRAITS, {})
+	if mods is Dictionary:
+		for trait_name: Variant in mods:
+			weight += float(mods[trait_name]) * float(traits.get(trait_name, Validate.TRAIT_MIN)) / Validate.TRAIT_MAX
+	return weight
 
 
 ## Σ peso_rasgo × rasgo/100.

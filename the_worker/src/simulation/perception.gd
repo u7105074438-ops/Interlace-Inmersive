@@ -95,7 +95,8 @@ const FILL_KEYS: Array[String] = ["velocidad_llenado_base", "mod_perspicacia_por
 	"mod_obstruccion_parcial"]
 const TICK_KEYS: Array[String] = ["umbral_parcial", "umbral_flagrancia", "umbral_perdida_contacto",
 	"velocidad_vaciado_base", "velocidad_vaciado_minima", "factor_vaciado_relativo", "segundos_atencion",
-	"tope_contador_lejano", "tope_contador_presencia", "intervalo_cono", "intervalo_cono_reposo",
+	"tope_contador_lejano", "mod_cuerpo_arrastrado", "factor_identificacion_cuerpo",
+	"tope_contador_presencia", "radio_proximidad_m", "factor_proximidad", "intervalo_cono", "intervalo_cono_reposo",
 	"radio_conos_visibles", "alfa_cono", "alfa_cono_sigilo", "alfa_cono_alerta", "alfa_cono_depuracion",
 	"factor_borde_cono", "velocidad_giro_cono", "umbral_investigar_ruido", "radio_ruido_anomalo",
 	"radio_ruido_investigar", "oido_oblivious", "factor_oido_muro", "desvanecido_borde_cono",
@@ -295,6 +296,21 @@ func sees_point(pos: Vector2) -> bool:
 	return has_line_of_sight(pos)
 
 
+## §12.2: ¿llegaría el contador a flagrancia si el jugador hiciera ahora un acto quieto de
+## `seconds` en `pos`? (aviso "te está mirando" veraz: no basta con estar en el cono).
+func would_catch_in(pos: Vector2, seconds: float) -> bool:
+	if not is_active() or not sees_point(pos):
+		return false
+	var dist: float = global_position.distance_to(pos)
+	if dist > _ident_px:
+		return false
+	var d_m: float = dist / _cell
+	var view: Dictionary = _disguise_view(d_m, PlayerState.get_room())
+	var rate: float = fill_rate(d_m, _perception_eff, MODE_STILL, false,
+			_ray_blocked(global_position, pos, LOW_MASK), _tun) * float(view["factor"])
+	return _counter + rate * maxf(seconds, 0.0) >= float(_tun["umbral_flagrancia"])
+
+
 func has_line_of_sight(pos: Vector2) -> bool:
 	return not _ray_blocked(global_position, pos, LOS_MASK)
 
@@ -347,9 +363,14 @@ func _sample(player: Node2D, exposure: Dictionary) -> Dictionary:
 	if archetype == ARCH_OLD_HAND and bool(exposure.get("noteworthy", false)) and dist <= _range_px \
 			and has_line_of_sight(pos):
 		_anomaly = pos
-	if not sees_point(pos):
-		return EMPTY_SAMPLE
 	var d_m: float = dist / _cell
+	# §7.3: además del cono, sentido periférico/auditivo a muy corta distancia (alguien pegado a
+	# la espalda se nota), más lento que la vista directa.
+	var proximity: bool = false
+	if not sees_point(pos):
+		if d_m > float(_tun["radio_proximidad_m"]) or not has_line_of_sight(pos):
+			return EMPTY_SAMPLE
+		proximity = true
 	var room: String = str(exposure.get("room", ""))
 	var view: Dictionary = _disguise_view(d_m, room)
 	var crime: String = str(exposure.get("crime", ""))
@@ -359,8 +380,15 @@ func _sample(player: Node2D, exposure: Dictionary) -> Dictionary:
 	var obstructed: bool = _ray_blocked(global_position, pos, LOW_MASK)
 	var rate: float = fill_rate(d_m, _perception_eff, _str_call(player, "movement_mode"),
 			_bool_call(player, "is_crouching"), obstructed, _tun) * float(view["factor"])
+	if proximity:
+		rate *= float(_tun["factor_proximidad"])
 	var cap: float = float(_tun["umbral_flagrancia"])
-	if dist > _ident_px:
+	var ident_px: float = _ident_px
+	# Un cuerpo arrastrado a la vista llama la atención (§12.2/§12.3): más llenado y más alcance.
+	if crime == CRIME_BODY_MOVED:
+		rate *= float(_tun["mod_cuerpo_arrastrado"])
+		ident_px *= float(_tun["factor_identificacion_cuerpo"])
+	if dist > ident_px:
 		cap = float(_tun["tope_contador_lejano"])
 	if not noteworthy:
 		cap = minf(cap, float(_tun["tope_contador_presencia"]))

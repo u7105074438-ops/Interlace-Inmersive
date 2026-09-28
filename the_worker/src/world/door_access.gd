@@ -64,7 +64,12 @@ func policy(door: Door, body: Node2D) -> bool:
 
 ## ¿Puede pasar el jugador? (sin registrar nada).
 static func allows(door: Door) -> bool:
-	if door == null or door.kind == Door.KIND_OLD_LOCK:
+	if door == null:
+		return false
+	# §5.2: el puesto con la etiqueta de la sala tiene su llave (también de cerradura antigua).
+	if occupation_tag_grants(door, PlayerState.get_occupation()):
+		return true
+	if door.kind == Door.KIND_OLD_LOCK:
 		return false
 	if is_own_office_door(door):
 		return true
@@ -81,16 +86,33 @@ static func is_own_office_door(door: Door) -> bool:
 
 ## Acreditación y acceso especial (misma regla que FloorStreamer.default_door_policy).
 static func meets_door(door: Door) -> bool:
+	var occupation: OccupationData = PlayerState.get_occupation()
+	if occupation_tag_grants(door, occupation):
+		return true
 	var level_ok: bool = PlayerState.get_clearance() >= door.clearance
 	if door.special_access.is_empty():
 		return level_ok
-	var occupation: OccupationData = PlayerState.get_occupation()
 	var special_ok: bool = false
 	for tag: String in door.special_access:
 		special_ok = special_ok or (occupation != null and occupation.special_access.has(tag))
 	if door.special_mode == MODE_OR:
 		return level_ok or special_ok
 	return level_ok and special_ok if door.special_mode == MODE_AND else level_ok
+
+
+## §5.2: una etiqueta del puesto con regla de mapa (balance mapa.acceso_por_etiqueta: sótanos,
+## planta de fábrica, archivo activo, llaves maestras…) abre la puerta de la sala que concede, igual
+## que la pinta en verde MapView.is_room_allowed (mapa y puertas no pueden discrepar).
+static func occupation_tag_grants(door: Door, occupation: OccupationData) -> bool:
+	if occupation == null or door.room_b.is_empty():
+		return false
+	var room: RoomData = Database.get_room(DatabaseSystem.get_room_base_id(door.room_b))
+	if room == null:
+		return false
+	for tag: String in occupation.special_access:
+		if MapView.tag_grants(tag, room):
+			return true
+	return false
 
 
 ## Tarjeta a mano (E ante un torno o un lector): abre y arma el registro. false = denegada.

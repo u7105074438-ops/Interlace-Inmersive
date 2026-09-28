@@ -46,7 +46,7 @@ extends Node
 ##    crime_committed("lock_forced") y, a la jornada siguiente, investigación segura (object_missing
 ##    en el despacho, exenta de respiro, con el jugador entre los sospechosos por móvil:
 ##    register_motive; el bonus de acceso lo calcula Security por acreditación y registro de
-##    tarjetas). Ocupar la silla da la combinación ("ceo_chair").
+##    tarjetas). Ocupar la silla NO da la combinación (§11.8).
 ##  · FASE 3: get_voss_absence_windows(día) = huecos del ocupante del despacho dentro de su horario
 ##    (npcs_named special.office_hours de Voss, 10:00-17:00): [{start, end, room}] en minutos del
 ##    día según su AGENDA (hoy con sustituciones, sin el seguimiento de la vigilancia personal:
@@ -489,12 +489,10 @@ static func knows_combination() -> bool:
 	return not get_combination_source().is_empty()
 
 
-## "pearl" | "voss_files" | "ceo_chair" | "".
+## "pearl" | "voss_files" | "". §11.8: solo Voss conoce la combinación; ocupar la silla NO la
+## revela (las tres vías siguen siendo obligatorias; la silla solo cambia el título de fase 5).
 static func get_combination_source() -> String:
-	var source: String = str(PlayerState.get_flag(F_COMBINATION, ""))
-	if source.is_empty() and _holds_chair():
-		return SOURCE_CHAIR
-	return source
+	return str(PlayerState.get_flag(F_COMBINATION, ""))
 
 
 ## Gancho de Bribery/interfaz: Pearl Osgood no se compra (§11.8).

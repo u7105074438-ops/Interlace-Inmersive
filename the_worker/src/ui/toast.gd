@@ -15,6 +15,8 @@ const KIND_ICONS: Dictionary = {"info": "info", "good": "check", "bad": "cross",
 const KIND_COLORS: Dictionary = {"info": "paper", "good": "gain", "bad": "loss", "warn": "warn"}
 const STRIPE_WIDTH := 6
 const MAX_WIDTH_EMS := 24.0
+const MIN_BG_ALPHA := 0.96
+const LABEL_OUTLINE := 3
 
 func _init() -> void:
 	name = "ToastStack"
@@ -89,7 +91,12 @@ func _style_panel(panel: PanelContainer, label: Label, color_name: String) -> vo
 		var sb: StyleBoxFlat = (base_box as StyleBoxFlat).duplicate() as StyleBoxFlat
 		sb.border_color = panel.get_theme_color(color_name, UITheme.HUD_TYPE)
 		sb.border_width_left = STRIPE_WIDTH
+		# Legibilidad (§13): el aviso cae sobre arte cargado (estanterías, carteles); fondo casi
+		# opaco en vez del translúcido de los paneles.
+		sb.bg_color.a = maxf(sb.bg_color.a, MIN_BG_ALPHA)
 		panel.add_theme_stylebox_override("panel", sb)
+	label.add_theme_constant_override("outline_size", LABEL_OUTLINE)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	var f: Font = label.get_theme_font("font")
 	var fs: int = label.get_theme_font_size("font_size")
 	var max_w: float = fs * MAX_WIDTH_EMS

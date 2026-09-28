@@ -67,6 +67,9 @@ const NEUTRAL_MULTIPLIER := 1.0
 const FACTOR_ABOVE := "results_above_expected"
 const FACTOR_BELOW := "results_below_expected"
 const FACTOR_PRESS := "favourable_press"
+## Motivos (solo etiqueta) cuando la presentación lleva la reacción contra lo que dicen las cifras.
+const REASON_PRESENTATION_ABOVE := "presentation_above_expected"
+const REASON_PRESENTATION_BELOW := "presentation_below_expected"
 const FACTOR_LOUNGE := "lounge_personal_contact"
 const FACTOR_TIP := "insider_tip_to_hunter"
 const FACTOR_SCANDAL := "public_scandal"
@@ -163,6 +166,8 @@ var _bad_quarters_streak: int = 0
 var _presented_quarter: int = 0
 var _due_emitted_quarter: int = 0
 var _expected_quarter_profit: float = 0.0
+## Beneficio diario esperado (§9.3): media exponencial de los beneficios diarios cerrados.
+var _expected_daily_profit: float = 0.0
 var _last_presentation: Dictionary = {}
 var _q_real: Dictionary = {}
 var _q_days: int = 0
@@ -205,6 +210,7 @@ func reset_for_new_run() -> void:
 	_steps_today = 0
 	_own_sentiment = 0.0
 	_fraud_multiple_penalty = 0.0
+	_expected_daily_profit = float(_fundamentals().get("profit", 0.0))
 	_roll_daily_noise()
 	_reset_investors()
 	_reset_quarter_state()
@@ -217,9 +223,11 @@ func get_price() -> float:
 	return _price
 
 
-## V = (beneficio anual esperado × múltiplo) ÷ número de acciones (§9.3).
+## V = (beneficio anual esperado × múltiplo) ÷ número de acciones (§9.3). El beneficio esperado es
+## una media exponencial de los días cerrados más la jornada abierta con el mismo peso: una sola
+## jornada anómala (huelga) no se valora como un año entero de pérdidas (§11.7).
 func get_intrinsic_value() -> float:
-	var annual: float = float(_fundamentals().get("profit", 0.0)) * float(_days_per_year())
+	var annual: float = get_expected_daily_profit() * float(_days_per_year())
 	var value: float = annual * get_valuation_multiple() / float(_share_count())
 	return maxf(value, _bf("mercado.precio_minimo"))
 
@@ -643,7 +651,8 @@ func compute_presentation_outcome(quality: float, figures: float) -> float:
 
 
 ## Peso de la calidad en lo que percibe el inversor: 0 si su estrategia solo lee fundamentales
-## (valor); si no, W = mín(1, peso_calidad × Σcapital ÷ Σcapital de quienes escuchan).
+## (valor); si no, W = mín(tope, peso_calidad × Σcapital ÷ Σcapital de quienes escuchan). El tope
+## (mercado.peso_presentacion_calidad_max_oyente) evita que un oyente ignore del todo las cifras.
 func get_presentation_quality_share(investor_id: String) -> float:
 	var inv: InvestorData = _investor(investor_id)
 	if inv == null or not _listens_to_presentation(inv):
@@ -656,7 +665,8 @@ func get_presentation_quality_share(investor_id: String) -> float:
 			listeners += float(other.capital)
 	if listeners <= 0.0:
 		return 0.0
-	return minf(_bf("mercado.peso_presentacion_calidad") * total / listeners, 1.0)
+	return minf(_bf("mercado.peso_presentacion_calidad") * total / listeners,
+			clampf(_bf("mercado.peso_presentacion_calidad_max_oyente"), 0.0, 1.0))
 
 
 ## Resultado percibido [0,1] por un inversor: W × calidad + (1 − W) × cifras.
@@ -683,6 +693,17 @@ func figures_score_for(reported_profit: float, expected_profit: float) -> float:
 	var surprise: float = (reported_profit - expected_profit) / maxf(absf(expected_profit), 1.0)
 	return clampf(OUTCOME_NEUTRAL + surprise * OUTCOME_NEUTRAL
 			/ _bf("mercado.presentacion_rango_sorpresa"), 0.0, 1.0)
+
+
+## Beneficio diario esperado: media exponencial (mercado.suavizado_beneficio_esperado) con la
+## jornada en curso incluida.
+func get_expected_daily_profit() -> float:
+	var today: float = float(_fundamentals().get("profit", 0.0))
+	return _expected_daily_profit + _profit_smoothing() * (today - _expected_daily_profit)
+
+
+func _profit_smoothing() -> float:
+	return clampf(_bf("mercado.suavizado_beneficio_esperado"), 0.0, 1.0)
 
 
 func get_expected_quarter_profit() -> float:
@@ -807,6 +828,12 @@ func get_board_stake_price() -> int:
 
 func has_board_stake() -> bool:
 	return _stake_shares > 0
+
+
+## §9.11: true si vender `quantity` acciones rompe el paquete accionarial (pierde voto y consejo).
+## La UI lo confirma antes de ejecutar.
+func sell_breaks_board_stake(quantity: int) -> bool:
+	return _stake_shares > 0 and _player_shares - maxi(quantity, 0) < _stake_shares
 
 
 func get_portfolio_value() -> float:
@@ -963,6 +990,7 @@ func save_state() -> Dictionary:
 		"coerced": _coerced.duplicate(), "pending_reactions": _pending_reactions.duplicate(true),
 		"bad_streak": _bad_quarters_streak, "presented_quarter": _presented_quarter,
 		"due_emitted_quarter": _due_emitted_quarter, "expected_profit": _expected_quarter_profit,
+		"expected_daily_profit": _expected_daily_profit,
 		"last_presentation": _last_presentation.duplicate(true),
 		"q_real": _q_real.duplicate(), "q_days": _q_days, "q_last_day": _q_last_day,
 		"shares": _player_shares, "stake_shares": _stake_shares, "invested": _invested,
@@ -1443,7 +1471,7 @@ func _run_presentation(quality: float, presenter: String) -> Dictionary:
 	for inv: InvestorData in _investors:
 		var delta: int = int(reaction[inv.id])
 		var old_value: int = get_investor_confidence(inv.id)
-		modify_investor_confidence(inv.id, delta, FACTOR_ABOVE if delta > 0 else FACTOR_BELOW)
+		modify_investor_confidence(inv.id, delta, _reaction_reason(delta, figures))
 		changes[inv.id] = get_investor_confidence(inv.id) - old_value
 	var sentiment_delta: float = _sentiment_from_changes(changes)
 	_add_own_sentiment(sentiment_delta)
@@ -1455,6 +1483,14 @@ func _run_presentation(quality: float, presenter: String) -> Dictionary:
 		"quarter": quarter_of(_today), "presenter": presenter,
 	}
 	return _last_presentation.duplicate(true)
+
+
+## Motivo mostrado: si las cifras apuntan al lado contrario, la culpa (o el mérito) es de la
+## presentación, no de los resultados.
+func _reaction_reason(delta: int, figures: float) -> String:
+	if delta > 0:
+		return REASON_PRESENTATION_ABOVE if figures < OUTCOME_NEUTRAL else FACTOR_ABOVE
+	return REASON_PRESENTATION_BELOW if figures > OUTCOME_NEUTRAL else FACTOR_BELOW
 
 
 ## Desviación del resultado percibido sobre 0,5: banda neutra, umbral propio (pasivo) y tabla §9.7.
@@ -1529,6 +1565,7 @@ func _accumulate_day(day_number: int) -> void:
 	var f: Dictionary = _fundamentals()
 	for key: String in FIGURE_KEYS:
 		_q_real[key] = float(_q_real.get(key, 0.0)) + float(f.get(key, 0.0))
+	_expected_daily_profit = get_expected_daily_profit()
 	_q_days += 1
 	_q_last_day = day_number
 
@@ -1580,6 +1617,8 @@ func _load_quarter_state(data: Dictionary) -> void:
 	_presented_quarter = int(data.get("presented_quarter", 0))
 	_due_emitted_quarter = int(data.get("due_emitted_quarter", 0))
 	_expected_quarter_profit = float(data.get("expected_profit", 0.0))
+	_expected_daily_profit = float(data.get("expected_daily_profit",
+			float(_fundamentals().get("profit", 0.0))))
 	_last_presentation = _as_dict(data.get("last_presentation", {}))
 	_q_real = {}
 	var sums: Dictionary = _as_dict(data.get("q_real", {}))

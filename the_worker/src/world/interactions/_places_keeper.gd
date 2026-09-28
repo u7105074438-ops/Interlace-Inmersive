@@ -73,6 +73,7 @@ const B_STREET := "viaje.trayecto.sala_calle"
 const AURORA_ROOM := "aurora_room"
 
 static var _hooked: bool = false
+static var _last_aurora_key: String = ""
 
 ## Pruebas y QA: fundidos de un fotograma.
 var instant: bool = false
@@ -414,7 +415,12 @@ func _on_results_due(quarter: int) -> void:
 	PlacesKit.note(NOTE_CATEGORY, "PLACES_NOTE_RESULTS_DUE", [quarter, PlacesKit.room_name(room)])
 
 
-func _on_aurora_started(_meeting_id: String) -> void:
+func _on_aurora_started(meeting_id: String) -> void:
+	# Un aviso por reunión y jornada (la señal puede llegar dos veces: arranque y reprogramación).
+	var key: String = "%d:%s" % [GameClock.get_day(), meeting_id]
+	if key == _last_aurora_key:
+		return
+	_last_aurora_key = key
 	var room: RoomData = Database.get_room(AURORA_ROOM)
 	if room != null and PlayerState.get_clearance() >= room.clearance_required:
 		PlacesKit.say(ctx(), "PLACES_AURORA_STARTED", [PlacesKit.room_name(AURORA_ROOM)])

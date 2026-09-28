@@ -749,7 +749,9 @@ func buy() -> void:
 
 
 func sell() -> void:
-	_order(ACTION_SELL, Market.is_trade_informed(MarketSystem.TRADE_SELL))
+	# §9.11: romper el paquete accionarial (voto y dividendos del consejo) siempre se confirma.
+	_order(ACTION_SELL, Market.is_trade_informed(MarketSystem.TRADE_SELL)
+			or Market.sell_breaks_board_stake(_quantity))
 
 
 ## Paquete accionarial R30 (~250.000 €): siempre con confirmación (irreversible, §13.7).
@@ -833,6 +835,10 @@ func _show_confirm() -> void:
 	var body: String = tr("MARKET_CONFIRM_INSIDER")
 	if _pending == ACTION_STAKE:
 		body = tr("MARKET_CONFIRM_STAKE") % UITheme.format_money(Market.get_board_stake_price())
+	elif _pending == ACTION_SELL and Market.sell_breaks_board_stake(_quantity):
+		body = tr("MARKET_CONFIRM_STAKE_BREAK")
+		if Market.is_trade_informed(MarketSystem.TRADE_SELL):
+			body += "\n\n" + tr("MARKET_CONFIRM_INSIDER")
 	elif not _pending_deal.is_empty():
 		body = action_confirm_text(str(_pending_deal["investor"]), _pending, str(_pending_deal["target"]))
 	var title: String = tr("MARKET_DEAL_TITLE") if not _pending_deal.is_empty() else tr("MARKET_CONFIRM_TITLE")

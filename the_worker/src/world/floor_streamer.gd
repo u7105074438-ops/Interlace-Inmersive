@@ -297,7 +297,8 @@ func _apply_door_policy(door: Door, body: Node2D) -> bool:
 ## acreditación del jugador llega y, si la sala pide acceso especial, según su modo (and/or).
 ## Lectores y tornos dejan constancia en Security (card_reader_logged). Servicio: sin registro.
 func default_door_policy(door: Door, _body: Node2D) -> bool:
-	if door.kind == Door.KIND_OLD_LOCK or not _player_meets(door):
+	var granted: bool = DoorAccess.occupation_tag_grants(door, PlayerState.get_occupation())
+	if not granted and (door.kind == Door.KIND_OLD_LOCK or not _player_meets(door)):
 		return false
 	if door.kind != Door.KIND_SERVICE:
 		Security.log_card_access(door.door_id, PLAYER_CARD, GameClock.get_day(), GameClock.get_hour(), door.room_b)
@@ -305,6 +306,8 @@ func default_door_policy(door: Door, _body: Node2D) -> bool:
 
 
 func _player_meets(door: Door) -> bool:
+	if DoorAccess.occupation_tag_grants(door, PlayerState.get_occupation()):
+		return true
 	var level_ok: bool = PlayerState.get_clearance() >= door.clearance
 	if door.special_access.is_empty():
 		return level_ok

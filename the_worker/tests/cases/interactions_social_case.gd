@@ -253,6 +253,7 @@ func _test_favours() -> void:
 
 ## Frank Rudd presta el uniforme de mantenimiento por una miseria (§8.3), sin deuda.
 func _test_frank() -> void:
+	PlayerState.add_money(100, "test")
 	var money: int = PlayerState.get_money()
 	var lend: Dictionary = _choice("favour", FRANK, "lend")
 	check(bool(lend.get("enabled", false)), "Frank: he lends without owing you anything")

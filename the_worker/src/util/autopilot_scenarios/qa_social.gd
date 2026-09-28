@@ -106,7 +106,16 @@ func _rumour() -> void:
 	_log("injected: %s" % str(SocialGraph.get_injected_rumours()))
 	await _pilot.shot("qa_social_02_rumour_done")
 	await _ops.call("_key", KEY_ESCAPE)
-	await _ops.call("_key", KEY_ESCAPE)
+	await _close_modals("after rumour")
+
+
+func _close_modals(where: String) -> void:
+	while _game.ui.has_modal():
+		_log("modal open %s: %s" % [where, str(_game.ui.get_top_modal())])
+		_game.ui.close_modal()
+		await _pilot.frames(2)
+	if NPCInteractionMenu.find(get_tree()) != null:
+		await _ops.call("_key", KEY_ESCAPE)
 
 
 ## Entra en una sala vetada donde haya gente y se queda quieto dentro del campo de visión.
@@ -128,11 +137,23 @@ func _get_seen() -> void:
 			if n.global_position.distance_to(_game.player.global_position) < nearest.global_position.distance_to(_game.player.global_position):
 				nearest = n
 		await _ops.call("_walk_to", _ops.call("_stand_point", nearest))
-	await _pilot.seconds(4.0)
+	for i: int in 8:
+		await _pilot.seconds(0.5)
+		var info: Array[String] = []
+		for n: NPCNode in _game.npc_layer.get_nodes():
+			var d: float = n.global_position.distance_to(_game.player.global_position) / RoomBuilder.cell_px()
+			if d < 10.0 and n.get_perception() != null:
+				info.append("%s d=%.1f c=%.2f st=%d sees=%s" % [n.npc_id, d, n.get_perception().get_counter(), n.get_perception().get_state(), n.get_perception().sees_point(_game.player.global_position)])
+		_log("t=%.1f room=%s exposure=%s npcs=%s" % [i * 0.5, PlayerState.get_room(), str(Perception.assess_exposure(_game.player, PlayerState.get_room())), str(info)])
 	await _pilot.shot("qa_social_03_seen")
 	_log("seen: susp %.1f -> %.1f; beliefs about player=%d" % [before, PlayerState.get_suspicion(), BeliefNet.get_beliefs_about("player").size()])
 	for row: Dictionary in BeliefNet.get_suspicion_breakdown():
 		_log("  breakdown %s" % str(row))
+	# §7.3: the proximity sense can now catch the trespass in the act; let the window run out.
+	var caught: CaughtHandler = _game.sim_nodes.get("CaughtHandler") as CaughtHandler
+	if caught != null and caught.is_window_open():
+		_log("caught window after trespass: resolving by inaction -> %s" % str(caught.resolve_inaction()))
+		await _pilot.frames(4)
 	while _game.ui.has_modal():
 		_log("modal open after being seen: %s" % str(_game.ui.get_top_modal()))
 		_game.ui.close_modal()
@@ -165,9 +186,20 @@ func _tom() -> void:
 	await _pilot.seconds(0.6)
 	_log("Tom result: %s" % str(panel.get_last_result()))
 	_log("Tom ledger: %s" % str(NPCDirector.get_ledger(TOM)))
+	for row: Dictionary in BeliefNet.get_suspicion_breakdown():
+		_log("  breakdown after bribe %s" % str(row))
+	if int(panel.get_last_result().get("asked_price", 0)) > 0:
+		var tok: Dictionary = panel.get_last_result()["counteroffer"]
+		var fair_now: int = Bribery.fair_price(tom, "look_away_once")
+		_log("counteroffer check: asked=%d fair_now=%d min_valid=%d standing=%s" % [int(tok.get("asked_price", 0)), fair_now,
+				Bribery.counteroffer_price(fair_now, 0.0), str(Bribery.standing_counteroffer(tom, "look_away_once", fair_now, {"counteroffer": tok}))])
+		panel.accept_counteroffer()
+		panel.confirm_offer()
+		await _pilot.seconds(0.6)
+		_log("Tom 2nd (pay counteroffer): %s paid=%s susp=%.1f" % [panel.get_last_result().get("outcome"), panel.get_last_result().get("paid"), PlayerState.get_suspicion()])
 	await _pilot.shot("qa_social_05_tom_result")
 	await _ops.call("_key", KEY_ESCAPE)
-	await _ops.call("_key", KEY_ESCAPE)
+	await _close_modals("after Tom")
 
 
 func _lunch() -> void:

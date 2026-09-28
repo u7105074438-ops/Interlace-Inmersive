@@ -151,7 +151,9 @@ const C_STREAK := "mismatch_streak"
 # Claves de un informe de recuento (Company.get_inventory_reports()).
 const R_WEEK := "week"
 const R_DAY := "day"
-const R_PRODUCED := "produced"
+## Producción de la semana (pares fabricados y ya despachados): un flujo, NO comparable con
+## expected/counted, que son el stock físico del almacén (QA §11.6: antes se llamaba "produced").
+const R_PRODUCED := "week_output_shipped"
 const R_EXPECTED := "expected"
 const R_COUNTED := "counted"
 const R_MISSING := "missing"

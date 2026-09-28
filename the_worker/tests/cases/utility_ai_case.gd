@@ -46,6 +46,7 @@ func run_case() -> void:
 	_check_repertoire()
 	_check_rank_flip()
 	_check_rank_monotonic()
+	_check_brave_keep_reporting()
 	_check_archetype_reactions()
 	_check_variant_reactions()
 	_check_named_reactions()
@@ -116,9 +117,22 @@ func _check_only_rank_differs(george: NPCRuntime) -> void:
 		for term: String in a:
 			if term != "rango" and term != "total":
 				check_near(float(a[term]), float(b[term]), 1e-9, "%s: term %s ignores rank" % [action, term])
-		var w: float = float(Database.get_balance("utilidad.%s.rango" % action))
+		var w: float = UtilityAI.rank_weight(Database.get_balance("utilidad.%s" % action), george.traits)
 		check_near(float(b["rango"]) - float(a["rango"]), w * (HIGH_RANK - LOW_RANK) / 33.0, 1e-9,
 				"%s: rank term = weight × Δrank / 33" % action)
+
+
+## §7.13/§8.1: el rango del jugador no compra a los valientes (Rose, Bernard siguen denunciando a
+## un CFO); la novata Sonia, en cambio, calla ante un jugador sénior.
+func _check_brave_keep_reporting() -> void:
+	var expected: Dictionary = {"npc_rose_miller": "report_to_security",
+			"npc_bernard_lasker": "report_to_security", SONIA: "stay_silent"}
+	for id: String in expected:
+		var ctx: Dictionary = NPCDirector.build_context(id, NPCDirector.TRIGGER_BELIEF, {
+			"certainty": DIRECT, "player_rank": HIGH_RANK, "player_suspicion": 0.0,
+			"player_reputation": 0.0, "belief_certainties": [DIRECT]})
+		check_eq(UtilityAI.evaluate(NPCDirector.get_npc(id), ctx)["action"], expected[id],
+				"%s with a rank-%d player → %s" % [id, HIGH_RANK, expected[id]])
 
 
 func _check_rank_monotonic() -> void:
@@ -176,6 +190,8 @@ func _check_named_reactions() -> void:
 		if not npc.is_named:
 			continue
 		var archetype: ArchetypeData = Database.get_archetype(npc.archetype)
+		if archetype == null:
+			continue  # perfil único (Harlan Voss, §8.3): sin reacción de arquetipo que comparar
 		var expected: String = str(REACTION_TO_ACTION.get(archetype.caught_reaction, ""))
 		var ctx: Dictionary = NPCDirector.build_context(npc.id, NPCDirector.TRIGGER_BELIEF, {
 			"certainty": DIRECT, "player_rank": LOW_RANK, "player_suspicion": 0.0,

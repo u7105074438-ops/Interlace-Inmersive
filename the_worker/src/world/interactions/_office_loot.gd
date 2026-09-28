@@ -91,7 +91,6 @@ static func use_drawer(item: Interactable, player: Node, ctx: Dictionary) -> voi
 	var drawer_id: String = item.interact_id
 	var data: Dictionary = item.data.duplicate(true)
 	if not await OfficeKit.confirm_if_watched(ctx):
-		OfficeKit.say(ctx, "OFFICE_ACT_ABORTED")
 		return
 	OfficeKit.noise(player, B_DRAWER_NOISE, NOISE_DRAWER)
 	if not await OfficeKit.run_act(ctx, player, CRIME_DRAWER, "cajon", false):
@@ -101,7 +100,7 @@ static func use_drawer(item: Interactable, player: Node, ctx: Dictionary) -> voi
 	var loot: Array = left if OfficeKit.used_today(key) else drawer_loot(drawer_id, data)
 	OfficeKit.mark_today(key)
 	await offer_loot(ctx, loot, {"room": room, "owner": owner, "key": key, "unique": "taken." + drawer_id,
-			"title": "OFFICE_DRAWER_TITLE", "empty": "OFFICE_DRAWER_NOTHING"})
+			"recorded": true, "title": "OFFICE_DRAWER_TITLE", "empty": "OFFICE_DRAWER_NOTHING"})
 
 
 ## Botín de hoy: lo único de los datos aún no cogido + una tirada de oficina.cajon.tabla.
@@ -159,20 +158,24 @@ static func loot_name(entry: String) -> String:
 	return OfficeKit.item_name(entry)
 
 
-## Coge una cosa (theft_small con su valor). false si no cabe.
+## Coge una cosa (theft_small con su valor). false si no cabe. spec.recorded: el acto que abrió el
+## contenedor (drawer_forced) ya dejó la incidencia object_missing; el robo no la duplica (§12.3).
 static func take_loot(entry: String, spec: Dictionary, ctx: Dictionary) -> bool:
 	var room: String = str(spec["room"])
+	var record: bool = not bool(spec.get("recorded", false))
 	if entry.begins_with(COINS + LOOT_SEPARATOR):
 		var amount: int = int(entry.get_slice(LOOT_SEPARATOR, 1))
 		PlayerState.add_money(amount, "drawer_cash")
-		OfficeKit.commit(CRIME_THEFT, room, {"value": amount, "item_id": CASH, "owner": spec["owner"]})
+		OfficeKit.commit(CRIME_THEFT, room, {"value": amount, "item_id": CASH, "owner": spec["owner"],
+				"leaves_record": record})
 		return true
 	if not OfficeKit.can_take(entry) or not PlayerState.add_item(entry):
 		OfficeKit.refuse(ctx, "OFFICE_INVENTORY_FULL", [OfficeKit.item_name(entry)])
 		return false
 	var item: ItemData = Database.get_item(entry)
 	OfficeKit.commit(CRIME_THEFT, room, {"value": OfficeKit.item_value(entry), "item_id": entry,
-			"owner": spec["owner"], "document": item != null and InventoryRules.get_kind(item) == KIND_DOCUMENT})
+			"owner": spec["owner"], "document": item != null and InventoryRules.get_kind(item) == KIND_DOCUMENT,
+			"leaves_record": record})
 	var unique_key: String = str(spec.get("unique", ""))
 	if not unique_key.is_empty():
 		var taken: Array = OfficeKit.get_list(unique_key)
@@ -246,8 +249,7 @@ static func use_archive(item: Interactable, player: Node, ctx: Dictionary) -> vo
 	if archive_is_legal(item):
 		OfficeKit.play(player, "drawer")
 	else:
-		if not await OfficeKit.confirm_if_watched(ctx):
-			OfficeKit.say(ctx, "OFFICE_ACT_ABORTED")
+		if not await OfficeKit.confirm_if_watched(ctx, "archivo"):
 			return
 		OfficeKit.noise(player, B_DRAWER_NOISE, NOISE_DRAWER)
 		if not await OfficeKit.run_act(ctx, player, CRIME_DRAWER, "archivo", false):
@@ -380,7 +382,6 @@ static func use_personnel(item: Interactable, player: Node, ctx: Dictionary) -> 
 		return
 	var target: String = candidates[index]
 	if not await OfficeKit.confirm_if_watched(ctx):
-		OfficeKit.say(ctx, "OFFICE_ACT_ABORTED")
 		return
 	OfficeKit.noise(player, B_DRAWER_NOISE, NOISE_DRAWER)
 	if not await OfficeKit.run_act(ctx, player, CRIME_DRAWER, "expedientes", false):

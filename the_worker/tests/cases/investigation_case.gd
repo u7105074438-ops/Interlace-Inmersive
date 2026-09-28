@@ -748,19 +748,20 @@ func _test_motive_from_seat_change() -> void:
 			"the player taking the victim's seat benefits from the crime (+1.5)")
 
 
-## Con población: el caso de desaparición se abre en el puesto de la víctima (NPCDirector) y el
+## Con población: el caso de desaparición se abre donde se vio a la víctima (sala de la eliminación) y el
 ## cuerpo, arrastrado al archivo muerto sin ocultar (NPCDirector.move_body), aflora allí.
 func _test_populated_body_case() -> void:
 	_fresh(DEFAULT_SEED, true)
 	var victim: String = Fx.SCAPEGOAT
-	var home: String = NPCDirector.get_npc(victim).home_room
 	NPCDirector.remove_npc(victim, "eliminated")
 	var body_id: String = str(NPCDirector.get_body_info(victim).get("body_id", ""))
+	# §12.2: el caso se abre donde se la vio por última vez (la sala de la eliminación).
+	var home: String = str(NPCDirector.get_body_info(victim).get("room_id", ""))
 	NPCDirector.move_body(victim, "dead_archive", "")
 	Fx.advance_days(1)
 	var inv: Investigation = _case_at(Security.get_active_investigations(), home)
 	check(inv != null and inv.incident_type == "missing_person" and home != "dead_archive",
-			"populated run: the case opens at the victim's own room (%s)" % home)
+			"populated run: the case opens where the victim was last seen (%s)" % home)
 	Fx.advance_days(10)
 	check(_log.of("body_discovered").has([body_id, "dead_archive"]),
 			"the body dragged to the dead archive surfaces in the phase-2 search")

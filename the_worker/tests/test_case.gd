@@ -25,6 +25,9 @@ var failures: int = 0
 ## Errores del motor (push_error, ERR_*) tolerados durante el caso; -1 = sin límite.
 ## Los SCRIPT ERROR siempre cuentan como fallo.
 var allowed_engine_errors: int = 0
+## Reputación con la que new_run() deja al jugador (los casos se escribieron con reputación 0);
+## < 0 conserva jugador.reputacion_inicial de balance.json.
+var baseline_reputation: float = 0.0
 
 
 ## Sobrescribir en el caso.
@@ -86,6 +89,8 @@ func new_run(run_seed: int = DEFAULT_SEED, with_population: bool = true) -> bool
 	_set_seed(run_seed)
 	for system_name: String in LIFECYCLE_ORDER:
 		_reset_system(system_name, db_ok and with_population)
+		if system_name == "PlayerState" and baseline_reputation >= 0.0:
+			autoload("PlayerState").set("_reputation", baseline_reputation)
 		if system_name == "GameClock":
 			_set_seed(run_seed)
 	return db_ok

@@ -2583,7 +2583,7 @@ PHONE_BRIBE_AMOUNT_CAPTION,Your offer,Tu oferta
 PHONE_BRIBE_FUNDS,You have %s,Tienes %s
 PHONE_BRIBE_ESTIMATE,Personnel file estimate: %s,Estimación del expediente: %s
 PHONE_BRIBE_BLIND,Price unknown: you are guessing. (A level N%d personnel file shows an estimate.),Precio desconocido: vas a ciegas. (El expediente de nivel N%d muestra una estimación.)
-PHONE_BRIBE_ASKED,They asked for %s.,Te ha pedido %s.
+PHONE_BRIBE_ASKED,"They asked for %s. Offering it is a new attempt: if things have changed since (suspicion, witnesses), so may the answer.","Te ha pedido %s. Ofrecerlo es un nuevo intento: si algo ha cambiado desde entonces (sospecha, testigos), la respuesta también puede cambiar."
 PHONE_BRIBE_RISK_CHAT,Leaves a permanent record on the server.,Deja un registro permanente en el servidor.
 PHONE_BRIBE_SEND,Send offer · %s,Enviar oferta · %s
 PHONE_BRIBE_CONFIRM,Send it,Enviarla
@@ -3354,7 +3354,7 @@ NIGHT_ERR_LOCKED,It is locked. You lack the right tool or the combination.,Está
 NIGHT_ERR_NOT_HOME,The owner is not at home.,El dueño no está en casa.
 NIGHT_ERR_WITNESSES,Somebody is watching.,Alguien está mirando.
 HOME_NOTE_HUNGRY,You went to bed hungry. %d more day like this and you will not get up.,Te acostaste sin comer. %d día más así y no te levantarás.
-HOME_NOTE_RENT_UNPAID,Rent unpaid: %d € short.,Alquiler sin pagar: faltan %d €.
+HOME_NOTE_RENT_UNPAID,Rent unpaid: %d € owed. Arrears are charged before food tomorrow.,Alquiler sin pagar: debes %d €. Los atrasos se cobran antes que la comida de mañana.
 HOME_ERR_NOT_HOME,You can only sleep in your own bed.,Solo puedes dormir en tu cama.
 HOME_ERR_NOT_NIGHT,It is too early to go to bed.,Es demasiado pronto para acostarse.
 HOME_ERR_POLICE,Not with the police on your heels.,No con la policía pisándote los talones.
@@ -3637,6 +3637,8 @@ INTERACT_TURNSTILE_OPEN,Card accepted. The gate opens.,Tarjeta aceptada. El torn
 TRAVEL_COMMUTE_BODY_DOOR,"The usual ride to the office. (To stay around the neighbourhood, just walk out the door.)","El trayecto de siempre hasta la oficina. (Para quedarte por el barrio, sal por la puerta sin más.)"
 UI_INTERACT_COMMUTE_DOOR,Go to work,Ir al trabajo
 OFFICE_ACT_ABORTED,You decide it can wait.,Decides que puede esperar.
+OFFICE_ACT_ABORTED_NPC,You decide it can wait. Try again once %s leaves or looks the other way.,Decides que puede esperar. Vuelve a intentarlo cuando %s se vaya o mire hacia otro lado.
+OFFICE_ACT_ABORTED_CAMERA,You decide it can wait. %s covers this spot: move out of its view or wait until it pans away.,Decides que puede esperar. %s cubre este punto: sal de su campo de visión o espera a que gire.
 OFFICE_ACT_INTERRUPTED,You stopped halfway. Nothing taken.,Lo dejas a medias. No te llevas nada.
 OFFICE_ARCHIVE_COMPLAINTS,Complaints folder: staff discontent is at %d/100. Most complaints are about the complaints folder.,Carpeta de quejas: el descontento de la plantilla está en %d/100. Casi todas las quejas son sobre la carpeta de quejas.
 OFFICE_ARCHIVE_GENERIC,"Old folders, older coffee rings. Nothing you can use right now.",Carpetas viejas y círculos de café más viejos aún. Nada que te sirva ahora.
@@ -3800,7 +3802,7 @@ OFFICE_TRADING_TITLE,Trading terminal,Terminal de bolsa
 OFFICE_UNKNOWN_INCIDENT,an incident,un incidente
 OFFICE_VENDING_BODY,The machine hums hopefully.,La máquina zumba esperanzada.
 OFFICE_VENDING_TITLE,Vending machine,Máquina expendedora
-OFFICE_WATCHED_BODY,%s can see you right now. Do it anyway?,%s te está viendo ahora mismo. ¿Lo haces de todos modos?
+OFFICE_WATCHED_BODY,"%s is looking right at you. If they keep watching, they'll catch you in the act. Do it anyway?","%s te está mirando. Si sigue mirando, te pillará en plena faena. ¿Lo haces de todos modos?"
 OFFICE_WATCHED_CAMERA,A security camera,Una cámara de seguridad
 OFFICE_WATCHED_PROCEED,Do it anyway,Hacerlo igualmente
 OFFICE_WATCHED_TITLE,You're being watched,Te están mirando
@@ -4201,7 +4203,7 @@ SOCIAL_MENU_BACK,Back,Volver
 SOCIAL_MENU_KEYS,1-9 choose · Esc back · WASD walk away,1-9 elegir · Esc volver · WASD marcharse
 SOCIAL_EXPO_ALONE,Nobody else is looking.,Nadie más está mirando.
 SOCIAL_EXPO_WATCHED,Seen by: %s,Te ven: %s
-SOCIAL_EXPO_CAMERA,A camera has you in frame,Una cámara te tiene en plano
+SOCIAL_EXPO_CAMERA,A camera has you in frame: an in-person bribe here goes on tape (a large suspicion jump). Call or message them instead,Una cámara te tiene en plano: un soborno en persona aquí queda grabado (gran subida de sospecha). Mejor por llamada o mensaje
 SOCIAL_OPT_CHAT,Small talk,Charlar un rato
 SOCIAL_OPT_DIRECTIONS,Ask for directions / the agenda,Preguntar por un sitio / la agenda
 SOCIAL_OPT_RUMOUR,Plant a rumour…,Plantar un rumor…
@@ -4308,7 +4310,7 @@ SOCIAL_RUMOUR_LINE,No! Really? …I'll keep that in mind.,¡No! ¿En serio? …L
 SOCIAL_RUMOUR_LINE_SPREADER,"Oh. My. God. Everyone will know by lunch. Not from me, obviously.","Madre. Mía. Lo sabrá todo el mundo antes de comer. Por mí no, claro."
 SOCIAL_RUMOUR_LINE_ISOLATED,"Huh. I… don't really talk to anyone here, though.",Vaya. Aunque… yo aquí no hablo con nadie.
 SOCIAL_TOAST_RUMOUR,Rumour planted with %s (about %s). It will travel through their links.,Rumor plantado en %s (sobre %s). Viajará por sus vínculos.
-SOCIAL_TOAST_RUMOUR_SPREAD,%s will spread it everywhere (about %s).,%s lo repartirá por todo el edificio (sobre %s).
+SOCIAL_TOAST_RUMOUR_SPREAD,%s will spread it everywhere (about %s). Their reputation and promotion odds will suffer; the notebook will say how far it got.,%s lo repartirá por todo el edificio (sobre %s). Su reputación y sus opciones de ascenso lo notarán; el cuaderno dirá hasta dónde llegó.
 SOCIAL_TOAST_RUMOUR_DEAD,%s has nobody to tell. The rumour dies there.,%s no tiene a quién contárselo. El rumor muere ahí.
 SOCIAL_AGITATE_LINE,You're right. Something has to change around here.,Tienes razón. Algo tiene que cambiar aquí.
 SOCIAL_TOAST_AGITATE,%s is fed up. Discontent rises.,%s está harto. El descontento sube.
@@ -4426,7 +4428,7 @@ TUT_NOTE_RESTRICTED,HR induction: %s (%s) is a restricted area.,Acogida de RR. H
 TUT_NOTE_KEYS,HR induction: your basic keys open %s (%s).,Acogida de RR. HH.: tus llaves básicas abren %s (%s).
 TUT_DAY_TITLE,Your first day,Tu primer día
 TUT_DAY_FROM,HR Onboarding. Please do not remove this note.,"Acogida de RR. HH. Por favor, no quites esta nota."
-TUT_TASK_EMAILS,"Answer the first 3 of today's emails in MAIL (%d/%d) — they count toward your duties","Contesta en MAIL los 3 primeros correos del día (%d/%d) — cuentan para tus deberes"
+TUT_TASK_EMAILS,Answer the first 3 of today's emails in MAIL (%d/%d) — they count toward your duties,Contesta en MAIL los 3 primeros correos del día (%d/%d) — cuentan para tus deberes
 TUT_TASK_EMAILS_HINT,"At your desk: %s, then MAIL. Three. Baby steps. The rest are due by %s.","En tu mesa: %s y luego MAIL. Tres. Pasito a pasito. El resto, antes de las %s."
 TUT_TASK_EMAILS_DONE,Three emails answered. Your onboarding dashboard turns a slightly warmer grey.,Tres correos contestados. Tu panel de acogida se vuelve de un gris ligeramente más cálido.
 TUT_TASK_IDEA,Watch how Claudia Reeves works,Observa cómo trabaja Claudia Reeves
@@ -4480,3 +4482,20 @@ SECOPS_CEO_OPEN_BODY,Dial the combination and take the ownership documents? Ther
 SECOPS_CEO_OPEN_GO,Open it,Abrirla
 SECOPS_CEO_LOCKED_PLAIN,"A heavy combination safe. It isn't going anywhere, and neither are you — not without the combination.","Una caja de combinación pesada. No se va a mover, y tú tampoco la abrirás sin la combinación."
 SOCIAL_ELIM_ABORTED_RANGE,They stepped out of reach. You let it go.,Se ha alejado. Lo dejas estar.
+HUD_REASON_VOUCHER,Wage in meal vouchers,Salario en vales de comida
+HUD_REASON_DEBT,Arrears (rent owed),Atrasos (alquiler adeudado)
+NAMED_MSG_CLAIM,About that ledger of yours: now seems like the right moment to settle up. You have three days.,Sobre tu cuenta pendiente: me parece un buen momento para saldarla. Tienes tres días.
+NAMED_MSG_CLAIM_REPORTED,You didn't pay. I've mentioned a few things to your superiors.,No has pagado. He comentado un par de cosas a tus superiores.
+NAMED_MSG_ALLY,You stood up for me when nobody else did. I won't forget it. Whatever you need from IT.,Me defendiste cuando nadie más lo hizo. No lo olvidaré. Lo que necesites de IT.
+SOCIAL_HINT_OWED,You owe them: %d,Le debes: %d
+NOTE_RUMOUR_REACH,The rumour about %s has reached %d people. Their reputation is down %d points.,El rumor sobre %s ha llegado a %d personas. Su reputación ha caído %d puntos.
+DAYSUM_DEMOTED,Demoted to %s.,Descenso a %s.
+DAYSUM_PROMOTED,New position: %s.,Nuevo puesto: %s.
+CONF_REASON_PRESENTATION_BELOW_EXPECTED,Weak presentation,Presentación floja
+CONF_REASON_PRESENTATION_ABOVE_EXPECTED,Strong presentation,Presentación convincente
+DAYSUM_FAILURE_STREAK,Days with failed duties in a row: %d/%d. Reaching the limit means demotion.,"Jornadas seguidas con deberes incumplidos: %d/%d. Al llegar al límite, descenso."
+HUD_DUTY_FAILED,FAILED,INCUMPLIDO
+MARKET_CONFIRM_STAKE_BREAK,"Selling these shares breaks up your board stake: you lose your seat, your board votes and the stake dividends. Sell anyway?","Vender estas acciones deshace tu paquete accionarial: pierdes el asiento, los votos en el consejo y los dividendos del paquete. ¿Vender igualmente?"
+OFFICE_NEARBY_TITLE,Someone might notice,Alguien podría notarlo
+OFFICE_NEARBY_BODY,"%s could notice something odd, but can't catch you in the act from there. They may remember it later. Do it anyway?","%s podría notar algo raro, pero desde ahí no te pillará en plena faena. Puede que lo recuerde después. ¿Lo haces de todos modos?"
+MSG_TEST,Test message,Mensaje de prueba

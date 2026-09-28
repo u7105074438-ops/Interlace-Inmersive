@@ -358,6 +358,7 @@ const K_RISK := "risk_factor"
 const F_DIVERGENCE := "divergence"
 const F_WEEKS := "weeks_left"
 const F_DAY := "lit_day"
+const B_DAYS_PER_WEEK := "tiempo.jornadas_por_semana"
 const L_DAY := "day"
 const L_AMOUNT := "amount"
 const L_ID := "id"
@@ -418,6 +419,7 @@ const B_FUSE_CAP_BY_POST := "empresa.mecha_max_semanas_por_cargo.%s"
 const B_FUSE_MAX := "mercado.mecha_auditoria_max_semanas"
 const B_SCORE_MERIT := "npc.puntuacion_ascenso_merito"
 const B_SCORE_AMBITION := "npc.puntuacion_ascenso_ambicion"
+const B_SCORE_RUMOUR := "npc.puntuacion_ascenso_rumor"
 const B_START_OCCUPATION := "jugador.ocupacion_inicial"
 const B_DISCONTENT_START := "descontento.inicial"
 const B_STRIKE_THRESHOLD := "descontento.umbral_huelga"
@@ -495,6 +497,8 @@ var _q_last_day: int = 0
 var _fundamentals: Dictionary = {}
 var _reported: Dictionary = {}
 var _fuse: Dictionary = {}
+## Día del último week_closed (no se guarda: se guarda tras los cierres de la jornada).
+var _last_week_close_day: int = -1
 ## Última auditoría: {divergence, found, day} ({} si no hubo).
 var _last_audit: Dictionary = {}
 
@@ -681,6 +685,7 @@ func _clear_fundamentals_state() -> void:
 	_fundamentals = {}
 	_reported = {}
 	_fuse = {}
+	_last_week_close_day = -1
 	_last_audit = {}
 
 
@@ -1796,6 +1801,8 @@ func _best_among(ids: Array[String]) -> String:
 	for id: String in ids:
 		var score: float = NPCDirector.get_merit(id) * w_merit \
 				+ NPCDirector.get_trait(id, TRAIT_AMBITION) * w_ambition
+		# §8.1/§8.3: un rumor dirigido que circula sobre el candidato le cuesta el ascenso.
+		score -= NPCDirector.get_rumour_reputation_penalty(id) * _bf(B_SCORE_RUMOUR)
 		if score > best_score:
 			best_score = score
 			best = id
@@ -2093,7 +2100,15 @@ func _light_fuse(divergence: float) -> void:
 	if not _fuse.is_empty():
 		weeks = mini(weeks, int(_fuse[F_WEEKS]))
 		magnitude = maxf(divergence, float(_fuse[F_DIVERGENCE]))
-	_fuse = {F_DIVERGENCE: magnitude, F_WEEKS: weeks, F_DAY: GameClock.get_day()}
+	# «Dentro de N semanas» son N cierres semanales POSTERIORES: encendida en un día de cierre
+	# semanal que aún no ha cerrado (la presentación trimestral cae en él), ese cierre no cuenta
+	# (QA: la auditoría llegaba una semana antes de lo anunciado).
+	var today: int = GameClock.get_day()
+	var internal: int = weeks
+	var per_week: int = Database.get_balance_int(B_DAYS_PER_WEEK)
+	if per_week > 0 and today % per_week == 0 and _last_week_close_day != today:
+		internal += 1
+	_fuse = {F_DIVERGENCE: magnitude, F_WEEKS: internal, F_DAY: today}
 	EventBus.audit_fuse_lit.emit(magnitude, weeks)
 	_note(NOTE_FUSE_LIT, [weeks])
 
@@ -2180,6 +2195,7 @@ func _on_week_closed(week_number: int) -> void:
 	if not _active:
 		return
 	run_inventory_count(week_number)
+	_last_week_close_day = GameClock.get_day()
 	if _fuse.is_empty():
 		return
 	_fuse[F_WEEKS] = int(_fuse[F_WEEKS]) - 1
@@ -2354,6 +2370,15 @@ func _on_strike_resolved(resolution: String) -> void:
 	if resolution == STRIKE_BETRAYED and _strike_leader == PLAYER_ID:
 		_workers_betrayed = true
 		_set_standing(B_STANDING_BETRAY)
+	if resolution == STRIKE_BETRAYED and _strike_leader == PLAYER_ID:
+		# La traición desmoraliza la planta: el descontento cae al umbral para que una huelga
+		# futura (sin el jugador) pueda volver a estallar al superarlo (§11.7), en vez de quedar
+		# clavado en 100 sin huelga el resto de la partida.
+		var threshold: int = get_strike_threshold()
+		if _discontent > threshold:
+			var old_discontent: int = _discontent
+			_discontent = threshold
+			EventBus.strike_discontent_changed.emit(old_discontent, _discontent)
 	_strike_leader = ""
 	recalculate_fundamentals()
 

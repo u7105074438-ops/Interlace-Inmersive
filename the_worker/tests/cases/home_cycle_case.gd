@@ -44,6 +44,8 @@ func run_case() -> void:
 	_test_late_node_repeats_breakfast()
 	_test_day_without_sleep()
 	_test_starvation()
+	_test_debt_and_vouchers()
+	_test_mid_day_demotion()
 	_log.stop()
 	_cleanup()
 	_cycle.queue_free()
@@ -51,12 +53,17 @@ func run_case() -> void:
 	await get_tree().process_frame
 
 
-func _fresh(hour: int) -> void:
+## attended: el jugador pasó por el edificio esta jornada (condición del salario, §6.5).
+func _fresh(hour: int, attended: bool = true) -> void:
 	new_run(DEFAULT_SEED)
+	# Saldo de prueba de 120 € (economia.dinero_inicial es 2 €: §6.5, 26 jornadas hasta 210 €).
+	PlayerState.add_money(120 - PlayerState.get_money(), "test")
 	SaveSystem.reset_for_new_run()
 	GameClock.set_time(1, hour, 0)
 	_police.reset_for_new_run()
 	_cycle.reset_for_new_run()
+	if attended:
+		EventBus.room_entered.emit("turnstiles", true)
 	EventBus.room_entered.emit(FLAT, true)
 	_log.clear()
 
@@ -75,11 +82,15 @@ func _reasons(signal_args: Array[Array]) -> Array[String]:
 
 
 func _test_expenses_and_wage() -> void:
-	_fresh(18)
+	_fresh(18, false)
 	check_eq(PlayerState.get_daily_expenses(), 22, "R1 daily expenses: 5 + 10 + 7 = 22 € (§15.4)")
 	var money: int = PlayerState.get_money()
 	_advance_to(20)
-	check_eq(PlayerState.get_money() - money, PlayerState.get_daily_wage(), "wage paid at 19:00")
+	check_eq(PlayerState.get_money() - money, 0, "absent all day (never entered the building): no wage (§6.5)")
+	_fresh(18)
+	money = PlayerState.get_money()
+	_advance_to(20)
+	check_eq(PlayerState.get_money() - money, PlayerState.get_daily_wage(), "wage paid at 19:00 after going to work")
 	check(_reasons(_log.all("money_changed")).has("wage"), "money reason 'wage'")
 	_advance_to(22)
 	check_eq(PlayerState.get_money() - money, PlayerState.get_daily_wage(), "only once per day")
@@ -173,7 +184,9 @@ func _test_sleep_sequence() -> void:
 	var summary: Dictionary = result["summary"]
 	check_eq(int(summary["day"]), 1, "summary.day = closing day")
 	check_eq(int(summary["income"]), PlayerState.get_daily_wage(), "summary income = the wage")
-	check_eq(int(summary["expenses"]), PlayerState.get_daily_expenses(), "summary expenses = 22 €")
+	check_eq(int(summary["expenses"]), PlayerState.get_daily_expenses()
+			- _cycle.meal_price(HomeCycle.MEAL_BREAKFAST),
+			"summary expenses = 22 € minus the breakfast never taken (§4.2: not billed afterwards)")
 	check(summary.has("reputation") and summary.has("suspicion_delta") and summary.has("meals"),
 			"the summary carries the meters")
 	check_eq(GameClock.get_day(), 2, "the day advanced")
@@ -230,8 +243,9 @@ func _test_day_without_sleep() -> void:
 	var money: int = PlayerState.get_money()
 	_advance_to(7)
 	check_eq(GameClock.get_day(), 2, "the day advanced at 06:00 without sleeping")
-	check_eq(PlayerState.get_money() - money, PlayerState.get_daily_wage() - PlayerState.get_daily_expenses(),
-			"a day costs the daily expenses even without sleeping (wage 30 − 22)")
+	check_eq(PlayerState.get_money() - money, PlayerState.get_daily_wage() - PlayerState.get_daily_expenses()
+			+ _cycle.meal_price(HomeCycle.MEAL_BREAKFAST),
+			"a day costs rent, status and dinner even without sleeping; an untaken breakfast is not billed")
 	_fresh(20)
 	_cycle.steal_food(PANTRY)
 	_cycle.steal_food(PANTRY)
@@ -240,7 +254,8 @@ func _test_day_without_sleep() -> void:
 	var rent: int = Database.get_balance_int("economia.alquiler_diario")
 	check_eq(PlayerState.get_money() - money, PlayerState.get_daily_wage() - rent,
 			"with stolen food only the rent is paid")
-	check_eq(PlayerState.get_item_count("food_basic"), 0, "both stolen meals were eaten")
+	check_eq(PlayerState.get_item_count("food_basic"), 1,
+			"settling eats only the dinner; the other stolen meal stays in the pantry")
 
 
 func _drain() -> void:
@@ -261,6 +276,7 @@ func _test_starvation() -> void:
 	check_eq(warnings, 1, "the notebook warns about hunger")
 	check(_log.all("notebook_entry_added").any(func(a: Array) -> bool:
 			return str(a[1]) == HomeCycle.NOTE_RENT_UNPAID), "and about the unpaid rent")
+	EventBus.room_entered.emit("turnstiles", true)
 	_advance_to(20)
 	_advance_to(7)
 	check_eq(_cycle.get_hungry_days(), 0, "a fed day resets the count")
@@ -280,6 +296,51 @@ func _test_starvation() -> void:
 			"%d days without food: game_over(starvation)" % Database.get_balance_int("hogar.jornadas_sin_comer_inanicion"))
 	check_eq(str(over[1]) if over.size() == 3 else "", "the_gap", "starvation ends as THE GAP")
 	check_eq(_cycle.can_sleep(), HomeCycle.ERR_GAME_OVER, "no sleeping after the end")
+
+
+## §4.4: la renta impagada se arrastra y se cobra antes que la comida; §22 R0: vales de comida.
+func _test_mid_day_demotion() -> void:
+	_fresh(17)
+	var wage: int = PlayerState.get_daily_wage()
+	var duty_id: String = str(PlayerState.get_todays_duties()[0]["id"]) \
+			if not PlayerState.get_todays_duties().is_empty() else ""
+	if not duty_id.is_empty():
+		PlayerState.fail_duty(duty_id)
+	PlayerState.set_occupation("eternal_intern", "demotion")
+	var summary: Dictionary = _cycle.build_day_summary()
+	if not duty_id.is_empty():
+		check(Array(summary["missed_duties"]).has(duty_id),
+				"a duty failed before the demotion stays in the day summary")
+	check_eq(Array(summary["occupation_changes"]).size(), 1, "the demotion is in the day summary")
+	_advance_to(20)
+	check_eq(int(_cycle.build_day_summary()["income"]), wage, "the day is paid at the rank it was worked at")
+
+
+func _test_debt_and_vouchers() -> void:
+	_fresh(18)
+	_advance_to(20)
+	_drain()
+	_advance_to(7)
+	var debt: int = _cycle.get_debt()
+	check(debt > 0, "unpaid rent becomes arrears")
+	PlayerState.add_money(debt, "test")
+	EventBus.room_entered.emit("turnstiles", true)
+	_advance_to(20)
+	_drain()
+	PlayerState.add_money(debt + Database.get_balance_int("economia.alquiler_diario"), "test")
+	_advance_to(7)
+	check_eq(_cycle.get_debt(), 0, "arrears and rent are paid first")
+	# Intern from the start of the day (a mid-day change is paid at the rank the day began with).
+	_fresh(18, false)
+	PlayerState.set_occupation("eternal_intern", "test")
+	EventBus.room_entered.emit("turnstiles", true)
+	_drain()
+	_advance_to(20)
+	check_eq(PlayerState.get_money(), 0, "the intern's wage is not cash (§22 R0 vouchers)")
+	check_eq(_cycle.get_vouchers(), PlayerState.get_daily_wage(), "it arrives as meal vouchers")
+	_advance_to(7)
+	check(_cycle.has_eaten(HomeCycle.MEAL_BREAKFAST) or _cycle.get_hungry_days() == 0,
+			"vouchers feed the intern")
 
 
 func _cleanup() -> void:

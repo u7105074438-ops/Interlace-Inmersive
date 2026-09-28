@@ -8,12 +8,12 @@
     "cena_min": 8,
     "cena_max": 12,
     "alquiler_diario": 7,
-    "dinero_inicial": 120,
+    "dinero_inicial": 2,
     "estatus_por_escalon": {
-      "5": 40,
-      "6": 60,
-      "7": 90,
-      "8": 120
+      "5": 130,
+      "6": 240,
+      "7": 440,
+      "8": 1150
     },
     "penalizacion_reputacion_sin_traje": 2.0,
     "precio_traje_ejecutivo": 1800,
@@ -74,6 +74,9 @@
     "factor_distancia_max": 2.0,
     "distancia_identificacion": 5.0,
     "tope_contador_lejano": 0.9,
+    "mod_cuerpo_arrastrado": 2.5,
+    "factor_identificacion_cuerpo": 1.8,
+    "_nota_cuerpo": "§12.2/§12.3 (QA): arrastrar un cuerpo a la vista llama la atención: llenado × mod_cuerpo_arrastrado y la distancia de identificación × factor_identificacion_cuerpo (llega a flagrancia desde más lejos).",
     "perspicacia_neutra": 50,
     "mod_alcance_por_punto": 0.005,
     "mod_angulo_por_punto": 0.003,
@@ -105,7 +108,10 @@
     "intervalo_cono_reposo": 0.5,
     "radio_ruido_investigar": 6.0,
     "factor_oido_muro": 0.5,
-    "tolerancia_cache_disfraz": 0.5
+    "tolerancia_cache_disfraz": 0.5,
+    "radio_proximidad_m": 1.6,
+    "factor_proximidad": 0.5,
+    "_nota_proximidad": "§7.3 percepción periférica/auditiva: fuera del cono, a <= radio_proximidad_m con línea de visión, el NPC nota al jugador con el llenado multiplicado por factor_proximidad."
   },
   "ruido": {
     "radio_sigiloso": 1.0,
@@ -216,7 +222,11 @@
     ],
     "_nota_registros": "Registros neutros (BeliefNet): una lectura de cámara o de lector de tarjeta del jugador es rutinaria (no pesa en la sospecha, sí en las investigaciones) salvo que sea incriminatoria: sala fuera de su acreditación (clearance_required y special_access), franja de franjas_registro_incriminatorio, o un delito (salvo delitos_sin_rastro_visual) en la misma sala a ±horas_ventana_delito_registro horas el mismo día. Cada sensor (cámara/lector) cuenta una vez por jornada en la sospecha. Denuncias: report_type de tipos_denuncia_con_peso_evidencia (NPCDirector: el weight es el peso de evidencia §12.4 × factor del superior) → puntos = weight × puntos_por_peso_evidencia_denuncia (4,0 → +20; ante el superior 2,0 → +10); resto → puntos_denuncia. denuncias_con_anotacion crean además una anotación en expediente (stamped_document neutro, peso peso_anotacion_expediente). registros_por_delito.*.sin_verificar: el documento no pesa en la sospecha hasta que una investigación lo usa como pieza (§5.3 «definitivo si se verifica»).",
     "factor_peso_social_noticias": 1.0,
-    "_nota_noticias": "§7.11 capa compartida: la sospecha del jugador suma NewsFeed.get_suspicion_contribution() (peso social vivo de la prensa sobre el jugador y la compañía, 0-100) × factor_peso_social_noticias puntos. Enterrar la noticia la retira."
+    "_nota_noticias": "§7.11 capa compartida: la sospecha del jugador suma NewsFeed.get_suspicion_contribution() (peso social vivo de la prensa sobre el jugador y la compañía, 0-100) × factor_peso_social_noticias puntos. Enterrar la noticia la retira.",
+    "registros_solo_evidencia": [
+      "accounting_entry:insider_trade"
+    ],
+    "_nota_registros_solo_evidencia": "§9.8: el rastro contable de cada operación con información privilegiada no sube la sospecha por sí solo (la detección es la fórmula de patrón de Market); queda como evidencia que la investigación insider encuentra al abrirse."
   },
   "sobornos": {
     "base": 0.1,
@@ -303,6 +313,7 @@
     "peso_presentacion_cifras": 0.4,
     "dias_historico": 100,
     "precio_minimo": 0.5,
+    "suavizado_beneficio_esperado": 0.1,
     "multiplo_minimo": 1.0,
     "sentimiento_max": 0.5,
     "decaimiento_sentimiento_inversor": 0.8,
@@ -340,7 +351,9 @@
     "dias_campana_activista": 25,
     "trimestres_perdonados_campana": 1,
     "certeza_testigo_testaferro": 0.6,
-    "_nota_ext2": "Revisión PASO 33-35: sentimiento_max 0,5 (como mucho ±15 % diario por sentimiento). favor_pregunta_favorable: favor de bribes.json con el que un inversor sobornado formula una pregunta favorable (aliado, §9.5). favor_testaferro: favor con el que se recluta a un tercero para operar a su nombre (§9.8). pago_por_soplo: lo que paga el cazador de información por cada soplo. Campaña activista: dura dias_campana_activista jornadas y, contra el jugador, resta trimestres_perdonados_campana a los trimestres malos que disparan la presión del consejo. certeza_testigo_testaferro: certeza de la creencia del testaferro sobre el jugador."
+    "_nota_ext2": "Revisión PASO 33-35: sentimiento_max 0,5 (como mucho ±15 % diario por sentimiento). favor_pregunta_favorable: favor de bribes.json con el que un inversor sobornado formula una pregunta favorable (aliado, §9.5). favor_testaferro: favor con el que se recluta a un tercero para operar a su nombre (§9.8). pago_por_soplo: lo que paga el cazador de información por cada soplo. Campaña activista: dura dias_campana_activista jornadas y, contra el jugador, resta trimestres_perdonados_campana a los trimestres malos que disparan la presión del consejo. certeza_testigo_testaferro: certeza de la creencia del testaferro sobre el jugador.",
+    "peso_presentacion_calidad_max_oyente": 0.85,
+    "_nota_peso_calidad_max": "§9.5: tope de W por inversor que escucha; las cifras conservan siempre al menos 1 - tope del peso aunque los oyentes tengan poco capital."
   },
   "ideas": {
     "prob_generacion_diaria_base": 0.12,
@@ -1977,9 +1990,10 @@
       "fundido_segundos": 0.8
     },
     "epilogo": {
-      "caracteres_por_segundo": 60.0,
+      "caracteres_por_segundo": 150.0,
       "intensidad_tinte": 0.35,
-      "retardo_botones_segundos": 0.6
+      "retardo_botones_segundos": 0.6,
+      "duracion_max_segundos": 6.0
     },
     "promocion": {
       "segundos_por_planta": 0.22,
@@ -2092,7 +2106,7 @@
   "jugador": {
     "_nota": "PlayerState (§19.3, §6.1). La reputación va de 0 a reputacion_maxima.",
     "ocupacion_inicial": "email_worker_3b",
-    "reputacion_inicial": 0.0,
+    "reputacion_inicial": 20.0,
     "reputacion_maxima": 100.0,
     "velocidad_sigilo": 1.5,
     "velocidad_normal": 3.2,
@@ -2621,7 +2635,7 @@
     "llegada_ventana_s": 3.0
   },
   "utilidad": {
-    "_nota": "PASO 16 / §7.5. Utilidad(acción) = sesgo + Σ rasgos[r] × rasgo/100 + creencia × Σ certezas de las creencias del personaje sobre el jugador + animo × ánimo (−1..1) + Σ relacion[k] × valor del registro (afecto/100, temor/100, deuda/100, agravios Σgravedad/registro.escala_utilidad_agravios, favores Σmagnitud/registro.escala_utilidad_favores) + rango × rango_jugador/33 + sospecha × sospecha/100 + reputacion × reputación/100 + oferta × ratio de oferta (0..1, solo sobornos). Ninguna regla explícita por rango: el término rango decide. report_to_superior y stay_silent (callar por temor) son extensiones del repertorio base. Pesos de rasgos/creencia/rango/sospecha/reputación/sesgo de las acciones de reacción y de franja ajustados por programación lineal: cada arquetipo base elige su reacción de §12.2 con un jugador de rango 1 (≥ ~75 % de las variantes ±15), y George denuncia con rango 1 y calla con rango 28 para toda sospecha/reputación 0-100 y creencias previas (margen ≥ 0,25).",
+    "_nota": "PASO 16 / §7.5. Utilidad(acción) = sesgo + Σ rasgos[r] × rasgo/100 + creencia × Σ certezas de las creencias del personaje sobre el jugador + animo × ánimo (−1..1) + Σ relacion[k] × valor del registro (afecto/100, temor/100, deuda/100, agravios Σgravedad/registro.escala_utilidad_agravios, favores Σmagnitud/registro.escala_utilidad_favores) + rango × rango_jugador/33 + sospecha × sospecha/100 + reputacion × reputación/100 + oferta × ratio de oferta (0..1, solo sobornos). Ninguna regla explícita por rango: el término rango decide; su peso efectivo es rango + Σ rango_rasgos[r] × rasgo/100 (la valentía modula cuánto intimida el rango: hardliner/incorruptible siguen denunciando a un jugador sénior, §7.13, §8.1; el rookie y el soplón callan). report_to_superior y stay_silent (callar por temor) son extensiones del repertorio base. Pesos de rasgos/creencia/rango/sospecha/reputación/sesgo de las acciones de reacción y de franja ajustados por programación lineal: cada arquetipo base elige su reacción de §12.2 con un jugador de rango 1 (≥ ~75 % de las variantes ±15), y George denuncia con rango 1 y calla con rango 28 para toda sospecha/reputación 0-100 y creencias previas (margen ≥ 0,25).",
     "work": {
       "rasgos": {
         "ambition": -2.83,
@@ -2677,7 +2691,10 @@
         "agravios": 0.4,
         "favores": -0.3
       },
-      "rango": -1.7,
+      "rango": -3.62,
+      "rango_rasgos": {
+        "courage": 4.0
+      },
       "sospecha": 0.3,
       "reputacion": -0.3,
       "sesgo": -2.38
@@ -2700,7 +2717,10 @@
         "agravios": 0.3,
         "favores": -0.3
       },
-      "rango": -1.0,
+      "rango": -3.0,
+      "rango_rasgos": {
+        "courage": 3.0
+      },
       "sospecha": 0.3,
       "reputacion": -0.3,
       "sesgo": 1.62
@@ -2722,7 +2742,10 @@
         "deuda": 0.6,
         "favores": 0.3
       },
-      "rango": 0.5,
+      "rango": 1.46,
+      "rango_rasgos": {
+        "courage": -2.0
+      },
       "sospecha": 0.0,
       "reputacion": 0.0,
       "sesgo": 0.0
@@ -2927,7 +2950,11 @@
         "work_morning",
         "work_afternoon"
       ]
-    }
+    },
+    "reputacion_por_certeza_rumor": 3.0,
+    "reputacion_rumor_max": 30.0,
+    "puntuacion_ascenso_rumor": 1.0,
+    "_nota_rumor": "§8.1/§8.3 rumores dirigidos (QA): reputación del personaje −= min(Σ certeza de las creencias social.rumor.hecho_colega sobre él × reputacion_por_certeza_rumor, reputacion_rumor_max); esa misma penalización × puntuacion_ascenso_rumor resta en la puntuación de ascenso (Company._best_among)."
   },
   "rutinas": {
     "_nota": "Posición estadística (§24.5, §20.1). hora_representativa_franja: momento del día que get_scheduled_location(npc, franja) consulta. minutos_paso: estancia en la sala de paso (via) al llegar/salir. minutos_por_sala_zona: la limpieza y las rondas cambian de sala cada N minutos. patrones_sala: ficha de rutina (floor_*) → fragmento del id de sala que la resuelve en la planta del personaje; sala_fotocopias_por_defecto: si la planta no tiene fotocopiadora. corrillo_fumadores: corrillo cuyas salidas cada 2 h añade la rutina. escaqueo_escalon_max: escalón máximo de los slackers (§24.3 paso 6).",
@@ -3404,6 +3431,40 @@
         "rooms": [
           "vent_network"
         ]
+      },
+      "master_keys_no_offices": {
+        "all_floors": true,
+        "max_room_clearance": 6
+      },
+      "floors_1_9_transit": {
+        "floors": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "max_room_clearance": 3
+      },
+      "zone_after_hours": {
+        "floors": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "max_room_clearance": 4,
+        "after_hour": 19
       }
     },
     "llaves_sala": {
@@ -3758,7 +3819,7 @@
     ]
   },
   "hogar": {
-    "_nota": "Ciclo de tarde y noche (§4.2, §4.4, §15.4, §22.16, PASO 39; HomeCycle). Salario (PlayerState.get_daily_wage) a la hora tiempo.hora_fin_jornada. Comidas: desayuno y cena; cada una se come de la despensa (inventario o alijos de sala_domicilio; objetos de comidas.<comida> en ese orden: robados o comprados, sin coste al comerlos) o se compra a su precio (punto medio economia.desayuno_*/cena_*, el de PlayerState.get_daily_expense_breakdown). Al cerrar la jornada (dormir o day_advanced) se liquida: salario si faltaba, comidas no hechas (despensa -> compra -> perdida), alquiler y estatus (lo que alcance; el resto se pierde con nota). Una jornada con menos de comidas_minimas_jornada comidas cuenta como sin comer; jornadas_sin_comer_inanicion seguidas = muerte por inanición (game_over starvation, §4.4; primera jornada: aviso). Sustraer comida (tipos_fuente_comida de cafetería/office, §22.4 §22.8) elimina el coste de esa comida. Dormir solo en sala_domicilio y con hora >= hora_minima_dormir o antes de tiempo.hora_cambio_jornada, sin persecución policial. minutos_*: tiempo de juego de cada paso (GameClock.advance_minutes); minutos_comida.<comida> al comer (no en la liquidación sin dormir).",
+    "_nota": "Ciclo de tarde y noche (§4.2, §4.4, §15.4, §22.16, PASO 39; HomeCycle). Salario (PlayerState.get_daily_wage) a la hora tiempo.hora_fin_jornada. Comidas: desayuno y cena; cada una se come de la despensa (inventario o alijos de sala_domicilio; objetos de comidas.<comida> en ese orden: robados o comprados, sin coste al comerlos) o se compra a su precio (punto medio economia.desayuno_*/cena_*, el de PlayerState.get_daily_expense_breakdown). Al cerrar la jornada (dormir o day_advanced) se liquida: salario si faltaba, la cena si no se hizo (despensa -> compra -> perdida; el desayuno no tomado no se cobra a posteriori), alquiler y estatus (lo que alcance; el resto se pierde con nota). Una jornada con menos de comidas_minimas_jornada comidas cuenta como sin comer; jornadas_sin_comer_inanicion seguidas = muerte por inanición (game_over starvation, §4.4; primera jornada: aviso). Sustraer comida (tipos_fuente_comida de cafetería/office, §22.4 §22.8) elimina el coste de esa comida. Dormir solo en sala_domicilio y con hora >= hora_minima_dormir o antes de tiempo.hora_cambio_jornada, sin persecución policial. minutos_*: tiempo de juego de cada paso (GameClock.advance_minutes); minutos_comida.<comida> al comer (no en la liquidación sin dormir).",
     "sala_domicilio": "player_flat",
     "hora_minima_dormir": 19,
     "comidas_minimas_jornada": 1,
@@ -5073,5 +5134,11 @@
       "reintento_segundos": 3.5,
       "segundos_vuelta": 8.0
     }
+  },
+  "especiales_nombrados": {
+    "_nota": "§8.3 (NamedSpecials): credito_max_favores = deuda máxima del jugador con quien lleva contabilidad de favores (Iggy); dias_plazo_cobro = jornadas desde que reclama el cobro (al abrirse una investigación) hasta que denuncia; afecto_aliado = afecto que gana el aliado permanente (Alvin).",
+    "credito_max_favores": 40,
+    "dias_plazo_cobro": 3,
+    "afecto_aliado": 100
   }
 }

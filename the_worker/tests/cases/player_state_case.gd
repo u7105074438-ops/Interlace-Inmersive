@@ -11,6 +11,12 @@ var _log: Dictionary = {}
 
 
 func run_case() -> void:
+	baseline_reputation = -1.0
+	new_run(DEFAULT_SEED, false)
+	check_near(PlayerState.get_reputation(),
+			Database.get_balance_float("jugador.reputacion_inicial"), 0.0001, "starting reputation")
+	check(PlayerState.get_reputation() > 0.0, "§4.4: the run starts above 0 so early penalties are felt")
+	baseline_reputation = 0.0
 	check(new_run(DEFAULT_SEED, false), "Database loaded and a new run was created")
 	_connect_bus()
 	_test_start_state()
@@ -40,9 +46,7 @@ func _test_start_state() -> void:
 	check_eq([PlayerState.get_rank(), PlayerState.get_tier(), PlayerState.get_clearance()],
 			[1, 1, 1], "R1, tier 1, clearance 1 (§6.1)")
 	check_eq(PlayerState.get_personnel_file_level(), 1, "personnel file level 1")
-	check_eq(PlayerState.get_money(), 120, "starting money = economia.dinero_inicial (120 €)")
-	check_near(PlayerState.get_reputation(),
-			Database.get_balance_float("jugador.reputacion_inicial"), 0.0001, "starting reputation")
+	check_eq(PlayerState.get_money(), 2, "starting money = economia.dinero_inicial (2 €, §6.5: 26 honest days to 210 €)")
 	check_eq(_inventory_ids(), ["own_card", "phone"], "starting inventory: own card and phone")
 	check_eq(PlayerState.get_free_slots(), 6, "8 slots, 2 used")
 	check(not PlayerState.has_hot_items(), "nothing compromising at the start")
@@ -60,14 +64,14 @@ func _test_start_state() -> void:
 func _test_money() -> void:
 	_clear()
 	PlayerState.add_money(50, "test_income")
-	check_eq(PlayerState.get_money(), 170, "add_money adds")
-	check_eq(_calls("money_changed"), [[120, 170, "test_income"]],
+	check_eq(PlayerState.get_money(), 52, "add_money adds")
+	check_eq(_calls("money_changed"), [[2, 52, "test_income"]],
 			"money_changed(old, new, reason)")
 	check(not PlayerState.spend_money(1000, "bribe"), "spend_money fails with insufficient funds")
-	check_eq(PlayerState.get_money(), 170, "a failed payment leaves money untouched")
+	check_eq(PlayerState.get_money(), 52, "a failed payment leaves money untouched")
 	check_eq(_calls("money_changed").size(), 1, "a failed payment emits nothing")
-	check(PlayerState.can_afford(170) and not PlayerState.can_afford(171), "can_afford boundary")
-	check(PlayerState.spend_money(170, "rent"), "spending exactly all the money works")
+	check(PlayerState.can_afford(52) and not PlayerState.can_afford(53), "can_afford boundary")
+	check(PlayerState.spend_money(52, "rent"), "spending exactly all the money works")
 	check_eq(PlayerState.get_money(), 0, "money reaches zero")
 	check(not PlayerState.spend_money(1, "breakfast"),
 			"cannot pay with zero money (starvation risk)")
@@ -84,12 +88,12 @@ func _test_expenses() -> void:
 	check_eq(PlayerState.get_daily_wage() - PlayerState.get_daily_expenses(), 8,
 			"R1 honest margin is 8 € per day (§15.4)")
 	var by_tier: Dictionary = {
-		"a10_marketing_director": 62, "hr_director": 82, "cfo": 112, "ceo": 142,
+		"a10_marketing_director": 152, "hr_director": 262, "cfo": 462, "ceo": 1172,
 	}
 	for occupation_id: String in by_tier:
 		PlayerState.set_occupation(occupation_id, "test")
 		check_eq(PlayerState.get_daily_expenses(), by_tier[occupation_id],
-				"tier %d adds its status expense (+40/+60/+90/+120)" % PlayerState.get_tier())
+				"tier %d adds its status expense (+130/+240/+440/+1150, §6.5)" % PlayerState.get_tier())
 
 
 func _test_occupation_change() -> void:
@@ -420,7 +424,7 @@ func _test_save_load() -> void:
 	PlayerState.load_state(parsed)
 	check_eq(_canonical(PlayerState.save_state()), _canonical(snapshot),
 			"save -> JSON -> load reproduces the exact state")
-	check_eq([PlayerState.get_occupation_id(), PlayerState.get_money()], ["order_filer", 453],
+	check_eq([PlayerState.get_occupation_id(), PlayerState.get_money()], ["order_filer", 335],
 			"occupation and money restored")
 	check_eq(PlayerState.get_item_count("foreign_document"), 2, "stacked items restored")
 	check_eq(PlayerState.get_hot_item_count(), 3, "hot items restored")

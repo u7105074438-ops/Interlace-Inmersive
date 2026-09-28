@@ -106,6 +106,7 @@ func _test_setup() -> void:
 func _test_lunch_reach() -> void:
 	GameClock.set_time(DAY, BEFORE_LUNCH_HOUR, MINUTES_BEFORE)
 	_hops.clear()
+	var reputation_before: float = NPCDirector.get_npc_reputation(DIANA)
 	var id: String = SocialGraph.inject_rumour(DEBBIE, RUMOUR_FACT, PLANTED_CERTAINTY)
 	check(not id.is_empty(), "inject_rumour returns a synthetic rumour id")
 	check(not _hops.is_empty() and _hops[0]["from"] == PLAYER and _hops[0]["to"] == DEBBIE,
@@ -133,6 +134,11 @@ func _test_lunch_reach() -> void:
 		check(reached.has(npc_id), "%s heard it from Debbie" % npc_id)
 	check(reached.has(BERNARD), "hierarchy: relevant news ascends to Bernard at his desk")
 	check(not reached.has(SONIA), "Sonia shared the table but, without edges, heard nothing")
+	check(NPCDirector.get_rumour_reputation_penalty(DIANA) > 0.0
+			and NPCDirector.get_npc_reputation(DIANA) < reputation_before,
+			"§8.1/§8.3: the spread rumour costs Diana reputation (promotion score, credibility)")
+	check_eq(BeliefNet.count_rumour_holders(DIANA, "steals_ideas"), reached.size() + 1,
+			"the reach report counts every holder")
 	_check_lunch_certainties()
 
 

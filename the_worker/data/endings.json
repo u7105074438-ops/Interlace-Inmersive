@@ -15,7 +15,7 @@
     "ruin": "AXIS_RUIN"
   },
   "hybrid_rule": {
-    "_nota": "Híbrido = ningún eje supera max_axis_share de la suma de los cuatro ejes (RUINA excluida). Con suma 0 no es híbrido y se aplica dominant_tie_break.",
+    "_nota": "Híbrido = ningún eje supera max_axis_share de la suma de los cuatro ejes (RUINA excluida). Con suma 0 no hay eje dominante (dominant_axis vacío) y cuenta como híbrido; dominant_tie_break solo desempata ejes > 0.",
     "max_axis_share": 0.4
   },
   "dominant_tie_break": [

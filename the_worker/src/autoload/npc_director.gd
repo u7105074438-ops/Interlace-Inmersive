@@ -214,6 +214,11 @@ const B_REP_PER_TIER := "npc.reputacion_por_escalon"
 const B_REP_PER_MERIT := "npc.reputacion_por_merito"
 const B_REP_PER_SEVERITY := "npc.reputacion_por_gravedad_agravio"
 const B_REP_PER_PRESS := "npc.reputacion_por_peso_prensa"
+## §8.1/§8.3: cada punto de certeza de un rumor dirigido (social.rumor.hecho_colega) circulando
+## sobre el personaje le resta esta reputación (credibilidad, ascensos) — tope por_rumor_max.
+const B_REP_PER_RUMOUR := "npc.reputacion_por_certeza_rumor"
+const B_REP_RUMOUR_MAX := "npc.reputacion_rumor_max"
+const B_RUMOUR_FACT := "social.rumor.hecho_colega"
 const B_SUPERIOR_FACTOR := "npc.factor_denuncia_superior"
 const B_REPORT_COOLDOWN := "npc.dias_entre_denuncias"
 const B_SCORE_MERIT := "npc.puntuacion_ascenso_merito"
@@ -296,6 +301,7 @@ func _ready() -> void:
 	_timer.timeout.connect(_on_lod_tick)
 	add_child(_timer)
 	_connect_signals()
+	NamedSpecials.hook()
 
 
 func _connect_signals() -> void:
@@ -1396,8 +1402,17 @@ func get_npc_reputation(npc_id: String) -> float:
 			+ npc.merit * Database.get_balance_float(B_REP_PER_MERIT) \
 			- get_grievance_total(npc_id) * Database.get_balance_float(B_REP_PER_SEVERITY) \
 			- NewsFeed.get_suspicion_about(npc_id) * Database.get_balance_float(B_REP_PER_PRESS) \
-			+ float(_profiles.get(npc_id, {}).get(PROFILE_REPUTATION_DELTA, 0.0))
+			+ float(_profiles.get(npc_id, {}).get(PROFILE_REPUTATION_DELTA, 0.0)) \
+			- get_rumour_reputation_penalty(npc_id)
 	return clampf(value, 0.0, REPUTATION_MAX)
+
+
+## Extra (§8.1/§8.3): reputación que le cuesta al personaje el rumor dirigido que circula sobre él.
+func get_rumour_reputation_penalty(npc_id: String) -> float:
+	var weight: float = BeliefNet.get_rumour_weight_about(npc_id,
+			str(Database.get_balance(B_RUMOUR_FACT)))
+	return minf(weight * Database.get_balance_float(B_REP_PER_RUMOUR),
+			Database.get_balance_float(B_REP_RUMOUR_MAX))
 
 
 ## Extra (IdeaPresentation §11.2): ajuste permanente de la reputación del personaje.
@@ -1535,7 +1550,8 @@ func _report_cooldown_over(npc: NPCRuntime) -> bool:
 ## Extra: la deuda con el jugador suprime la denuncia (§7.7): registro propio o arista de deuda
 ## de SocialGraph.
 func is_report_suppressed(npc_id: String) -> bool:
-	return get_debt(npc_id) > 0 or SocialGraph.is_denunciation_suppressed(npc_id, PLAYER_ID)
+	return get_debt(npc_id) > 0 or SocialGraph.is_denunciation_suppressed(npc_id, PLAYER_ID) \
+			or NamedSpecials.is_permanent_ally(npc_id)
 
 
 ## Extra: última decisión de utilidad {action, trigger, day, minute}; {} si no ha decidido.
