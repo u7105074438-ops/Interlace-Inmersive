@@ -1,6 +1,6 @@
 # game_root.gd — Escena de juego (BUILD_NOTES §2/§14): monta mundo, interfaz y nodos de simulación, arranca o carga la partida, coloca al jugador y cierra la partida con el epílogo.
 # PROPIETARIO DE: el árbol de la sesión (streamer, jugador, capa de personajes, interfaz, audio, nodos de simulación, viaje, puentes, ascensos, salto temporal) y la petición de arranque consumida.
-# ESCUCHA: FloorStreamer.floor_loaded (encuadre); el resto lo escuchan sus hijos (WorldBridges: game_over).
+# ESCUCHA: FloorStreamer.floor_loaded (encuadre), la salida del árbol de la raíz (cierre del proceso: recoge los renders de audio); el resto lo escuchan sus hijos (WorldBridges: game_over).
 class_name GameRoot
 extends Node2D
 
@@ -47,6 +47,9 @@ const B_NEAR_WITNESS := "salto_tiempo.radio_testigo_cercano_celdas"
 const OBSERVER_NPC := "npc"
 const OBSERVER_CAMERA := "camera"
 const LOAD_FAIL_NEW := 1
+## Salida del proceso: espera máxima y paso (ms reales) al recoger los renders de audio pendientes.
+const AUDIO_DRAIN_MAX_MS := 4000
+const AUDIO_DRAIN_STEP_MS := 5
 const MENU_RESUME := 0
 const MENU_SKIP := 1
 const MENU_PROMOTIONS := 2
@@ -83,6 +86,7 @@ var _menu_open: bool = false
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	get_tree().root.tree_exiting.connect(_drain_audio_on_quit)
 	InputSetup.register_actions()
 	TimeSkip.ensure_action()
 	get_tree().quit_on_go_back = false
@@ -98,6 +102,24 @@ func _exit_tree() -> void:
 	GameClock.resume_by(PAUSE_OWNER)
 	if not _ended:
 		GameClock.pause()
+
+
+## Cierre del proceso (la raíz solo sale del árbol al cerrar el juego; un cambio de escena no pasa
+## por aquí): recoge los renders de audio en segundo plano (hilo musical, ambiente, efectos). Un
+## trabajo del WorkerThreadPool sin recoger al salir abortaba el proceso (134) y uno en curso lo
+## colgaba. Solo con las API públicas de audio; ver REQUEST al dueño de audio_director.gd.
+func _drain_audio_on_quit() -> void:
+	if audio == null:
+		return
+	var ambience: Ambience = audio.get_ambience()
+	var deadline: int = Time.get_ticks_msec() + AUDIO_DRAIN_MAX_MS
+	while Time.get_ticks_msec() < deadline:
+		MuzakLibrary.poll()
+		Ambience.poll_jobs()
+		SfxBank.poll_prewarm()
+		if not MuzakLibrary.is_rendering() and (ambience == null or not ambience.is_busy()) and SfxBank.is_prewarmed():
+			return
+		OS.delay_msec(AUDIO_DRAIN_STEP_MS)
 
 
 static func find(tree: SceneTree) -> GameRoot:

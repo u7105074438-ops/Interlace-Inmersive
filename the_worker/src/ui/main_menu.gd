@@ -6,7 +6,8 @@ extends Control
 
 ## Uso: boot.gd añade MainMenu.new(). Abre con GameLaunch.take_menu_entry() ("", "new_game", "gallery").
 ## Nueva partida → NameEntry (nombre + preset) → OpeningCinematic (saltable; se omite si el perfil
-## dice opening_seen y el jugador activó skip_seen_intro, o con --skip-intro) → GameLaunch.start_game().
+## dice opening_seen y el jugador activó skip_seen_intro, o con --skip-intro) → tutorial del primer
+## día (Tutorial.install(): gancho de GameRoot; §13.8) → GameLaunch.start_game().
 ## Con una partida guardada, «Nueva partida» pide confirmación; la partida vieja solo se borra al
 ## firmar el contrato nuevo (cancelar el alta la conserva). «Continuar» reactiva el preset de la
 ## partida (GameLaunch.run_preset) y comprueba que el guardado siga existiendo.
@@ -482,6 +483,7 @@ func _on_opening_finished(skipped: bool) -> void:
 
 func _launch_new_run(intro_skipped: bool, first_run: bool) -> void:
 	GameLaunch.prepare_new_run(_pending_name, _pending_preset, intro_skipped, first_run)
+	Tutorial.install()
 	_launch_or_placeholder()
 
 

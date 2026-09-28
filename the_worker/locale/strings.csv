@@ -1985,7 +1985,7 @@ UI_INTERACT_KITCHEN_FOOD,Take food,Coger comida
 UI_INTERACT_LOCK_OLD,Try the old lock,Probar la cerradura antigua
 UI_INTERACT_LUNCH_COUNTER,Buy lunch,Comprar comida
 UI_INTERACT_MACHINE_CONTROLS,Use machine controls,Usar controles de la máquina
-UI_INTERACT_MAIL_SORTING,Sort the mail,Clasificar el correo
+UI_INTERACT_MAIL_SORTING,Go through the mail,Revisar el correo
 UI_INTERACT_MEDICAL_CABINET,Open medical cabinet,Abrir botiquín
 UI_INTERACT_MOLD_STATION,Inspect molds,Inspeccionar moldes
 UI_INTERACT_MONITOR_CONSOLE,Use monitor console,Usar consola de monitores
@@ -3598,3 +3598,859 @@ PAUSE_QUIT,Quit to title,Salir al título
 PAUSE_QUIT_TITLE,Quit to title?,¿Salir al título?
 PAUSE_QUIT_BODY,The game only saves when you sleep. Everything since last night will be lost.,La partida solo se guarda al dormir. Se perderá todo desde anoche.
 PAUSE_QUIT_CONFIRM,Quit,Salir
+CLOSING_WARN_EARLY,"Clock-out: the building closes in %d min (%s). Whoever is still inside gets walked out, unless they're hiding.","Hora de salida: el edificio cierra en %d min (%s). A quien siga dentro lo acompañan fuera, salvo que esté escondido."
+CLOSING_WARN_SOON,"%d min to closing (%s). Head for the exit: after that, every camera and card reader counts against you.","Quedan %d min para el cierre (%s). Ve hacia la salida: después, cada cámara y cada lector cuentan en tu contra."
+CLOSING_SWEPT,Closing time. The night guard walks you out to the street.,Hora de cierre. El vigilante nocturno te acompaña a la calle.
+CLOSING_HIDDEN,Lights out. Nobody found you: from now on every camera and card reader counts against you.,Se apagan las luces. Nadie te ha encontrado: a partir de ahora cada cámara y cada lector cuentan en tu contra.
+HOME_HINT_SLEEP,"Home. Go to bed (E on the bed, or T) to end the day: sleeping is the only way to save.","En casa. Acuéstate (E en la cama, o T) para cerrar la jornada: dormir es la única forma de guardar."
+SLEEP_TITLE,Go to bed?,¿Acostarse?
+SLEEP_BODY,"It's %s. You'll sleep until morning: dinner if you haven't eaten, the day's accounts, and the run is saved.","Son las %s. Dormirás hasta la mañana: cena si no has comido, las cuentas del día y la partida se guarda."
+SLEEP_CONFIRM,Sleep,Dormir
+SLEEP_NOT_YET,Not yet,Todavía no
+SLEEP_CAPTION,Sleeping…,Durmiendo…
+SLEEP_SAVED,Day %d. Run saved.,Jornada %d. Partida guardada.
+SLEEP_NOT_SAVED,Couldn't save the run.,No se ha podido guardar la partida.
+TIMESKIP_REFUSED_OBSERVED_BY,%s can see you. Loafing needs privacy.,%s te está viendo. Holgazanear exige intimidad.
+TIMESKIP_REFUSED_SLEEP,It's night. Your bed is right here.,Es de noche. Tu cama está aquí mismo.
+GAME_LOAD_FAILED_TITLE,Couldn't load the run,No se pudo cargar la partida
+GAME_LOAD_FAILED_BODY,The saved run is damaged or unreadable. Nothing has been deleted.,La partida guardada está dañada o no se puede leer. No se ha borrado nada.
+GAME_LOAD_FAILED_MENU,Back to title,Volver al título
+GAME_LOAD_FAILED_NEW,Start a new run,Empezar una partida nueva
+GAME_LOAD_FAILED_CONFIRM_BODY,Starting over deletes the damaged save for good.,Empezar de cero borra para siempre el guardado dañado.
+GAME_LOAD_FAILED_CONFIRM,Delete it and start over,Borrarla y empezar de cero
+TRAVEL_COMMUTE_TITLE_WORK,Off to work,Al trabajo
+TRAVEL_COMMUTE_TITLE_HOME,Heading out,De salida
+TRAVEL_COMMUTE_BODY,"Take the usual route, or step out into the street?",¿El trayecto de siempre o salir a la calle?
+TRAVEL_COMMUTE_GO_WORK,Go to work (%d min),Ir al trabajo (%d min)
+TRAVEL_COMMUTE_GO_HOME,Go home (%d min),Volver a casa (%d min)
+TRAVEL_COMMUTE_STREET,Step out into the street,Salir a la calle
+TRAVEL_CAPTION_COMMUTE_WORK,Commuting to work · %d min,De camino al trabajo · %d min
+TRAVEL_CAPTION_COMMUTE_HOME,Commuting home · %d min,De vuelta a casa · %d min
+PROMO_TOAST_DESK_IS,"Your new desk: %s, %s.","Tu nuevo sitio: %s, %s."
+PROMO_TOAST_ESCORTED,Security walks you to your new place: %s.,Seguridad te acompaña a tu nuevo sitio: %s.
+UI_INTERACT_EXAMINE,Look,Mirar
+UI_INTERACT_NPC_CARD,Who's this?,¿Quién es?
+UI_INTERACT_SLEEP,Go to bed,Acostarse
+UI_INTERACT_OWN_DESK,Sit at your computer,Sentarse al ordenador
+INTERACT_NOT_YOUR_DESK,Not your desk.,No es tu mesa.
+INTERACT_TURNSTILE_OPEN,Card accepted. The gate opens.,Tarjeta aceptada. El torno se abre.
+TRAVEL_COMMUTE_BODY_DOOR,"The usual ride to the office. (To stay around the neighbourhood, just walk out the door.)","El trayecto de siempre hasta la oficina. (Para quedarte por el barrio, sal por la puerta sin más.)"
+UI_INTERACT_COMMUTE_DOOR,Go to work,Ir al trabajo
+OFFICE_ACT_ABORTED,You decide it can wait.,Decides que puede esperar.
+OFFICE_ACT_INTERRUPTED,You stopped halfway. Nothing taken.,Lo dejas a medias. No te llevas nada.
+OFFICE_ARCHIVE_COMPLAINTS,Complaints folder: staff discontent is at %d/100. Most complaints are about the complaints folder.,Carpeta de quejas: el descontento de la plantilla está en %d/100. Casi todas las quejas son sobre la carpeta de quejas.
+OFFICE_ARCHIVE_GENERIC,"Old folders, older coffee rings. Nothing you can use right now.",Carpetas viejas y círculos de café más viejos aún. Nada que te sirva ahora.
+OFFICE_ARCHIVE_MISPLACE,Misplace someone's orders,Extraviar los pedidos de alguien
+OFFICE_ARCHIVE_MISPLACED,%s's orders are now lost in the system. Their figures will look terrible.,Los pedidos de %s se han perdido en el sistema. Sus cifras van a quedar fatal.
+OFFICE_ARCHIVE_MISPLACE_BODY,Whose orders should go missing?,¿De quién deberían desaparecer los pedidos?
+OFFICE_ARCHIVE_MISPLACE_SOON,Another lost order so soon would look like a pattern. Wait a few days.,Otro pedido perdido tan pronto parecería un patrón. Espera unos días.
+OFFICE_ARCHIVE_NO_CASES,"No open investigations. Internal Audit is, for once, bored.","No hay investigaciones abiertas. Auditoría interna, por una vez, se aburre."
+OFFICE_ARCHIVE_TITLE,Filing cabinet,Archivador
+OFFICE_ARCHIVE_DOCS_ORDERS,"Orders archive: everybody's orders, neatly filed. For now.","Archivo de pedidos: los pedidos de todos, bien archivados. De momento."
+OFFICE_ARCHIVE_DOCS_LAWSUIT_FILES,Lawsuits the company would rather nobody read.,Demandas que la empresa preferiría que nadie leyera.
+OFFICE_ARCHIVE_DOCS_HISTORIC_COMPROMISING,Thirty years of things the company swore never happened.,Treinta años de cosas que la empresa juró que nunca pasaron.
+OFFICE_ARCHIVE_DOCS_OLD_CORPORATE_SECRETS,"Old corporate secrets, dusty but still sharp.","Viejos secretos corporativos, polvorientos pero afilados."
+OFFICE_BOUGHT,Bought: %s (−%d €).,Comprado: %s (−%d €).
+OFFICE_BUY_ITEM,%s — %d €,%s — %d €
+OFFICE_CAMPAIGN_DONE,Your face is now on the spring campaign. Reputation up.,Tu cara sale ya en la campaña de primavera. Sube tu reputación.
+OFFICE_CAMPAIGN_DONE_TODAY,One self-portrait per day. Even marketing has limits.,Un autorretrato al día. Hasta marketing tiene límites.
+OFFICE_CAMPAIGN_FLOP,"The campaign flopped — publicly, and with your face on it. Reputation down.","La campaña ha fracasado, en público y con tu cara. Baja tu reputación."
+OFFICE_CAMPAIGN_NO_POST,Only marketing can put faces on campaigns. Yours would need a promotion first.,Solo marketing puede poner caras en las campañas. La tuya necesitaría antes un ascenso.
+OFFICE_CARD_DENIED,Card refused: this reader wants clearance N%d.,Tarjeta rechazada: este lector pide acreditación N%d.
+OFFICE_CARD_OK,Beep. The door opens — the log notes it when you cross.,Bip. La puerta se abre: el registro lo anota cuando la cruzas.
+OFFICE_CLOSE,Close,Cerrar
+OFFICE_COFFEE_ALONE,You drink your coffee alone. It tastes of budget cuts.,Te tomas el café a solas. Sabe a recortes.
+OFFICE_COFFEE_CHAT,%s,%s
+OFFICE_COFFEE_CONTACT,%s You swap numbers with %s.,%s Te quedas con el número de %s.
+OFFICE_CHAT_LINE_1,%s complains about the new coffee pods.,%s se queja de las cápsulas de café nuevas.
+OFFICE_CHAT_LINE_2,%s says the ninth floor is 'restructuring' again.,%s dice que la novena planta vuelve a estar «reestructurándose».
+OFFICE_CHAT_LINE_3,%s asks if you also got the email about the email.,%s te pregunta si también te llegó el correo sobre el correo.
+OFFICE_CHAT_LINE_4,%s shows you a photo of a dog. It is a good dog.,%s te enseña la foto de un perro. Es un buen perro.
+OFFICE_CHAT_LINE_5,%s swears the vending machine owes them two euros.,%s jura que la máquina expendedora le debe dos euros.
+OFFICE_CHAT_LINE_6,%s whispers that someone is getting promoted. Not you.,%s susurra que van a ascender a alguien. No a ti.
+OFFICE_COINS,%d € in loose change,%d € en calderilla
+OFFICE_COPIER_DONE_TODAY,The leftover tray is empty. Come back tomorrow.,La bandeja de sobrantes está vacía. Vuelve mañana.
+OFFICE_COPIER_TITLE,Photocopier memory,Memoria de la fotocopiadora
+OFFICE_DESIGN_DONE_TODAY,You have already raided the archive today. Let the dust settle.,Ya has saqueado el archivo hoy. Deja que el polvo se pose.
+OFFICE_DESIGN_IDEA,"A 1990s design, ready to present as yours. %s might remember it.","Un diseño de los noventa, listo para presentarlo como tuyo. %s podría recordarlo."
+OFFICE_DESIGN_TAKEN,You copy a 1990s shoe design. Present it as new and pray %s has forgotten it.,Copias un diseño de zapato de los noventa. Preséntalo como nuevo y reza para que %s lo haya olvidado.
+OFFICE_DESK_BODY,Your desk. Your chair. Your beige destiny.,Tu mesa. Tu silla. Tu destino beige.
+OFFICE_DESK_COMPUTER,Sit at your computer,Sentarse al ordenador
+OFFICE_DESK_HIDE,Hide something under the desk,Esconder algo bajo la mesa
+OFFICE_DESK_RETRIEVE,Take back what you hid (%d),Recuperar lo escondido (%d)
+OFFICE_DESK_RETRIEVED,Back in your pocket: %s.,De vuelta al bolsillo: %s.
+OFFICE_DESK_RETURN_TOOLS,Leave in the drawer: %s,Dejar en el cajón: %s
+OFFICE_DESK_STASH_BODY,"Under the desk, taped to the drawer:","Bajo la mesa, pegado al cajón:"
+OFFICE_DESK_TAKE_TOOLS,Take with you: %s,Llevarte: %s
+OFFICE_DESK_TITLE,Your desk,Tu mesa
+OFFICE_DESK_TOOLS_RETURNED,Back in the drawer: %s.,De vuelta al cajón: %s.
+OFFICE_DESK_TOOLS_TAKEN,"In your pocket: %s. If you ever change desks, you keep them.","En el bolsillo: %s. Si algún día cambias de mesa, te los quedas."
+OFFICE_DRAWER_EMPTY_TODAY,%s's drawer: nothing left worth taking today.,El cajón de %s: hoy ya no queda nada que merezca la pena.
+OFFICE_DRAWER_NOTHING,"%s's drawer: rubber bands, a dead pen and existential dread.","El cajón de %s: gomas elásticas, un boli seco y angustia existencial."
+OFFICE_DRAWER_TITLE,An open drawer,Un cajón abierto
+OFFICE_EARLY_BUYER,Visitor badge printed for %s (%s).,Pase de visita impreso para %s (%s).
+OFFICE_EARLY_CASE,Internal memo: the investigation into «%s» is at phase %d.,Memorando interno: la investigación por «%s» está en la fase %d.
+OFFICE_EARLY_CASE_YOU,Internal memo: the «%s» case (phase %d) has YOUR name on the suspect list.,Memorando interno: el caso «%s» (fase %d) lleva TU nombre en la lista de sospechosos.
+OFFICE_EARLY_MEETING,Aurora meeting agenda: day %d at %s.,Orden del día de la reunión Aurora: jornada %d a las %s.
+OFFICE_EARLY_NEWS,Press release draft for day %d: «%s»,Borrador de nota de prensa para la jornada %d: «%s»
+OFFICE_EARLY_NOTHING,Cafeteria menus and a lost-cat poster. Nothing useful.,Menús de la cafetería y un cartel de gato perdido. Nada útil.
+OFFICE_EARLY_VACANCY,Job posting draft: the %s post is vacant.,Borrador de oferta interna: la plaza de %s está vacante.
+OFFICE_EAVESDROP_DISCONTENT,The workers grumble: discontent %d/100 (a strike starts above %d).,La plantilla refunfuña: descontento %d/100 (la huelga empieza por encima de %d).
+OFFICE_EAVESDROP_IDEA,You overhear %s pitching an idea: «%s». It's yours now — and they know you were there.,Oyes a %s contar una idea: «%s». Ahora es tuya… y sabe que estabas allí.
+OFFICE_EAVESDROP_NOTHING,Only small talk about the weather and the coffee machine.,Solo charla sobre el tiempo y la máquina de café.
+OFFICE_EAVESDROP_TITLE,You overhear…,Escuchas…
+OFFICE_FOOD_DONE_TODAY,You have already helped yourself today. Someone is counting the croissants.,Ya te has servido hoy. Alguien cuenta los cruasanes.
+OFFICE_FOOD_FREE,On the house: %s. Executive perks taste better.,Invita la casa: %s. Los privilegios de dirección saben mejor.
+OFFICE_FOOD_STOLEN,Someone's lunch is now your dinner. One meal fewer to pay for.,El almuerzo de alguien es ahora tu cena. Una comida menos que pagar.
+OFFICE_FORGED,"Forged: %s. Your stamp, your problem.","Falsificado: %s. Tu sello, tu problema."
+OFFICE_FORGE_BODY,"A light table, a stamp and a steady hand. What will you produce?","Una mesa de luz, una estampa y pulso firme. ¿Qué vas a producir?"
+OFFICE_FORGE_CONFIRM,"Forge %s? It carries your stamp: if anyone verifies it, it is conclusive evidence.","¿Falsificar %s? Lleva tu sello: si alguien lo verifica, es una prueba definitiva."
+OFFICE_FORGE_GO,Forge it,Falsificarlo
+OFFICE_FORGE_LOCKED,%s (you don't know what for yet),%s (aún no sabes para qué)
+OFFICE_FORGE_LOW_REPUTATION,Nobody would believe your signature. You need reputation %d.,Nadie creería tu firma. Necesitas reputación %d.
+OFFICE_FORGE_MAKE,Forge: %s,Falsificar: %s
+OFFICE_FORGE_NO_STAMP,Nothing gets forged without your %s.,Sin tu %s no se falsifica nada.
+OFFICE_FORGE_TITLE,Forgery station,Puesto de falsificación
+OFFICE_FRAUD_BODY,"The terminal trusts whoever is logged in. Right now, that's you.","El terminal confía en quien haya iniciado sesión. Ahora mismo, tú."
+OFFICE_FRAUD_CLEAN_BOOKS,The books are clean. Suspiciously clean.,Las cuentas están limpias. Sospechosamente limpias.
+OFFICE_FRAUD_CONFIRM,%s? It is fraud: the entry will surface in the books in about two weeks.,¿%s? Es fraude: el asiento aflorará en las cuentas en unas dos semanas.
+OFFICE_FRAUD_DONE,Done. %d € have quietly moved to your account.,Hecho. %d € se han mudado discretamente a tu cuenta.
+OFFICE_FRAUD_FOUND,%s's expenses don't add up. You keep a copy — leverage for later.,Los gastos de %s no cuadran. Te guardas una copia: palanca para más adelante.
+OFFICE_FRAUD_GO,Do it,Hacerlo
+OFFICE_FRAUD_TOO_SOON,Too soon: the books would show a pattern. Wait %d more day(s).,Demasiado pronto: las cuentas mostrarían un patrón. Espera %d jornada(s) más.
+OFFICE_ACTION_BUMP_SALARY,Give yourself a quiet raise,Subirte el sueldo en silencio
+OFFICE_ACTION_GHOST_EMPLOYEE,Hire a ghost employee (paid to you),Contratar a un empleado fantasma (cobras tú)
+OFFICE_ACTION_INFLATE_INVOICES,Inflate today's invoices by a few euros each,Inflar unos euros cada factura de hoy
+OFFICE_ACTION_FALSIFY_ENTRIES,Falsify an accounting entry,Falsear un asiento contable
+OFFICE_ACTION_MOVE_CAPITAL,Move company capital to a friendly account,Mover capital de la empresa a una cuenta amiga
+OFFICE_ACTION_DETECT_FRAUD,Look for someone else's fraud,Buscar el fraude de otro
+OFFICE_ACTION_BURY_NEWS,Bury a story,Enterrar una noticia
+OFFICE_ACTION_FABRICATE_SCANDAL,Fabricate a scandal,Fabricar un escándalo
+OFFICE_ACTION_SHIFT_SENTIMENT,Flood the feeds with praise,Inundar las redes de elogios
+OFFICE_ACTION_LEAK_STORY,Leak a story to the journalists,Filtrar una historia a los periodistas
+OFFICE_GOSSIP_BELIEF,"%s, about %s: «%s».","%s, sobre %s: «%s»."
+OFFICE_HOUSE_NO_OPERATION,You would need to be here on a night operation to go through these drawers.,Tendrías que estar aquí en una operación nocturna para registrar estos cajones.
+OFFICE_HR_DONE_TODAY,You have read enough files for one day. Amelia notices dog-eared folders.,Ya has leído bastantes expedientes por hoy. Amelia se fija en las esquinas dobladas.
+OFFICE_HR_LEGAL,Your post already gives you every file: PERSONNEL is open.,Tu puesto ya te da todos los expedientes: PERSONNEL está abierto.
+OFFICE_HR_LEVERAGE,You pocket a compromising note about %s.,Te guardas una nota comprometedora sobre %s.
+OFFICE_HR_READ,"Full files read: %s. Routines, secrets and home addresses are now in PERSONNEL.","Expedientes completos leídos: %s. Rutinas, secretos y domicilios ya están en PERSONNEL."
+OFFICE_HR_TITLE,Personnel files,Expedientes de personal
+OFFICE_INFO_BODY,%s,%s
+OFFICE_INVENTORY_FULL,No room for %s: your pockets are full.,No cabe %s: llevas los bolsillos llenos.
+OFFICE_INVESTOR_MOOD,%s: confidence %d/100.,%s: confianza %d/100.
+OFFICE_LEAVE_IT,Leave it,Dejarlo
+OFFICE_LOOT_BODY,%s's drawer. Take something?,El cajón de %s. ¿Te llevas algo?
+OFFICE_MAIL_BODY,Internal mail waiting to be sorted. Nobody counts the envelopes. Probably.,Correo interno pendiente de clasificar. Nadie cuenta los sobres. Probablemente.
+OFFICE_MAIL_CASH,"An envelope with %d € in it. Somebody's birthday collection, probably.","Un sobre con %d €. La colecta de algún cumpleaños, seguramente."
+OFFICE_MAIL_DONE_TODAY,Nothing left to open today and nothing of yours to post.,Hoy no queda nada que abrir ni nada tuyo que enviar.
+OFFICE_MAIL_INTERCEPT,Go through the envelopes,Revisar los sobres
+OFFICE_MAIL_NOTHING,"Invoices, flyers and a birthday card for someone who left in 2009.","Facturas, folletos y una felicitación para alguien que se fue en 2009."
+OFFICE_MAIL_SELL,Post %d stolen item(s) to an online buyer (+%d €),Enviar %d objeto(s) robado(s) a un comprador en línea (+%d €)
+OFFICE_MAIL_SOLD,%d item(s) posted with the company's own stamps. +%d €.,%d objeto(s) enviado(s) con los sellos de la propia empresa. +%d €.
+OFFICE_MAIL_TITLE,Internal mail,Correo interno
+OFFICE_MEAL_ALREADY,You have already had your %s.,Ya has tomado tu %s.
+OFFICE_MEAL_BREAKFAST,breakfast,desayuno
+OFFICE_MEAL_DINNER,dinner,cena
+OFFICE_MEAL_EATEN,You have your %s. It cost %d €.,Te tomas tu %s. Te ha costado %d €.
+OFFICE_MEAL_NONE,"Empty fridge, empty wallet. Nothing to eat.","Nevera vacía, cartera vacía. No hay nada que comer."
+OFFICE_NOBODY_NEW,nobody new,nadie nuevo
+OFFICE_NOTE_DESIGN,Old design copied from the archive (%s may remember it).,Diseño antiguo copiado del archivo (%s podría recordarlo).
+OFFICE_NOTE_DIRTY_BOOKS,%s's expenses don't add up. Copy kept.,Los gastos de %s no cuadran. Copia guardada.
+OFFICE_NOTE_FRAUD,%s: %d €.,%s: %d €.
+OFFICE_NOTE_LINE,%s,%s
+OFFICE_NOTE_MISPLACED,Misplaced %s's orders.,Extraviados los pedidos de %s.
+OFFICE_NOTE_OVERHEARD,Overheard %s's idea.,Escuchada la idea de %s.
+OFFICE_NOTE_SCANDAL,Planted a scandal about %s.,Colocado un escándalo sobre %s.
+OFFICE_NOT_NOW,Not now,Ahora no
+OFFICE_NO_MONEY,You can't afford it (%d €).,No te lo puedes permitir (%d €).
+OFFICE_PC_OWNER_HERE,%s is at their desk. Wait until they leave.,%s está en su puesto. Espera a que se vaya.
+OFFICE_PRESS_BODY,"The press terminal. Reality, editable.","El terminal de prensa. La realidad, editable."
+OFFICE_PRESS_BURIED,Buried. The story sinks without a ripple — for now.,Enterrada. La noticia se hunde sin dejar onda… de momento.
+OFFICE_PRESS_BURY_BODY,Which story should disappear?,¿Qué noticia debería desaparecer?
+OFFICE_PRESS_CONFIRM,"Plant a scandal about %s? It's framing: if it is traced back, it's yours.","¿Colocar un escándalo sobre %s? Es una incriminación: si se rastrea, es tuya."
+OFFICE_PRESS_DONE_TODAY,The feeds are already full of praise today.,Las redes ya están llenas de elogios por hoy.
+OFFICE_PRESS_FABRICATED,"The story about %s goes out. Anonymous sources, real damage.","Sale la noticia sobre %s. Fuentes anónimas, daño real."
+OFFICE_PRESS_GO,Publish it,Publicarlo
+OFFICE_PRESS_HEADLINE,«%s»,«%s»
+OFFICE_PRESS_NOTHING_TO_BURY,No bad press today. Suspicious in itself.,Hoy no hay mala prensa. Sospechoso en sí mismo.
+OFFICE_PRESS_NO_ACCESS,Only Communications can publish from here — or someone who owes you a favour.,"Solo Comunicación puede publicar desde aquí, o alguien que te deba un favor."
+OFFICE_PRESS_PRAISE,A glowing piece about the company goes out. The share price might notice.,Sale una pieza elogiosa sobre la empresa. La cotización podría notarlo.
+OFFICE_PRESS_TARGET_BODY,Who is the story about?,¿Sobre quién es la noticia?
+OFFICE_PRESS_TITLE,Press terminal,Terminal de prensa
+OFFICE_QUOTE,Stellar Sell shares: %.2f € (%+.1f%% since yesterday).,Acciones de Stellar Sell: %.2f € (%+.1f%% desde ayer).
+OFFICE_SHOWS_CRISIS_DASHBOARD,Crisis dashboard: %d scandal(s) in today's press.,Panel de crisis: %d escándalo(s) en la prensa de hoy.
+OFFICE_SHOWS_GENERIC,Spreadsheets and a screensaver of the CEO's yacht.,Hojas de cálculo y un salvapantallas del yate del consejero delegado.
+OFFICE_SHOWS_COMPLAINTS_BY_DEPARTMENT,Complaints by department: every department blames another department.,Quejas por departamento: cada departamento culpa a otro departamento.
+OFFICE_SHOWS_WALK_TEST_LOG,Walk-test log: prototype 7 squeaks 'less than prototype 6'.,Registro de pruebas de pisada: el prototipo 7 chirría «menos que el 6».
+OFFICE_SHOWS_VIDEO_CALL_FEED,Video call feed: a supplier nods at a frozen screen.,Videollamada: un proveedor asiente ante una pantalla congelada.
+OFFICE_SHOWS_PARCEL_LOG,Parcel log: nobody checks what goes out. Nobody.,Registro de paquetes: nadie revisa lo que sale. Nadie.
+OFFICE_SHOWS_VISITOR_LOG,Visitor log: no buyers expected today.,Registro de visitas: hoy no se espera a ningún comprador.
+OFFICE_SOMEONE,Someone,Alguien
+OFFICE_SUPPLIES_DONE_TODAY,You have already taken today's share from this room. Inventory is monthly; greed should not be daily.,Ya te has llevado la parte de hoy de esta sala. El inventario es mensual; la codicia no debería ser diaria.
+OFFICE_SUPPLIES_TAKEN,Pocketed: %s (worth %d € to the right buyer). Sell it through the internal mail.,Al bolsillo: %s (vale %d € para el comprador adecuado). Véndelo por el correo interno.
+OFFICE_TAKE_ALL,Take everything (%d),Llevártelo todo (%d)
+OFFICE_TAKE_ITEM,Take: %s,Llevarte: %s
+OFFICE_TARGET,%s,%s
+OFFICE_TERMINAL_NO_ACCESS,Access denied: this terminal only answers to its own department.,Acceso denegado: este terminal solo responde a su departamento.
+OFFICE_TERMINAL_STAFFED,Someone is manning this screen. Come back when they're on a break.,Alguien atiende esta pantalla. Vuelve cuando se tome un descanso.
+OFFICE_TERMINAL_TITLE,Terminal,Terminal
+OFFICE_TOOK,Taken: %s.,Te llevas: %s.
+OFFICE_TRADING_LOCKED,Placing orders from here needs a MARKET licence — far above your pay grade.,"Operar desde aquí exige licencia de MARKET, muy por encima de tu categoría."
+OFFICE_TRADING_TITLE,Trading terminal,Terminal de bolsa
+OFFICE_UNKNOWN_INCIDENT,an incident,un incidente
+OFFICE_VENDING_BODY,The machine hums hopefully.,La máquina zumba esperanzada.
+OFFICE_VENDING_TITLE,Vending machine,Máquina expendedora
+OFFICE_WATCHED_BODY,%s can see you right now. Do it anyway?,%s te está viendo ahora mismo. ¿Lo haces de todos modos?
+OFFICE_WATCHED_CAMERA,A security camera,Una cámara de seguridad
+OFFICE_WATCHED_PROCEED,Do it anyway,Hacerlo igualmente
+OFFICE_WATCHED_TITLE,You're being watched,Te están mirando
+OFFICE_WHITEBOARD_TITLE,Whiteboard,Pizarra
+OFFICE_YOU,you,ti
+UI_INTERACT_EAT_HOME,Eat something,Comer algo
+UI_INTERACT_FREE_FOOD,Help yourself,Servirse
+UI_INTERACT_WHITEBOARD,Read the whiteboard,Leer la pizarra
+UI_INTERACT_WATER_COOLER,Chat at the water cooler,Charlar junto a la fuente
+UI_INTERACT_PHOTOCOPIER,Check the photocopier,Revisar la fotocopiadora
+UI_INTERACT_FILING_CABINET,Search the filing cabinet,Registrar el archivador
+UI_INTERACT_CARD_READER,Swipe your card,Pasar la tarjeta
+SECOPS_WATCHED_TITLE,Someone is watching,Alguien te está mirando
+SECOPS_WATCHED_BODY,%s can see you right now (%d watching). Doing this in front of a witness can end with you caught red-handed. Do it anyway?,%s te está viendo ahora mismo (%d mirando). Hacer esto delante de un testigo puede acabar con un pillado in fraganti. ¿Seguir de todos modos?
+SECOPS_WATCHED_GO,Do it anyway,Hacerlo igualmente
+SECOPS_SOMEONE,Someone,Alguien
+SECOPS_BODY_CREATED,%s's body is lying here. Hide it before anyone walks in.,El cuerpo de %s está aquí tirado. Escóndelo antes de que entre alguien.
+SECOPS_BODY_FOUND,%s's body has been found. A top-severity investigation is coming.,Han encontrado el cuerpo de %s. Se avecina una investigación de gravedad máxima.
+SECOPS_BODY_LEFT_BEHIND,You had to let go of %s's body. It stays where you left it.,Has tenido que soltar el cuerpo de %s. Se queda donde lo dejaste.
+SECOPS_BLACKOUT_ON,Power cut on floor %s: cameras and card readers are dead for %d minutes.,Apagón en la planta %s: cámaras y lectores de tarjeta muertos durante %d minutos.
+SECOPS_BLACKOUT_OFF,Power is back on floor %s. The cameras are recording again.,Vuelve la luz a la planta %s. Las cámaras graban de nuevo.
+SECOPS_CAR_BROKE_DOWN,%s's car broke down on the way in: they'll spend the morning in the garage.,El coche de %s se ha averiado al llegar: pasará la mañana en el garaje.
+SECOPS_BACKUP_RESTORED,IT restored %d deleted traces from last night's backups.,IT ha restaurado %d rastros borrados desde las copias de anoche.
+SECOPS_NOTE_RESTORED,The backups restored %d digital traces you had deleted. Destroy the tapes next time.,Las copias de seguridad han restaurado %d rastros digitales que habías borrado. La próxima vez destruye las cintas.
+SECOPS_PROMPT_VIEW_FOOTAGE,View recordings,Ver grabaciones
+SECOPS_PROMPT_VIEW_LOGS,Read the access logs,Leer los registros de acceso
+SECOPS_WHO_YOU,YOU,TÚ
+SECOPS_WHO_UNIFORM,"you, in the %s","tú, con %s"
+SECOPS_FOOTAGE_LINE,Day %d · %s · %s — %s,Día %d · %s · %s — %s
+SECOPS_MONITOR_TITLE,Monitor console,Consola de monitores
+SECOPS_MONITOR_BODY,"%d recordings on file, every one of them showing you. Recordings never fade: this room is the only place they can be erased — and two guards work here.","%d grabaciones archivadas, todas en las que sales tú. Las grabaciones no caducan: esta sala es el único sitio donde se borran, y aquí trabajan dos vigilantes."
+SECOPS_MONITOR_BODY_VIEW,"%d recordings on file, every one of them showing you. This console can only view them: recordings are erased in the monitor room on the ground floor.","%d grabaciones archivadas, todas en las que sales tú. Esta consola solo las muestra: se borran en la sala de monitores de la planta baja."
+SECOPS_MONITOR_REVIEW,Review recordings,Revisar grabaciones
+SECOPS_MONITOR_WIPE,Erase all %d recordings of you,Borrar las %d grabaciones en las que sales
+SECOPS_MONITOR_EMPTY,No recordings of you on file.,No hay grabaciones tuyas archivadas.
+SECOPS_MONITOR_LIST_HINT,Pick a recording to erase it.,Elige una grabación para borrarla.
+SECOPS_MONITOR_LIST_VIEW,View only: recordings are erased from the monitor room.,Solo lectura: las grabaciones se borran desde la sala de monitores.
+SECOPS_MONITOR_WRONG_ROOM,Recordings can only be erased from the monitor room (ground floor).,Las grabaciones solo se borran desde la sala de monitores (planta baja).
+SECOPS_MONITOR_CONFIRM_TITLE,Erase recordings,Borrar grabaciones
+SECOPS_MONITOR_CONFIRM_BODY,Erase %d recordings for good? The official version of events will change — and erasing them is a crime if anyone sees you.,"¿Borrar %d grabaciones para siempre? La versión oficial de los hechos cambiará, y borrarlas es un delito si alguien te ve."
+SECOPS_MONITOR_CONFIRM,Erase them,Borrarlas
+SECOPS_INTERRUPTED,Interrupted: nothing was done.,Interrumpido: no se ha hecho nada.
+SECOPS_MONITOR_WIPED,%d recordings erased. The cameras never saw you.,%d grabaciones borradas. Las cámaras nunca te vieron.
+SECOPS_TRACE_CARD_LOG,Card reader,Lector de tarjeta
+SECOPS_TRACE_CHAT_LOG,File / chat log,Registro de archivos / chat
+SECOPS_TRACE_LINE,Day %d · %s · %s,Día %d · %s · %s
+SECOPS_SERVER_TITLE,Server terminal,Terminal del servidor
+SECOPS_SERVER_BODY,"%d digital traces point at you (card-reader entries, copied files, chats). Deleting them is logged on this server, and tonight's backup restores anything deleted unless the tapes next door are destroyed.","%d rastros digitales apuntan a ti (lectores de tarjeta, archivos copiados, chats). Borrarlos queda registrado en este servidor, y la copia de esta noche restaura lo borrado salvo que se destruyan las cintas de al lado."
+SECOPS_SERVER_REVIEW,Review traces,Revisar rastros
+SECOPS_SERVER_WIPE,Delete all %d traces,Borrar los %d rastros
+SECOPS_SERVER_CLEAN,No digital traces point at you.,Ningún rastro digital apunta a ti.
+SECOPS_SERVER_LIST_HINT,Pick a trace to delete it.,Elige un rastro para borrarlo.
+SECOPS_SERVER_VIEW_TITLE,Access logs,Registros de acceso
+SECOPS_SERVER_VIEW_BODY,Card-reader entries about you: %d · File and chat logs: %d · A.S.S.I.S.T. uses on record: %d. This console only reads: records are deleted in the server room (S2).,Registros de tarjeta tuyos: %d · Registros de archivos y chats: %d · Usos de A.S.S.I.S.T. registrados: %d. Esta consola solo lee: se borran en la sala de servidores (S2).
+SECOPS_CLOSE,Close,Cerrar
+SECOPS_SERVER_CONFIRM_TITLE,Delete digital traces,Borrar rastros digitales
+SECOPS_SERVER_CONFIRM_BODY,"Delete %d traces? The server will log this access, and the backups will restore them tonight unless you destroy the tapes.","¿Borrar %d rastros? El servidor registrará este acceso, y las copias los restaurarán esta noche salvo que destruyas las cintas."
+SECOPS_SERVER_CONFIRM,Delete them,Borrarlos
+SECOPS_SERVER_WIPED,%d traces deleted. The server logged your access — and the backups still hold copies.,%d rastros borrados. El servidor ha registrado tu acceso y las copias de seguridad aún los guardan.
+SECOPS_BACKUP_TITLE,Backup tapes,Cintas de copia de seguridad
+SECOPS_BACKUP_BODY_PENDING,The tapes hold copies of %d traces you deleted. Tonight's restore will bring them back unless the tapes are destroyed.,Las cintas guardan copia de %d rastros que borraste. La restauración de esta noche los devolverá salvo que se destruyan las cintas.
+SECOPS_BACKUP_BODY_CLEAN,Nightly copies of every digital record. Nothing you deleted is waiting to come back.,Copias nocturnas de todos los registros digitales. Nada de lo que borraste está esperando a volver.
+SECOPS_BACKUP_BODY_WRECKED,The tapes are already wrecked. New ones start recording tonight.,Las cintas ya están destrozadas. Las nuevas empiezan a grabar esta noche.
+SECOPS_BACKUP_DESTROY,Destroy the tapes,Destruir las cintas
+SECOPS_BACKUP_CONFIRM_BODY,"Wreck the backup tapes? Nothing on them can be recovered, and the missing backups leave a trace of your access.","¿Destrozar las cintas de copia? Lo que contienen no se podrá recuperar, y la falta de copias deja rastro de tu acceso."
+SECOPS_BACKUP_CONFIRM,Wreck them,Destrozarlas
+SECOPS_BACKUP_DESTROYED,Tapes destroyed: %d deletions are now permanent.,Cintas destruidas: %d borrados son ya definitivos.
+SECOPS_BREAKER_BUSY,A power cut on floor %s is already set. Wait for it to end.,Ya hay un apagón programado en la planta %s. Espera a que termine.
+SECOPS_BREAKER_TITLE,Breaker panel,Cuadro eléctrico
+SECOPS_BREAKER_HINT,Pick a floor. Its cameras and card readers die for %d minutes — and every blackout opens an investigation.,"Elige una planta. Sus cámaras y lectores de tarjeta mueren durante %d minutos, y todo apagón abre una investigación."
+SECOPS_BREAKER_WHEN,"Cut floor %s now, or on a timer so you can get there first? The blackout lasts %d minutes.",¿Cortar la planta %s ahora o con retardo para llegar antes? El apagón dura %d minutos.
+SECOPS_BREAKER_NOW,Cut it now,Cortar ahora
+SECOPS_BREAKER_DELAY,In %d minutes,Dentro de %d minutos
+SECOPS_BREAKER_SET,Floor %s goes dark in %d minutes.,La planta %s se quedará a oscuras dentro de %d minutos.
+SECOPS_ALARM_TRIPPED,ALARM! You tripped the night alarm in %s. Security is opening an investigation.,¡ALARMA! Has disparado la alarma nocturna en %s. Seguridad abre una investigación.
+SECOPS_NOTE_ALARM,Tripped the night alarm in %s.,Disparaste la alarma nocturna en %s.
+SECOPS_ALARM_TITLE,Alarm control,Central de alarmas
+SECOPS_ALARM_HINT,Each floor's zone arms at 19:00: forcing a lock or a safe on an armed floor sets it off. Pick a zone to disable it until morning.,La zona de cada planta se arma a las 19:00: forzar una cerradura o una caja en una planta armada la dispara. Elige una zona para desactivarla hasta la mañana.
+SECOPS_ALARM_OFF_TAG,off,apagada
+SECOPS_ALARM_ALREADY,Floor %s's alarm zone is already off tonight.,La zona de alarma de la planta %s ya está apagada esta noche.
+SECOPS_ALARM_DISABLED,Alarm zone for floor %s disabled until morning.,Zona de alarma de la planta %s desactivada hasta la mañana.
+SECOPS_MACHINE_ALREADY,The line is already shut down.,La línea ya está parada.
+SECOPS_MACHINE_TITLE,Line controls,Controles de la línea
+SECOPS_MACHINE_BODY,"Hit the emergency stop? The line halts, the company loses about €%d of production, and everyone will want to know who did it.","¿Pulsar la parada de emergencia? La línea se detiene, la compañía pierde unos %d € de producción y todos querrán saber quién ha sido."
+SECOPS_MACHINE_STOP,Emergency stop,Parada de emergencia
+SECOPS_MACHINE_STOPPED,The line grinds to a halt. Lost production: €%d.,La línea se detiene en seco. Producción perdida: %d €.
+SECOPS_MACHINE_TOO_EARLY,The line runs until %d:00. Shut it down on your closing round.,La línea funciona hasta las %d:00. Apágala en tu ronda de cierre.
+SECOPS_MACHINE_SHUT,Machinery shut down for the night. One closing task done.,Maquinaria apagada hasta mañana. Una tarea de cierre hecha.
+SECOPS_CAR_NOBODY,Nobody drives this car any more.,Ya nadie conduce este coche.
+SECOPS_CAR_ALREADY,%s's car is already sabotaged.,El coche de %s ya está saboteado.
+SECOPS_CAR_NEED_TOOL,%s's car. You need cutting tools or a toolbox to do anything to it.,El coche de %s. Necesitas herramientas de corte o una caja de herramientas para hacerle algo.
+SECOPS_CAR_TITLE,Sabotage a car,Sabotear un coche
+SECOPS_CAR_BODY,%s's car. With your %s you can make it break down on the next drive in: tomorrow morning they'll be stuck in the garage and their office will stand empty.,El coche de %s. Con tu %s puedes hacer que se averíe en el próximo trayecto: mañana por la mañana se quedará atrapado en el garaje y su despacho estará vacío.
+SECOPS_CAR_GO,Sabotage it,Sabotearlo
+SECOPS_CAR_DONE,Done. %s's car will break down tomorrow morning.,Hecho. El coche de %s se averiará mañana por la mañana.
+SECOPS_PROMPT_UNLOCK,Unlock,Abrir con llave
+SECOPS_PROMPT_FORCE,Force the lock,Forzar la cerradura
+SECOPS_LOCK_ALREADY,It's already unlocked.,Ya está abierta.
+SECOPS_LOCK_EMPTY,Already emptied today.,Ya lo has vaciado hoy.
+SECOPS_LOCK_UNLOCKED,Unlocked with your %s.,Abierta con tus %s.
+SECOPS_LOCK_NEED_KEY,Locked. Your keys don't fit — a lockpick or cutting tools would do it.,Cerrada. Tus llaves no entran: una ganzúa o herramientas de corte la abrirían.
+SECOPS_LOCK_NEED_TOOL,A heavy padlock: only cutting tools or a lockpick will get through.,Un candado pesado: solo herramientas de corte o una ganzúa pueden con él.
+SECOPS_FORCE_TITLE,Force it,Forzarla
+SECOPS_FORCE_BODY,Force it with your %s? It's noisy (heard up to %d m away) and leaves obvious damage behind.,¿Forzarla con tu %s? Hace ruido (se oye hasta a %d m) y deja daños evidentes.
+SECOPS_FORCE_BODY_ALARM,Force it with your %s? It's noisy (heard up to %d m away) — and this floor's NIGHT ALARM IS ARMED: it will go off and open an investigation.,¿Forzarla con tu %s? Hace ruido (se oye hasta a %d m) y la ALARMA NOCTURNA DE ESTA PLANTA ESTÁ ARMADA: saltará y abrirá una investigación.
+SECOPS_FORCE_GO,Force it,Forzar
+SECOPS_LOCK_FORCED,Forced open with the %s.,Forzada con %s.
+SECOPS_TAKEN,Taken: %s.,Te llevas: %s.
+SECOPS_PROMPT_CARD,Swipe someone else's card,Pasar una tarjeta ajena
+SECOPS_CARD_TITLE,Which card?,¿Qué tarjeta?
+SECOPS_CARD_BODY,Pick the card to swipe.,Elige la tarjeta que pasas.
+SECOPS_CARD_USE_STOLEN_CARD,%s's card (stolen),La tarjeta de %s (robada)
+SECOPS_CARD_USE_CLONED_CARD,%s's card (cloned),La tarjeta de %s (clonada)
+SECOPS_CARD_DENIED,%s's card doesn't open this door (needs clearance %d).,La tarjeta de %s no abre esta puerta (pide acreditación %d).
+SECOPS_CARD_STOLEN_OK,"Access granted as %s. The log shows their name, not yours.","Acceso concedido como %s. El registro muestra su nombre, no el tuyo."
+SECOPS_CARD_CLONED_OK,The cloned card works. Nothing points at you — for now.,"La tarjeta clonada funciona. Nada apunta a ti, de momento."
+SECOPS_SAFE_EMPTY,The safe is empty.,La caja está vacía.
+SECOPS_SAFE_NEEDS_KEY,It needs its key. A lockpick opens it quietly; a crowbar or cutting tools open it loudly.,Necesita su llave. Una ganzúa la abre en silencio; una palanca o herramientas de corte la abren con ruido.
+SECOPS_SAFE_NEEDS_COMBINATION,It needs the combination. Without the written combination only an angle grinder or cutting tools get in.,Necesita la combinación. Sin la combinación apuntada solo entra una radial o herramientas de corte.
+SECOPS_SAFE_NEEDS_CLEARANCE,"Opening it needs clearance %d. Without it, only cutting tools or an angle grinder get in.","Abrirla pide acreditación %d. Sin ella, solo entran herramientas de corte o una radial."
+SECOPS_SAFE_TAKEN,Taken from the safe: %s.,Sacas de la caja: %s.
+SECOPS_SAFE_FULL,No room for %s: it stays in the safe.,No te cabe %s: se queda en la caja.
+SECOPS_SAFE_HOUSE_NO_OP,Break into the house first (follow the resident home at night).,Primero hay que allanar la casa (sigue al residente hasta su casa de noche).
+SECOPS_SAFE_HOUSE_LOOT,Looted: %s (€%d).,Saqueado: %s (%d €).
+SECOPS_CEO_LOCKED,Only the combination opens it. Harlan Voss and Pearl Osgood know it — or bring the means to force it.,Solo la abre la combinación. La saben Harlan Voss y Pearl Osgood; o trae los medios para forzarla.
+SECOPS_CEO_TITLE,The CEO's safe,La caja fuerte del consejero delegado
+SECOPS_CEO_FORCE_BODY,"Work on the safe for %d minutes? It's loud, and a forced safe means a sure investigation tomorrow.","¿Trabajar en la caja %d minutos? Hace ruido, y una caja forzada significa una investigación segura mañana."
+SECOPS_CEO_FORCE_GO,Get to work,Ponerse a ello
+SECOPS_CEO_DOCUMENTS,The ownership documents are yours. Get them to the notary without being searched.,Los documentos de propiedad son tuyos. Llévalos a la notaría sin que te registren.
+SECOPS_CEO_PROGRESS,Safe: %d of %d minutes of work done. Come back to finish it.,Caja: %d de %d minutos de trabajo hechos. Vuelve para terminar.
+SECOPS_BENCH_TITLE,Repair bench,Banco de reparación
+SECOPS_BENCH_BODY,"Clone a card: bring a stolen card. Install access into a colleague's computer: IT staff only, and every access is logged.","Clonar una tarjeta: trae una tarjeta robada. Instalar acceso al ordenador de un compañero: solo personal de IT, y todo acceso queda registrado."
+SECOPS_BENCH_CLONE,Clone the stolen card,Clonar la tarjeta robada
+SECOPS_BENCH_BACKDOOR,Open a target's computer,Abrir el ordenador de un objetivo
+SECOPS_INVENTORY_FULL,Your inventory is full.,Tu inventario está lleno.
+SECOPS_BENCH_CLONED,Cloned %s's card. No immediate trace — a systems audit could spot it.,Tarjeta de %s clonada. Sin rastro inmediato; una auditoría de sistemas podría detectarla.
+SECOPS_BENCH_NO_TARGETS,Mark a target in PERSONNEL first: the bench only reaches machines you're after.,Marca antes un objetivo en PERSONAL: el banco solo llega a las máquinas que te interesan.
+SECOPS_BENCH_PICK_HINT,Whose computer?,¿El ordenador de quién?
+SECOPS_PROMPT_LOCKER_RETURN,Change back,Quitarse el uniforme
+SECOPS_LOCKER_TITLE,Uniform locker,Taquilla de uniformes
+SECOPS_LOCKER_BODY,"The %s hangs inside. Cameras record the uniform, not your face — but being seen taking one is definitive evidence.","Dentro cuelga %s. Las cámaras graban el uniforme, no tu cara, pero que te vean cogerlo es una prueba definitiva."
+SECOPS_LOCKER_RETURN,Take it off and put it back,Quitártelo y devolverlo
+SECOPS_LOCKER_WEAR,Put it on,Ponértelo
+SECOPS_LOCKER_PUT_BACK,Put it back,Devolverlo
+SECOPS_LOCKER_TAKE,Take the %s and put it on,Coger %s y ponértelo
+SECOPS_LOCKER_TAKE_ITEM,Take the %s,Coger %s
+SECOPS_LOCKER_OWN,Your own %s. Wearing it is just going to work.,Tu propio uniforme (%s). Ponértelo es ir a trabajar.
+SECOPS_LOCKER_WORN,"You're wearing the %s. At a distance you're just the uniform; up close, people who know you still recognise you.","Llevas puesto %s. De lejos solo eres el uniforme; de cerca, quien te conoce te reconoce."
+SECOPS_LOCKER_RETURNED,The %s is back in the locker.,%s vuelve a la taquilla.
+SECOPS_LOCKER_SEEN,%s saw you take it. That's definitive evidence.,%s te ha visto cogerlo. Es una prueba definitiva.
+SECOPS_TAKEN_HOT,Took the %s. Being searched with it on you is definitive evidence.,Te llevas %s. Si te registran con ello encima es una prueba definitiva.
+SECOPS_PROMPT_MASTER_KEYS,Take the master keys,Coger las llaves maestras
+SECOPS_CART_HAVE,You already have the %s.,Ya tienes %s.
+SECOPS_CART_GONE,The key ring is gone. %s will have a spare tomorrow.,El llavero ya no está. %s tendrá uno de repuesto mañana.
+SECOPS_RACK_EMPTY,You already carry everything useful here.,Ya llevas todo lo útil de aquí.
+SECOPS_RACK_TITLE,Tool rack,Armero de herramientas
+SECOPS_RACK_BODY,Forcing tools. Every one of them is compromising if you're searched.,Herramientas de forzar. Todas son comprometedoras si te registran.
+SECOPS_RACK_TAKE,Take the %s,Coger %s
+SECOPS_PROMPT_BODY_DROP,Let go of the body,Soltar el cuerpo
+SECOPS_PROMPT_BODY_DRAG,Drag the body,Arrastrar el cuerpo
+SECOPS_BODY_DROPPED,You let go of the body.,Sueltas el cuerpo.
+SECOPS_BODY_DRAGGING,Dragging %s. Slow and noisy — only the freight elevator takes a body to another floor.,Arrastras a %s. Lento y ruidoso: solo el montacargas lleva un cuerpo a otra planta.
+SECOPS_PROMPT_HIDE_BODY,Hide the body here,Esconder aquí el cuerpo
+SECOPS_PROMPT_SPOT_MENU,Hiding place,Escondite
+SECOPS_SPOT_HIDE,Hide inside,Esconderte dentro
+SECOPS_SPOT_STASH,Stash something,Esconder algo
+SECOPS_SPOT_RETRIEVE,Take something out,Sacar algo
+SECOPS_SPOT_HIDE_BODY,Hide the body here,Esconder aquí el cuerpo
+SECOPS_SPOT_PULL_BODY,Pull the body out,Sacar el cuerpo
+SECOPS_SPOT_TITLE,Hiding place,Escondite
+SECOPS_SPOT_BODY,Nobody sees inside unless they search it.,Nadie ve lo que hay dentro salvo que lo registre.
+SECOPS_SPOT_NO_ROOM,No room for a body in here.,Aquí no cabe un cuerpo.
+SECOPS_SPOT_NOTHING,Nothing to do here.,Aquí no hay nada que hacer.
+SECOPS_SPOT_HIDDEN,Hidden in %s. Nobody can see you unless they search. Move to come out.,Escondido en %s. Nadie te ve salvo que registre. Muévete para salir.
+SECOPS_SPOT_RETRIEVE_HINT,Pick what to take out (it costs time).,Elige qué sacas (lleva tiempo).
+SECOPS_SPOT_RETRIEVED,Took out the %s (%d min).,Sacas %s (%d min).
+SECOPS_BODY_HIDDEN,%s's body is hidden. An investigation that searches here could still find it.,El cuerpo de %s está escondido. Una investigación que registre aquí aún podría encontrarlo.
+SECOPS_PROMPT_CHUTE_BODY,Feed the body to the compactor,Echar el cuerpo a la compactadora
+SECOPS_CHUTE_HINT,Pick an item and dispose of it: whatever goes down the compactor never comes back.,Elige un objeto y deshazte de él: lo que baja por la compactadora no vuelve jamás.
+SECOPS_CHUTE_TITLE,Trash compactor,Compactadora de basura
+SECOPS_CHUTE_BODY_CONFIRM,Feed %s's body to the compactor? This cannot be undone: nothing that goes down there is ever found.,¿Echar el cuerpo de %s a la compactadora? No se puede deshacer: nada de lo que baja por ahí aparece jamás.
+SECOPS_CHUTE_BODY_GO,Do it,Hacerlo
+SECOPS_CHUTE_BODY_DONE,Gone. %s will never be found.,Ya no está. Nadie encontrará nunca a %s.
+UI_INTERACT_OWN_DESK_MENU,"Your desk (computer, keys, stash)","Tu mesa (ordenador, llaves, escondite)"
+SECOPS_PROMPT_COME_OUT,Come out,Salir del escondite
+SECOPS_SPOT_OUT,You come out of hiding.,Sales del escondite.
+UI_INTERACT_BODY,Drag the body,Arrastrar el cuerpo
+UI_INTERACT_DOOR_READER,Swipe someone else's card,Pasar una tarjeta ajena
+PLACES_ACT_ABORTED,You leave it for another time.,Lo dejas para otro momento.
+PLACES_ACT_INTERRUPTED,Interrupted. You stop before anyone notices... hopefully.,Interrumpido. Paras antes de que nadie se fije... con suerte.
+PLACES_WATCHED_TITLE,Someone is watching,Alguien está mirando
+PLACES_WATCHED_BODY,%s can see you right now. Do it anyway?,%s te está viendo ahora mismo. ¿Lo haces igualmente?
+PLACES_WATCHED_PROCEED,Do it anyway,Hacerlo igualmente
+PLACES_WATCHED_CAMERA,A security camera,Una cámara de seguridad
+PLACES_SOMEONE,Someone,Alguien
+PLACES_NOT_NOW,Better not,Mejor no
+PLACES_CLOSE,Leave it,Dejarlo
+PLACES_INFO_BODY,%s,%s
+PLACES_AURORA_TITLE,Aurora Room podium,Atril de la sala Aurora
+PLACES_AURORA_BODY,No meeting right now. The next weekly Aurora meeting is on day %d at %s. You can rehearse an idea here in the empty room.,"Ahora no hay reunión. La próxima reunión semanal Aurora es la jornada %d a las %s. Puedes ensayar una idea aquí, con la sala vacía."
+PLACES_AURORA_REHEARSE,Rehearse an idea,Ensayar una idea
+PLACES_AURORA_STARTED,The weekly Aurora meeting has started (%s). Take the podium to present an idea.,Ha empezado la reunión semanal Aurora (%s). Sube al atril para presentar una idea.
+PLACES_BALACLAVA_BOUGHT,Balaclava bought. It is compromising: a body search that finds it ends badly. Put it on at the door of the house you break into.,Pasamontañas comprado. Es comprometedor: un registro que lo encuentre acaba mal. Póntelo ante la puerta de la casa que vayas a allanar.
+PLACES_BOARD_TITLE,Board of directors,Consejo de administración
+PLACES_BOARD_BODY,Today's board session. You hold %d vote(s). How do you vote?,Sesión del consejo de hoy. Tienes %d voto(s). ¿Qué votas?
+PLACES_BOARD_PROMOTE,Back your own promotion,Apoyar tu propio ascenso
+PLACES_BOARD_EXPEL,Vote to expel an executive,Votar la expulsión de un directivo
+PLACES_BOARD_ABSTAIN,Abstain (it still counts as voting),Abstenerse (cuenta como voto)
+PLACES_BOARD_ABSTAINED,You abstain with great dignity. The minutes record your presence.,Te abstienes con gran dignidad. El acta deja constancia de tu presencia.
+PLACES_BOARD_ALREADY,The board has already voted today.,El consejo ya ha votado hoy.
+PLACES_BOARD_NO_SEAT,Only board members vote here. A seat comes with the R30 share package.,Aquí solo votan los consejeros. El asiento llega con el paquete accionarial de R30.
+PLACES_BOARD_DUTY_DONE,Board vote cast: today's duty is done.,Voto emitido: el deber de hoy está cumplido.
+PLACES_BOARD_PROMOTE_DONE,"The board notes your ""leadership"". Merit gained towards your next promotion.",El consejo toma nota de tu «liderazgo». Ganas mérito para tu próximo ascenso.
+PLACES_BOARD_EXPEL_BODY,Whose expulsion do you put to the vote? With your votes it passes %d%% of the time.,¿La expulsión de quién sometes a votación? Con tus votos sale adelante un %d%% de las veces.
+PLACES_BOARD_TARGET,Expel %s,Expulsar a %s
+PLACES_BOARD_EXPEL_CONFIRM,"Put the expulsion of %s to the vote (%d%% chance)? If it fails, they will know who tabled it.","¿Sometes a votación la expulsión de %s (%d%% de probabilidad)? Si fracasa, sabrá quién la propuso."
+PLACES_BOARD_EXPEL_GO,Call the vote,Someterlo a votación
+PLACES_BOARD_EXPELLED,"Motion carried. %s is out, effective immediately.",Moción aprobada. %s queda fuera con efecto inmediato.
+PLACES_BOARD_EXPEL_FAILED,Motion defeated. %s will not forget who tabled it.,Moción rechazada. %s no olvidará quién la propuso.
+PLACES_BURN_SEEN,%s stared at your burned hand a little too long.,%s se ha quedado mirando tu mano quemada un poco demasiado.
+PLACES_BURN_TREATED,"The burn is dressed. No questions, no paperwork: it no longer gives you away.",La quemadura está vendada. Sin preguntas ni papeles: ya no te delata.
+PLACES_BUS_TITLE,Bus stop,Parada de autobús
+PLACES_BUS_BODY,Where to? Any ride takes about %d min and costs %d €.,¿Adónde? Cualquier trayecto dura unos %d min y cuesta %d €.
+PLACES_BUS_TO_WORK,Stellar Sell HQ (reception),Sede de Stellar Sell (recepción)
+PLACES_BUS_TO_HOME,Home,Casa
+PLACES_BUS_TO_STOP,Stop: %s,Parada: %s
+PLACES_BUS_TO_HOUSE,The house of %s (you know the address),La casa de %s (conoces la dirección)
+PLACES_BUS_CAPTION,On the bus · %d min,En el autobús · %d min
+PLACES_BUS_ARRIVED,The bus drops you off after %d min (%d €).,El autobús te deja tras %d min (%d €).
+PLACES_BUS_BUILDING_CLOSED,The building is closed for the night: the bus left you outside the door.,El edificio está cerrado por la noche: el autobús te ha dejado ante la puerta.
+PLACES_BUS_NO_MONEY,You cannot even afford the %d € fare.,No te llega ni para el billete de %d €.
+PLACES_BUYERS_TITLE,Demonstration table,Mesa de demostraciones
+PLACES_BUYERS_BODY,%d buyer(s) on today's schedule. Who do you see?,%d comprador(es) en la agenda de hoy. ¿A quién atiendes?
+PLACES_BUYER_VISIT,"%s (%s): %d pairs, %d € · %s · %s","%s (%s): %d pares, %d € · %s · %s"
+PLACES_BUYER_WAITING,scheduled,en agenda
+PLACES_BUYERS_NONE,No buyers today. They visit on days %s of each week.,Hoy no hay compradores. Vienen las jornadas %s de cada semana.
+PLACES_BUYER_CARD,%s. %s What do you offer?,%s. %s ¿Qué le ofreces?
+PLACES_BUYER_TRAITS,Perception %d · Greed %d · Loyalty %d.,Perspicacia %d · Codicia %d · Lealtad %d.
+PLACES_BUYER_TRAITS_UNKNOWN,"You know nothing about them yet: listen in the visitors' lounge before %s, or read the VIP client archive.",Aún no sabes nada de esa persona: escucha en la sala de espera antes de las %s o lee el archivo de clientes VIP.
+PLACES_BUYERS_CONFIRM,%s with %s? It will not look like fraud today. The monthly close may disagree.,¿%s con %s? Hoy no parecerá un fraude. El cierre mensual puede opinar otra cosa.
+PLACES_BUYERS_GO,Go ahead,Adelante
+PLACES_BUYERS_DONE,%s. You pocket %d €.,%s. Te embolsas %d €.
+PLACES_BUYERS_FAILED,%s.,%s.
+PLACES_CHEM_TITLE,Dye and glue lab,Laboratorio de tintes y pegamentos
+PLACES_CHEM_BODY,"Drums of solvent, glue and dye. A careless mix would look like an accident... and a careless hand would get burned (%d%% risk).","Bidones de disolvente, pegamento y tinte. Una mezcla descuidada parecería un accidente... y una mano descuidada se quemaría (%d%% de riesgo)."
+PLACES_CHEM_SABOTAGE,"Stage an ""accident""",Provocar un «accidente»
+PLACES_CHEM_DONE,"Fumes, alarms, an evacuated line. Everyone blames the safety procedures.","Humo, alarmas, una línea evacuada. Todos culpan a los protocolos de seguridad."
+PLACES_CHEM_ERROR,Ouch. You burned your hand and left prints on the drum: the lab's log will show it. Get the burn treated at the ground-floor infirmary.,Ay. Te has quemado la mano y has dejado huellas en el bidón: el registro del laboratorio lo reflejará. Cúrate la quemadura en la enfermería de la planta baja.
+PLACES_CHEM_ALREADY,One accident a day is bad luck. Two is a pattern.,"Un accidente al día es mala suerte. Dos, un patrón."
+PLACES_CLAN_EMPTY,The clan table is empty. The cafeteria clan only gathers at lunchtime.,La mesa del clan está vacía. El clan de la cafetería solo se reúne a la hora de comer.
+PLACES_ENTRY_FORCED_LOCK,"Force the lock (%d min, needs a tool)","Forzar la cerradura (%d min, hace falta una herramienta)"
+PLACES_ENTRY_WINDOW,"Climb in through a window (%d min, noisier)","Entrar por una ventana (%d min, más ruido)"
+PLACES_ESCORT_TITLE,Security is here,Ha venido Seguridad
+PLACES_ESCORT_BODY,Two guards have come for you: %s is waiting in the interrogation room (floor 15). Ignoring a summons does not make it go away.,Dos vigilantes han venido a buscarte: %s te espera en la sala de interrogatorios (planta 15). Ignorar una citación no la hace desaparecer.
+PLACES_ESCORT_GO,Go with them,Acompañarlos
+PLACES_ESCORT_BACK,The guards drop you back where they found you.,Los vigilantes te devuelven a donde te encontraron.
+PLACES_FACTORY_TITLE,Finished goods,Producto terminado
+PLACES_FACTORY_BODY,Shelves of boxed Stellar shoes (%d pairs in stock). Nothing is counted until the weekly inventory.,Estanterías de zapatos Stellar en caja (%d pares en existencias). Nada se cuenta hasta el inventario semanal.
+PLACES_FACTORY_TAKE,Take: %s,Llevarse: %s
+PLACES_FACTORY_BLOCKED,%s — %s,%s — %s
+PLACES_FACTORY_RETURN,Put the stolen goods back,Devolver el producto robado
+PLACES_FACTORY_NOTHING,There is nothing you can take.,No hay nada que puedas llevarte.
+PLACES_FACTORY_STOLEN,%d pair(s) taken: %s (resale about %d €). Fence it at the flagship store before anyone searches you.,%d par(es) sustraído(s): %s (reventa de unos %d €). Colócalo en la tienda insignia antes de que te registren.
+PLACES_FACTORY_PALLET,"A whole pallet (%d pairs) is gone: %d € now, courtesy of %s. The CFO will see it in the margins.","Un palé entero (%d pares) ha desaparecido: %d € ahora, cortesía de %s. El director financiero lo verá en los márgenes."
+PLACES_FACTORY_RETURNED,%d item(s) back on the shelf: %d pairs will not be missed at the count.,%d objeto(s) de vuelta en el estante: en el recuento no faltarán %d pares.
+PLACES_FACTORY_FENCED,"Sold %d stolen item(s) for %d €, no questions asked.","Vendido(s) %d objeto(s) robado(s) por %d €, sin preguntas."
+PLACES_STORE_PRICE,Real retail price: %d € a pair.,Precio real de venta: %d € el par.
+PLACES_GATE_HINT,"Tip: in the morning rush you can slip in behind a colleague without swiping (walk in sneaking, or use the queue).",Truco: en la hora punta de la mañana puedes colarte detrás de un compañero sin fichar (entra con sigilo o usa la cola).
+PLACES_GATE_NOBODY,Nobody is going through right now. Wait for a colleague.,Ahora mismo no pasa nadie. Espera a algún compañero.
+PLACES_GATE_NO_RUSH,The turnstiles are too quiet to slip through unnoticed. Try during the morning rush.,Los tornos están demasiado tranquilos para colarse sin que se note. Prueba en la hora punta de la mañana.
+PLACES_GATE_SLIPPED,You slipped in behind %s: no clock-in record (the lobby camera still saw you).,Te has colado detrás de %s: sin registro de fichaje (la cámara del vestíbulo sí te ha visto).
+PLACES_GATHERING_BODY,%s (%d in total). Stay a while?,%s (%d en total). ¿Te quedas un rato?
+PLACES_GATHERING_LISTEN,Listen in (%d min),Escuchar (%d min)
+PLACES_GATHERING_PLANT,Plant a rumour,Plantar un rumor
+PLACES_GATHERING_TITLE_SMOKERS_CIRCLE,Smokers' circle (no cameras),Corrillo de fumadores (sin cámaras)
+PLACES_GATHERING_TITLE_FOOSBALL_CIRCLE,Foosball huddle,Corrillo del futbolín
+PLACES_GATHERING_TITLE_CAFETERIA_CLAN,The cafeteria clan,El clan de la cafetería
+PLACES_GATHERING_EMPTY_SMOKERS_CIRCLE,Nobody is out smoking. They come out every two hours.,No hay nadie fumando. Salen cada dos horas.
+PLACES_GATHERING_EMPTY_FOOSBALL_CIRCLE,Nobody at the foosball table right now.,Ahora mismo no hay nadie en el futbolín.
+PLACES_GATHERING_EMPTY_CAFETERIA_CLAN,The clan is not at the table today.,Hoy el clan no está en la mesa.
+PLACES_GOSSIP_TITLE,What they are saying,Lo que se cuenta
+PLACES_GOSSIP_LINE,"%s about %s: ""%s""",%s sobre %s: «%s»
+PLACES_GOSSIP_ABOUT_YOU,"%s about YOU: ""%s""",%s sobre TI: «%s»
+PLACES_GOSSIP_NOTHING,"Weather, football, the canteen lasagne. Nothing useful today.","El tiempo, el fútbol, la lasaña de la cantina. Nada útil hoy."
+PLACES_GOSSIP_CONTACT,%s gave you their number.,%s te ha dado su número.
+PLACES_NOTE_GOSSIP,Heard: %s,Oído: %s
+PLACES_RUMOUR_TITLE,Plant a rumour,Plantar un rumor
+PLACES_RUMOUR_WHO,You will tell %s. About whom?,Se lo contarás a %s. ¿Sobre quién?
+PLACES_RUMOUR_SUBJECT,About %s,Sobre %s
+PLACES_RUMOUR_WHAT,What do you say about %s?,¿Qué cuentas de %s?
+PLACES_RUMOUR_FACT,"""%s""",«%s»
+PLACES_RUMOUR_CONFIRM,"Tell %s that %s: ""%s""? Once it is out it spreads on its own, and it may come back to you.","¿Le cuentas a %s que %s: «%s»? Una vez suelto se propaga solo, y puede volverse contra ti."
+PLACES_RUMOUR_GO,Say it,Decirlo
+PLACES_RUMOUR_PLANTED,"You told %s about %s: ""%s"". It will spread at the next session.",Le has contado a %s lo de %s: «%s». Se propagará en la próxima sesión.
+PLACES_RUMOUR_FAILED,Nobody takes it in. The rumour dies on the spot.,Nadie se lo cree. El rumor muere en el acto.
+PLACES_RUMOUR_NOBODY,There is nobody here worth talking about.,Aquí no hay nadie de quien merezca la pena hablar.
+PLACES_HOUSE_TITLE,A house on the street,Una casa de la calle
+PLACES_HOUSE_PICK_BODY,Whose house is it? You only know some addresses.,¿De quién es la casa? Solo conoces algunas direcciones.
+PLACES_HOUSE_WHOSE,%s lives here,Aquí vive %s
+PLACES_HOUSE_UNKNOWN,You do not know who lives here. Addresses are in the full personnel files.,No sabes quién vive aquí. Las direcciones están en los expedientes de personal completos.
+PLACES_HOUSE_OTHER_JOB,You are in the middle of another job tonight.,Esta noche ya estás metido en otro trabajo.
+PLACES_HOUSE_RESIDENT_HOME,The house of %s. The lights are on: they are at home. (%d min),La casa de %s. Hay luz: está en casa. (%d min)
+PLACES_HOUSE_RESIDENT_OUT,"The house of %s. Dark windows: nobody home, for now. (%d min)","La casa de %s. Ventanas a oscuras: no hay nadie, de momento. (%d min)"
+PLACES_HOUSE_CAPTION,To the street of %s,A la calle de %s
+PLACES_HOUSE_MASK_BODY,You are about to break in with your face uncovered. Put the balaclava on first?,Vas a entrar a cara descubierta. ¿Te pones antes el pasamontañas?
+PLACES_HOUSE_MASK_GO,Put it on,Ponérmelo
+PLACES_HOUSE_MASK_ON,"Balaclava on. Nobody will recognise you, and everybody will notice you.","Pasamontañas puesto. Nadie te reconocerá, y todo el mundo se fijará en ti."
+PLACES_HOUSE_ENTRY_BODY,How do you get in?,¿Cómo entras?
+PLACES_HOUSE_INSIDE,"You are inside. Drawers and safes, quickly. Walk out of the door when you are done.","Estás dentro. Cajones y cajas fuertes, deprisa. Sal por la puerta cuando acabes."
+PLACES_HOUSE_ALARM,"An alarm! Private security is on its way, and the police have been called.",¡Una alarma! La seguridad privada viene de camino y han avisado a la policía.
+PLACES_HOUSE_SEEN,%d witness(es) saw you get in.,%d testigo(s) te han visto entrar.
+PLACES_HOUSE_LEFT,You slip back out. Tonight's haul: %d €.,Sales sin hacer ruido. El botín de esta noche: %d €.
+PLACES_HOUSE_IDENTIFIED,Someone recognised you. The report will reach the building.,Alguien te ha reconocido. La denuncia llegará al edificio.
+PLACES_HOUSE_LOCKED,Locked. You would have to break in: use the door from the street.,Cerrado. Tendrías que entrar a la fuerza: usa la puerta desde la calle.
+PLACES_INTERROGATION_TITLE,Interrogation room,Sala de interrogatorios
+PLACES_INTERROGATION_BODY,%s is waiting for you with a thick folder. Sit down and get it over with?,%s te espera con una carpeta gruesa. ¿Te sientas y acabas con esto?
+PLACES_INTERROGATION_SIT,Sit down,Sentarse
+PLACES_INTERROGATION_EMPTY,An empty chair and a lamp that is still warm. Nobody has summoned you. Yet.,Una silla vacía y una lámpara aún caliente. Nadie te ha citado. Todavía.
+PLACES_KIT_TAKEN,You take a %s. Staff are entitled to one.,Coges un %s. El personal tiene derecho a uno.
+PLACES_KIT_ALREADY,You already took a first-aid kit today.,Hoy ya has cogido un botiquín.
+PLACES_POCKETS_FULL,Your pockets are full.,Llevas los bolsillos llenos.
+PLACES_MOLDS_TITLE,Molds and lasts,Moldes y hormas
+PLACES_MOLDS_BODY,The molds that shape every Stellar shoe. Two millimetres off and nobody notices until quality control does.,Los moldes que dan forma a cada zapato Stellar. Dos milímetros de desvío y nadie lo nota hasta que lo nota control de calidad.
+PLACES_MOLDS_SABOTAGE,Shift the molds by two millimetres,Desviar los moldes dos milímetros
+PLACES_MOLDS_DONE,"Done. The next batches will come out slightly wrong, and quality control will find real defects.",Hecho. Los próximos lotes saldrán ligeramente mal y control de calidad encontrará defectos reales.
+PLACES_MOLDS_ALREADY,The molds are already off today.,Los moldes ya están desviados hoy.
+PLACES_NOTARY_TITLE,In-house notary,Notaría interna
+PLACES_NOTARY_IDLE,"Stamps, seals and the smell of expensive paper. Nothing here concerns you, yet.","Sellos, lacres y olor a papel caro. Aquí nada te concierne, todavía."
+PLACES_NOTARY_PENDING,The notary is still verifying your papers: %d day(s) left.,El notario sigue comprobando tus papeles: quedan %d jornada(s).
+PLACES_NOTARY_BODY_SIGNED,"The notary looks at you, then at your papers, and reaches for the seal.","El notario te mira, mira tus papeles y alarga la mano hacia el sello."
+PLACES_NOTARY_BODY_VERIFICATION,The notary frowns: with your record he will want to verify (%d days of exposure).,El notario frunce el ceño: con tus antecedentes querrá comprobar (%d jornadas de exposición).
+PLACES_NOTARY_BODY_UNCERTAIN,"The notary is hard to read. He may sign, or he may verify (%d days).",El notario es difícil de leer. Puede firmar o puede comprobar (%d jornadas).
+PLACES_NOTARY_REQUEST,Present the ownership documents,Presentar los documentos de propiedad
+PLACES_NOTARY_CONFIRM,This cannot be undone: the notary will either sign or start a verification. Go ahead?,Esto no tiene vuelta atrás: el notario firmará o empezará una comprobación. ¿Adelante?
+PLACES_NOTARY_GO,Present them,Presentarlos
+PLACES_NOTARY_SIGNED,Signed and sealed.,Firmado y sellado.
+PLACES_NOTARY_VERIFYING,The notary keeps the papers to verify them: %d day(s) of maximum exposure.,El notario se queda los papeles para comprobarlos: %d jornada(s) de máxima exposición.
+PLACES_NOTES_TITLE,Delivery notes,Albaranes
+PLACES_NOTES_BODY,"The foreman's delivery notes. With a few ""corrections"", this week's shortfall would point at %s.","Los albaranes del capataz. Con unas cuantas «correcciones», el descuadre de esta semana apuntaría a %s."
+PLACES_NOTES_FORGE,Forge the notes,Falsificar los albaranes
+PLACES_NOTES_FORGED,Notes forged: this week's shortfall now points at %s.,Albaranes falsificados: el descuadre de esta semana apunta ahora a %s.
+PLACES_NOTES_TRACED,The dock station logs who prints notes. Your card is on it.,La estación del muelle registra quién imprime albaranes. Tu tarjeta consta.
+PLACES_NOTE_NO_SUIT,Status: you turned up without an executive suit. Reputation −%.1f.,Estatus: te has presentado sin traje ejecutivo. Reputación −%.1f.
+PLACES_NOTE_RESULTS_DUE,Q%d results day: the presentation is in the %s.,Día de resultados del T%d: la presentación es en %s.
+PLACES_RESULTS_DUE,Q%d results day! The presentation is in the %s: take the stage.,¡Día de resultados del T%d! La presentación es en %s: sube al estrado.
+PLACES_RESULTS_RANK,Only R%d and above present results here. This quarter's presentation is on day %d.,Aquí solo presentan resultados los R%d o superiores. La presentación de este trimestre es la jornada %d.
+PLACES_POLICE_TITLE,Police front desk,Mostrador de la comisaría
+PLACES_POLICE_BODY,"A duty officer fills in a form without looking up. ""Yes?""",Un agente de guardia rellena un formulario sin levantar la vista. «¿Sí?»
+PLACES_POLICE_BODY_CHASE,"The duty officer is on the radio about ""a suspect in the area"". He has not looked up. Yet.",El agente de guardia habla por radio de «un sospechoso en la zona». No ha levantado la vista. Todavía.
+PLACES_POLICE_ASK,Ask for directions,Preguntar una dirección
+PLACES_POLICE_CONFESS,Turn yourself in,Entregarte
+PLACES_POLICE_DIRECTIONS,"""Left, then left again."" Everywhere in this city is left, then left again.",«A la izquierda y otra vez a la izquierda.» En esta ciudad todo está a la izquierda y otra vez a la izquierda.
+PLACES_POLICE_CONFESS_BODY,Confess everything to the police? Really?,¿Confesárselo todo a la policía? ¿En serio?
+PLACES_POLICE_CONFESS_GO,Confess everything,Confesarlo todo
+PLACES_POLICE_CONFESSED,"""Corporate misconduct is a civil matter."" He hands you ticket number %d and a leaflet on workplace wellbeing.",«Las faltas corporativas son asunto civil.» Te da el número %d y un folleto sobre bienestar laboral.
+PLACES_QC_TITLE,Quality control terminal,Terminal de control de calidad
+PLACES_QC_BODY_DEFECTS,Product quality %d%%. The latest batches have real defects. Reports on the foreman lately: %d of %d before he goes.,Calidad del producto: %d%%. Los últimos lotes tienen defectos reales. Informes recientes contra el capataz: %d de %d antes de que caiga.
+PLACES_QC_BODY_CLEAN,Product quality %d%%. No real defects: a report now would be invented. Reports on the foreman lately: %d of %d.,Calidad del producto: %d%%. No hay defectos reales: un informe ahora sería inventado. Informes recientes contra el capataz: %d de %d.
+PLACES_QC_REPORT_REAL,File a defect report against %s,Emitir un informe de defectos contra %s
+PLACES_QC_REPORT_FAKE,Invent a defect report against %s,Inventar un informe de defectos contra %s
+PLACES_QC_FILED,Report filed against %s (%d of %d). It carries your signature.,Informe emitido contra %s (%d de %d). Lleva tu firma.
+PLACES_QC_FOREMAN_OUT,One report too many: %s is off the factory floor. The post is free.,Un informe de más: %s sale de la nave. El puesto queda libre.
+PLACES_REST_TITLE,Infirmary bed,Cama de la enfermería
+PLACES_REST_BODY,Lie down for a while? Nobody records who rests here.,¿Te tumbas un rato? Aquí nadie apunta quién descansa.
+PLACES_REST_BODY_BURN,The nurse can dress that burn while you lie down. Nobody records who rests here.,La enfermera puede vendarte esa quemadura mientras descansas. Aquí nadie apunta quién descansa.
+PLACES_REST_GO,Rest (%d min),Descansar (%d min)
+PLACES_RESTED,"You rest for %d min. Nobody asks, nothing is written down.",Descansas %d min. Nadie pregunta y nada queda por escrito.
+PLACES_SHOP_TITLE,Till,Caja
+PLACES_SHOP_BODY,You have %d €. What are you buying?,Tienes %d €. ¿Qué compras?
+PLACES_SHOP_ITEM,%s: %d €,%s: %d €
+PLACES_SHOP_CONFIRM,Buy %s for %d €?,¿Comprar %s por %d €?
+PLACES_SHOP_PAY,Pay,Pagar
+PLACES_SHOP_BOUGHT,Bought: %s (%d €).,Comprado: %s (%d €).
+PLACES_SUIT_BOUGHT,You finally look like you belong upstairs: no more reputation penalty for dressing down.,Por fin pareces de los de arriba: se acabó la penalización de reputación por vestir de cualquier manera.
+PLACES_TRAINING_TITLE,Welcome to Stellar Sell,Bienvenido a Stellar Sell
+PLACES_TRAINING_LINE_1,"A much younger Harlan Voss smiles from the screen: ""Here, you are not an employee. You are a stakeholder in our shared journey.""",Un Harlan Voss mucho más joven sonríe desde la pantalla: «Aquí no eres un empleado. Eres parte interesada en nuestro viaje compartido».
+PLACES_TRAINING_LINE_2,"""Synergy is not a word. It is a promise we make to our shareholders every morning.""",«Sinergia no es una palabra. Es una promesa que hacemos cada mañana a nuestros accionistas».
+PLACES_TRAINING_LINE_3,"""Remember: every door you can open, you were meant to open."" The video ends on a stock photo of a handshake.","«Recuerda: toda puerta que puedas abrir, estaba pensada para que la abrieras.» El vídeo acaba con una foto de archivo de un apretón de manos."
+PLACES_TRAINING_DONE,Training complete. You feel 12% more aligned.,Formación completada. Te sientes un 12 % más alineado.
+UI_INTERACT_HOUSE_DOOR,Case the house,Estudiar la casa
+UI_INTERACT_HOUSE_BREAK_IN,Break in,Entrar a la fuerza
+UI_INTERACT_REST,Rest a while,Descansar un rato
+UI_INTERACT_TREAT_BURN,Treat your burn,Curarte la quemadura
+UI_INTERACT_TURNSTILE_QUEUE,Slip in behind someone,Colarse detrás de alguien
+UI_INTERACT_CLAN_TABLE,Sit with the clan,Sentarse con el clan
+UI_INTERACT_FOOSBALL_TABLE,Join the foosball huddle,Unirse al corrillo del futbolín
+UI_INTERACT_TRANSPORT_STOP,Wait for the bus,Esperar el autobús
+LEDGER_GRIEVANCE_BOARD_VOTE,You voted to throw them out,Votaste para echarle
+LEDGER_GRIEVANCE_DEFECT_REPORT,You signed defect reports against them,Firmaste informes de defectos contra él
+SOCIAL_SOMEONE,someone,alguien
+SOCIAL_NOWHERE,somewhere,algún sitio
+SOCIAL_OUTSIDE,out of the building,fuera del edificio
+SOCIAL_PLACE_FMT,%s (%s),%s (%s)
+SOCIAL_REPLY_FMT,%s: «%s»,%s: «%s»
+SOCIAL_MENU_CARD,Who's this? (quick card),¿Quién es? (ficha rápida)
+SOCIAL_MENU_LEAVE,Walk away,Marcharse
+SOCIAL_MENU_BACK,Back,Volver
+SOCIAL_MENU_KEYS,1-9 choose · Esc back · WASD walk away,1-9 elegir · Esc volver · WASD marcharse
+SOCIAL_EXPO_ALONE,Nobody else is looking.,Nadie más está mirando.
+SOCIAL_EXPO_WATCHED,Seen by: %s,Te ven: %s
+SOCIAL_EXPO_CAMERA,A camera has you in frame,Una cámara te tiene en plano
+SOCIAL_OPT_CHAT,Small talk,Charlar un rato
+SOCIAL_OPT_DIRECTIONS,Ask for directions / the agenda,Preguntar por un sitio / la agenda
+SOCIAL_OPT_RUMOUR,Plant a rumour…,Plantar un rumor…
+SOCIAL_OPT_AGITATE,Complain about management,Quejarse de la dirección
+SOCIAL_OPT_CREDIT,Give them the credit,Cederle el mérito
+SOCIAL_OPT_FAVOUR,Ask a favour…,Pedir un favor…
+SOCIAL_OPT_LOOK_AWAY,Ask them to look the other way,Pedirle que mire hacia otro lado
+SOCIAL_OPT_BRIBE,Offer money…,Ofrecer dinero…
+SOCIAL_OPT_PRAISE,Ask them to praise you upstairs,Pedirle que te elogie ante los jefes
+SOCIAL_OPT_BLACKMAIL,Blackmail…,Chantajear…
+SOCIAL_OPT_DELEGATE,Delegate a duty…,Delegar un deber…
+SOCIAL_OPT_CEDE_IDEA,Ask them to hand over their idea,Pedirle que te ceda su idea
+SOCIAL_OPT_BUY_IDEA,Buy their idea…,Comprarle la idea…
+SOCIAL_OPT_ELIMINATE,Silence them for good,Silenciarlo para siempre
+SOCIAL_HINT_DEBT,They owe you: %d,Te debe: %d
+SOCIAL_HINT_NO_DEBT,They owe you nothing,No te debe nada
+SOCIAL_REASON_CHATTED,You already chatted today.,Ya habéis charlado hoy.
+SOCIAL_REASON_RUMOURED,You already fed them one today.,Hoy ya le has contado uno.
+SOCIAL_REASON_CREDIT_WAIT,Too soon: it would look staged.,Demasiado pronto: parecería un montaje.
+SOCIAL_REASON_DEBT,They don't owe you enough (%d needed).,No te debe lo suficiente (hace falta %d).
+SOCIAL_REASON_NO_CASE,There is no open case to cover.,No hay ningún caso abierto que cubrir.
+SOCIAL_REASON_NOWHERE,There is nowhere to slip off to on this floor.,En esta planta no hay adónde escaquearse.
+SOCIAL_REASON_HAVE_IT,You already have it.,Ya lo tienes.
+SOCIAL_REASON_FULL,Your pockets are full.,Llevas los bolsillos llenos.
+SOCIAL_REASON_NO_MONEY,You can't afford it.,No te lo puedes permitir.
+SOCIAL_REASON_NO_CASH,Doesn't take cash. Keeps a ledger of favours.,No acepta dinero. Lleva la cuenta de los favores.
+SOCIAL_REASON_RANK_GAP,Won't discuss money with someone of your rank.,No habla de dinero con alguien de tu rango.
+SOCIAL_REASON_NO_MATERIAL,You have nothing on them.,No tienes nada contra esta persona.
+SOCIAL_REASON_BM_WAIT,You squeezed them recently. Give it a few days.,Le apretaste hace poco. Deja pasar unos días.
+SOCIAL_REASON_NOT_ABOVE,They are not above you: their support is worthless.,No está por encima de ti: su apoyo no vale nada.
+SOCIAL_REASON_NO_DUTY,You have no pending duty you can delegate.,No tienes deberes pendientes que se puedan delegar.
+SOCIAL_REASON_NO_IDEA,They have no idea worth taking.,No tiene ninguna idea que valga la pena.
+SOCIAL_REASON_GONE,They are gone.,Ya no está.
+SOCIAL_REASON_WITNESSES,%s is watching (%d witnesses). Not here.,%s está mirando (%d testigos). Aquí no.
+SOCIAL_REASON_CAMERA,A camera sees you both. Not here.,Una cámara os ve a los dos. Aquí no.
+SOCIAL_LINE_BUSY,"Not now, I'm swamped.","Ahora no, estoy hasta arriba."
+SOCIAL_LINE_NOTHING_TO_ADD,Nothing more to say about that.,No hay nada más que hablar de eso.
+SOCIAL_LINE_OFFERS_FAVOUR,And if you ever need anything… anything at all… you know where my desk is.,Y si alguna vez necesitas algo… lo que sea… ya sabes dónde está mi mesa.
+SOCIAL_LINE_TOP_1,"Brilliant, as always. Everything is going perfectly.","Brillante, como siempre. Todo va perfecto."
+SOCIAL_LINE_TOP_2,No problems at all down here. None. Why do you ask?,Aquí abajo ningún problema. Ninguno. ¿Por qué lo pregunta?
+SOCIAL_LINE_TOP_3,Your vision is truly inspiring. The numbers have never been better.,Su visión es verdaderamente inspiradora. Las cifras nunca han ido mejor.
+SOCIAL_LINE_HOSTILE_1,You. Of course it's you.,Tú. Cómo no ibas a ser tú.
+SOCIAL_LINE_HOSTILE_2,I remember what you did. Keep walking.,Me acuerdo de lo que hiciste. Sigue andando.
+SOCIAL_LINE_AFRAID_1,Y-yes? I didn't see anything. I never do.,¿S-sí? No he visto nada. Nunca veo nada.
+SOCIAL_LINE_AFRAID_2,Whatever you need. Please.,Lo que necesites. Por favor.
+SOCIAL_LINE_T1_1,"Oh, you're the new one? Get me a coffee. Two sugars.",¿Tú eres el nuevo? Tráeme un café. Con dos de azúcar.
+SOCIAL_LINE_T1_2,(They keep typing. You are not there.),(Sigue tecleando. Tú no existes.)
+SOCIAL_LINE_T1_3,Is it urgent? It isn't. Next.,¿Es urgente? No lo es. Siguiente.
+SOCIAL_LINE_T2_1,"Morning, %s. Surviving the week?","Buenos días, %s. ¿Sobreviviendo a la semana?"
+SOCIAL_LINE_T2_2,"Hey, %s. Did you see the new motivational poster? Synergy, again.","Hola, %s. ¿Has visto el cartel motivacional nuevo? Sinergia, otra vez."
+SOCIAL_LINE_T4_PEER_1,%s! I always said you'd go far. Always. Ask anyone.,¡%s! Siempre dije que llegarías lejos. Siempre. Pregunta a quien quieras.
+SOCIAL_LINE_T4_PEER_2,"Love the new desk, %s. Very… leadership.","Me encanta tu mesa nueva, %s. Muy… de liderazgo."
+SOCIAL_LINE_T4_BOSS_1,Mm. Could you move? You're in front of the whiteboard.,Mm. ¿Te apartas? Estás delante de la pizarra.
+SOCIAL_LINE_T4_BOSS_2,Team leads talk to their manager by email. Send it by email.,Los jefes de equipo hablan con su superior por correo. Mándalo por correo.
+SOCIAL_LINE_T5_1,"Good morning, Mr/Ms %s. How may I help?","Buenos días, señor/a %s. ¿En qué puedo ayudarle?"
+SOCIAL_LINE_T5_2,"Of course, %s. I'll put it in writing, as is proper.","Por supuesto, %s. Se lo dejo por escrito, como corresponde."
+SOCIAL_LINE_T6_1,(The room goes quiet as you approach.) Yes?,(La sala se queda en silencio al acercarte.) ¿Sí?
+SOCIAL_LINE_T6_2,"I was just about to… anything you need, %s. Anything.","Justo iba a… lo que necesite, %s. Lo que sea."
+SOCIAL_LINE_T7_1,"What a pleasure, %s. The whole floor admires you. Truly.","Qué placer, %s. Toda la planta le admira. De verdad."
+SOCIAL_LINE_T7_2,"Wonderful decision yesterday, %s. Historic, some say.","Maravillosa decisión la de ayer, %s. Histórica, dicen algunos."
+SOCIAL_LINE_WARM_1,%s! Just who I wanted to see.,¡%s! Justo a quien quería ver.
+SOCIAL_LINE_WARM_2,"Coffee later, %s? My treat. Well. The machine's treat.","¿Café luego, %s? Invito yo. Bueno. Invita la máquina."
+SOCIAL_LINE_ARCH_CLIMBER,Busy. Unless this is about the open position.,Ocupado. A menos que sea por la vacante.
+SOCIAL_LINE_ARCH_SNITCH,"I'm keeping notes, you know. For the good of the company.","Tomo notas, ¿sabes? Por el bien de la empresa."
+SOCIAL_LINE_ARCH_BRIBABLE,Everything has a price. Even small talk. Kidding. Mostly.,Todo tiene un precio. Hasta la charla. Es broma. Casi.
+SOCIAL_LINE_ARCH_COMPANY_MAN,Stellar Sell is a family. Families follow procedure.,Stellar Sell es una familia. Y las familias siguen el procedimiento.
+SOCIAL_LINE_ARCH_OBLIVIOUS,"(Takes one headphone off.) Sorry, what? Great weather, right?","(Se quita un auricular.) Perdona, ¿qué? Buen tiempo, ¿eh?"
+SOCIAL_LINE_ARCH_GOSSIP,"Did you hear? No? Oh, you WILL.","¿Te has enterado? ¿No? Oh, te vas a enterar."
+SOCIAL_LINE_ARCH_BURNOUT,Is it Friday yet. It is not. Okay.,¿Ya es viernes? No. Vale.
+SOCIAL_LINE_ARCH_OLD_HAND,Thirty-one years here. I've seen your kind come and go.,Treinta y un años aquí. He visto ir y venir a muchos como tú.
+SOCIAL_LINE_ARCH_ROOKIE,Hi! Do you also not know where anything is?,¡Hola! ¿Tú tampoco sabes dónde está nada?
+SOCIAL_LINE_ARCH_HARDLINER,State your business.,Diga a qué viene.
+SOCIAL_LINE_ARCH_COWARD,Oh! You startled me. I wasn't doing anything.,¡Ay! Me has asustado. No estaba haciendo nada.
+SOCIAL_LINE_ARCH_INCORRUPTIBLE,"If this is about anything irregular, the answer is no.","Si es por algo irregular, la respuesta es no."
+SOCIAL_HINT_ROUTINE,"Later I'll be at %s, around %s.","Luego estaré en %s, hacia las %s."
+SOCIAL_NOTE_ROUTINE,%s: at %s around %s (they told you).,%s: en %s hacia las %s (te lo dijo en persona).
+SOCIAL_NOTE_SECRET,%s told you: %s,%s te contó: %s
+SOCIAL_NOTE_BLACKMAIL,You blackmailed %s: %s,Chantajeaste a %s: %s
+SOCIAL_TOAST_CHAT,A pleasant chat with %s.,Una charla agradable con %s.
+SOCIAL_TOAST_ROUTINE,%s mentioned where they'll be later (notebook).,%s te ha dicho dónde estará luego (cuaderno).
+SOCIAL_TOAST_NUMBER,%s gave you their number.,%s te ha dado su número.
+SOCIAL_TOAST_SECRET,%s trusts you with something. Written in your notebook.,%s te confía algo. Anotado en tu cuaderno.
+SOCIAL_TOAST_NO_TRUTH,"At the top, nobody tells you the truth.","En la cima, nadie te dice la verdad."
+SOCIAL_RAY_SECRET_1,The service stairs have no cameras. Never had. Budget cut in '96.,La escalera de servicio no tiene cámaras. Nunca las tuvo. Recorte del 96.
+SOCIAL_RAY_SECRET_2,Connie's cleaning cart carries master keys. She leaves it by the lifts at six.,El carrito de Connie lleva llaves maestras. Lo deja junto a los ascensores a las seis.
+SOCIAL_RAY_SECRET_3,The vent hatches still open with the old square key. Maintenance never changed them.,Las trampillas de ventilación aún se abren con la vieja llave cuadrada. Mantenimiento nunca las cambió.
+SOCIAL_RAY_SECRET_4,Tom at the turnstiles looks the other way for the right envelope. Cheapest favour in the building.,"Tom, el de los tornos, mira hacia otro lado por el sobre adecuado. El favor más barato del edificio."
+SOCIAL_RAY_SECRET_5,The smokers' corner by the front door has no cameras. That's where the truth gets told.,El rincón de los fumadores de la puerta principal no tiene cámaras. Ahí es donde se dicen las verdades.
+SOCIAL_DIR_Q_DESK,Where's my desk again?,¿Dónde está mi mesa?
+SOCIAL_DIR_Q_AURORA,When is the next Aurora meeting?,¿Cuándo es la próxima reunión Aurora?
+SOCIAL_DIR_Q_DAY,What's your day looking like?,¿Qué tal tu día?
+SOCIAL_DIR_Q_PERSON,Have you seen %s?,¿Has visto a %s?
+SOCIAL_DIR_DESK,Your desk? %s. Try not to get lost again.,¿Tu mesa? %s. Intenta no perderte otra vez.
+SOCIAL_DIR_AURORA,"Aurora room, %s. Day %d at %s. Bring ideas. Or someone else's.","Sala Aurora, %s. Día %d a las %s. Trae ideas. O las de otro."
+SOCIAL_DIR_AURORA_NOW,"It's on right now, in %s. Run.","Es ahora mismo, en %s. Corre."
+SOCIAL_DIR_DAY_NOTHING,"Same as always. Here, until they let me go.","Lo de siempre. Aquí, hasta que me dejen irme."
+SOCIAL_DIR_PERSON,"%s? Last I saw, %s.","¿%s? La última vez que le vi, %s."
+SOCIAL_DIR_PERSON_OUT,"%s? Not in the building, I think.",¿%s? Creo que no está en el edificio.
+SOCIAL_DIR_IGNORED,Do I look like reception?,¿Tengo pinta de recepción?
+SOCIAL_RUMOUR_MANAGEMENT,Management is squeezing us dry,La dirección nos está exprimiendo
+SOCIAL_RUMOUR_ABOUT,%s steals other people's ideas,%s roba las ideas de los demás
+SOCIAL_RUMOUR_THE_BOSSES,management,la dirección
+SOCIAL_RUMOUR_LINE,No! Really? …I'll keep that in mind.,¡No! ¿En serio? …Lo tendré en cuenta.
+SOCIAL_RUMOUR_LINE_SPREADER,"Oh. My. God. Everyone will know by lunch. Not from me, obviously.","Madre. Mía. Lo sabrá todo el mundo antes de comer. Por mí no, claro."
+SOCIAL_RUMOUR_LINE_ISOLATED,"Huh. I… don't really talk to anyone here, though.",Vaya. Aunque… yo aquí no hablo con nadie.
+SOCIAL_TOAST_RUMOUR,Rumour planted with %s (about %s). It will travel through their links.,Rumor plantado en %s (sobre %s). Viajará por sus vínculos.
+SOCIAL_TOAST_RUMOUR_SPREAD,%s will spread it everywhere (about %s).,%s lo repartirá por todo el edificio (sobre %s).
+SOCIAL_TOAST_RUMOUR_DEAD,%s has nobody to tell. The rumour dies there.,%s no tiene a quién contárselo. El rumor muere ahí.
+SOCIAL_AGITATE_LINE,You're right. Something has to change around here.,Tienes razón. Algo tiene que cambiar aquí.
+SOCIAL_TOAST_AGITATE,%s is fed up. Discontent rises.,%s está harto. El descontento sube.
+SOCIAL_CONFIRM_CREDIT_TITLE,Give them the credit?,¿Cederle el mérito?
+SOCIAL_CONFIRM_CREDIT_BODY,"You'll publicly credit %s with your work. They will owe you and keep quiet for a while, but it costs you %.1f reputation.","Atribuirás públicamente tu trabajo a %s. Te deberá una y callará un tiempo, pero te cuesta %.1f de reputación."
+SOCIAL_CONFIRM_CREDIT_GO,Give the credit,Cederle el mérito
+SOCIAL_CREDIT_LINE,"Me? Oh. Oh! Well, I did work very hard on it. Thank you, %s. I won't forget this.","¿Yo? ¡Oh! Bueno, sí que trabajé mucho en ello. Gracias, %s. No lo olvidaré."
+SOCIAL_TOAST_CREDIT,%s is beaming. They owe you now (and will keep quiet for a while).,%s está radiante. Ahora te debe una (y callará un tiempo).
+SOCIAL_FAVOUR_ALIBI,Cover for me (alibi) · %d debt,Cúbreme (coartada) · %d de deuda
+SOCIAL_FAVOUR_LEND,Lend me something · %d debt,Préstame algo · %d de deuda
+SOCIAL_FAVOUR_LEND_ITEM,Lend me your %s · %d debt,Préstame tu %s · %d de deuda
+SOCIAL_FAVOUR_LEND_PAID,Lend me your %s · %s,Préstame tu %s · %s
+SOCIAL_FAVOUR_LOOK,Take a coffee break (look away) · %d debt,Tómate un café (mira hacia otro lado) · %d de deuda
+SOCIAL_FAVOUR_ALIBI_LINE,You were with me all afternoon. I'll swear to it.,Estuviste conmigo toda la tarde. Lo juraré.
+SOCIAL_FAVOUR_LEND_LINE,"Here, take the %s. You didn't get it from me.","Toma, el %s. No te lo he dado yo."
+SOCIAL_FAVOUR_LOOK_LINE,Is that the time? Coffee break. I'll be a while.,¿Ya es la hora? Pausa del café. Tardaré un rato.
+SOCIAL_TOAST_ALIBI,%s will cover for you (%d open cases).,%s te cubrirá (%d casos abiertos).
+SOCIAL_TOAST_LENT,%s lends you: %s.,%s te presta: %s.
+SOCIAL_TOAST_LOOK_AWAY,%s leaves their post until the next hour.,%s deja su puesto hasta la próxima hora.
+SOCIAL_BM_DEMAND_MONEY,Pay up (%s),Paga (%s)
+SOCIAL_BM_DEMAND_SILENCE,Forget what you know about me,Olvida lo que sabes de mí
+SOCIAL_BM_DEMAND_PROMOTION,Put in a word for my promotion,Recomiéndame para el ascenso
+SOCIAL_CONFIRM_BM_TITLE,Blackmail %s — %s?,¿Chantajear a %s — %s?
+SOCIAL_CONFIRM_BM_BODY,"%s will comply out of fear (%s), but will never forgive you — and a brave one may go straight to their boss.","%s cederá por miedo (%s), pero no te lo perdonará nunca, y si es valiente puede ir directo a su jefe."
+SOCIAL_CONFIRM_BM_GO,Blackmail,Chantajear
+SOCIAL_BM_PAYS,…Fine. Take it. And stay away from me.,…Vale. Tómalo. Y aléjate de mí.
+SOCIAL_BM_SILENCE,I didn't see anything. I never saw anything.,No vi nada. Nunca vi nada.
+SOCIAL_BM_PROMOTION,I'll… speak to them. You'll get your recommendation.,Hablaré… con ellos. Tendrás tu recomendación.
+SOCIAL_BM_REFUSED,Go ahead. Tell everyone. I'm going to my manager right now.,Adelante. Cuéntaselo a todos. Me voy ahora mismo a ver a mi jefe.
+SOCIAL_TOAST_BM_MONEY,%s paid you %s. They fear you — and hate you.,%s te ha pagado %s. Te teme… y te odia.
+SOCIAL_TOAST_BM_SILENCE,%s will keep quiet (%d things forgotten).,%s callará (%d cosas olvidadas).
+SOCIAL_TOAST_BM_PROMOTION,%s will recommend you upstairs (merit).,%s te recomendará arriba (mérito).
+SOCIAL_TOAST_BM_REPORTED,%s refused and reported you to their superior!,¡%s se ha negado y te ha denunciado a su superior!
+SOCIAL_DELEGATE_LINE,…Sure. I'll add it to the pile.,…Claro. Lo añado al montón.
+SOCIAL_TOAST_DELEGATED,%s did the work. It counts as yours.,%s hizo el trabajo. Cuenta como tuyo.
+SOCIAL_TOAST_DELEGATE_FAILED,%s botched it. The failure is yours.,%s lo ha hecho fatal. El fallo es tuyo.
+SOCIAL_IDEA_CEDED_LINE,It's yours. Consider us even.,Es tuya. Considéralo pagado.
+SOCIAL_TOAST_IDEA,%s gave you their idea (quality %d). No trace.,%s te ha cedido su idea (calidad %d). Sin rastro.
+SOCIAL_IDEA_OFFER,Offer %s (quality %d idea),Ofrecer %s (idea de calidad %d)
+SOCIAL_IDEA_OFFER_GENEROUS,Offer %s — generous (quality %d idea),Ofrecer %s — generoso (idea de calidad %d)
+SOCIAL_IDEA_SOLD_LINE,"Deal. It was never mine, if anyone asks.","Trato hecho. Si alguien pregunta, nunca fue mía."
+SOCIAL_IDEA_REFUSED_LINE,My idea? Not for sale. And I'll remember you asked.,¿Mi idea? No está en venta. Y me acordaré de que lo preguntaste.
+SOCIAL_TOAST_IDEA_BOUGHT,You bought %s's idea for %s. They still know everything.,Has comprado la idea de %s por %s. Sigue sabiéndolo todo.
+SOCIAL_TOAST_IDEA_REFUSED,%s refused to sell.,%s se ha negado a venderla.
+SOCIAL_BRIBE_LINE_ACCEPTED,…I never saw this envelope.,…Este sobre no lo he visto nunca.
+SOCIAL_BRIBE_LINE_DENOUNCED,Security! SECURITY!,¡Seguridad! ¡SEGURIDAD!
+SOCIAL_BRIBE_LINE_SILENCE_WITH_MEMORY,(They step back. They won't say a word. They'll remember.),(Da un paso atrás. No dirá nada. Lo recordará.)
+SOCIAL_BRIBE_LINE_COUNTEROFFER,Make it worth my while.,Haz que me merezca la pena.
+SOCIAL_BRIBE_LINE_NEUTRAL_REFUSAL,Put that away before someone sees it.,Guarda eso antes de que alguien lo vea.
+SOCIAL_BRIBE_LINE_INSUFFICIENT_FUNDS,You don't even have that much.,Ni siquiera tienes tanto.
+SOCIAL_BRIBE_LINE_INVALID,What are you doing?,¿Qué haces?
+SOCIAL_ELIM_CONFIRM_TITLE,Silence %s for good?,¿Silenciar a %s para siempre?
+SOCIAL_ELIM_CONFIRM_BODY,"There is no way back. Nobody is watching — right now. If anyone walks in while you do it, you'll be caught red-handed. The body will have to disappear.","No hay vuelta atrás. Nadie mira… ahora mismo. Si alguien entra mientras lo haces, te pillarán con las manos en la masa. El cuerpo tendrá que desaparecer."
+SOCIAL_ELIM_CONFIRM_GO,Do it,Hacerlo
+SOCIAL_ELIM_INTERRUPTED,You stopped. Nothing happened.,Te has detenido. No ha pasado nada.
+SOCIAL_ELIM_ABORTED_WITNESS,Someone is looking. Not now.,Alguien está mirando. Ahora no.
+SOCIAL_ELIM_ABORTED,Not here. Not now.,Aquí no. Ahora no.
+SOCIAL_TOAST_ELIMINATED,%s has left the company. Permanently.,%s ha dejado la empresa. Definitivamente.
+SOCIAL_TOAST_WALKED_OFF,%s walked off.,%s se ha ido.
+LEDGER_FAVOUR_CREDIT_GIVEN,You gave them the credit,Le cediste el mérito
+PLACES_BUYER_OVERHEARD,%s: %s,%s: %s
+PLACES_NOTE_BUYER,Buyer overheard in the lounge: %s,Comprador escuchado en la sala de espera: %s
+PLACES_BUYER_LOUNGE_TITLE,Buyers waiting for their meeting,Compradores esperando su reunión
+UI_INTERACT_BUYER_LOUNGE,Listen to the waiting buyers,Escuchar a los compradores que esperan
+SOCIAL_EXPO_MORE,+%d more,+%d más
+PLACES_GOSSIP_IDEA,%s keeps hinting at a big new idea.,%s no para de insinuar que tiene una gran idea nueva.
+PLACES_GOSSIP_VACANCY,They say the %s post is still empty.,Dicen que el puesto de %s sigue vacante.
+PLACES_GOSSIP_MOOD,The floor staff are grumbling (discontent %d/100; a strike above %d).,La plantilla refunfuña (descontento %d/100; huelga por encima de %d).
+PLACES_GOSSIP_COUPLE,%s and %s are much more than colleagues. Nobody is supposed to know.,%s y %s son bastante más que compañeros. Se supone que nadie lo sabe.
+SOCIAL_TOAST_LENT_CARD,%s lends you: %s. Card readers will log their name.,%s te presta: %s. Los lectores registrarán su nombre.
+TUT_VIDEO_FILE,WELCOME_ABOARD_FINAL_v2(3).mpg,BIENVENIDA_DEFINITIVO_v2(3).mpg
+TUT_VIDEO_SPEAKER,Harlan Voss · Chief Executive Officer · 2011,Harlan Voss · Consejero delegado · 2011
+TUT_VIDEO_PLAY,▶ PLAY,▶ REPR.
+TUT_VIDEO_TAGLINE,Synergy · Integrity · Quarterly results,Sinergia · Integridad · Resultados trimestrales
+TUT_VIDEO_END,END OF RECORDING,FIN DE LA GRABACIÓN
+TUT_VIDEO_INTRO,"Hello, and welcome to the Stellar Sell family! I'm Harlan Voss. My door is always open. My floor is not.","¡Hola, y bienvenido a la familia Stellar Sell! Soy Harlan Voss. Mi puerta siempre está abierta. Mi planta, no."
+TUT_VIDEO_MOVE,At Stellar Sell we MOVE %s forward together. Go on: take ownership of the carpet.,En Stellar Sell AVANZAMOS %s juntos. Venga: apodérate de la moqueta.
+TUT_VIDEO_SNEAK,Our best people move quietly. Hold %s while you walk: discretion is the fourth of our eleven core values.,Nuestra mejor gente se mueve sin hacer ruido. Mantén %s al caminar: la discreción es el cuarto de nuestros once valores.
+TUT_VIDEO_CROUCH,"When the market dips, we dip with it. %s Stay low. Stay humble. Stay off the radar... of our competitors.","Cuando el mercado baja, bajamos con él. %s Agáchate. Sé humilde. Pasa desapercibido... ante la competencia."
+TUT_VIDEO_SPRINT,"And when an opportunity opens up, we RUN at it. Tap a direction twice, %s, and never look back.","Y cuando se abre una oportunidad, CORREMOS hacia ella. Pulsa dos veces una dirección, %s, y no mires atrás."
+TUT_VIDEO_INTERACT,Every door at Stellar Sell is open to you*. Walk up to anything and press %s. Start with this screen: confirm you watched the whole video. *Subject to clearance.,Todas las puertas de Stellar Sell están abiertas para ti*. Acércate a lo que sea y pulsa %s. Empieza por esta pantalla: confirma que has visto el vídeo entero. *Sujeto a acreditación.
+TUT_VIDEO_OUTRO,Now go. Human Resources will walk you to your future. Remember: here you are not an employee. You are family. And family can always be let go.,"Y ahora, adelante. Recursos Humanos te acompañará hacia tu futuro. Recuerda: aquí no eres un empleado. Eres familia. Y a la familia siempre se la puede despedir."
+TUT_VIDEO_PRAISE_1,Outstanding. That's the Stellar Sell spirit!,Extraordinario. ¡Ese es el espíritu Stellar Sell!
+TUT_VIDEO_PRAISE_2,Beautiful. Very on-brand.,Precioso. Muy de marca.
+TUT_VIDEO_PRAISE_3,I can already see you in middle management.,Ya te veo en mandos intermedios.
+TUT_VIDEO_PRAISE_4,"Synergy! I'm tearing up, and I recorded this in 2011.","¡Sinergia! Me emociono, y eso que esto lo grabé en 2011."
+TUT_VIDEO_NUDGE,(The recording carries on whether you do it or not. Very on-brand.),(La grabación sigue tanto si lo haces como si no. Muy de marca.)
+TUT_VIDEO_ACK,Viewing confirmed. HR has been notified of your enthusiasm.,Visionado confirmado. Se ha informado a RR. HH. de tu entusiasmo.
+TUT_VIDEO_BUSY,The video is still playing. Enthusiastically.,El vídeo sigue en marcha. Con entusiasmo.
+TUT_TOUCH_MOVE,(left stick),(joystick izquierdo)
+TUT_TOUCH_SNEAK,(tilt the stick gently),(inclina el joystick con suavidad)
+TUT_TOUCH_CROUCH,(crouch button),(botón de agacharse)
+TUT_TOUCH_SPRINT,(double-tap the stick),(doble toque en el joystick)
+TUT_TOUCH_INTERACT,(action button),(botón de acción)
+TUT_TOUCH_INVENTORY,(bottom bar),(barra inferior)
+SUB_TUT_JINGLE,Corporate synth fanfare,Fanfarria corporativa de sintetizador
+SUB_TUT_TAPE_END,Tape hiss,Siseo de cinta
+TUT_GUIDE_HELLO,"Oh good, you survived the video! I'm %s, Amelia Cole's assistant. I'll walk you to your desk. Follow me, and try to look grateful.","¡Bien, has sobrevivido al vídeo! Soy %s, asistente de Amelia Cole. Te acompaño a tu puesto. Sígueme, y procura parecer agradecido."
+TUT_GUIDE_CARD,"Your access card is in your pocket: %s if you ever forget. It opens everything your clearance allows, and every reader writes down where you've been. Never lend it. Never 'lose' it.","Tu tarjeta de acceso va en el bolsillo: %s si alguna vez lo olvidas. Abre todo lo que permite tu acreditación, y cada lector apunta por dónde has pasado. No la prestes nunca. No la «pierdas» nunca."
+TUT_GUIDE_CARD_SEEN,"That's the one. Laminated, even.",Esa es. Plastificada y todo.
+TUT_GUIDE_KEYS,Your post comes with basic keys: they're in your desk drawer. They open %s. Nobody has changed a lock here since 1998. Budget.,Tu puesto viene con llaves básicas: están en el cajón de tu mesa. Abren %s. Aquí nadie cambia una cerradura desde 1998. Presupuesto.
+TUT_KEYS_FALLBACK,a couple of old doors nobody remembers,un par de puertas viejas de las que nadie se acuerda
+TUT_GUIDE_ELEVATOR,"Elevator. Use the panel (%s) and pick floor %d. Every ride is logged, which keeps everyone wonderfully punctual.","Ascensor. Usa el panel (%s) y elige la planta %d. Cada viaje queda registrado, y así todo el mundo es maravillosamente puntual."
+TUT_GUIDE_WRONG_FLOOR,Wrong floor. %s is waiting for you on floor %d.,Planta equivocada. %s te espera en la planta %d.
+TUT_OBJ_FLOOR,Your desk is on floor %d.,Tu mesa está en la planta %d.
+TUT_GUIDE_CLOCKIN,"Clock-in procedure: every morning you swipe at the ground-floor turnstiles. It only counts when you actually walk through. At rush hour the gates stay open a moment after each person, so please do NOT slip in behind a colleague. That leaves no record of you at all.","Procedimiento de fichaje: cada mañana pasas la tarjeta en los tornos de la planta baja. Solo cuenta cuando cruzas. En hora punta las puertas se quedan abiertas un momento tras cada persona, así que, por favor, NO te cueles detrás de un compañero. Eso no deja ningún registro tuyo."
+TUT_GUIDE_RESTRICTED,"I'm legally obliged to list the restricted areas, so: %s. Your screen glows red if you ever wander into one. You won't, obviously. I've put the list in your notebook anyway.","La ley me obliga a enumerar las zonas restringidas, así que: %s. Si alguna vez entras en una, tu pantalla se pone roja. No lo harás, claro. Aun así te he apuntado la lista en el cuaderno."
+TUT_GUIDE_LUNCH,"Lunch is from %s to %s. The whole floor goes down at once: desks, drawers, screens, all left exactly as they are. Mr Lasker eats at his desk. He says it's for the figures.","La comida es de %s a %s. Baja toda la planta a la vez: mesas, cajones y pantallas se quedan tal cual. El señor Lasker come en su mesa. Dice que es por las cifras."
+TUT_GUIDE_DESK,"And this is you! Sit down with %s and your computer does the rest. Mr Lasker, the wing chief, walks the floor several times a day. Claudia Reeves, next to you, is our shining star: watch and learn. Welcome to the family!","¡Y este eres tú! Siéntate con %s y el ordenador hace el resto. El señor Lasker, jefe del ala, recorre la planta varias veces al día. Claudia Reeves, a tu lado, es nuestra estrella: mira y aprende. ¡Bienvenido a la familia!"
+TUT_GUIDE_WAIT,"Keep up! HR can see you dawdling. Well, HR can see the forms.","¡No te quedes atrás! RR. HH. ve que remoloneas. Bueno, ve los formularios."
+TUT_GUIDE_ESCORT,%s sighs and walks you to your desk by the elbow.,%s suspira y te lleva del codo hasta tu mesa.
+TUT_ZONE_FMT,%s (%s),%s (%s)
+TUT_LIST_AND, and , y 
+TUT_NOTE_RESTRICTED,HR induction: %s (%s) is a restricted area.,Acogida de RR. HH.: %s (%s) es zona restringida.
+TUT_NOTE_KEYS,HR induction: your basic keys open %s (%s).,Acogida de RR. HH.: tus llaves básicas abren %s (%s).
+TUT_DAY_TITLE,Your first day,Tu primer día
+TUT_DAY_FROM,HR Onboarding. Please do not remove this note.,"Acogida de RR. HH. Por favor, no quites esta nota."
+TUT_TASK_EMAILS,Answer three emails in MAIL (%d/%d),Contesta tres correos en MAIL (%d/%d)
+TUT_TASK_EMAILS_HINT,"At your desk: %s, then MAIL. Three. Baby steps. The rest are due by %s.","En tu mesa: %s y luego MAIL. Tres. Pasito a pasito. El resto, antes de las %s."
+TUT_TASK_EMAILS_DONE,Three emails answered. Your onboarding dashboard turns a slightly warmer grey.,Tres correos contestados. Tu panel de acogida se vuelve de un gris ligeramente más cálido.
+TUT_TASK_IDEA,Watch how Claudia Reeves works,Observa cómo trabaja Claudia Reeves
+TUT_TASK_IDEA_HINT,She sits right next to you. Stay close and keep an eye on her.,Se sienta justo a tu lado. Quédate cerca y no le quites ojo.
+TUT_CLAUDIA_IDEA,"Oh. OH. That's good. That's REALLY good. %s, come here, you have to hear this.","Oh. OH. Qué buena. Qué buenísima. %s, ven, tienes que oír esto."
+TUT_CLAUDIA_IDEA_ALONE,Oh. OH. That's good. That's REALLY good. I have to write this down.,Oh. OH. Qué buena. Qué buenísima. Tengo que apuntarlo.
+TUT_TASK_IDEA_DONE,"Claudia Reeves has an idea, and she's telling %s. Out loud. In an open-plan office. Ideas are credited to whoever presents them first at the Aurora meeting.",Claudia Reeves ha tenido una idea y se la está contando a %s. En voz alta. En una oficina diáfana. Las ideas se atribuyen a quien las presenta primero en la reunión Aurora.
+TUT_NOTE_IDEA,Seen on day one: Claudia Reeves telling %s about a new idea.,Visto el primer día: Claudia Reeves le cuenta a %s una idea nueva.
+TUT_TASK_HIDE,Stay out of Mr Lasker's way,Que no te vea el señor Lasker
+TUT_TASK_HIDE_HINT,The supply closet in the corner: %s to hide. Stay in until his round has passed.,"El armario del material, en la esquina: %s para esconderte. No salgas hasta que pase su ronda."
+TUT_WHISPER_LASKER,"Psst, new one. Lasker's round. He hates new faces with nothing on their screen. Supply closet, in the corner. Go.","Psst, novato. Ronda de Lasker. Odia las caras nuevas con la pantalla vacía. El armario del material, en la esquina. Ya."
+TUT_WHISPERER_FALLBACK,A colleague,Alguien del ala
+TUT_LASKER_SPOTTED,"Settling in, are we? Chop chop.","Aclimatándonos, ¿eh? Venga, venga."
+TUT_LASKER_MISSED,He walked past without looking. Lucky. He'll come round again.,Ha pasado sin mirar. Suerte. Volverá a pasar.
+TUT_LASKER_AGAIN,He'll come round again. He always does.,Volverá a pasar. Siempre vuelve.
+TUT_TASK_HIDE_DONE,"Lasker walked right past you. He saw nothing, and wrote it down anyway.","Lasker ha pasado a tu lado. No ha visto nada, y aun así lo ha apuntado."
+TUT_TASK_TIMEOUT,HR ticks the box for you. Nobody checks.,RR. HH. marca la casilla por ti. Nadie lo comprueba.
+TUT_DAY_DONE,That's day one. The rest of the day is yours. (It isn't.),Ese es tu primer día. El resto de la jornada es tuya. (No lo es.)
+TUT_PHONE_RATE,Welcome aboard! Your induction is complete. Please rate your onboarding experience from 1 to 1.,¡Bienvenido a bordo! Tu acogida ha terminado. Valora tu experiencia de acogida del 1 al 1.
+TUT_SKIP_TITLE,Induction day,Día de acogida
+TUT_SKIP_BODY,You have been through the Stellar Sell induction before. HR is happy to pretend you did it again.,Ya has pasado por la acogida de Stellar Sell. RR. HH. está encantado de fingir que la repites.
+TUT_SKIP_ATTEND,Attend the induction,Asistir a la acogida
+TUT_SKIP_NOW,Skip it: straight to my desk,Saltarla: directo a mi mesa
+TUT_SKIP_ALWAYS,"Skip it, and anything I have already seen from now on","Saltarla, y todo lo que ya haya visto a partir de ahora"
+TUT_SKIPPED,HR marked your induction as completed. Nobody checks.,RR. HH. ha marcado tu acogida como completada. Nadie lo comprueba.
+TUT_TASK_IDEA_PROGRESS,Watching Claudia Reeves work (%d%%),Observando cómo trabaja Claudia Reeves (%d %%)
+TUT_TASK_IDEA_FOLLOW,She's telling %s something. Get close enough to hear it.,Le está contando algo a %s. Acércate lo bastante para oírlo.

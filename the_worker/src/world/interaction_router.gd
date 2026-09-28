@@ -17,8 +17,11 @@ extends RefCounted
 ## Descubrimiento (una vez por proceso, perezoso): primero los módulos del mundo (BUILTIN_MODULES:
 ## FloorTravel para los tránsitos, WorldBridges para los objetos soltados), después los archivos de
 ## MODULE_DIR en orden alfabético (se ignoran los que empiezan por "_"). Un tipo reclamado dos
-## veces: gana el primero y se avisa (push_warning). Un tipo sin módulo → _default.gd (aviso
-## educado «Aquí no hay nada útil», o la ficha rápida para "npc").
+## veces: gana el primero y se avisa (push_warning). Un tipo sin módulo → _default.gd: indicación
+## neutra UI_INTERACT_EXAMINE («Mirar») y aviso educado INTERACT_NOTHING_USEFUL; apaños del bucle
+## básico hasta que su módulo exista: "npc" (ficha rápida), "bed" del piso (dormir y guardar),
+## "desk" propia (ordenador), "turnstile" (pasar la tarjeta). Quien reclame esos tipos conserva
+## ese comportamiento (ver la cabecera de _default.gd).
 ## Un nodo que no es Interactable pero tiene interact(player) se llama directamente.
 ## Pruebas: register_module(script) añade/reemplaza módulos en caliente; reset() vuelve a descubrir.
 

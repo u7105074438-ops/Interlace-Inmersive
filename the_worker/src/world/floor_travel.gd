@@ -34,10 +34,11 @@ extends Node
 ##  · SALIDAS (exit): destino único, sin panel. Por el control (control_salida.salas) hacia
 ##    control_salida.planta, si Security.can_search_player() el vigilante registra antes de salir
 ##    (InventoryRules.perform_body_search; el resultado se avisa).
-##  · TRAYECTO CASA ↔ TRABAJO (§4.2, viaje.trayecto.*): la puerta del piso (hogar.sala_domicilio) y la
-##    de recepción (puertas_edificio) hacia la calle ofrecen «Ir al trabajo / Volver a casa (N min)»,
-##    «Salir a la calle» o cancelar. El trayecto cobra HomeCycle.commute() (hogar.minutos_trayecto_casa)
-##    y deja al jugador ante la puerta de recepción (por dentro) o de su piso. Andar por la calle
+##  · TRAYECTO CASA ↔ TRABAJO (§4.2, viaje.trayecto.*): la salida de recepción (puertas_edificio) a la
+##    calle ofrece «Volver a casa (N min)», «Salir a la calle» o cancelar; en el piso, junto a su puerta,
+##    WorldBridges pone el interactivo COMMUTE_TYPE («Ir al trabajo», use_commute). El trayecto cobra
+##    HomeCycle.commute() (hogar.minutos_trayecto_casa) y deja al jugador dentro de recepción junto a
+##    su puerta a la calle, o dentro del piso junto a la suya (home_door_point). Andar por la calle
 ##    no cobra nada más: el paseo ya es el tiempo del trayecto.
 ##  · CIERRE (ClosingTime): si durante un trayecto dan las 19:00 con el jugador dentro, tras avanzar el
 ##    reloj se llama a ClosingTime.resolve_during_travel(): si el destino está dentro, sale a la calle.
@@ -75,6 +76,9 @@ const ACT_KINDS: Array[String] = [FloorLayout.TRANSIT_VENT, KIND_LEDGE]
 const GRID_KINDS: Array[String] = [FloorLayout.TRANSIT_ELEVATOR, FloorLayout.TRANSIT_STAIRS,
 	FloorLayout.TRANSIT_SERVICE_STAIRS, FloorLayout.TRANSIT_FREIGHT]
 const LEDGE_TYPE := "roof_ledge"
+## Puerta «ir al trabajo» del piso (la crea WorldBridges al cargar la planta exterior).
+const COMMUTE_TYPE := "commute_door"
+const K_ZONE := "zone"
 const ACT_CRIME := "trespass"
 const PLAYER_CARD := "player"
 const CAMERA_NODE := "Camera"
@@ -170,7 +174,7 @@ func get_panel() -> FloorSelectPanel:
 # ─── Contrato de módulo (InteractionRouter) ───────────────────
 
 static func handled_types() -> Array[String]:
-	var out: Array[String] = []
+	var out: Array[String] = [COMMUTE_TYPE]
 	for interact_type: String in TYPE_KINDS:
 		out.append(interact_type)
 	return out
@@ -182,6 +186,9 @@ static func interact(interactable: Interactable, _player_node: Node, ctx: Dictio
 		var ui: UIRoot = ctx.get("ui_root") as UIRoot
 		if ui != null:
 			ui.toast("TRAVEL_UNAVAILABLE", [], ToastStack.KIND_WARN)
+		return
+	if interactable.interact_type == COMMUTE_TYPE:
+		await travel.use_commute(str(interactable.data.get(K_ZONE, ZONE_WORK)))
 		return
 	await travel.use(interactable)
 
@@ -290,6 +297,26 @@ func _pick_pace(dest: Dictionary) -> Dictionary:
 	if index != PACE_CAREFUL and index != PACE_HURRY:
 		return {}
 	return dest.merged({"hurry": index == PACE_HURRY}, true)
+
+
+## Puerta del piso «ir al trabajo» (o «volver a casa» si algún día hay otra): confirmación y trayecto.
+func use_commute(zone: String) -> void:
+	if _busy or _streamer == null or _player == null:
+		return
+	if _carrying_bulk():
+		_refuse("TRAVEL_REFUSE_BULKY", [])
+		return
+	var ui: UIRoot = UIRoot.find(get_tree())
+	if ui != null and not instant:
+		var suffix: String = zone.to_upper()
+		var options: Array = [{"text_key": "TRAVEL_COMMUTE_GO_" + suffix, "args": [Database.get_balance_int(B_COMMUTE)],
+				"icon": COMMUTE_ICON}, "UI_CANCEL"]
+		if await ui.show_dialog("TRAVEL_COMMUTE_TITLE_" + suffix, "TRAVEL_COMMUTE_BODY_DOOR", options, [], false) != COMMUTE_GO:
+			return
+	_busy = true
+	await _ride_commute(zone)
+	_busy = false
+	travel_finished.emit(COMMUTE_KIND, _streamer.get_current_floor(), _streamer.get_room_at(_player.global_position))
 
 
 ## Salida con trayecto: "work" (del piso a la calle), "home" (de recepción a la calle) o "".
@@ -548,7 +575,7 @@ func _ride_commute(zone: String) -> void:
 		GameClock.advance_minutes(float(minutes))
 	if not _closing_intercepts(to_room, to_floor):
 		_ensure_floor(to_floor)
-		_place(_exit_point(str(Database.get_balance(B_STREET)), to_room))
+		_place(home_door_point() if zone == ZONE_HOME else _exit_point(str(Database.get_balance(B_STREET)), to_room))
 	await _overlay.play_out(instant)
 	_set_locked(false)
 	_toast("WORLD_COMMUTE", [minutes], ToastStack.KIND_INFO)
@@ -719,6 +746,22 @@ func teleport_to_room(room_id: String, cells: Vector2 = Vector2(-1, -1)) -> bool
 func teleport(floor_number: int, point: Vector2) -> void:
 	_ensure_floor(floor_number)
 	_place(point)
+
+
+## Dentro del piso, junto a su puerta a la calle (llegada del trayecto, puerta «ir al trabajo»). La
+## planta exterior debe estar cargada.
+func home_door_point() -> Vector2:
+	var home: String = str(Database.get_balance(B_HOME))
+	var door: Dictionary = _streamer.get_door_between(home, str(Database.get_balance(B_STREET)))
+	if door.is_empty():
+		return _streamer.get_spawn_point(home)
+	var rect: Rect2 = _streamer.get_room_rect_px(home)
+	var cell: Vector2i = door["cell"]
+	var normal: Vector2i = Vector2i(1, 0) if bool(door["vertical"]) else Vector2i(0, 1)
+	var inside: Vector2 = _streamer.cell_to_world(cell)
+	if not rect.has_point(inside):
+		inside = _streamer.cell_to_world(cell - normal)
+	return inside + (rect.get_center() - inside).normalized() * RoomBuilder.cell_px()
 
 
 ## La calle, ante la puerta de recepción (desalojo del cierre). `fade`: sale de negro poco a poco.

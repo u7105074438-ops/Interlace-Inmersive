@@ -370,17 +370,25 @@ their owner autoload passes it in; state lives in the owning autoload (and is sa
 
 - **Game scene** `scenes/world/game.tscn` → `GameRoot` (`src/world/game_root.gd`, group `game_root`,
   `GameRoot.find(tree)`). Public members: `streamer`, `player`, `npc_layer`, `ui`, `audio`, `travel`
-  (FloorTravel), `bridges` (WorldBridges), `promotion` (PromotionFlow), `time_skip` (TimeSkip),
-  `sim_nodes` {CaughtHandler, DutySystem, HomeCycle, Police, NightOps, Endgame}; `get_mode()` ("new"|"load"),
-  `observers_present()` (registered as `GameClock.set_observer_check`), `open_pause_menu()`,
-  `end_run(cause, ending_id)` (WorldBridges calls it on `game_over`: stops the world → EpilogueScreen → menu).
+  (FloorTravel), `doors` (DoorAccess), `bridges` (WorldBridges), `closing` (ClosingTime), `promotion`
+  (PromotionFlow), `time_skip` (TimeSkip), `sim_nodes` {CaughtHandler, DutySystem, HomeCycle, Police, NightOps,
+  Endgame}; `get_mode()` ("new"|"load"; "" while an unreadable save is being reported),
+  `observers_present()` (registered as `GameClock.set_observer_check`) / `find_observer()` ({kind: "npc"|"camera",
+  id} or {}: an active NPC whose vision CONE holds the player, or one within `salto_tiempo.radio_testigo_cercano_celdas`
+  with line of sight, or an active camera) / `observer_name()`, `open_pause_menu()`, `end_run(cause, ending_id)`
+  (WorldBridges calls it on `game_over`: stops the world → EpilogueScreen → menu). A save that cannot be read is
+  never deleted silently: dialog "Back to title" (default) / "Start a new run" (confirmed).
   Lifecycle: `GameSession` (`src/world/game_session.gd`) — `read_request()` (GameLaunch + `--seed`,
   `--force-rank`, `--skip-intro`), `begin_new_run(request)` (§2 order; also stores the name-entry portrait seed
   in `PlayerState` flag `Player.PORTRAIT_FLAG`), `load_saved_run()`. New run: player at `partida.sala_inicio`
-  (turnstiles, PB) at 08:00, then `run_started`. Continue: `SaveSystem.load_run()` then the player wakes in
-  `hogar.sala_domicilio`. **Tutorial hook**: `GameRoot.tutorial_hook = func(root: GameRoot) -> void` — when set
-  and `GameSession.wants_tutorial(request)`, the new run starts in `partida.sala_tutorial` and the hook is
-  called right after `run_started`.
+  / `celda_inicio` (turnstiles, PB, public side, OUTSIDE the gate sensors) at 08:00 + `partida.minutos_inicio`
+  (08:20: colleagues are already crossing the turnstiles), then `run_started`. Continue: `SaveSystem.load_run()`
+  then the player wakes in `hogar.sala_domicilio` (Player refreshes its look on `run_loaded`). **Tutorial hook**:
+  `GameRoot.tutorial_hook = func(root: GameRoot) -> void` — when set and `GameSession.wants_tutorial(request)`
+  (new run, not QA `--skip-intro`; skipping the opening cinematic does NOT skip it), the new run starts in
+  `partida.sala_tutorial` and the hook is called right after `run_started`.
+- **Player input lock is owner-counted**: `player.set_input_locked(locked, owner := "")` (UIRoot uses ""; FloorTravel
+  `"floor_travel"`, sleep `"sleep"`, end of run `"game_root_end"`). Input returns when no owner holds it.
 - **Placing the player / changing floor from code**: never call `streamer.load_floor` + move the player by hand;
   use `GameRoot.travel.teleport_to_room(room_id, cells := (-1,-1))` or `teleport(floor, point)` (loads the floor,
   snaps to a walkable cell, refreshes camera bounds). Interactables of the old floor are FREED by a floor
@@ -427,13 +435,53 @@ their owner autoload passes it in; state lives in the owning autoload (and is sa
   Tests may inject a module with `InteractionRouter.register_module(script)`; `InteractionRouter.reset()` rescans.
   `InteractionRouter.handled_types_map()` lists type → module for debugging.
 - **NPC interactable**: every `NPCNode` carries a hidden `Interactable` child `Interact` of type `"npc"`,
-  `data = {npc_id}`, `room_id` kept current. The social module claims `"npc"`.
+  `data = {npc_id}`, `room_id = ""` on purpose (the player's wall ray always decides; ctx.room_id is the player's
+  room; the NPC's room is `NPCDirector.get_current_location(npc_id)`). The social module claims `"npc"`.
+- **_default.gd stop-gaps** (retire themselves when a module claims the type — that module must keep the
+  behaviour): unclaimed types show the neutral prompt `UI_INTERACT_EXAMINE` and answer `INTERACT_NOTHING_USEFUL`;
+  `"npc"` → NPC quick card (`UI_INTERACT_NPC_CARD`); `"bed"` of the flat → `WorldBridges.request_sleep()`;
+  `"desk"` in the own office → `UIRoot.open_computer()` (`UI_INTERACT_OWN_DESK`), another desk → "Not your desk";
+  `"turnstile"` → `DoorAccess.swipe(gate)`.
 - **Types already owned by the game root**: `elevator_panel`, `stairs_door`, `service_stairs_door`,
-  `freight_panel`, `vent_hatch`, `roof_ledge`, `exit` → `FloorTravel` (rules in its header, balance `viaje.*`);
-  `dropped_item` → `WorldBridges` (items the player drops through the inventory: group `item_drop_handlers`).
+  `freight_panel`, `vent_hatch`, `roof_ledge`, `exit`, `commute_door` → `FloorTravel` (rules in its header, balance
+  `viaje.*`); `dropped_item` → `WorldBridges` (items the player drops through the inventory: group
+  `item_drop_handlers`).
+- **Doors (DoorAccess, `src/world/door_access.gd`)**: the player's door policy. `DoorAccess.allows(door)` (no side
+  effects): old lock never; the door whose INNER room (`room_b`) is the own office always (both ways); otherwise
+  clearance + special access. A granted reader/turnstile swipe is ARMED and `Security.log_card_access` fires only
+  when the player crosses the door axis (approaching and turning back logs nothing); while armed and in the
+  sensor the leaf stays open. `swipe(door)` = manual swipe (E on a turnstile). Other code that opens a door for
+  the player (stolen card, forced lock) calls `GameRoot.doors.arm(door, player)` if the crossing must be logged.
+- **Closing time (ClosingTime, `src/world/closing_time.gd`, balance `cierre.*`)**: warnings before the night band
+  while the player is inside; at the night band (19:00) whoever is still inside and NOT hidden (`Player.is_hiding`)
+  is walked out to the street by the reception door (no night record for a late honest leaver); hidden = stays
+  (warned: from now on every record counts). Jobs with `is_closing` duties are exempt. Deferred while a trip, an
+  act, the flagrancy window, the police or a scene is running; FloorTravel asks `resolve_during_travel()`.
+- **Sleep** (`WorldBridges.request_sleep()`): the flat's bed (E) or T at home at night → `HomeCycle.can_sleep()` →
+  confirmation → fade → `HomeCycle.sleep()` (summary, next day, `SaveSystem.save_run()`, breakfast) → toast.
+- **Commute**: the reception's street exit offers "Go home (N min)" / "Step out" / cancel; the flat has a
+  `commute_door` ("Go to work", spawned by WorldBridges on the exterior floor). Both charge `HomeCycle.commute()`
+  once; walking along the street charges nothing extra.
 - **Scene glue already wired** (WorldBridges / PromotionFlow / TimeSkip): game over → epilogue → menu;
   `aurora_meeting_started` → `IdeaPresentation.summon_attendees()`; denied doors → `card_denied` + toast;
   `interrogation_started` (player in shortlist) → summons dialog → interrogation room → `InterrogationScene`;
-  home ↔ work commute (`HomeCycle.commute()`); own computer → player sits (`sit_type`); promotions (toast on
-  `promotion_available`, accept/decline with confirmation from the pause menu, `PromotionScreen` on
-  `occupation_changed`, new desk); time skip (key **T** or pause menu, §15.6, balance `salto_tiempo.*`).
+  own computer → player sits (`sit_type`); promotions (toast on `promotion_available`, accept/decline with
+  confirmation from the pause menu, `PromotionScreen` on `occupation_changed`, new desk if the player is in the
+  building, otherwise a toast with the new desk; a demotion that leaves the player in a now-forbidden room →
+  Security escorts them to the new desk); time skip (key **T** or pause menu, §15.6, balance `salto_tiempo.*`;
+  refusal by observers names who is looking; at home at night T offers to sleep). UIRoot maps HomeCycle's duty
+  ids to name keys before the day summary.
+- **Tutorial / first day (§13.8, PASO 46)**: `Tutorial.install()` (`src/ui/tutorial.gd`, called by `MainMenu._launch_new_run`
+  after the opening) sets `GameRoot.tutorial_hook = TutorialDirector.begin`. QA scenarios that call `GameLaunch` directly
+  get no tutorial unless they install it. `TutorialDirector` (`src/world/tutorial_director.gd`, group `tutorial_director`,
+  `find(tree)`, `get_step()`, signals `step_changed(step_id)` / `finished(skipped)`) runs three parts: the welcome video in
+  `partida.sala_tutorial` (clock paused by owner `"tutorial"`, `NPCLayer.free_running` on so the building keeps moving;
+  `PlacesScenes.training_hook` answers E on the screen), `TutorialWalk` (HR assistant actor to the desk, across floors) and
+  `TutorialFirstDay` (3 emails via DutySystem, a forced Claudia Reeves idea told to a colleague via IdeaPool, a scripted
+  Bernard Lasker round with a real `Perception`). Scripted people are `TutorialActor`s (group `npcs`, real `npc_id`); while
+  one plays a character, that character is pinned to LOD 2 (`NPCDirector.set_lod`) so its real node steps aside, and
+  `clear_lod` returns it to its agenda. Every step has a balance budget (`tutorial.*`); the worst case
+  (`TutorialDirector.total_budget_seconds()`) fits in `tutorial.duracion_max_segundos` (600 s of active time: dialogs do
+  not count). Profile flags: `tutorial_seen` (set when it ends or is skipped; later runs get a skip offer),
+  `skip_tutorial_seen` (= `skip_seen_intro`: later runs skip it in `GameSession.wants_tutorial`). Never shown as
+  "tutorial" on screen: it is the welcome video, HR and the first-day note.

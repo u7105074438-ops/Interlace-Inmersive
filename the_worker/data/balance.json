@@ -4110,18 +4110,19 @@
     }
   },
   "partida": {
-    "_nota": "Sesión de juego (GameRoot/GameSession, BUILD_NOTES §2): sala y celdas (desde su esquina superior izquierda) donde empieza una partida nueva a las 8:00 (lado público de los tornos de la PB), sala del tutorial (§13.8), semilla de las partidas de QA sin menú y segundos reales que se ve la reacción antes del epílogo.",
+    "_nota": "Sesión de juego (GameRoot/GameSession, BUILD_NOTES §2): sala y celdas (desde su esquina superior izquierda) donde empieza una partida nueva (lado público de los tornos de la PB, fuera del sensor de las compuertas: nada se abre ni se registra antes de que el jugador se mueva), minutos_inicio = minutos tras tiempo.hora_inicio_jornada a los que empieza la jornada 1 (08:20: la plantilla ya está llegando a los tornos; los de rango 1-2 llegan 08:15-08:45), sala del tutorial (§13.8), semilla de las partidas de QA sin menú y segundos reales que se ve la reacción antes del epílogo.",
     "sala_inicio": "turnstiles",
     "celda_inicio": [
       4.5,
-      2.3
+      1.2
     ],
     "sala_tutorial": "training_room",
     "semilla_qa": 12345,
-    "retardo_epilogo_segundos": 2.5
+    "retardo_epilogo_segundos": 2.5,
+    "minutos_inicio": 20
   },
   "viaje": {
-    "_nota": "FloorTravel (§5.2-§5.5, §22.15). minutos_* en minutos de juego: minutos_base + minutos_por_planta × plantas (la nave y el exterior cuentan como 1 planta). escalera.factor_hora_punta en las franjas busy_bands de la escalera principal. escalera_servicio: probabilidad de coincidir con alguien por planta recorrida (tope) en sus franjas, certeza de la creencia parcial que genera; los disfraces justificados no llaman la atención. montacargas: sala cuya acreditación exige, llaves que lo abren y radio de ruido por defecto (el panel de datos manda). conducto: entrada por aseos (patrón), acceso especial, uniforme o llave; prisa = × factor_prisa con ruido de radio_ruido_prisa metros; segundos_acto = acto visible al colarse. cornisa: acto visible. control_salida: salas del control de salida hacia la planta indicada (registro corporal). presentacion: fundido y recorrido del indicador (segundos reales). semilla_encuentros: sal del RNG de encuentros.",
+    "_nota": "FloorTravel (§5.2-§5.5, §22.15). minutos_* en minutos de juego: minutos_base + minutos_por_planta × plantas (la nave y el exterior cuentan como 1 planta). escalera.factor_hora_punta en las franjas busy_bands de la escalera principal. escalera_servicio: probabilidad de coincidir con alguien por planta recorrida (tope) en sus franjas, certeza de la creencia parcial que genera; los disfraces justificados no llaman la atención. montacargas: sala cuya acreditación exige, llaves que lo abren y radio de ruido por defecto (el panel de datos manda). conducto: entrada por aseos (patrón), acceso especial, uniforme o llave; prisa = × factor_prisa con ruido de radio_ruido_prisa metros; segundos_acto = acto visible al colarse. cornisa: acto visible. control_salida: salas del control de salida hacia la planta indicada (registro corporal). presentacion: fundido y recorrido del indicador (segundos reales). semilla_encuentros: sal del RNG de encuentros. trayecto: la puerta del piso (hogar.sala_domicilio) y las de puertas_edificio hacia sala_calle ofrecen el trayecto casa ↔ trabajo (HomeCycle.commute, hogar.minutos_trayecto_casa); al trabajo se llega por dentro de entrada_edificio, junto a su puerta a la calle; el desalojo del cierre deja al jugador en la calle ante esa puerta.",
     "ascensor": {
       "minutos_base": 1.0,
       "minutos_por_planta": 0.2
@@ -4202,19 +4203,863 @@
       "recorrido_por_planta_segundos": 0.05,
       "recorrido_max_segundos": 1.4
     },
-    "semilla_encuentros": 7919
+    "semilla_encuentros": 7919,
+    "trayecto": {
+      "sala_calle": "street",
+      "entrada_edificio": "main_reception",
+      "puertas_edificio": [
+        "main_reception"
+      ]
+    }
   },
   "salto_tiempo": {
-    "_nota": "Salto temporal (§15.6, TimeSkip): solo a la franja siguiente, sin observadores y en lugar seguro: la sala de trabajo del puesto, el domicilio (hogar.sala_domicilio) o una sala cuyo id contenga alguno de estos patrones.",
+    "_nota": "Salto temporal (§15.6, TimeSkip): solo a la franja siguiente, sin observadores y en lugar seguro: la sala de trabajo del puesto, el domicilio (hogar.sala_domicilio) o una sala cuyo id contenga alguno de estos patrones. Observador (GameRoot.find_observer): un personaje activo que le tiene en su cono de visión, o que está a menos de radio_testigo_cercano_celdas con línea de visión aunque no le mire, o una cámara activa con el jugador en campo.",
     "patrones_seguros": [
       "toilets"
-    ]
+    ],
+    "radio_testigo_cercano_celdas": 1.5
   },
   "puentes": {
-    "_nota": "WorldBridges: segundos reales entre avisos de una misma puerta denegada, sala de la citación a interrogatorio, cada cuántos segundos reales se mira si ya se puede ejecutar una citación pendiente y radio (celdas) para sentarse en la silla propia al abrir el ordenador.",
+    "_nota": "WorldBridges/DoorAccess: segundos reales entre avisos de una misma puerta denegada, sala de la citación a interrogatorio, cada cuántos segundos reales se mira si ya se puede ejecutar una citación pendiente y radio (celdas) para sentarse en la silla propia al abrir el ordenador. DoorAccess: un paso con tarjeta concedido se registra al cruzar el eje de la puerta al menos margen_cruce_celdas; se olvida (sin registro) si el jugador se aleja más de distancia_desarme_celdas del hueco.",
     "segundos_aviso_puerta": 2.5,
     "sala_interrogatorio": "interrogation_room",
     "segundos_citacion": 1.0,
-    "radio_silla_celdas": 2.5
+    "radio_silla_celdas": 2.5,
+    "margen_cruce_celdas": 0.3,
+    "distancia_desarme_celdas": 2.5
+  },
+  "cierre": {
+    "avisos": [
+      {
+        "minutos_antes": 60,
+        "text_key": "CLOSING_WARN_EARLY"
+      },
+      {
+        "minutos_antes": 20,
+        "text_key": "CLOSING_WARN_SOON"
+      }
+    ],
+    "_nota": "ClosingTime (§5.6 Salida: ocultarse para permanecer en el edificio). avisos: minutos antes del inicio de la franja nocturna (tiempo.franjas_hora_inicio.night) en que se avisa al jugador que sigue dentro (texto con los minutos que faltan y la hora). A la hora de cierre, quien siga dentro sin estar escondido sale acompañado a la calle (sin registros nocturnos); escondido, se queda. Exentos: puestos con rondas de cierre (is_closing)."
+  },
+  "oficina": {
+    "_nota": "Módulo de oficina (src/world/interactions/office.gd, BUILD_NOTES §15). segundos_acto.* = segundos REALES de cada acto ilegal visible (begin_act); minutos.* = minutos de juego que cuesta cada acción (GameClock.advance_minutes). cajon.tabla / correo.tabla = tiradas diarias {que, peso} (coins = monedas sueltas entre monedas_min y monedas_max; nothing; info = información temprana; cash = dinero suelto del correo; un id de objeto). material: objeto por material de la estantería, objeto_barato si la reventa de la estantería es menor que el valor del objeto, vendibles y factor_reventa del envío por correo (§15.4 ~35 € diarios). archivo.acceso_por_sala: sala → accesos especiales de puesto con los que registrar sus archivadores es legal. fraudes.<acción>: puestos que pueden, importe min-max (€) y enfriamiento_dias; terminales.<tipo>: acciones de cada terminal además de las de sus datos. prensa.<acción>.puestos (vacío = cualquiera; o el Director de Comunicación con deuda >= deuda_minima_soborno). campana: autoelogio de marketing (reputación, fracaso público con prob_fracaso, marca). copiadora: líneas de información temprana para el operario / el resto (una vez al día por sala) y días de antelación de las notas de prensa. cafe: afecto por charla (una vez al día y persona), radio en celdas y número de frases OFFICE_CHAT_LINE_n. diseno: objeto provisional del archivo histórico, plantilla y quién lo recuerda.",
+    "segundos_acto": {
+      "cajon": 2.5,
+      "archivo": 3.0,
+      "expedientes": 4.0,
+      "material": 1.5,
+      "correo": 3.0,
+      "comida": 1.2,
+      "falsificacion": 5.0,
+      "diseno": 3.5,
+      "fraude": 4.0,
+      "prensa": 3.0
+    },
+    "minutos": {
+      "cafe": 6,
+      "escucha": 10,
+      "lectura": 2,
+      "pizarra": 1,
+      "maquina": 2,
+      "comida": 15,
+      "comida_libre": 20,
+      "venta": 15,
+      "fraude": 15,
+      "prensa": 10,
+      "campana": 20,
+      "falsificacion": 20,
+      "diseno": 15,
+      "expedientes": 10,
+      "correo": 10,
+      "archivo": 5,
+      "cajon": 2,
+      "material": 2,
+      "copiadora": 3
+    },
+    "cajon": {
+      "tabla": [
+        {
+          "que": "nothing",
+          "peso": 3
+        },
+        {
+          "que": "coins",
+          "peso": 4
+        },
+        {
+          "que": "snack",
+          "peso": 2
+        },
+        {
+          "que": "paper",
+          "peso": 1
+        },
+        {
+          "que": "foreign_document",
+          "peso": 1
+        }
+      ],
+      "monedas_min": 3,
+      "monedas_max": 15
+    },
+    "material": {
+      "objeto_barato": "paper",
+      "objeto_por_material": {
+        "leather": "leather_roll",
+        "soles": "soles"
+      },
+      "vendibles": [
+        "office_supplies",
+        "paper",
+        "toner"
+      ],
+      "factor_reventa": 1.0
+    },
+    "correo": {
+      "tabla": [
+        {
+          "que": "nothing",
+          "peso": 3
+        },
+        {
+          "que": "cash",
+          "peso": 3
+        },
+        {
+          "que": "info",
+          "peso": 4
+        }
+      ],
+      "dinero_min": 5,
+      "dinero_max": 20
+    },
+    "archivo": {
+      "acceso_por_sala": {
+        "orders_archive": [
+          "active_archive"
+        ],
+        "hr_office": [
+          "personnel_files_full"
+        ],
+        "main_copyroom": [
+          "copy_rooms"
+        ],
+        "p3_copyroom": [
+          "copy_rooms"
+        ],
+        "incident_archive": [
+          "all_footage"
+        ],
+        "guard_lockers": [
+          "guard"
+        ]
+      },
+      "reputacion_pedidos": -5.0,
+      "enfriamiento_pedidos_dias": 5,
+      "objetivos_max": 5
+    },
+    "expedientes": {
+      "por_intrusion": 3
+    },
+    "copiadora": {
+      "avisos_operario": 4,
+      "avisos_otros": 1,
+      "dias_adelanto": 3
+    },
+    "terminales": {
+      "payroll_terminal": [
+        "bump_salary",
+        "ghost_employee"
+      ],
+      "accounting_terminal": []
+    },
+    "fraudes": {
+      "bump_salary": {
+        "puestos": [
+          "payroll_clerk"
+        ],
+        "min": 40,
+        "max": 60,
+        "enfriamiento_dias": 20
+      },
+      "ghost_employee": {
+        "puestos": [
+          "payroll_manager"
+        ],
+        "min": 450,
+        "max": 900,
+        "enfriamiento_dias": 20
+      },
+      "inflate_invoices": {
+        "puestos": [
+          "billing_clerk"
+        ],
+        "min": 20,
+        "max": 30,
+        "enfriamiento_dias": 1
+      },
+      "falsify_entries": {
+        "puestos": [
+          "junior_accountant",
+          "senior_accountant"
+        ],
+        "min": 150,
+        "max": 400,
+        "enfriamiento_dias": 7
+      },
+      "move_capital": {
+        "puestos": [
+          "deputy_cfo",
+          "cfo"
+        ],
+        "min": 3000,
+        "max": 8000,
+        "enfriamiento_dias": 7
+      },
+      "detect_fraud": {
+        "puestos": [
+          "junior_accountant",
+          "senior_accountant",
+          "chief_auditor"
+        ],
+        "enfriamiento_dias": 7
+      }
+    },
+    "prensa": {
+      "bury_news": {
+        "puestos": [
+          "comms_director"
+        ]
+      },
+      "fabricate_scandal": {
+        "puestos": [
+          "comms_director"
+        ]
+      },
+      "shift_sentiment": {
+        "puestos": [
+          "marketing_creative",
+          "a10_marketing_director",
+          "comms_director"
+        ]
+      },
+      "leak_story": {
+        "puestos": []
+      },
+      "deuda_minima_soborno": 1,
+      "enfriamiento_escandalo_dias": 3
+    },
+    "campana": {
+      "puestos": [
+        "marketing_creative",
+        "a10_marketing_director"
+      ],
+      "reputacion": 2.0,
+      "reputacion_fracaso": -4.0,
+      "prob_fracaso": 0.15,
+      "marca": 0.01
+    },
+    "cafe": {
+      "afecto": 2,
+      "radio_charla_celdas": 4.0,
+      "frases": 6
+    },
+    "comida": {
+      "objeto_lujo": "food_premium",
+      "objeto_basico": "food_basic",
+      "objeto_maquina": "snack",
+      "hora_cambio_comida": 12
+    },
+    "diseno": {
+      "objeto": "idea_copy",
+      "plantilla": "design",
+      "recuerda": "npc_ray_cudmore"
+    },
+    "falsificacion": {
+      "estampa": "stamp"
+    }
+  },
+  "operativa": {
+    "_nota": "Módulo de seguridad e infraestructura (src/world/interactions/security.gd y sus _security_*.gd). Segundos = duración REAL de un acto visible (Player.begin_act; moverse lo cancela) o de un gesto legítimo; minutos = reloj de juego que cuesta la operación (GameClock.advance_minutes). segundos_acto_minimo: duración de los actos en modo instantáneo (pruebas, QA).",
+    "segundos_acto_minimo": 0.05,
+    "segundos_gesto": 0.6,
+    "monitores": {
+      "_nota": "Consola de monitores (§5.5): borrar = acto footage_deleted de segundos_base + segundos_por_grabacion × n (tope segundos_max); cuesta minutos de juego; la lista enseña las lista_max más recientes.",
+      "segundos_base": 2.5,
+      "segundos_por_grabacion": 0.5,
+      "segundos_max": 8.0,
+      "minutos": 6,
+      "lista_max": 14
+    },
+    "servidor": {
+      "_nota": "Terminal del servidor (§22.2): tipos de registro de BeliefNet que cuentan como rastro digital borrable; acto records_deleted de segundos_base + segundos_por_registro × n (tope segundos_max) y minutos de juego.",
+      "tipos_digitales": [
+        "card_log",
+        "chat_log"
+      ],
+      "segundos_base": 3.0,
+      "segundos_por_registro": 0.4,
+      "segundos_max": 8.0,
+      "minutos": 12,
+      "lista_max": 14
+    },
+    "copias": {
+      "_nota": "Cintas de copia (§22.2): destruirlas (acto sabotage) deja firmes los borrados pendientes; si no, la copia nocturna los restaura al cambiar de jornada.",
+      "segundos": 4.0,
+      "minutos": 10
+    },
+    "apagon": {
+      "_nota": "Cuadro eléctrico (§22.1): corte de UNA planta de plantas [min, max] durante minutos de juego desde que se produce; retardos (minutos) para llegar antes; cámaras inactivas y lectores sin bloqueo en la planta; penumbra multiplicativa de color sombra; el keeper revisa el corte cada intervalo_s segundos reales.",
+      "minutos": 5,
+      "retardos": [
+        0,
+        10,
+        20,
+        40
+      ],
+      "segundos_acto": 3.0,
+      "plantas": [
+        -3,
+        20
+      ],
+      "sombra": [
+        0.42,
+        0.45,
+        0.62
+      ],
+      "intervalo_s": 0.25
+    },
+    "alarma": {
+      "_nota": "Central de alarmas: zonas por planta armadas en la franja night. Forzar en una planta armada dispara la alarma: ruido de radio_ruido metros y caso abierto (incidente, gravedad). Desactivar una zona = acto sabotage de segundos_acto, hasta el cambio de jornada.",
+      "segundos_acto": 3.5,
+      "radio_ruido": 12.0,
+      "gravedad": 3,
+      "incidente": "object_missing",
+      "plantas": [
+        -3,
+        20
+      ]
+    },
+    "cerraduras": {
+      "_nota": "Candados antiguos (§5.3, §22.2): llave_basica si el candado lo admite (keys_basic_opens) o una llave maestra; forzar con herramientas (ruido ruido.radio_forzar_cerradura o el force_noise_radius del candado, cada intervalo_ruido s) durante segundos_forzar; la puerta queda abierta apertura_s segundos (y sin bloqueo hasta recargar la planta).",
+      "llave_basica": "keys_basic",
+      "llaves_maestras": [
+        "master_keys",
+        "guard_keys",
+        "guard_master_keys",
+        "security_master_key",
+        "cleaning_cart_master_keys"
+      ],
+      "herramientas": [
+        "lockpick",
+        "cutting_tools",
+        "bolt_cutter",
+        "crowbar",
+        "pry_bar"
+      ],
+      "segundos_forzar": 6.0,
+      "intervalo_ruido": 1.4,
+      "apertura_s": 4.0
+    },
+    "cajas": {
+      "_nota": "Cajas fuertes: metodos.<requires>.silencioso = objetos que la abren sin ruido (acto theft_small de segundos_abrir); .forzado = herramientas para forzarla (acto lock_forced de segundos_forzar, ruido radio_ruido_forzar). La caja se repone pasadas dias_reposicion jornadas. minutos_tramo_ceo = minutos de juego por tramo forzando la caja del CEO (Endgame.work_on_safe).",
+      "metodos": {
+        "key": {
+          "silencioso": [
+            "security_master_key",
+            "lockpick"
+          ],
+          "forzado": [
+            "crowbar",
+            "pry_bar",
+            "cutting_tools"
+          ]
+        },
+        "combination": {
+          "silencioso": [
+            "safe_combination_note"
+          ],
+          "forzado": [
+            "angle_grinder",
+            "cutting_tools"
+          ]
+        },
+        "clearance": {
+          "silencioso": [
+            "security_master_key"
+          ],
+          "forzado": [
+            "angle_grinder",
+            "cutting_tools"
+          ]
+        }
+      },
+      "segundos_abrir": 3.0,
+      "segundos_forzar": 9.0,
+      "radio_ruido_forzar": 8.0,
+      "dias_reposicion": 7,
+      "minutos_tramo_ceo": 30
+    },
+    "taquillas": {
+      "segundos": 2.5
+    },
+    "herramientas": {
+      "segundos": 1.5
+    },
+    "carrito": {
+      "segundos": 2.0,
+      "llaves": "master_keys"
+    },
+    "banco": {
+      "_nota": "Banco de reparación (§22.11): clonar una tarjeta robada (acto forgery sin registro) cuesta segundos_clonar y minutos_clonar; abrir el ordenador de un objetivo exige el acceso especial acceso_intrusion (IT).",
+      "segundos_clonar": 6.0,
+      "minutos_clonar": 20,
+      "acceso_intrusion": "others_computers"
+    },
+    "maquinaria": {
+      "_nota": "Controles de la línea: parada de emergencia (sin ronda de cierre) = sabotage con pérdida para la compañía de perdida_parada euros.",
+      "segundos": 2.5,
+      "perdida_parada": 2500
+    },
+    "coche": {
+      "_nota": "Sabotaje de coche (garaje §22.3): herramienta necesaria; al día siguiente el dueño pasa las franjas indicadas en la sala (garaje) con la avería.",
+      "herramientas": [
+        "cutting_tools",
+        "toolbox",
+        "pry_bar",
+        "crowbar",
+        "bolt_cutter"
+      ],
+      "segundos": 6.0,
+      "sala": "garage",
+      "franjas": [
+        "arrival",
+        "work_morning"
+      ]
+    },
+    "cuerpos": {
+      "_nota": "Cuerpos (§12.2, §14.7): coger / esconder / triturar = actos body_moved de esos segundos; arrastrado va a distancia_arrastre celdas detrás del jugador; por_escondite = cuerpos que caben en un escondite que los admite; la compactadora hace un ruido de radio_ruido_triturar metros.",
+      "segundos_coger": 1.5,
+      "segundos_esconder": 3.0,
+      "segundos_triturar": 4.0,
+      "distancia_arrastre": 0.7,
+      "por_escondite": 1,
+      "radio_ruido_triturar": 5.0
+    },
+    "tarjetas": {
+      "_nota": "Tarjetas ajenas en lectores (§5.3): ids de la robada y la clonada (extra.owner = titular); la puerta queda abierta apertura_s; acreditacion_defecto si la tarjeta no nombra titular; los puntos de lector están a distancia_lector celdas del hueco, uno a cada lado.",
+      "robada": "stolen_card",
+      "clonada": "cloned_card",
+      "apertura_s": 4.0,
+      "acreditacion_defecto": 3,
+      "distancia_lector": 0.7
+    }
+  },
+  "lugares": {
+    "_nota": "Módulo de lugares y escenas del InteractionRouter (src/world/interactions/places.gd, BUILD_NOTES §15) y su nodo de escena PlacesKeeper. segundos_acto: segundos REALES de los actos visibles (begin_act, Perception puede pillarlos). minutos: minutos de JUEGO que cuesta cada acción (GameClock.advance_minutes). torno (§5.6 franja de llegada): en franjas_colarse, con un compañero a menos de radio_colarse_celdas del torno, el jugador puede colarse detrás (sin fichar: sin registro de tarjeta; la cámara del vestíbulo sigue grabando) entrando agachado o sigiloso, o desde el punto de cola (celda_cola de sala, lejos del sensor): el paso guiado va al paso sigiloso del jugador (segundos_paso si no se conoce su velocidad), empieza celdas_antes antes del hueco y acaba celdas_mas_alla después; la intención vale segundos_intencion. mesas: interactivos que el keeper pone sobre muebles (tipo de interactivo, sala, mueble en pos, lado = desplazamiento en celdas desde el centro del mueble hacia donde se coloca el jugador, lejos de las sillas; corrillo). corrillos: corrillo de los fumadores, franja de la mesa del clan, líneas de cotilleo y minutos por corrillo; verdades_primero = corrillos sin cámaras donde lo que se dice del jugador sale antes (§7.7). rumores: hechos que se pueden plantar (BeliefNet), certeza y tope de sujetos del menú. autobus: minutos y tarifa (€) de un trayecto. quimico (§22.5 sabotaje con apariencia de accidente): probabilidad de error (protegido = con alguno de protecciones), peso del registro del laboratorio si hay error, certeza de quien ve la quemadura, jornadas que dura, pérdida de eficiencia, € de pérdida para la compañía, reputación del capataz y descontento. moldes: pérdida de calidad y jornadas en que el defecto es real para control de calidad. calidad: puesto del capataz, reputación que pierde con un informe real o falso, gravedad del agravio (el informe lleva tu firma), informes en dias_ventana que le cuestan el puesto y umbral de calidad del producto por debajo del cual hay defectos reales. consejo (§22.14 votaciones): puestos con voto, subtipo y calidad del deber de voto, mérito por apoyar tu ascenso, escalón mínimo del expulsable, probabilidad de expulsión (base + por voto, tope) y agravio si falla. resultados: rango mínimo para subir al estrado (R28). citacion: desde hora_recogida, con una citación pendiente y el jugador fuera del edificio en horario laboral, dos vigilantes van a buscarlo (minutos_escolta de trayecto); sondeo en segundos reales. traje: objeto que quita la penalización diaria de reputación (economia.penalizacion_reputacion_sin_traje) desde escalon_minimo. tienda: precio desde el que se confirma una compra.",
+    "segundos_acto": {
+      "robo_pocket": 2.0,
+      "robo_box": 4.0,
+      "robo_pallet": 5.0,
+      "moldes": 3.5,
+      "quimico": 4.5,
+      "albaranes": 3.0,
+      "informe_falso": 2.5,
+      "allanamiento": 3.0
+    },
+    "minutos": {
+      "rumor": 5,
+      "consejo": 60,
+      "enfermeria": 45,
+      "botiquin": 5,
+      "curar": 15,
+      "informe_calidad": 20,
+      "moldes": 15,
+      "quimico": 20,
+      "video_formacion": 10,
+      "comisaria": 5,
+      "notaria": 20,
+      "precios": 2,
+      "escucha_compradores": 10
+    },
+    "torno": {
+      "sala": "turnstiles",
+      "celda_cola": [
+        1.5,
+        0.9
+      ],
+      "franjas_colarse": [
+        "arrival"
+      ],
+      "radio_colarse_celdas": 3.5,
+      "segundos_intencion": 4.0,
+      "segundos_paso": 1.4,
+      "celdas_antes": 0.9,
+      "celdas_mas_alla": 1.8
+    },
+    "mesas": [
+      {
+        "tipo": "clan_table",
+        "sala": "cafeteria",
+        "mueble": "table",
+        "pos": [
+          10,
+          11
+        ],
+        "lado": [
+          1.5,
+          0.0
+        ],
+        "corrillo": "cafeteria_clan"
+      },
+      {
+        "tipo": "foosball_table",
+        "sala": "foosball_room",
+        "mueble": "foosball_table",
+        "pos": [
+          5,
+          4
+        ],
+        "lado": [
+          0.0,
+          1.0
+        ],
+        "corrillo": "foosball_circle"
+      },
+      {
+        "tipo": "buyer_lounge",
+        "sala": "visitor_lounge",
+        "mueble": "sofa",
+        "pos": [
+          8,
+          2
+        ],
+        "lado": [
+          0.0,
+          1.0
+        ],
+        "corrillo": ""
+      }
+    ],
+    "corrillos": {
+      "fumadores": "smokers_circle",
+      "franja_clan": "lunch",
+      "lineas": {
+        "smokers_circle": 4,
+        "foosball_circle": 2,
+        "cafeteria_clan": 3
+      },
+      "minutos": {
+        "smokers_circle": 10,
+        "foosball_circle": 5,
+        "cafeteria_clan": 15
+      },
+      "verdades_primero": [
+        "smokers_circle"
+      ]
+    },
+    "rumores": {
+      "hechos": [
+        "steals_ideas",
+        "caught_redhanded:theft_small",
+        "bribe_attempt:witnessed"
+      ],
+      "certeza": 0.6,
+      "max_sujetos": 6
+    },
+    "autobus": {
+      "minutos": 12,
+      "tarifa": 2
+    },
+    "enfermeria": {
+      "objeto_botiquin": "medical_supplies"
+    },
+    "quimico": {
+      "prob_error": 0.25,
+      "prob_error_protegido": 0.08,
+      "protecciones": [
+        "uniform_maintenance",
+        "factory_overalls"
+      ],
+      "peso_evidencia": 2.0,
+      "certeza_herida": 0.35,
+      "dias_herida": 2,
+      "perdida_eficiencia": 0.05,
+      "perdida_empresa": 4000,
+      "perdida_reputacion_capataz": 5,
+      "descontento": 3
+    },
+    "moldes": {
+      "perdida_calidad": 0.04,
+      "dias_defecto": 7
+    },
+    "calidad": {
+      "ocupacion_capataz": "factory_foreman",
+      "reputacion_real": 8,
+      "reputacion_falso": 4,
+      "gravedad_agravio": 2,
+      "informes_despido": 3,
+      "dias_ventana": 5,
+      "umbral_calidad": 0.95
+    },
+    "consejo": {
+      "ocupaciones_voto": [
+        "board_investor",
+        "board_secretary",
+        "vice_ceo",
+        "ceo"
+      ],
+      "subtipo_deber": "board_vote",
+      "calidad_deber": 0.8,
+      "merito": 1,
+      "escalon_min_objetivo": 6,
+      "max_objetivos": 6,
+      "prob_base": 0.2,
+      "prob_por_voto": 0.1,
+      "prob_max": 0.85,
+      "gravedad_agravio": 4
+    },
+    "resultados": {
+      "rango_minimo": 28
+    },
+    "citacion": {
+      "hora_recogida": 10,
+      "minutos_escolta": 15,
+      "segundos_sondeo": 1.0
+    },
+    "traje": {
+      "objeto": "executive_suit",
+      "escalon_minimo": 5
+    },
+    "tienda": {
+      "confirmar_desde": 100
+    },
+    "comisaria": {
+      "turno_min": 1000,
+      "turno_max": 9999
+    }
+  },
+  "social": {
+    "_nota": "Módulo SOCIAL del InteractionRouter (src/world/interactions/social.gd + _social_*.gd, menú src/ui/npc_interaction_menu.gd). Distancias en celdas; minutos = minutos de JUEGO (GameClock.advance_minutes); segundos = segundos REALES. Afecto/temor/deuda en las escalas del registro (§7.9). lineas: umbrales del trato por escalón (§6.4) y del tono de las respuestas; escalon_sin_verdad = desde ahí nadie te dice la verdad (sin pistas ni secretos). charla: una vez por personaje y jornada; afecto_ignorado para el escalón 1 ante un superior; deuda_ofrecida desde escalon_favores_ofrecidos ante un inferior (§6.4: favores ofrecidos sin pedirlos). confidentes: personajes que revelan secretos del edificio con afecto >= afecto_minimo (Old Ray, §8.3), un secreto por jornada. credito: regalar un mérito a quien tiene esa debilidad (George Penn, §8.3). rumor: hecho_colega:<id> sobre un compañero; la dirección va por Strike.plant_rumour. favor: coste en deuda del registro; prestamo.objetos_por_herramienta = herramienta de puesto → objeto prestado; sin objeto propio presta su tarjeta (tarjeta, lleva su nombre en los lectores); precio_especial para quien presta por una miseria (npcs_named special.lends_item). mirar: el personaje deja su puesto hasta la próxima hora (primera sala de la planta cuyo id contiene uno de salas). chantaje: material = blackmail_file suyo, objetos (objeto → personaje), secretos o pareja clandestina vistos en su expediente (nivel de PERSONNEL); valentia_rechazo con temor < temor_cede → se niega y te denuncia a su superior. ideas: compra = salario × multiplicador_compra × calidad/calidad_referencia × registro × dificultad × sospecha; generosa × factor_generoso. eliminar: sin testigos (nadie más con línea de visión a ti o a la víctima, ninguna cámara) — §12.2; radio_testigo_celdas = cerca con línea de visión también cuenta.",
+    "distancia_charla_celdas": 2.6,
+    "minutos_charla": 6,
+    "minutos_accion": 4,
+    "intervalo_refresco_segundos": 0.25,
+    "lineas": {
+      "afecto_hostil": -25,
+      "afecto_amistoso": 30,
+      "temor_alto": 50,
+      "escalon_sin_verdad": 8,
+      "escalon_ignorado": 1
+    },
+    "charla": {
+      "afecto": 4,
+      "afecto_ignorado": 1,
+      "afecto_hostil": 0,
+      "escalon_favores_ofrecidos": 6,
+      "deuda_ofrecida": 10
+    },
+    "confidentes": {
+      "npc_ray_cudmore": {
+        "afecto_minimo": 20,
+        "secretos": [
+          "SOCIAL_RAY_SECRET_1",
+          "SOCIAL_RAY_SECRET_2",
+          "SOCIAL_RAY_SECRET_3",
+          "SOCIAL_RAY_SECRET_4",
+          "SOCIAL_RAY_SECRET_5"
+        ]
+      }
+    },
+    "credito": {
+      "debilidades": [
+        "NPC_WEAK_GIFT_MERIT"
+      ],
+      "magnitud_favor": 6,
+      "deuda": 25,
+      "merito_personaje": 3,
+      "coste_reputacion": 1.5,
+      "dias_entre": 3
+    },
+    "rumor": {
+      "hecho_colega": "steals_ideas",
+      "certeza": 0.7,
+      "sociabilidad_difusor": 85,
+      "max_sujetos": 6
+    },
+    "favor": {
+      "coste_coartada": 30,
+      "coste_prestamo": 20,
+      "coste_mirar": 10
+    },
+    "prestamo": {
+      "objetos_por_herramienta": {
+        "maintenance_uniform": "uniform_maintenance",
+        "cleaning_uniform": "uniform_cleaning",
+        "guard_uniform": "uniform_security",
+        "cleaning_cart_master_keys": "master_keys",
+        "guard_master_keys": "guard_keys"
+      },
+      "tarjeta": "stolen_card",
+      "precio_especial": 15
+    },
+    "mirar": {
+      "salas": [
+        "pantry",
+        "break_room",
+        "cafeteria",
+        "foosball",
+        "toilets",
+        "garage"
+      ]
+    },
+    "chantaje": {
+      "dias_entre": 3,
+      "multiplicador_dinero": 4,
+      "deuda_silencio": 40,
+      "valentia_rechazo": 85,
+      "temor_cede": 40,
+      "objetos": {
+        "insider_trading_notes": "npc_maurice_sandbell",
+        "vaile_secrets": "npc_preston_vaile",
+        "vaile_private_notes": "npc_preston_vaile",
+        "voss_personal_secrets": "npc_harlan_voss",
+        "bribe_receipts": "npc_tom_iverson"
+      }
+    },
+    "ideas": {
+      "multiplicador_compra": 6,
+      "calidad_referencia": 60,
+      "factor_generoso": 1.6
+    },
+    "eliminar": {
+      "segundos_acto": 2.5,
+      "radio_testigo_celdas": 1.5,
+      "fundido_segundos": 0.7,
+      "negro_segundos": 1.4
+    },
+    "menu": {
+      "ancho_em": 21,
+      "retrato_em": 2.6,
+      "separacion_personaje_px": 26,
+      "margen_px": 16,
+      "max_temas": 6,
+      "max_nombres_testigos": 2,
+      "reserva_inferior_px": 300,
+      "reserva_superior_px": 200,
+      "columna_central_px": 760
+    }
+  },
+  "tutorial": {
+    "_nota": "Primer día guionizado (§13.8, TutorialDirector). duracion_max_segundos = tope de tiempo ACTIVO (sin diálogos encima): la suma de presupuestos y esperas fijas (TutorialDirector.total_budget_seconds) debe caber. celda_inicio = celdas (desde la esquina de partida.sala_tutorial) donde empieza el jugador, mirando a la pantalla. segundos_fundido = fundidos de salto y de «te lleva del codo». lectura = tiempo de lectura de una frase (mínimo, por carácter, tope) y factor_permanencia = cuántas lecturas sigue a la vista la tarjeta de diálogo. video.presupuesto = segundos máximos de cada frase del vídeo (si el jugador no hace la acción, el vídeo sigue); celdas_mover / segundos_* = cuánto hay que moverse, ir en sigilo, agacharse o esprintar para que cuente; segundos_min_paso = una acción cuenta tras ver la frase ese tiempo; elogio y fin de cinta. guia = asistente de RR. HH. (ocupación, velocidad en celdas/s, correa: distancia a la que espera al jugador, aviso si espera, despedida, distancia a la que saluda, hueco junto a la mesa) y presupuesto de cada frase del paseo (subir = espera total a que el jugador llegue a la planta de su oficina). zonas_restringidas = salas que HR enumera (la lista de objetivos) y anota en el cuaderno; max_llaves = cerraduras antiguas que menciona (operativa.cerraduras.llave_basica). tareas = primera jornada: correos a contestar (deber de subtipo_correo), personaje de la idea, radio y segundos de observación, respiro entre tareas y presupuestos. patrulla = ronda guionizada del jefe de ala: sala, escondite, aviso previo, velocidad (celdas/s), ruta (celdas de la sala), parada con barrido, radio de paso, segundos en su cono para que te vea, pausa entre rondas y vuelta a su mesa.",
+    "duracion_max_segundos": 600,
+    "celda_inicio": [
+      7.0,
+      6.3
+    ],
+    "retardo_inicio_segundos": 1.2,
+    "segundos_fundido": 0.45,
+    "lectura": {
+      "segundos_min": 3.0,
+      "segundos_por_caracter": 0.045,
+      "segundos_max": 14.0,
+      "factor_permanencia": 2.2
+    },
+    "video": {
+      "presupuesto": {
+        "intro": 8,
+        "move": 25,
+        "sneak": 20,
+        "crouch": 20,
+        "sprint": 20,
+        "interact": 30,
+        "outro": 10
+      },
+      "celdas_mover": 3.0,
+      "segundos_sigilo": 1.0,
+      "segundos_agachado": 0.8,
+      "segundos_esprint": 0.4,
+      "segundos_min_paso": 1.2,
+      "segundos_elogio": 1.8,
+      "segundos_fin_cinta": 1.8
+    },
+    "guia": {
+      "ocupacion": "hr_assistant",
+      "velocidad_celdas": 2.6,
+      "distancia_seguir_celdas": 3.5,
+      "segundos_espera_aviso": 7.0,
+      "segundos_despedida": 5.0,
+      "presupuesto": {
+        "hello": 12,
+        "card": 18,
+        "keys": 16,
+        "elevator": 50,
+        "subir": 20,
+        "clockin": 20,
+        "restricted": 20,
+        "lunch": 14,
+        "desk": 18
+      },
+      "distancia_saludo_celdas": 1.6,
+      "lado_mesa_celdas": 1.4
+    },
+    "zonas_restringidas": [
+      "hr_office",
+      "payroll_office",
+      "floor_safe",
+      "server_room",
+      "monitor_room",
+      "ceo_office"
+    ],
+    "max_llaves": 4,
+    "tareas": {
+      "correos": 3,
+      "subtipo_correo": "emails",
+      "idea_npc": "npc_claudia_reeves",
+      "radio_observar_celdas": 7.5,
+      "segundos_observar": 3.0,
+      "presupuesto": {
+        "correos": 95,
+        "espera_idea": 10,
+        "idea": 40,
+        "ronda": 75,
+        "despedida": 6
+      },
+      "pausa_entre_tareas": 3.5
+    },
+    "patrulla": {
+      "npc": "npc_bernard_lasker",
+      "sala": "wing_3b",
+      "escondite": "hide_3b_closet",
+      "aviso_segundos": 8.0,
+      "velocidad_celdas": 2.0,
+      "ruta": [
+        [
+          3.4,
+          11.4
+        ],
+        [
+          3.4,
+          1.5
+        ],
+        [
+          18.5,
+          1.5
+        ],
+        [
+          18.6,
+          9.0
+        ],
+        [
+          17.8,
+          10.9
+        ]
+      ],
+      "pausa_segundos": 3.2,
+      "radio_paso_celdas": 3.5,
+      "segundos_visto": 0.6,
+      "reintento_segundos": 3.5,
+      "segundos_vuelta": 8.0
+    }
   }
 }

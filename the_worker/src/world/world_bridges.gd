@@ -15,8 +15,9 @@ extends Node
 ##    cancelar) a la sala de interrogatorios (puentes.sala_interrogatorio): InterrogationScene y,
 ##    al terminar, vuelta a donde estaba.
 ##  · Zona casa/trabajo: zone_of(sala) = "home" (hogar.sala_domicilio), "work" (el edificio y la nave)
-##    o "" (la calle). El trayecto casa ↔ trabajo lo cobra FloorTravel (opción de la puerta del piso y
-##    de recepción); andar por la calle no cobra nada más. Entrar en casa de noche recuerda cómo dormir.
+##    o "" (la calle). El trayecto casa ↔ trabajo lo cobra FloorTravel (salida de recepción y la puerta
+##    «ir al trabajo» que este nodo pone en el piso al cargar la planta exterior); andar por la calle
+##    no cobra nada más. Entrar en casa de noche recuerda cómo dormir.
 ##  · DORMIR (§4.2, §12.7): request_sleep() (cama del piso con E, o T en casa de noche) comprueba
 ##    HomeCycle.can_sleep(), pide confirmación y hace HomeCycle.sleep() tras un fundido: resumen de
 ##    la jornada (UIRoot), cambio de jornada, GUARDADO (único punto de guardado) y desayuno.
@@ -50,6 +51,7 @@ const NIGHT_BAND := "night"
 const SLEEP_ICON := "sleep"
 const SLEEP_YES := 0
 const SLEEP_LOCK := "sleep"
+const COMMUTE_DOOR_ID := "commute_home_door"
 
 ## Pruebas: dormir sin diálogo ni fundido.
 var instant: bool = false
@@ -397,6 +399,17 @@ func _on_floor_loaded(floor_number: int) -> void:
 	for entry: Dictionary in _drops:
 		if int(entry["floor"]) == floor_number:
 			_spawn_drop(entry)
+	if floor_number == Database.get_balance_int(B_EXTERIOR) and _travel != null:
+		_spawn_commute_door()
+
+
+## Puerta «ir al trabajo» junto a la del piso (FloorTravel.COMMUTE_TYPE; vive con los objetos soltados).
+func _spawn_commute_door() -> void:
+	var node: Interactable = Interactable.new()
+	node.setup(COMMUTE_DOOR_ID, FloorTravel.COMMUTE_TYPE, str(Database.get_balance(B_HOME)),
+			{FloorTravel.K_ZONE: FloorTravel.ZONE_WORK}, RoomBuilder.cell_px(), _travel.home_door_point())
+	node.add_to_group(GROUP + "_drops")
+	_streamer.get_actor_layer().add_child(node)
 
 
 func _spawn_drop(entry: Dictionary) -> void:

@@ -87,7 +87,9 @@ const ERRANDS: Dictionary = {
 	ERRAND_FOCUS: {"bubble": "", "walk": "walk", "stay": "type_intense", "speed": ""},
 }
 ## Interactivo de persona (InteractionRouter, tipo "npc", data {npc_id}): invisible (sin realce
-## propio; la indicación contextual del HUD basta) y con su sala al día (_report_room).
+## propio; la indicación contextual del HUD basta). Su room_id va vacío a propósito: el jugador
+## comprueba siempre el muro con un rayo (una sala «de origen» o desfasada mientras camina dejaba
+## hablar a través de la pared); la sala real es NPCDirector.get_current_location(npc_id).
 const INTERACT_TYPE := "npc"
 const INTERACT_NODE := "Interact"
 const PHASE_GO := "go"
@@ -258,7 +260,7 @@ func _build_children() -> void:
 ## Integración (game_root, BUILD_NOTES §15): interactivo "npc" con {npc_id}; lo despacha el router.
 func _build_interactable() -> void:
 	interactable = Interactable.new()
-	interactable.setup(npc_id, INTERACT_TYPE, home_room, {"npc_id": npc_id}, _cell, Vector2.ZERO)
+	interactable.setup(npc_id, INTERACT_TYPE, "", {"npc_id": npc_id}, _cell, Vector2.ZERO)
 	interactable.name = INTERACT_NODE
 	interactable.visible = false
 	add_child(interactable)
@@ -755,8 +757,6 @@ func _report_room() -> void:
 	if not room.is_empty() and room != _reported_room:
 		_reported_room = room
 		NPCDirector.set_current_location(npc_id, room)
-		if interactable != null:
-			interactable.room_id = room
 
 
 func get_reported_room() -> String:

@@ -89,7 +89,9 @@ func _test_new_run() -> void:
 	check_eq(_game.streamer.get_current_floor(), 0, "new run: starts on the ground floor")
 	check_eq(PlayerState.get_room(), START_ROOM, "new run: the player stands at the turnstiles")
 	check_eq(GameClock.get_day(), 1, "new run: day 1")
-	check_eq(GameClock.get_hour(), 8, "new run: 08:00")
+	check_eq(GameClock.get_hour(), 8, "new run: 08:xx")
+	check_near(GameClock.get_day_minutes(), 8 * 60.0 + Database.get_balance_float("partida.minutos_inicio"), 1.0,
+			"new run: the day starts partida.minutos_inicio after 08:00 (people already arriving)")
 	check(not GameClock.is_paused(), "new run: run_started resumed the clock")
 	var before: float = GameClock.get_total_minutes()
 	await get_tree().create_timer(REAL_WAIT).timeout
@@ -282,10 +284,10 @@ func _test_promotion_flow() -> void:
 	check_eq(DatabaseSystem.get_room_base_id(PlayerState.get_room()), target.office_room, "promotion: the player lands at the new office")
 	var door: Door = _door_into(target.office_room)
 	if door != null:
-		check(_game.door_policy(door, _game.player), "doors: the own office always opens (even above the card level)")
+		check(DoorAccess.allows(door), "doors: the own office always opens (even above the card level)")
 	PlayerState.set_occupation(Database.get_balance("jugador.ocupacion_inicial"), "qa")
 	if door != null and door.clearance > PlayerState.get_clearance():
-		check(not _game.door_policy(door, _game.player), "doors: someone else's office above the card stays shut")
+		check(not DoorAccess.allows(door), "doors: someone else's office above the card stays shut")
 	_game.travel.teleport_to_room(OFFICE)
 	await _settle()
 

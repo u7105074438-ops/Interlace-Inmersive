@@ -9,7 +9,9 @@ extends Node
 ## panel, abre el ordenador con C en su mesa (WorldBridges lo sienta), contesta dos correos con MAIL
 ## y camina al office. Para la comida, un salto de QA del reloj hasta las 12:50 y espera real.
 ## Capturas: game_day_01_turnstiles · 02_elevator_panel · 03_ride · 04_floor3 · 05_desk ·
-## 06_computer_boot · 06b_seated · 07_mail · 08_pantry · 09_lunch_start · 10_lunch_leaving.
+## 06_computer_boot · 06b_seated · 07_mail · 07b_time_skip (T en la mesa con los compañeros
+## trabajando: diálogo si nadie le mira, o la negativa con el nombre de quien mira) · 08_pantry ·
+## 09_lunch_start · 10_lunch_leaving.
 
 const PLAYER_NAME := "Alex Doe"
 const DIFFICULTY := "estandar"
@@ -102,6 +104,19 @@ func _work_at_desk() -> void:
 	await _pilot.shot("game_day_07_mail")
 	await _tap("computer")
 	await _pilot.frames(SHORT_FRAMES)
+	await _try_time_skip()
+
+
+## T en la mesa: el diálogo (se cancela) o la negativa que nombra a quien mira.
+func _try_time_skip() -> void:
+	_log("time skip at the desk: check=%s observer=%s" % [_game.time_skip.check(), _game.observer_name()])
+	await _tap("time_skip")
+	await _pilot.frames(SHORT_FRAMES)
+	await _pilot.shot("game_day_07b_time_skip")
+	var top: Control = _game.ui.get_top_modal()
+	if top is DialogBox:
+		(top as DialogBox).choose((top as DialogBox).get_option_count() - 1)
+		await _pilot.frames(SHORT_FRAMES)
 
 
 ## QA: oculta un instante el escritorio (pantalla completa) para ver al jugador sentado a su mesa.

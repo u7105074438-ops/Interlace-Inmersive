@@ -1,6 +1,6 @@
 # player.gd — El jugador: 8 direcciones, sigilo/esprint/agachado, pasos que hacen ruido, interacción y actos.
 # PROPIETARIO DE: el estado de desplazamiento del jugador (modo, orientación, acto en curso, bloqueo, animación).
-# ESCUCHA: EventBus.occupation_changed, EventBus.disguise_changed, EventBus.player_caught_redhanded, EventBus.floor_changed.
+# ESCUCHA: EventBus.occupation_changed, EventBus.disguise_changed, EventBus.player_caught_redhanded, EventBus.floor_changed, EventBus.run_started, EventBus.run_loaded.
 class_name Player
 extends CharacterBody2D
 
@@ -166,6 +166,9 @@ var _sneak_held: bool = false
 var _virtual_dir: Vector2 = Vector2.ZERO
 var _virtual_sprint: bool = false
 var _input_locked: bool = false
+## Integración (game_root): dueños del bloqueo de entrada (UIRoot = "", trayectos, sueño, fin de
+## partida). Cerrar una ventana durante un trayecto ya no desbloquea al jugador antes de tiempo.
+var _lock_owners: Dictionary = {}
 var _dragging: bool = false
 var _hiding: bool = false
 var _freeze_left: float = 0.0
@@ -197,6 +200,8 @@ func _ready() -> void:
 	EventBus.disguise_changed.connect(_on_disguise_changed)
 	EventBus.player_caught_redhanded.connect(_on_caught)
 	EventBus.floor_changed.connect(_on_floor_changed)
+	EventBus.run_started.connect(func(_seed: int) -> void: _refresh_appearance())
+	EventBus.run_loaded.connect(func(_day: int) -> void: _refresh_appearance())
 	_refresh_appearance()
 
 
@@ -302,9 +307,14 @@ func end_act() -> void:
 	_finish_act(true)
 
 
-func set_input_locked(locked: bool) -> void:
-	_input_locked = locked
+## `owner` (integración): cada sistema bloquea con su nombre; la entrada vuelve cuando nadie bloquea.
+func set_input_locked(locked: bool, owner: String = "") -> void:
 	if locked:
+		_lock_owners[owner] = true
+	else:
+		_lock_owners.erase(owner)
+	_input_locked = not _lock_owners.is_empty()
+	if _input_locked:
 		velocity = Vector2.ZERO
 		_sprint_latched = false
 		_virtual_dir = Vector2.ZERO

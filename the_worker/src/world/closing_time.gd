@@ -5,9 +5,10 @@ class_name ClosingTime
 extends Node
 
 ## GameRoot lo añade con setup(root). Reglas (balance cierre.*):
-##  · AVISOS: cierre.avisos = [{minutos_antes, text_key}] antes del inicio de la franja nocturna
-##    (tiempo.franjas_hora_inicio.night), solo si el jugador está dentro del edificio (zona «work» de
-##    WorldBridges) y su puesto no tiene cierre (deberes is_closing: vigilante, Dir. de Seguridad).
+##  · AVISOS: cierre.avisos = [{minutos_antes, text_key (args: minutos que faltan, hora de cierre)}]
+##    antes del inicio de la franja nocturna (tiempo.franjas_hora_inicio.night), solo si el jugador
+##    está dentro del edificio (zona «work» de WorldBridges) y su puesto no tiene cierre (deberes
+##    is_closing: vigilante, Dir. de Seguridad). Si entra tarde, solo el aviso más urgente.
 ##  · DESALOJO a las 19:00 (time_band_changed → night): quien sigue dentro sin estar escondido
 ##    (Player.is_hiding) sale acompañado a la calle, ante la puerta de recepción (FloorTravel.
 ##    place_outside_building): no queda NINGÚN registro nocturno de un empleado honrado que se
@@ -106,7 +107,7 @@ func _check_warnings() -> void:
 			if due.is_empty() or minutes < float(due.get(K_MINUTES, 0.0)):
 				due = entry
 	if not due.is_empty():
-		_root.ui.toast(str(due[K_TEXT]), [UITheme.format_hour(GameClock.get_band_start_hour(NIGHT_BAND)), ceili(left)],
+		_root.ui.toast(str(due[K_TEXT]), [ceili(left), UITheme.format_hour(GameClock.get_band_start_hour(NIGHT_BAND))],
 				ToastStack.KIND_WARN)
 		_play(SFX_WARN)
 
