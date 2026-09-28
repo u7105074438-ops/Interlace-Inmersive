@@ -29,6 +29,8 @@ extends Node2D
 
 signal session_ready(mode: String)
 signal run_ended(cause: String, ending_id: String)
+## Continuar falló y el jugador eligió volver al título (pruebas).
+signal load_failed()
 
 const GROUP := "game_root"
 const PLAYER_SCENE := "res://scenes/world/player.tscn"
@@ -40,6 +42,11 @@ const B_TUTORIAL_ROOM := "partida.sala_tutorial"
 const B_HOME := "hogar.sala_domicilio"
 const B_EPILOGUE_DELAY := "partida.retardo_epilogo_segundos"
 const PAUSE_OWNER := "game_root_end"
+const LOCK_OWNER := "game_root_end"
+const B_NEAR_WITNESS := "salto_tiempo.radio_testigo_cercano_celdas"
+const OBSERVER_NPC := "npc"
+const OBSERVER_CAMERA := "camera"
+const LOAD_FAIL_NEW := 1
 const MENU_RESUME := 0
 const MENU_SKIP := 1
 const MENU_PROMOTIONS := 2
@@ -62,6 +69,8 @@ var npc_layer: NPCLayer = null
 var ui: UIRoot = null
 var audio: AudioDirector = null
 var travel: FloorTravel = null
+var doors: DoorAccess = null
+var closing: ClosingTime = null
 var bridges: WorldBridges = null
 var promotion: PromotionFlow = null
 var time_skip: TimeSkip = null
@@ -119,15 +128,36 @@ func _start() -> void:
 	if loading and GameSession.load_saved_run():
 		_mode = MODE_LOAD
 		travel.teleport_to_room(str(Database.get_balance(B_HOME)))
+		session_ready.emit(_mode)
+	elif loading:
+		_on_load_failed()
 	else:
-		if loading:
-			GameSession.begin_new_run(_request)
-		_mode = MODE_NEW
-		_place_new_run()
-		EventBus.run_started.emit(GameClock.get_run_seed())
-		if _tutorial_runs():
-			tutorial_hook.call(self)
+		_begin_new()
+
+
+func _begin_new() -> void:
+	_mode = MODE_NEW
+	_place_new_run()
+	EventBus.run_started.emit(GameClock.get_run_seed())
+	if _tutorial_runs():
+		tutorial_hook.call(self)
 	session_ready.emit(_mode)
+
+
+## El guardado no se pudo leer: nada se borra sin preguntar. Volver al título (opción por defecto)
+## o empezar de cero con confirmación (el run_started de la partida nueva borra el archivo dañado).
+func _on_load_failed() -> void:
+	var options: Array = ["GAME_LOAD_FAILED_MENU", {"text_key": "GAME_LOAD_FAILED_NEW", "danger": true}]
+	var choice: int = await ui.show_dialog("GAME_LOAD_FAILED_TITLE", "GAME_LOAD_FAILED_BODY", options, [], true, false)
+	if choice == LOAD_FAIL_NEW:
+		var confirm: Array = [{"text_key": "GAME_LOAD_FAILED_CONFIRM", "danger": true}, "UI_CANCEL"]
+		if await ui.show_dialog("GAME_LOAD_FAILED_TITLE", "GAME_LOAD_FAILED_CONFIRM_BODY", confirm) == 0:
+			_request["mode"] = GameSession.MODE_NEW
+			GameSession.begin_new_run(_request)
+			_begin_new()
+			return
+	load_failed.emit()
+	GameLaunch.return_to_menu(get_tree())
 
 
 func _place_new_run() -> void:
@@ -164,7 +194,10 @@ func _build_world() -> void:
 	add_child(travel)
 	travel.setup(streamer, player)
 	streamer.floor_loaded.connect(func(_floor: int) -> void: travel.refresh_camera.call_deferred())
-	streamer.set_door_policy(door_policy)
+	doors = DoorAccess.new()
+	doors.name = "DoorAccess"
+	add_child(doors)
+	doors.setup(streamer, player)
 	GameClock.set_observer_check(observers_present)
 
 
@@ -186,6 +219,10 @@ func _build_flows() -> void:
 	bridges.name = "WorldBridges"
 	add_child(bridges)
 	bridges.setup(self, streamer, player, ui, travel)
+	closing = ClosingTime.new()
+	closing.name = "ClosingTime"
+	add_child(closing)
+	closing.setup(self)
 	promotion = PromotionFlow.new()
 	promotion.name = "PromotionFlow"
 	add_child(promotion)
@@ -204,32 +241,41 @@ func _show_data_error() -> void:
 
 # ─── Observadores (§15.6, GameClock.set_observer_check) ───────
 
-## true si algún personaje activo tiene al jugador a su alcance con línea de visión o una cámara
-## activa de la planta lo tiene en su campo.
+## true si alguien observa al jugador (find_observer): el veto del salto temporal.
 func observers_present() -> bool:
+	return not find_observer().is_empty()
+
+
+## Quién le observa: {kind: "npc", id} si un personaje activo le tiene en su cono de visión (le
+## MIRA) o a su lado (salto_tiempo.radio_testigo_cercano_celdas) con línea de visión; {kind:
+## "camera", id} si una cámara activa lo tiene en campo; {} si nadie. Un compañero de espaldas o
+## absorto en su pantalla no observa (con solo alcance + línea de visión, en una sala diáfana
+## nunca se podía saltar desde la mesa).
+func find_observer() -> Dictionary:
 	if player == null or streamer == null:
-		return false
-	if npc_layer != null and npc_layer.observers_present():
-		return true
+		return {}
+	var pos: Vector2 = player.global_position
+	var near: float = Database.get_balance_float(B_NEAR_WITNESS) * RoomBuilder.cell_px()
+	if npc_layer != null:
+		for node: NPCNode in npc_layer.get_nodes():
+			var eyes: Perception = node.perception
+			if eyes == null or not eyes.is_active():
+				continue
+			if eyes.sees_point(pos) or (eyes.global_position.distance_to(pos) <= near and eyes.has_line_of_sight(pos)):
+				return {"kind": OBSERVER_NPC, "id": node.npc_id}
 	for cam: SecurityCamera in streamer.get_cameras():
-		if cam.is_active() and cam.is_player_in_view(player.global_position):
-			return true
-	return false
+		if cam.is_active() and cam.is_player_in_view(pos):
+			return {"kind": OBSERVER_CAMERA, "id": cam.camera_id}
+	return {}
 
 
-## Política de puertas del jugador: la de FloorStreamer más la regla del mapa (MapView.is_room_allowed)
-## de que la sala de trabajo del puesto siempre se abre (varios puestos tienen su despacho por encima
-## de su acreditación: copy_operator, line_operator...). Lectores y tornos siguen dejando registro.
-func door_policy(door: Door, body: Node2D) -> bool:
-	var occupation: OccupationData = PlayerState.get_occupation()
-	var office: String = occupation.office_room if occupation != null else ""
-	var own: bool = not office.is_empty() and door.kind != Door.KIND_OLD_LOCK and \
-			(DatabaseSystem.get_room_base_id(door.room_b) == office or DatabaseSystem.get_room_base_id(door.room_a) == office)
-	if not own:
-		return streamer.default_door_policy(door, body)
-	if door.kind != Door.KIND_SERVICE:
-		Security.log_card_access(door.door_id, FloorTravel.PLAYER_CARD, GameClock.get_day(), GameClock.get_hour(), door.room_b)
-	return true
+## Nombre de quien le mira ("" si es una cámara o nadie).
+func observer_name() -> String:
+	var who: Dictionary = find_observer()
+	if str(who.get("kind", "")) != OBSERVER_NPC:
+		return ""
+	var npc: NPCRuntime = NPCDirector.get_npc(str(who["id"]))
+	return npc.name if npc != null else ""
 
 
 # ─── Fin de partida (§12.7) ───────────────────────────────────
@@ -242,7 +288,7 @@ func end_run(cause: String, ending_id: String) -> void:
 	GameClock.pause()
 	GameClock.pause_by(PAUSE_OWNER)
 	if player != null:
-		player.set_input_locked(true)
+		player.set_input_locked(true, LOCK_OWNER)
 	run_ended.emit(cause, ending_id)
 	var delay: float = epilogue_delay_override if epilogue_delay_override >= 0.0 else Database.get_balance_float(B_EPILOGUE_DELAY)
 	if delay > 0.0:
